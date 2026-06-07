@@ -28,6 +28,7 @@ export default function Editor({ docId }: Props): React.ReactElement {
   const content = project?.docs[docId]?.content ?? ''
 
   const [cowrite, setCowrite] = useState<{ selection: string; anchorRect: DOMRect } | null>(null)
+  const [wikilinkTip, setWikilinkTip] = useState<{ title: string; synopsis: string; preview: string; x: number; y: number } | null>(null)
 
   // Run slop proof on current doc — called from Toolbar
   const runProof = useCallback(async () => {
@@ -142,6 +143,28 @@ export default function Editor({ docId }: Props): React.ReactElement {
     }
   }, [content, docId])
 
+  // Wikilink hover tooltip
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    const view = viewRef.current
+    if (!view || !project) { setWikilinkTip(null); return }
+    const pos = view.posAtCoords({ x: e.clientX, y: e.clientY })
+    if (pos === null) { setWikilinkTip(null); return }
+    const text = view.state.doc.toString()
+    const re = /\[\[([^\]]+)\]\]/g
+    let m: RegExpExecArray | null
+    let found: string | null = null
+    while ((m = re.exec(text)) !== null) {
+      if (m.index <= pos && pos <= m.index + m[0].length) { found = m[1]; break }
+    }
+    if (!found) { setWikilinkTip(null); return }
+    const target = Object.values(project.nodes).find(
+      (n) => n.title.toLowerCase() === found!.toLowerCase()
+    )
+    if (!target) { setWikilinkTip(null); return }
+    const preview = (project.docs[target.id]?.content ?? '').slice(0, 200).trim()
+    setWikilinkTip({ title: target.title, synopsis: target.meta.synopsis, preview, x: e.clientX, y: e.clientY })
+  }, [project])
+
   // Sync focus mode into CM6 state field
   useEffect(() => {
     const view = viewRef.current
@@ -150,8 +173,20 @@ export default function Editor({ docId }: Props): React.ReactElement {
   }, [focusMode])
 
   return (
-    <div style={{ height: '100%', position: 'relative' }} onMouseUp={handleMouseUp}>
+    <div style={{ height: '100%', position: 'relative' }} onMouseUp={handleMouseUp} onMouseMove={handleMouseMove} onMouseLeave={() => setWikilinkTip(null)}>
       <div ref={containerRef} style={{ height: '100%' }} />
+      {wikilinkTip && (
+        <div style={{
+          position: 'fixed', left: wikilinkTip.x + 12, top: wikilinkTip.y + 12,
+          background: 'var(--ui-2)', border: '1px solid var(--ui-4)', borderRadius: 6,
+          padding: '10px 12px', maxWidth: 280, zIndex: 9000, pointerEvents: 'none',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.18)', fontSize: 13, lineHeight: 1.5,
+        }}>
+          <div style={{ fontWeight: 600, marginBottom: 4, color: 'var(--accent)' }}>{wikilinkTip.title}</div>
+          {wikilinkTip.synopsis && <div style={{ color: 'var(--text-2)', marginBottom: 4, fontStyle: 'italic' }}>{wikilinkTip.synopsis}</div>}
+          {wikilinkTip.preview && <div style={{ color: 'var(--text-3)', fontSize: 12 }}>{wikilinkTip.preview}{wikilinkTip.preview.length >= 200 ? '…' : ''}</div>}
+        </div>
+      )}
       {cowrite && (
         <CowriteBar
           docId={docId}
