@@ -366,6 +366,14 @@ export class BrowserProjectService {
     return p
   }
 
+  async saveSettings(projectId: string, patch: Partial<import('@shared/types').ProjectSettings>): Promise<void> {
+    const h = this.getHandle(projectId)
+    const p = this.getProject(projectId)
+    Object.assign(p.settings, patch)
+    p.modified = new Date().toISOString()
+    await this.writeManifest(h, p)
+  }
+
   async saveCodex(projectId: string, entries: import('@shared/types').CodexEntry[]): Promise<void> {
     const h = this.getHandle(projectId)
     const p = this.getProject(projectId)

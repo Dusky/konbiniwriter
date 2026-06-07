@@ -56,6 +56,9 @@ interface ProjectState {
   // — slop scorer —
   setSlopSpans: (spans: import('../components/editor/extensions').SlopSpan[]) => void
   setSlopRunning: (on: boolean) => void
+
+  // — project settings —
+  setProjectWordTarget: (target: number | undefined) => void
 }
 
 // ── tree utilities (renderer-local, no disk access) ──────────────────────────
@@ -235,4 +238,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   setSlopSpans: (slopSpans) => set({ slopSpans, slopRunning: false }),
   setSlopRunning: (on) => set({ slopRunning: on }),
+
+  setProjectWordTarget: (target) => {
+    const p = get().project
+    if (!p) return
+    const updated = { ...p, settings: { ...p.settings, wordTarget: target } }
+    set({ project: updated })
+    window.api.settings.save(p.id, { wordTarget: target })
+  },
 }))

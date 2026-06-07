@@ -54,6 +54,9 @@ const api: KonbiniAPI = {
   codex: {
     save: (pid, entries) => svc.saveCodex(pid, entries),
   },
+  settings: {
+    save: (pid, patch) => svc.saveSettings(pid, patch),
+  },
   compile: {
     run: (pid, rid, ids, fmt) => svc.compile(pid, rid, ids, fmt),
   },

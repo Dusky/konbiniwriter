@@ -48,6 +48,8 @@ export interface ProjectSettings {
   accent?: string
   editorFont?: 'mono' | 'serif' | 'sans'
   editorSize?: number
+  wordTarget?: number        // project-level word-count goal
+  codex?: unknown            // CodexEntry[] — stored as JSON, typed at load time
   [k: string]: unknown
 }
 
@@ -246,6 +248,9 @@ export interface KonbiniAPI {
   }
   codex: {
     save(projectId: ID, entries: CodexEntry[]): Promise<void>
+  }
+  settings: {
+    save(projectId: ID, patch: Partial<ProjectSettings>): Promise<void>
   }
   compile: {
     run(projectId: ID, rootId: ID, includedIds: ID[], format: CompileFormat): Promise<CompileResult>

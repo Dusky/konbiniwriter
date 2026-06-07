@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useProjectStore, subtreeWordCount } from '../../store/projectStore'
 import { wordCount, charCount } from '@shared/utils'
 
@@ -6,7 +6,7 @@ export default function StatusBar(): React.ReactElement {
   const project = useProjectStore((s) => s.project)
   const selectedId = useProjectStore((s) => s.selectedId)
   const saveStatus = useProjectStore((s) => s.saveStatus)
-  const view = useProjectStore((s) => s.view)
+  const setProjectWordTarget = useProjectStore((s) => s.setProjectWordTarget)
 
   const selectedNode = selectedId && project ? project.nodes[selectedId] : null
   const docContent = selectedId && project && selectedNode?.type !== 'folder'
@@ -19,6 +19,18 @@ export default function StatusBar(): React.ReactElement {
   const totalWords = project
     ? project.rootIds.reduce((acc, id) => acc + subtreeWordCount(project, id), 0)
     : 0
+
+  const wordTarget = project?.settings?.wordTarget
+  const progress = wordTarget ? Math.min(1, totalWords / wordTarget) : null
+
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
+
+  function commitTarget() {
+    const n = parseInt(draft.replace(/[^0-9]/g, ''), 10)
+    setProjectWordTarget(isNaN(n) || n <= 0 ? undefined : n)
+    setEditing(false)
+  }
 
   return (
     <div className="statusbar">
@@ -33,7 +45,50 @@ export default function StatusBar(): React.ReactElement {
       )}
 
       <div className="sb-r">
-        {project && <span>Project: <b>{totalWords.toLocaleString()}</b> words</span>}
+        {project && (
+          <span
+            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+            title="Click to set word-count goal"
+            onClick={() => { setDraft(wordTarget?.toString() ?? ''); setEditing(true) }}
+          >
+            Project: <b>{totalWords.toLocaleString()}</b>
+            {wordTarget && (
+              <> / <b>{wordTarget.toLocaleString()}</b> words
+                <span
+                  style={{
+                    display: 'inline-block', width: 48, height: 4,
+                    background: 'var(--ui-3)', borderRadius: 2, overflow: 'hidden',
+                    verticalAlign: 'middle', marginLeft: 4,
+                  }}
+                >
+                  <span style={{
+                    display: 'block', height: '100%',
+                    width: `${(progress ?? 0) * 100}%`,
+                    background: progress === 1 ? 'var(--accent-ok, #22c55e)' : 'var(--accent)',
+                    borderRadius: 2,
+                    transition: 'width 0.3s',
+                  }} />
+                </span>
+              </>
+            )}
+            {!wordTarget && <span style={{ color: 'var(--text-3)', marginLeft: 2 }}>words</span>}
+          </span>
+        )}
+        {editing && (
+          <span style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <input
+              autoFocus
+              type="number"
+              min={0}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commitTarget}
+              onKeyDown={(e) => { if (e.key === 'Enter') commitTarget(); if (e.key === 'Escape') setEditing(false) }}
+              style={{ width: 80, padding: '0 4px', height: 20, fontSize: 12, background: 'var(--ui-2)', border: '1px solid var(--ui-4)', borderRadius: 3, color: 'inherit' }}
+              placeholder="goal"
+            />
+          </span>
+        )}
         <span style={{ color: saveStatus === 'saving' ? 'var(--st-prog)' : 'var(--text-3)' }}>
           {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved' : ''}
         </span>
