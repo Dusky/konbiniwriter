@@ -22,17 +22,25 @@ export async function streamCompletion(
   },
   callbacks: StreamCallbacks,
 ): Promise<void> {
-  const { apiKey, provider, ollamaHost, defaultModel } = useAIStore.getState()
-  const model = opts.model ?? defaultModel
-  const maxTokens = opts.maxTokens ?? 2048
-  const temperature = opts.temperature ?? 0.7
+  const store = useAIStore.getState()
+  const { provider } = store
 
   if (provider === 'anthropic') {
-    await streamAnthropic({ apiKey, model, messages, maxTokens, temperature, systemPrompt: opts.systemPrompt, signal: opts.signal }, callbacks)
+    const model = opts.model ?? store.anthropicModel
+    await streamAnthropic(
+      { apiKey: store.anthropicKey, model, messages, maxTokens: opts.maxTokens ?? 2048, temperature: opts.temperature ?? 0.7, systemPrompt: opts.systemPrompt, signal: opts.signal },
+      callbacks,
+    )
   } else {
-    await streamOllama({ host: ollamaHost, model, messages, maxTokens, temperature, systemPrompt: opts.systemPrompt, signal: opts.signal }, callbacks)
+    const model = opts.model ?? store.openaiModel
+    await streamOpenAI(
+      { baseUrl: store.openaiBaseUrl, apiKey: store.openaiKey, model, messages, maxTokens: opts.maxTokens ?? 2048, temperature: opts.temperature ?? 0.7, systemPrompt: opts.systemPrompt, signal: opts.signal },
+      callbacks,
+    )
   }
 }
+
+// ── Anthropic Messages API (SSE) ─────────────────────────────────────────────
 
 async function streamAnthropic(
   opts: { apiKey: string; model: string; messages: AIMessage[]; maxTokens: number; temperature: number; systemPrompt?: string; signal?: AbortSignal },
@@ -103,20 +111,34 @@ async function streamAnthropic(
   }
 }
 
-async function streamOllama(
-  opts: { host: string; model: string; messages: AIMessage[]; maxTokens: number; temperature: number; systemPrompt?: string; signal?: AbortSignal },
+// ── OpenAI-compatible chat completions API (SSE) ─────────────────────────────
+// Covers: OpenAI, Groq, Together, Fireworks, Mistral, LM Studio,
+//         Ollama (/v1/chat/completions), any local server.
+
+async function streamOpenAI(
+  opts: { baseUrl: string; apiKey: string; model: string; messages: AIMessage[]; maxTokens: number; temperature: number; systemPrompt?: string; signal?: AbortSignal },
   cb: StreamCallbacks,
 ): Promise<void> {
-  const messages: AIMessage[] = opts.systemPrompt
+  const msgs: AIMessage[] = opts.systemPrompt
     ? [{ role: 'user', content: `[System: ${opts.systemPrompt}]\n\n${opts.messages[0]?.content ?? ''}` }, ...opts.messages.slice(1)]
     : opts.messages
 
+  const baseUrl = opts.baseUrl.replace(/\/$/, '')
+  const headers: Record<string, string> = { 'content-type': 'application/json' }
+  if (opts.apiKey) headers['authorization'] = `Bearer ${opts.apiKey}`
+
   let res: Response
   try {
-    res = await fetch(`${opts.host}/api/chat`, {
+    res = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model: opts.model, messages, stream: true, options: { temperature: opts.temperature, num_predict: opts.maxTokens } }),
+      headers,
+      body: JSON.stringify({
+        model: opts.model,
+        messages: msgs,
+        max_tokens: opts.maxTokens,
+        temperature: opts.temperature,
+        stream: true,
+      }),
       signal: opts.signal,
     })
   } catch (e) {
@@ -124,7 +146,11 @@ async function streamOllama(
     return
   }
 
-  if (!res.ok) { cb.onError(new Error(`Ollama HTTP ${res.status}`)); return }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    cb.onError(new Error(err?.error?.message ?? `HTTP ${res.status}`))
+    return
+  }
 
   const reader = res.body?.getReader()
   if (!reader) { cb.onError(new Error('No response body')); return }
@@ -136,12 +162,16 @@ async function streamOllama(
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
-      for (const line of decoder.decode(value, { stream: true }).split('\n').filter(Boolean)) {
+      const chunk = decoder.decode(value, { stream: true })
+      for (const line of chunk.split('\n')) {
+        if (!line.startsWith('data: ')) continue
+        const data = line.slice(6).trim()
+        if (data === '[DONE]') continue
         try {
-          const ev = JSON.parse(line)
-          if (ev.message?.content) { full += ev.message.content; cb.onChunk(ev.message.content) }
-          if (ev.done) { cb.onDone(full); return }
-        } catch { /* ignore */ }
+          const ev = JSON.parse(data)
+          const text = ev.choices?.[0]?.delta?.content
+          if (text) { full += text; cb.onChunk(text) }
+        } catch { /* ignore malformed SSE */ }
       }
     }
     cb.onDone(full)
