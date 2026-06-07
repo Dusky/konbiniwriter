@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react'
+import React, { useState, useRef, useCallback } from 'react'
 import { useProjectStore } from '../../store/projectStore'
 import { useAIStore } from '../../store/aiStore'
 import { promptRegistry } from '../../lib/PromptRegistry'
@@ -53,12 +53,11 @@ export default function CowriteBar({ docId, selection, anchorRect, onClose }: Pr
     const controller = new AbortController()
     abortRef.current = controller
 
-    let output = ''
     await streamCompletion(
       [{ role: 'user', content: rendered }],
       { model: template.model, maxTokens: template.maxTokens, temperature: template.temperature, signal: controller.signal },
       {
-        onChunk: (chunk) => { output += chunk },
+        onChunk: () => {},
         onDone: (full) => {
           const proposal = createProposal({
             docId,
@@ -87,9 +86,9 @@ export default function CowriteBar({ docId, selection, anchorRect, onClose }: Pr
     setRunning(null)
   }
 
-  // Position: just above the selection anchor
-  const top = anchorRect.top - 44
-  const left = Math.max(8, anchorRect.left)
+  // Position: just above the selection anchor, clamped to viewport
+  const top = Math.max(8, anchorRect.top - 44)
+  const left = Math.max(8, Math.min(anchorRect.left, window.innerWidth - 320))
 
   if (!enabled) return <></>
 

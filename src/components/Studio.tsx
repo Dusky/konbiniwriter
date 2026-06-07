@@ -25,13 +25,12 @@ export default function Studio(): React.ReactElement {
   const modal = useShellStore((s) => s.modal)
   const setModal = useShellStore((s) => s.setModal)
   const compositionMode = useProjectStore((s) => s.compositionMode)
-  const platform = useShellStore((s) => s.platform)
 
   const activeProposalId = useProjectStore((s) => s.activeProposalId)
   const proposals = useProjectStore((s) => s.proposals)
-  const queueProposal = useProjectStore((s) => s.queueProposal)
   const resolveProposal = useProjectStore((s) => s.resolveProposal)
   const updateContent = useProjectStore((s) => s.updateContent)
+  const addSnapshot = useProjectStore((s) => s.addSnapshot)
   const project = useProjectStore((s) => s.project)
 
   const activeProposal = activeProposalId
@@ -74,7 +73,8 @@ export default function Studio(): React.ReactElement {
           onApply={async (content, accepted) => {
             if (!project) return
             // Snapshot first (invariant: pre-AI snapshot is mandatory)
-            await window.api.snapshot.take(project.id, activeProposal.docId, `Before ${activeProposal.label}`)
+            const snap = await window.api.snapshot.take(project.id, activeProposal.docId, `Before ${activeProposal.label}`)
+            addSnapshot(activeProposal.docId, snap)
             updateContent(activeProposal.docId, content)
             resolveProposal(activeProposal.id, 'applied')
           }}
