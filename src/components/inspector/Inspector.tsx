@@ -1,13 +1,24 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useProjectStore } from '../../store/projectStore'
+import { useAIStore } from '../../store/aiStore'
 import { STATUS_META, STATUS_ORDER, LABEL_META, LABEL_ORDER, wordCount, charCount } from '@shared/utils'
 import type { StatusId, LabelId } from '@shared/types'
+import { promptRegistry } from '../../lib/PromptRegistry'
+import { streamCompletion } from '../../lib/AIClient'
+
+interface JudgeScore { dimension: string; score: number; note: string }
+interface JudgeResult { scores: JudgeScore[]; verdict: string }
 
 export default function Inspector(): React.ReactElement {
   const project = useProjectStore((s) => s.project)
   const selectedId = useProjectStore((s) => s.selectedId)
   const updateMeta = useProjectStore((s) => s.updateMeta)
   const applyMutation = useProjectStore((s) => s.applyMutation)
+  const aiEnabled = useAIStore((s) => s.enabled)
+
+  const [judgeResult, setJudgeResult] = useState<JudgeResult | null>(null)
+  const [judgeRunning, setJudgeRunning] = useState(false)
+  const [judgeError, setJudgeError] = useState<string | null>(null)
 
   if (!project || !selectedId) {
     return (
@@ -30,6 +41,34 @@ export default function Inspector(): React.ReactElement {
   const chars = charCount(content)
   const target = node.meta.target
   const progress = target > 0 ? Math.min(1, words / target) : 0
+
+  const runJudge = async () => {
+    const content = project?.docs[selectedId]?.content ?? ''
+    if (!content.trim()) return
+    setJudgeRunning(true)
+    setJudgeError(null)
+    const rendered = promptRegistry.render('builtin:evaluation:judge', { content: content.slice(0, 8000) })
+    const template = promptRegistry.get('builtin:evaluation:judge')!
+    await streamCompletion(
+      [{ role: 'user', content: rendered }],
+      { model: template.model, maxTokens: template.maxTokens, temperature: template.temperature },
+      {
+        onChunk: () => {},
+        onDone: (full) => {
+          try {
+            const jsonMatch = full.match(/\[[\s\S]*?\]/)
+            const scores: JudgeScore[] = jsonMatch ? JSON.parse(jsonMatch[0]) : []
+            const afterJson = jsonMatch ? full.slice(full.indexOf(jsonMatch[0]) + jsonMatch[0].length).trim() : ''
+            setJudgeResult({ scores, verdict: afterJson })
+          } catch {
+            setJudgeError('Could not parse judge response')
+          }
+          setJudgeRunning(false)
+        },
+        onError: (err) => { setJudgeError(err.message); setJudgeRunning(false) },
+      },
+    )
+  }
 
   const mutateNode = async (op: Parameters<typeof window.api.node.mutate>[1]) => {
     const result = await window.api.node.mutate(project.id, op)
@@ -148,6 +187,47 @@ export default function Inspector(): React.ReactElement {
                 Include in Compile
               </label>
             </div>
+          </div>
+        )}
+
+        {/* AI Judge scoring */}
+        {aiEnabled && node.type !== 'folder' && (
+          <div className="insp-sec">
+            <h4 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              Score
+              <button
+                className="tb-btn"
+                style={{ fontSize: 11, padding: '2px 8px' }}
+                disabled={judgeRunning}
+                onClick={runJudge}
+              >
+                {judgeRunning ? '…' : judgeResult ? 'Re-score' : 'Score'}
+              </button>
+            </h4>
+            {judgeError && <div style={{ color: 'var(--accent-danger, #ef4444)', fontSize: 12 }}>{judgeError}</div>}
+            {judgeResult && (
+              <>
+                {judgeResult.scores.map((s) => (
+                  <div key={s.dimension} style={{ marginBottom: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                      <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{s.dimension}</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: s.score >= 8 ? 'var(--accent-ok, #22c55e)' : s.score >= 5 ? 'var(--accent)' : 'var(--accent-danger, #ef4444)' }}>
+                        {s.score}/10
+                      </span>
+                    </div>
+                    <div style={{ height: 3, background: 'var(--ui-3)', borderRadius: 2, overflow: 'hidden', marginBottom: 4 }}>
+                      <div style={{ height: '100%', width: `${s.score * 10}%`, background: s.score >= 8 ? 'var(--accent-ok, #22c55e)' : s.score >= 5 ? 'var(--accent)' : 'var(--accent-danger, #ef4444)', borderRadius: 2 }} />
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-3)', lineHeight: 1.4 }}>{s.note}</div>
+                  </div>
+                ))}
+                {judgeResult.verdict && (
+                  <div style={{ marginTop: 8, padding: '8px 10px', background: 'var(--ui-2)', borderRadius: 4, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5, fontStyle: 'italic' }}>
+                    {judgeResult.verdict}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
 
