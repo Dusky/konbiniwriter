@@ -366,6 +366,14 @@ export class BrowserProjectService {
     return p
   }
 
+  async saveCodex(projectId: string, entries: import('@shared/types').CodexEntry[]): Promise<void> {
+    const h = this.getHandle(projectId)
+    const p = this.getProject(projectId)
+    p.settings.codex = entries
+    p.modified = new Date().toISOString()
+    await this.writeManifest(h, p)
+  }
+
   private async writeManifest(h: FileSystemDirectoryHandle, project: Project): Promise<void> {
     const slim = {
       ...project,

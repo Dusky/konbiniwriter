@@ -16,6 +16,8 @@ interface ProjectState {
   proposals: Proposal[]
   activeProposalId: ID | null
   codex: CodexEntry[]
+  slopSpans: import('../components/editor/extensions').SlopSpan[]
+  slopRunning: boolean
 
   // — project lifecycle —
   loadProject: (p: Project) => void
@@ -50,6 +52,10 @@ interface ProjectState {
   // — codex —
   upsertCodexEntry: (entry: CodexEntry) => void
   deleteCodexEntry: (id: ID) => void
+
+  // — slop scorer —
+  setSlopSpans: (spans: import('../components/editor/extensions').SlopSpan[]) => void
+  setSlopRunning: (on: boolean) => void
 }
 
 // ── tree utilities (renderer-local, no disk access) ──────────────────────────
@@ -107,6 +113,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   proposals: [],
   activeProposalId: null,
   codex: [],
+  slopSpans: [],
+  slopRunning: false,
 
   loadProject: (project) => set({
     project,
@@ -115,11 +123,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     saveStatus: 'saved',
     renamingId: null,
     mentionIndex: buildIndex(project.docs),
-    codex: [],
+    codex: (project.settings.codex as CodexEntry[] | undefined) ?? [],
     proposals: [],
     activeProposalId: null,
   }),
-  unloadProject: () => set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], proposals: [], activeProposalId: null }),
+  unloadProject: () => set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false }),
 
   selectNode: (id) => set((s) => {
     if (!id || !s.project) return { selectedId: id }
@@ -216,7 +224,15 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const codex = existing >= 0
       ? s.codex.map((e) => e.id === entry.id ? entry : e)
       : [...s.codex, entry]
+    if (s.project) window.api.codex.save(s.project.id, codex).catch(console.error)
     return { codex }
   }),
-  deleteCodexEntry: (id) => set((s) => ({ codex: s.codex.filter((e) => e.id !== id) })),
+  deleteCodexEntry: (id) => set((s) => {
+    const codex = s.codex.filter((e) => e.id !== id)
+    if (s.project) window.api.codex.save(s.project.id, codex).catch(console.error)
+    return { codex }
+  }),
+
+  setSlopSpans: (slopSpans) => set({ slopSpans, slopRunning: false }),
+  setSlopRunning: (on) => set({ slopRunning: on }),
 }))

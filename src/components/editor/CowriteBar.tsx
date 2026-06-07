@@ -6,13 +6,14 @@ import { createProposal } from '../../lib/ProposalService'
 import { buildContext, renderContext } from '../../lib/ContextBuilder'
 import { streamCompletion } from '../../lib/AIClient'
 
-type Command = 'rewrite' | 'expand' | 'tighten' | 'describe'
+type Command = 'rewrite' | 'expand' | 'tighten' | 'describe' | 'brainstorm'
 
 const COMMANDS: { id: Command; label: string; promptId: string }[] = [
-  { id: 'rewrite',  label: 'Rewrite',  promptId: 'builtin:inline:rewrite' },
-  { id: 'expand',   label: 'Expand',   promptId: 'builtin:inline:expand' },
-  { id: 'tighten',  label: 'Tighten',  promptId: 'builtin:inline:tighten' },
-  { id: 'describe', label: 'Describe', promptId: 'builtin:inline:describe' },
+  { id: 'rewrite',    label: 'Rewrite',    promptId: 'builtin:inline:rewrite' },
+  { id: 'expand',     label: 'Expand',     promptId: 'builtin:inline:expand' },
+  { id: 'tighten',    label: 'Tighten',    promptId: 'builtin:inline:tighten' },
+  { id: 'describe',   label: 'Describe',   promptId: 'builtin:inline:describe' },
+  { id: 'brainstorm', label: 'Brainstorm', promptId: 'builtin:inline:brainstorm' },
 ]
 
 interface Props {

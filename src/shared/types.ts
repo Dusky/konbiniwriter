@@ -24,6 +24,7 @@ export type ModalId =
   | 'prompt-registry'
   | 'codex'
   | 'ai-settings'
+  | 'batch-generator'
   | null
 
 // ── Project ───────────────────────────────────────────────────────────────────
@@ -110,7 +111,7 @@ export type NodeOp =
 // ── Proposal / Changeset (Phase 2 spine — defined here so the seam is clear) ─
 
 export type ProposalCommand =
-  | 'lineedit' | 'rewrite' | 'expand' | 'tighten' | 'describe'
+  | 'lineedit' | 'rewrite' | 'expand' | 'tighten' | 'describe' | 'brainstorm'
   | 'chat' | 'draft' | 'foundation' | 'revision' | 'batch'
 
 export type ProposalStatus = 'pending' | 'applied' | 'discarded'
@@ -242,6 +243,9 @@ export interface KonbiniAPI {
     restore(projectId: ID, nodeId: ID, snapshotId: ID): Promise<{ content: string; snapshot: Snapshot }>
     list(projectId: ID, nodeId: ID): Promise<Snapshot[]>
     delete(projectId: ID, nodeId: ID, snapshotId: ID): Promise<void>
+  }
+  codex: {
+    save(projectId: ID, entries: CodexEntry[]): Promise<void>
   }
   compile: {
     run(projectId: ID, rootId: ID, includedIds: ID[], format: CompileFormat): Promise<CompileResult>

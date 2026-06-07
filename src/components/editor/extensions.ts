@@ -81,6 +81,45 @@ const focusModePlugin = ViewPlugin.fromClass(class {
   }
 }, { decorations: (v) => v.decorations })
 
+// ── Slop scorer decorations ───────────────────────────────────────────────────
+
+export interface SlopSpan { from: number; to: number; reason: string; severity: 'low' | 'medium' | 'high' }
+
+export const setSlopSpansEffect = StateEffect.define<SlopSpan[]>()
+
+export const slopField = StateField.define<SlopSpan[]>({
+  create: () => [],
+  update(spans, tr) {
+    for (const e of tr.effects) if (e.is(setSlopSpansEffect)) return e.value
+    if (tr.docChanged) return [] // clear on edit
+    return spans
+  },
+})
+
+const slopPlugin = ViewPlugin.fromClass(class {
+  decorations: ReturnType<typeof Decoration.set>
+  constructor(view: EditorView) { this.decorations = this.build(view) }
+  update(update: ViewUpdate) {
+    if (update.docChanged || update.transactions.some((t) => t.effects.some((e) => e.is(setSlopSpansEffect)))) {
+      this.decorations = this.build(update.view)
+    }
+  }
+  build(view: EditorView) {
+    const spans = view.state.field(slopField)
+    if (!spans.length) return Decoration.none
+    const builder = new RangeSetBuilder<Decoration>()
+    const sorted = [...spans].sort((a, b) => a.from - b.from)
+    for (const s of sorted) {
+      if (s.from >= s.to || s.to > view.state.doc.length) continue
+      builder.add(s.from, s.to, Decoration.mark({
+        class: `cm-slop cm-slop-${s.severity}`,
+        attributes: { title: s.reason },
+      }))
+    }
+    return builder.finish()
+  }
+}, { decorations: (v) => v.decorations })
+
 // ── Base editor theme ─────────────────────────────────────────────────────────
 export const konbiniTheme = EditorView.theme({
   '&': { height: '100%', background: 'transparent' },
@@ -89,6 +128,10 @@ export const konbiniTheme = EditorView.theme({
   '.cm-line': { padding: '0' },
   '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--accent)', borderLeftWidth: '2px' },
   '&.cm-focused': { outline: 'none' },
+  '.cm-slop': { textDecoration: 'underline wavy', textDecorationSkipInk: 'none' },
+  '.cm-slop-high': { textDecorationColor: 'oklch(0.65 0.18 20)' },
+  '.cm-slop-medium': { textDecorationColor: 'oklch(0.70 0.14 60)' },
+  '.cm-slop-low': { textDecorationColor: 'oklch(0.65 0.08 260)' },
   '.cm-selectionBackground': { background: 'var(--accent-soft)' },
   '&.cm-focused .cm-selectionBackground': { background: 'var(--accent-soft)' },
   '.cm-gutters': { display: 'none' },
@@ -110,6 +153,8 @@ export function konbiniExtensions(onChange?: (content: string) => void) {
     wikilinkPlugin,
     focusModeField,
     focusModePlugin,
+    slopField,
+    slopPlugin,
     konbiniTheme,
     EditorView.lineWrapping,
     ...(onChange ? [EditorView.updateListener.of((u) => {

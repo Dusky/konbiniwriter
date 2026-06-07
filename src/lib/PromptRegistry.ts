@@ -105,6 +105,33 @@ Write a vivid, concise setting description (2-4 sentences). Ground it in specifi
     modifiedAt: ISO(),
   },
   {
+    id: 'builtin:inline:brainstorm',
+    name: 'Brainstorm',
+    description: 'Generate 5 alternative directions or continuations for the selected passage.',
+    feature: 'inline',
+    model: 'claude-sonnet-4-6',
+    temperature: 0.9,
+    maxTokens: 2000,
+    template: `You are a creative writing collaborator generating options.
+
+<context>
+{{context}}
+</context>
+
+<selection>
+{{selection}}
+</selection>
+
+Generate 5 distinct alternatives or continuations for this passage. Each should take a meaningfully different approach (different tone, focus, direction, or technique). Number them 1-5. Keep each under 100 words. Return only the numbered list.`,
+    variables: [
+      { name: 'context', description: 'Scene context' },
+      { name: 'selection', description: 'The passage to brainstorm from' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
     id: 'builtin:evaluation:slop',
     name: 'Slop Scorer',
     description: 'Flag overused phrases, clichés, and AI-sounding constructions in prose.',
@@ -112,18 +139,152 @@ Write a vivid, concise setting description (2-4 sentences). Ground it in specifi
     model: 'claude-haiku-4-5-20251001',
     temperature: 0.2,
     maxTokens: 2000,
-    template: `You are a prose quality evaluator. Identify clichés, overused phrases, purple prose, and AI-sounding constructions.
+    template: `You are a brutally honest prose quality evaluator. Identify clichés, purple prose, overused filler phrases, and AI-sounding constructions.
 
 <text>
 {{content}}
 </text>
 
-Return a JSON array of flagged spans:
-[{ "start": <char_offset>, "end": <char_offset>, "reason": "<brief explanation>", "severity": "low|medium|high" }]
+Return a JSON array of flagged phrases. Each entry must quote the EXACT text from the passage (verbatim, for string matching):
+[{ "excerpt": "<exact verbatim text from passage>", "reason": "<concise explanation>", "severity": "low|medium|high" }]
 
-Return only valid JSON. If no issues found, return [].`,
+Guidelines:
+- "high": egregious clichés, AI tells-not-shows, "in the realm of", "it's worth noting", "tapestry", "testament to"
+- "medium": overused phrases, weak verbs, redundant adverbs
+- "low": minor style suggestions
+
+Return ONLY valid JSON. If no issues, return [].`,
     variables: [
       { name: 'content', description: 'The prose to evaluate' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:batch:cast',
+    name: 'Generate Cast',
+    description: 'Generate a full character roster from the project outline and synopsis.',
+    feature: 'batch',
+    model: 'claude-opus-4-8',
+    temperature: 0.8,
+    maxTokens: 4000,
+    template: `You are a developmental editor helping build a novel's character roster.
+
+<project_context>
+{{context}}
+</project_context>
+
+Generate a cast of characters appropriate to this story. For each character provide:
+- Name and role (protagonist / antagonist / supporting / minor)
+- One-sentence core description
+- Key trait or contradiction
+- Their relationship to the central conflict
+
+Format as a markdown list. Be specific and avoid archetypes.`,
+    variables: [
+      { name: 'context', description: 'Project outline and synopsis context' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:batch:beat-sheet',
+    name: 'Beat Sheet',
+    description: 'Generate a chapter-level beat sheet from synopsis and outline.',
+    feature: 'batch',
+    model: 'claude-opus-4-8',
+    temperature: 0.75,
+    maxTokens: 5000,
+    template: `You are a story structure consultant generating a beat sheet.
+
+<context>
+{{context}}
+</context>
+
+<synopsis>
+{{synopsis}}
+</synopsis>
+
+Generate a beat sheet with the following structure beats (adapt to this story's genre/tone):
+- Opening image / status quo
+- Inciting incident
+- First plot point / crossing the threshold
+- Midpoint reversal
+- Dark night / all is lost
+- Climax
+- Resolution
+
+For each beat: scene location, who's present, what changes, emotional register. Be specific to this story — no generic placeholders.`,
+    variables: [
+      { name: 'context', description: 'Project context' },
+      { name: 'synopsis', description: 'Story synopsis' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:batch:chapter-draft',
+    name: 'Draft Chapter',
+    description: 'Draft prose for a chapter from its synopsis and outline.',
+    feature: 'batch',
+    model: 'claude-opus-4-8',
+    temperature: 0.85,
+    maxTokens: 8000,
+    template: `You are a skilled fiction writer drafting a chapter.
+
+<context>
+{{context}}
+</context>
+
+<chapter_synopsis>
+{{synopsis}}
+</chapter_synopsis>
+
+Write the full chapter prose. Requirements:
+- Match the voice, tense, and POV established in the context
+- Show don't tell — use scene, dialogue, and action
+- Avoid clichés and AI-sounding phrasing
+- End the chapter with forward momentum
+
+Return only the chapter prose, no commentary.`,
+    variables: [
+      { name: 'context', description: 'Scene context and surrounding chapters' },
+      { name: 'synopsis', description: 'This chapter synopsis and beat notes' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:evaluation:judge',
+    name: 'LLM Judge',
+    description: 'Score prose on six craft dimensions with specific improvement suggestions.',
+    feature: 'evaluation',
+    model: 'claude-opus-4-8',
+    temperature: 0.3,
+    maxTokens: 3000,
+    template: `You are a rigorous literary critic evaluating prose quality.
+
+<text>
+{{content}}
+</text>
+
+Score this passage on each dimension (1–10) and give ONE specific improvement note per dimension:
+
+1. Voice consistency — does the narrator's voice remain distinct and controlled?
+2. Show vs tell — are emotions and states dramatized or just stated?
+3. Pacing — does scene rhythm serve the tension?
+4. Specificity — are details concrete and chosen, or generic?
+5. Dialogue — does speech reveal character and advance scene?
+6. Prose rhythm — does sentence variety prevent monotony?
+
+Return JSON: [{ "dimension": "<name>", "score": <1-10>, "note": "<one specific observation>" }]
+Then a brief overall verdict (2 sentences max).`,
+    variables: [
+      { name: 'content', description: 'The prose passage to evaluate' },
     ],
     isBuiltin: true,
     createdAt: ISO(),

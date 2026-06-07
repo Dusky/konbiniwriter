@@ -314,16 +314,18 @@ feels good on first launch. Budget it as a distinct work item in Phase 3/4.
 
 ### Phase 2 complete. ✅
 
-### Phase 3 — Assisted Mode 🔲
+### Phase 3 — Assisted Mode 🔲 STARTED
 
-- Batch generators (whole cast, full beat sheet, all locations, draft-this-chapter) — each
-  returns a reviewable set via changeset review; each pulls prompt from registry
-- On-demand evaluation: slop scorer (flagged spans inline + counts), LLM-judge rubric,
-  reader panel (4 personas), adversarial cuts
-- Rubric, banned-word lists, persona definitions, score thresholds: all registry-editable
-- Every generator offers "just this one" vs "the whole set"; every element drivable three
-  ways (by hand / AI-from-prompt / AI-from-context)
-- Project-wide search (index-backed, shares MentionIndex infrastructure)
+- Batch generators (cast, beat sheet, chapter draft, evaluate prose) ✅ BatchGeneratorModal
+- Slop scorer: CM6 wavy-underline decorations, excerpt-based matching, Proof button ✅
+- Added Brainstorm command to Co-write bar ✅
+- Batch prompts added to PromptRegistry (cast, beat-sheet, chapter-draft, LLM judge) ✅
+- Bug fix: Codex entries now persisted to project.json via window.api.codex.save ✅
+
+Remaining Phase 3:
+- Reader panel (4 personas evaluate a chapter — adventurous/literary/commercial/skeptic)
+- Propagation-debt inbox (stale fact detection across codex ↔ docs)
+- CommandHistory: Cmd+Z for structural mutations (rename/move/create)
 
 ### Phase 4 — Autopilot 🔲
 

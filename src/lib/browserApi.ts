@@ -51,6 +51,9 @@ const api: KonbiniAPI = {
     list: (pid, nid) => svc.listSnapshots(pid, nid),
     delete: (pid, nid, sid) => svc.deleteSnapshot(pid, nid, sid),
   },
+  codex: {
+    save: (pid, entries) => svc.saveCodex(pid, entries),
+  },
   compile: {
     run: (pid, rid, ids, fmt) => svc.compile(pid, rid, ids, fmt),
   },

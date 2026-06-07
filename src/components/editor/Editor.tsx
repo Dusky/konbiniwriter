@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react'
 import { EditorView } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
-import { focusModeEffect, konbiniExtensions } from './extensions'
+import { focusModeEffect, konbiniExtensions, setSlopSpansEffect, type SlopSpan } from './extensions'
 import { useProjectStore } from '../../store/projectStore'
 import { useAutosave } from '../../hooks/useAutosave'
 import { useAIStore } from '../../store/aiStore'
 import CowriteBar from './CowriteBar'
+import { promptRegistry } from '../../lib/PromptRegistry'
+import { streamCompletion } from '../../lib/AIClient'
 
 interface Props {
   docId: string
@@ -20,10 +22,61 @@ export default function Editor({ docId }: Props): React.ReactElement {
   const setSaveStatus = useProjectStore((s) => s.setSaveStatus)
   const focusMode = useProjectStore((s) => s.focusMode)
   const aiEnabled = useAIStore((s) => s.enabled)
+  const setSlopSpans = useProjectStore((s) => s.setSlopSpans)
+  const setSlopRunning = useProjectStore((s) => s.setSlopRunning)
 
   const content = project?.docs[docId]?.content ?? ''
 
   const [cowrite, setCowrite] = useState<{ selection: string; anchorRect: DOMRect } | null>(null)
+
+  // Run slop proof on current doc — called from Toolbar
+  const runProof = useCallback(async () => {
+    const view = viewRef.current
+    if (!view || !aiEnabled) return
+    const text = view.state.doc.toString()
+    if (!text.trim()) return
+
+    setSlopRunning(true)
+    const template = promptRegistry.get('builtin:evaluation:slop')
+    if (!template) { setSlopRunning(false); return }
+    const rendered = promptRegistry.render('builtin:evaluation:slop', { content: text })
+
+    let full = ''
+    await streamCompletion(
+      [{ role: 'user', content: rendered }],
+      { model: template.model, maxTokens: template.maxTokens, temperature: template.temperature },
+      {
+        onChunk: (c) => { full += c },
+        onDone: (result) => {
+          try {
+            const raw = result.match(/\[[\s\S]*\]/)?.[0] ?? '[]'
+            const flags = JSON.parse(raw) as Array<{ excerpt: string; reason: string; severity: 'low' | 'medium' | 'high' }>
+            const spans: SlopSpan[] = []
+            for (const flag of flags) {
+              let idx = 0
+              while (idx < text.length) {
+                const pos = text.indexOf(flag.excerpt, idx)
+                if (pos === -1) break
+                spans.push({ from: pos, to: pos + flag.excerpt.length, reason: flag.reason, severity: flag.severity })
+                idx = pos + flag.excerpt.length
+              }
+            }
+            setSlopSpans(spans)
+            if (view) view.dispatch({ effects: setSlopSpansEffect.of(spans) })
+          } catch {
+            setSlopSpans([])
+          }
+        },
+        onError: () => setSlopRunning(false),
+      },
+    )
+  }, [aiEnabled, setSlopSpans, setSlopRunning])
+
+  // Expose runProof globally so Toolbar can call it without prop drilling
+  useEffect(() => {
+    (window as unknown as Record<string, unknown>).__konbiniRunProof = runProof
+    return () => { delete (window as unknown as Record<string, unknown>).__konbiniRunProof }
+  }, [runProof])
 
   // Autosave hook — fires 700ms after content changes
   useAutosave(docId)

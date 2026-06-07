@@ -20,6 +20,8 @@ export default function Toolbar(): React.ReactElement {
 
   const selectedNode = selectedId && project ? project.nodes[selectedId] : null
   const aiEnabled = useAIStore((s) => s.enabled)
+  const slopRunning = useProjectStore((s) => s.slopRunning)
+  const slopCount = useProjectStore((s) => s.slopSpans.length)
 
   return (
     <div className="toolbar">
@@ -135,7 +137,26 @@ export default function Toolbar(): React.ReactElement {
                 <path d="M2 4h12M2 8h8M2 12h10" strokeLinecap="round" />
               </svg>
             </button>
+            <button
+              className={`tb-btn${slopCount > 0 ? ' on' : ''}`}
+              title="Slop Proof — flag clichés and weak prose"
+              disabled={slopRunning}
+              onClick={() => (window as unknown as Record<string, () => void>).__konbiniRunProof?.()}
+              style={{ position: 'relative' }}
+            >
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
+                <path d="M8 2l1.5 4h4l-3.2 2.4 1.2 4L8 10l-3.5 2.4 1.2-4L2.5 6h4z" />
+              </svg>
+              {slopRunning ? '…' : slopCount > 0 ? `${slopCount}` : 'Proof'}
+            </button>
           </div>
+          <div className="tb-sep" />
+          <button className="tb-btn" title="Batch Generators — cast, beat sheet, chapter draft" onClick={() => setModal('batch-generator')}>
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
+              <path d="M2 3h5v4H2zM9 3h5v4H9zM2 9h5v4H2zM9 9h5v4H9z" />
+            </svg>
+            Generate
+          </button>
           <div className="tb-sep" />
           <button className="tb-btn" title="AI Settings" onClick={() => setModal('ai-settings')} style={{ color: 'var(--accent)' }}>
             <span style={{ fontSize: 14 }}>✦</span> AI
