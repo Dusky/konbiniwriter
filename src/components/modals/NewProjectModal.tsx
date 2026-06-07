@@ -23,22 +23,12 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
 
   const handleCreate = async () => {
     if (!title.trim() || creating) return
-    // showDirectoryPicker must be called synchronously from the click handler.
-    // We pick the folder here, get an opaque key, then pass it to create().
-    let locationKey: string
-    try {
-      const key = await window.api.project.showSaveDialog(title.trim())
-      if (!key) return // user cancelled
-      locationKey = key
-    } catch {
-      return
-    }
     setCreating(true)
     try {
       const project = await window.api.project.create({
         title: title.trim(),
         template,
-        location: locationKey,
+        location: 'browser-pick',
       })
       touchRecent({
         id: project.id,
@@ -54,7 +44,7 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
       onClose()
     } catch (err) {
       const msg = String(err)
-      if (!msg.includes('No folder selected')) {
+      if (!msg.includes('No folder selected') && !msg.includes('AbortError') && !msg.includes('The user aborted')) {
         alert(`Could not create project: ${err}`)
       }
       setCreating(false)
@@ -106,7 +96,7 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
           <span className="tb-spacer" />
           <button className="btn ghost" onClick={onClose}>Cancel</button>
           <button className="btn primary" onClick={handleCreate} disabled={creating || !title.trim()}>
-            {creating ? 'Choose folder…' : 'Create Project'}
+            {creating ? 'Opening folder picker…' : 'Create Project'}
           </button>
         </div>
       </div>
