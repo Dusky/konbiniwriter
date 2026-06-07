@@ -102,6 +102,23 @@ export default function Toolbar(): React.ReactElement {
 
       <div className="tb-sep" />
 
+      <div className="tb-group">
+        <button className="tb-btn" title="Search Project (⌘⇧F)" onClick={() => setModal('search')}>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
+            <circle cx="6.5" cy="6.5" r="4" />
+            <path d="M9.5 9.5L13 13" strokeLinecap="round" />
+          </svg>
+        </button>
+        <button className="tb-btn" title="Preferences (⌘,)" onClick={() => setModal('prefs')}>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
+            <circle cx="8" cy="8" r="1.5" />
+            <path d="M8 2v1.5M8 12.5V14M2 8h1.5M12.5 8H14M3.5 3.5l1 1M11.5 11.5l1 1M3.5 12.5l1-1M11.5 4.5l1-1" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="tb-sep" />
+
       {/* AI opt-in (Phase 2 — shows as disabled spark for now) */}
       <button className="tb-btn ai-enable" title="Enable AI layer (Phase 2)" disabled>
         <span className="ai-spark">✦</span> AI

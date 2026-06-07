@@ -6,7 +6,6 @@ const SHORTCUTS = [
   {
     heading: 'File',
     rows: [
-      ['New Project', 'mod+n'],
       ['Open Project', 'mod+o'],
       ['New Folder', 'mod+alt+n'],
       ['New Document', 'mod+shift+d'],
@@ -27,6 +26,15 @@ const SHORTCUTS = [
       ['Composition Mode', 'mod+alt+c'],
       ['Focus Mode', 'mod+alt+o'],
       ['Light / Dark', 'mod+alt+t'],
+      ['Find in Document', 'mod+f'],
+      ['Search Project', 'mod+shift+f'],
+    ],
+  },
+  {
+    heading: 'Other',
+    rows: [
+      ['Preferences', 'mod+,'],
+      ['Keyboard Shortcuts', 'mod+/'],
     ],
   },
   {

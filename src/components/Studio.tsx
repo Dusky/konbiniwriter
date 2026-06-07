@@ -13,6 +13,8 @@ import CompileModal from './modals/CompileModal'
 import ShortcutsModal from './modals/ShortcutsModal'
 import AboutModal from './modals/AboutModal'
 import NewProjectModal from './modals/NewProjectModal'
+import PrefsModal from './modals/PrefsModal'
+import SearchModal from './modals/SearchModal'
 
 export default function Studio(): React.ReactElement {
   const layout = useShellStore((s) => s.layout)
@@ -40,11 +42,13 @@ export default function Studio(): React.ReactElement {
 
       {compositionMode && <CompositionMode />}
 
-      {modal === 'snapshot'    && <SnapshotModal  onClose={() => setModal(null)} />}
-      {modal === 'compile'     && <CompileModal   onClose={() => setModal(null)} />}
-      {modal === 'shortcuts'   && <ShortcutsModal onClose={() => setModal(null)} />}
-      {modal === 'about'       && <AboutModal     onClose={() => setModal(null)} />}
-      {modal === 'new-project' && <NewProjectModal onClose={() => setModal(null)} />}
+      {modal === 'snapshot'    && <SnapshotModal   onClose={() => setModal(null)} />}
+      {modal === 'compile'     && <CompileModal    onClose={() => setModal(null)} />}
+      {modal === 'shortcuts'   && <ShortcutsModal  onClose={() => setModal(null)} />}
+      {modal === 'about'       && <AboutModal      onClose={() => setModal(null)} />}
+      {modal === 'new-project' && <NewProjectModal  onClose={() => setModal(null)} />}
+      {modal === 'prefs'       && <PrefsModal       onClose={() => setModal(null)} />}
+      {modal === 'search'      && <SearchModal      onClose={() => setModal(null)} />}
     </div>
   )
 }

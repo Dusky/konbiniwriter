@@ -1,0 +1,131 @@
+import React from 'react'
+import { useShellStore, type Density, type EditorFont } from '../../store/shellStore'
+
+interface Props { onClose: () => void }
+
+function Seg<T extends string>({ options, value, onChange }: {
+  options: { label: string; value: T }[]
+  value: T
+  onChange: (v: T) => void
+}) {
+  return (
+    <div className="seg" style={{ gap: 2 }}>
+      {options.map((o) => (
+        <button
+          key={o.value}
+          className={value === o.value ? 'on' : ''}
+          onClick={() => onChange(o.value)}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '10px 0', borderBottom: '0.5px solid var(--border)' }}>
+      <span style={{ flex: '0 0 130px', fontSize: 13, color: 'var(--text-2)' }}>{label}</span>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>{children}</div>
+    </div>
+  )
+}
+
+export default function PrefsModal({ onClose }: Props): React.ReactElement {
+  const theme = useShellStore((s) => s.theme)
+  const setTheme = useShellStore((s) => s.setTheme)
+  const density = useShellStore((s) => s.density)
+  const setDensity = useShellStore((s) => s.setDensity)
+  const editorFont = useShellStore((s) => s.editorFont)
+  const setEditorFont = useShellStore((s) => s.setEditorFont)
+  const editorSize = useShellStore((s) => s.editorSize)
+  const setEditorSize = useShellStore((s) => s.setEditorSize)
+
+  return (
+    <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ maxWidth: 520 }}>
+        <div className="modal-hd"><h3>Preferences</h3></div>
+        <div className="modal-body">
+
+          <Row label="Appearance">
+            <Seg<'dark' | 'light'>
+              options={[{ label: 'Dark', value: 'dark' }, { label: 'Light', value: 'light' }]}
+              value={theme}
+              onChange={setTheme}
+            />
+          </Row>
+
+          <Row label="Density">
+            <Seg<Density>
+              options={[
+                { label: 'Compact', value: 'compact' },
+                { label: 'Balanced', value: 'balanced' },
+                { label: 'Roomy', value: 'roomy' },
+              ]}
+              value={density}
+              onChange={setDensity}
+            />
+          </Row>
+
+          <Row label="Editor Font">
+            <Seg<EditorFont>
+              options={[
+                { label: 'Mono', value: 'mono' },
+                { label: 'Serif', value: 'serif' },
+                { label: 'Sans', value: 'sans' },
+              ]}
+              value={editorFont}
+              onChange={setEditorFont}
+            />
+          </Row>
+
+          <Row label="Editor Size">
+            <input
+              type="range"
+              min={14}
+              max={22}
+              value={editorSize}
+              onChange={(e) => setEditorSize(Number(e.target.value))}
+              style={{ flex: 1 }}
+            />
+            <span style={{ width: 36, textAlign: 'right', fontSize: 12, color: 'var(--text-2)', fontFamily: 'var(--mono)' }}>
+              {editorSize}px
+            </span>
+          </Row>
+
+          <Row label="Accent">
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {[
+                { label: 'Violet', hue: 300 },
+                { label: 'Blue',   hue: 250 },
+                { label: 'Green',  hue: 150 },
+                { label: 'Amber',  hue: 75 },
+                { label: 'Red',    hue: 20 },
+              ].map(({ label, hue }) => {
+                const color = `oklch(0.64 0.11 ${hue})`
+                return (
+                  <button
+                    key={hue}
+                    title={label}
+                    onClick={() => document.documentElement.style.setProperty('--accent', color)}
+                    style={{
+                      width: 24, height: 24, borderRadius: '50%',
+                      background: color, border: '2px solid transparent',
+                      cursor: 'pointer', padding: 0,
+                    }}
+                  />
+                )
+              })}
+            </div>
+          </Row>
+
+        </div>
+        <div className="modal-foot">
+          <span className="tb-spacer" />
+          <button className="btn" onClick={onClose}>Done</button>
+        </div>
+      </div>
+    </div>
+  )
+}

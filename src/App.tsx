@@ -3,6 +3,7 @@ import { useShellStore } from './store/shellStore'
 import { useProjectStore } from './store/projectStore'
 import Launch from './components/launch/Launch'
 import Studio from './components/Studio'
+import type { NodeType } from './shared/types'
 
 export default function App(): React.ReactElement {
   const screen = useShellStore((s) => s.screen)
@@ -16,8 +17,21 @@ export default function App(): React.ReactElement {
   const setCompositionMode = useProjectStore((s) => s.setCompositionMode)
   const setFocusMode = useProjectStore((s) => s.setFocusMode)
   const unloadProject = useProjectStore((s) => s.unloadProject)
+  const applyMutation = useProjectStore((s) => s.applyMutation)
+  const selectNode = useProjectStore((s) => s.selectNode)
+  const setRenamingId = useProjectStore((s) => s.setRenamingId)
   const project = useProjectStore((s) => s.project)
   const setScreen = useShellStore((s) => s.setScreen)
+
+  const createNode = useCallback(async (nodeType: NodeType) => {
+    if (!project) return
+    const selectedId = useProjectStore.getState().selectedId
+    const parentId = selectedId && project.nodes[selectedId]?.type === 'folder' ? selectedId : null
+    const result = await window.api.node.mutate(project.id, { type: 'create', parentId, nodeType })
+    applyMutation(result)
+    const newId = Object.values(result.nodes).find((n) => n.ext['_newId'])?.id
+    if (newId) { selectNode(newId); setRenamingId(newId) }
+  }, [project, applyMutation, selectNode, setRenamingId])
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -33,25 +47,53 @@ export default function App(): React.ReactElement {
     const alt = e.altKey
     if (!mod) return
 
+    // Navigation & layout
     if (alt && e.key === 'b') { e.preventDefault(); toggleBinder() }
     if (alt && e.key === 'i') { e.preventDefault(); toggleInsp() }
     if (alt && e.key === 't') { e.preventDefault(); setTheme(theme === 'dark' ? 'light' : 'dark') }
     if (alt && e.key === 'c') { e.preventDefault(); setCompositionMode(true) }
     if (alt && e.key === 'o') { e.preventDefault(); setFocusMode(!useProjectStore.getState().focusMode) }
+
+    // Views
     if (!shift && !alt && e.key === '1') { e.preventDefault(); setView('editor') }
     if (!shift && !alt && e.key === '2') { e.preventDefault(); setView('corkboard') }
     if (!shift && !alt && e.key === '3') { e.preventDefault(); setView('outliner') }
+
+    // Modals
     if (shift && e.key === 'S') { e.preventDefault(); setModal('snapshot') }
     if (shift && e.key === 'E') { e.preventDefault(); setModal('compile') }
     if (e.key === '/') { e.preventDefault(); setModal('shortcuts') }
-    if (shift && e.key === 'W' && project) {
+    if (!shift && !alt && e.key === ',') { e.preventDefault(); setModal('prefs') }
+    if (shift && e.key === 'F') { e.preventDefault(); setModal('search') }
+
+    // New project / open (always available)
+    if (!shift && !alt && e.key === 'n' && screen === 'launch') { e.preventDefault(); setModal('new-project') }
+    if (!shift && !alt && e.key === 'o') {
+      e.preventDefault()
+      window.api.project.showOpenDialog().then((path) => {
+        if (path) window.api.project.open(path).then((p) => {
+          useProjectStore.getState().loadProject(p)
+          setScreen('studio')
+        })
+      }).catch(console.error)
+    }
+
+    // Node creation (studio only)
+    if (screen === 'studio') {
+      if (!shift && alt && e.key === 'n') { e.preventDefault(); createNode('folder') }
+      if (shift && e.key === 'D') { e.preventDefault(); createNode('document') }
+      if (shift && e.key === 'N') { e.preventDefault(); createNode('scene') }
+    }
+
+    // Close project
+    if (!shift && !alt && e.key === 'w' && project) {
       e.preventDefault()
       window.api.project.close(project.id).catch(console.error)
       unloadProject()
       setScreen('launch')
       window.api.project.recents().then(setRecents).catch(console.error)
     }
-  }, [theme, project, screen])
+  }, [theme, project, screen, createNode])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKey)

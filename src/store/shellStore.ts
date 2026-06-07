@@ -3,11 +3,16 @@ import type { ModalId, RecentEntry } from '@shared/types'
 
 export type Screen = 'launch' | 'studio'
 export type Theme = 'dark' | 'light'
+export type Density = 'compact' | 'balanced' | 'roomy'
+export type EditorFont = 'mono' | 'serif' | 'sans'
 
 interface ShellState {
   screen: Screen
   platform: 'darwin' | 'win32' | 'linux'
   theme: Theme
+  density: Density
+  editorFont: EditorFont
+  editorSize: number
   modal: ModalId
   recents: RecentEntry[]
   layout: { binder: boolean; insp: boolean }
@@ -15,6 +20,9 @@ interface ShellState {
   setScreen: (s: Screen) => void
   setModal: (m: ModalId) => void
   setTheme: (t: Theme) => void
+  setDensity: (d: Density) => void
+  setEditorFont: (f: EditorFont) => void
+  setEditorSize: (n: number) => void
   toggleBinder: () => void
   toggleInsp: () => void
   setRecents: (r: RecentEntry[]) => void
@@ -22,10 +30,19 @@ interface ShellState {
   removeRecent: (id: string) => void
 }
 
+const FONT_MAP: Record<string, string> = {
+  mono: "'IBM Plex Mono', ui-monospace, monospace",
+  serif: "Spectral, 'Georgia', ui-serif, serif",
+  sans: "'IBM Plex Sans', system-ui, sans-serif",
+}
+
 export const useShellStore = create<ShellState>((set) => ({
   screen: 'launch',
   platform: (window.api?.shell?.platform ?? 'linux') as 'darwin' | 'win32' | 'linux',
   theme: 'dark',
+  density: 'balanced',
+  editorFont: 'mono',
+  editorSize: 17,
   modal: null,
   recents: [],
   layout: { binder: true, insp: true },
@@ -35,6 +52,18 @@ export const useShellStore = create<ShellState>((set) => ({
   setTheme: (theme) => {
     document.documentElement.dataset.theme = theme
     set({ theme })
+  },
+  setDensity: (density) => {
+    document.documentElement.dataset.density = density
+    set({ density })
+  },
+  setEditorFont: (editorFont) => {
+    document.documentElement.style.setProperty('--editor-font', FONT_MAP[editorFont])
+    set({ editorFont })
+  },
+  setEditorSize: (editorSize) => {
+    document.documentElement.style.setProperty('--editor-size', `${editorSize}px`)
+    set({ editorSize })
   },
   toggleBinder: () => set((s) => ({ layout: { ...s.layout, binder: !s.layout.binder } })),
   toggleInsp: () => set((s) => ({ layout: { ...s.layout, insp: !s.layout.insp } })),

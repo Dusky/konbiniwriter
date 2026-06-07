@@ -20,6 +20,7 @@ export type ModalId =
   | 'shortcuts'
   | 'about'
   | 'prefs'
+  | 'search'
   | null
 
 // ── Project ───────────────────────────────────────────────────────────────────

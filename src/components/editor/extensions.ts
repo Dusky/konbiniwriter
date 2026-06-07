@@ -4,6 +4,7 @@ import { markdown } from '@codemirror/lang-markdown'
 import { syntaxHighlighting, HighlightStyle } from '@codemirror/language'
 import { defaultKeymap, historyKeymap, history, indentWithTab } from '@codemirror/commands'
 import { keymap, lineNumbers, highlightActiveLine } from '@codemirror/view'
+import { search, searchKeymap } from '@codemirror/search'
 import { tags } from '@lezer/highlight'
 
 // ── Markdown highlight style — maps lezer tags → CSS classes ─────────────────
@@ -102,7 +103,8 @@ export const konbiniTheme = EditorView.theme({
 export function konbiniExtensions(onChange?: (content: string) => void) {
   return [
     history(),
-    keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+    search({ top: true }),
+    keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
     markdown(),
     syntaxHighlighting(markdownHighlight),
     wikilinkPlugin,
