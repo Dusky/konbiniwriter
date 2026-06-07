@@ -34,6 +34,7 @@ const SHORTCUTS = [
       ['Toggle Inspector', 'mod+alt+i'],
       ['Composition Mode', 'mod+alt+c'],
       ['Focus Mode', 'mod+alt+o'],
+      ['Split Editor', 'mod+\\'],
       ['Light / Dark', 'mod+alt+t'],
     ],
   },

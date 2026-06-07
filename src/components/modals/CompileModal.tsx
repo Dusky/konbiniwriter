@@ -64,8 +64,35 @@ export default function CompileModal({ onClose }: Props): React.ReactElement {
   const toggleInclude = (id: string) =>
     setIncluded((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next })
 
+  const handlePrint = () => {
+    const title = project.title
+    const mdToHtml = (md: string): string => {
+      return md
+        .split('\n')
+        .map((line) => {
+          if (line.startsWith('### ')) return `<h3>${line.slice(4)}</h3>`
+          if (line.startsWith('## ')) return `<h2>${line.slice(3)}</h2>`
+          if (line.startsWith('# ')) return `<h1>${line.slice(2)}</h1>`
+          if (line.trim() === '') return '<br>'
+          return line
+        })
+        .join('\n')
+        .replace(/\n<br>\n/g, '</p><p>')
+    }
+    const htmlBody = `<p>${mdToHtml(preview)}</p>`
+    const newWin = window.open('', '_blank')
+    if (!newWin) { alert('Pop-up blocked. Please allow pop-ups to print.'); return }
+    newWin.document.write(`<html><head><title>${title}</title>
+<style>body { font-family: Georgia, serif; max-width: 600px; margin: 40px auto; line-height: 1.8; } h1,h2,h3 { margin-top: 2em; }</style>
+</head><body>${htmlBody}</body></html>`)
+    newWin.document.close()
+    setTimeout(() => { newWin.print(); newWin.close() }, 500)
+    onClose()
+  }
+
   const handleCompile = async () => {
     if (!rootId || compiling) return
+    if (format === 'print') { handlePrint(); return }
     setCompiling(true)
     try {
       const result = await window.api.compile.run(project.id, rootId, [...included], format)
@@ -127,6 +154,7 @@ export default function CompileModal({ onClose }: Props): React.ReactElement {
               <div className="seg" style={{ display: 'inline-flex' }}>
                 <button className={format === 'markdown' ? 'on' : ''} onClick={() => setFormat('markdown')}>Markdown</button>
                 <button className={format === 'docx' ? 'on' : ''} onClick={() => setFormat('docx')}>Word (.docx)</button>
+                <button className={format === 'print' ? 'on' : ''} onClick={() => setFormat('print')}>Print / PDF</button>
               </div>
             </div>
             <div style={{ flex: 1 }}>
@@ -139,7 +167,7 @@ export default function CompileModal({ onClose }: Props): React.ReactElement {
           <span className="tb-spacer" />
           <button className="btn ghost" onClick={onClose}>Cancel</button>
           <button className="btn primary" onClick={handleCompile} disabled={compiling || included.size === 0}>
-            {compiling ? 'Compiling…' : `Export ${format === 'docx' ? '.docx' : '.md'}`}
+            {compiling ? 'Compiling…' : format === 'print' ? 'Print / PDF' : `Export ${format === 'docx' ? '.docx' : '.md'}`}
           </button>
         </div>
       </div>

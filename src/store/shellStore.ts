@@ -13,6 +13,7 @@ interface ShellState {
   density: Density
   editorFont: EditorFont
   editorSize: number
+  typewriterMode: boolean
   modal: ModalId
   recents: RecentEntry[]
   layout: { binder: boolean; insp: boolean }
@@ -23,6 +24,7 @@ interface ShellState {
   setDensity: (d: Density) => void
   setEditorFont: (f: EditorFont) => void
   setEditorSize: (n: number) => void
+  setTypewriterMode: (v: boolean) => void
   toggleBinder: () => void
   toggleInsp: () => void
   setRecents: (r: RecentEntry[]) => void
@@ -43,6 +45,9 @@ export const useShellStore = create<ShellState>((set) => ({
   density: 'balanced',
   editorFont: 'mono',
   editorSize: 17,
+  typewriterMode: (() => {
+    try { return localStorage.getItem('pref:typewriterMode') === 'true' } catch { return false }
+  })(),
   modal: null,
   recents: [],
   layout: { binder: true, insp: true },
@@ -64,6 +69,10 @@ export const useShellStore = create<ShellState>((set) => ({
   setEditorSize: (editorSize) => {
     document.documentElement.style.setProperty('--editor-size', `${editorSize}px`)
     set({ editorSize })
+  },
+  setTypewriterMode: (typewriterMode) => {
+    try { localStorage.setItem('pref:typewriterMode', String(typewriterMode)) } catch { /* noop */ }
+    set({ typewriterMode })
   },
   toggleBinder: () => set((s) => ({ layout: { ...s.layout, binder: !s.layout.binder } })),
   toggleInsp: () => set((s) => ({ layout: { ...s.layout, insp: !s.layout.insp } })),

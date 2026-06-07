@@ -6,6 +6,8 @@ import { type MentionIndex, buildIndex, updateIndex } from '../lib/MentionIndex'
 interface ProjectState {
   project: Project | null
   selectedId: ID | null
+  splitId: ID | null
+  splitOpen: boolean
   view: ViewMode
   saveStatus: SaveStatus
   lastSaved: string | null
@@ -27,6 +29,8 @@ interface ProjectState {
 
   // — selection & view —
   selectNode: (id: ID | null) => void
+  setSplitId: (id: ID | null) => void
+  toggleSplit: () => void
   setView: (v: ViewMode) => void
   setRenamingId: (id: ID | null) => void
   setFocusMode: (on: boolean) => void
@@ -116,6 +120,8 @@ const EMPTY_INDEX: MentionIndex = { aliasToDocIds: new Map(), docToAliases: new 
 export const useProjectStore = create<ProjectState>((set, get) => ({
   project: null,
   selectedId: null,
+  splitId: null,
+  splitOpen: false,
   view: 'editor',
   saveStatus: 'saved',
   lastSaved: null,
@@ -159,6 +165,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     return { selectedId: id, view: newView }
   }),
 
+  setSplitId: (splitId) => set({ splitId }),
+  toggleSplit: () => set((s) => s.splitOpen ? { splitOpen: false, splitId: null } : { splitOpen: true }),
   setView: (view) => set({ view }),
   setRenamingId: (renamingId) => set({ renamingId }),
   setFocusMode: (focusMode) => set({ focusMode }),

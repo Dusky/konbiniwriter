@@ -42,6 +42,8 @@ export default function PrefsModal({ onClose }: Props): React.ReactElement {
   const setEditorFont = useShellStore((s) => s.setEditorFont)
   const editorSize = useShellStore((s) => s.editorSize)
   const setEditorSize = useShellStore((s) => s.setEditorSize)
+  const typewriterMode = useShellStore((s) => s.typewriterMode)
+  const setTypewriterMode = useShellStore((s) => s.setTypewriterMode)
 
   const project = useProjectStore((s) => s.project)
   const setProjectWordTarget = useProjectStore((s) => s.setProjectWordTarget)
@@ -129,6 +131,17 @@ export default function PrefsModal({ onClose }: Props): React.ReactElement {
                 )
               })}
             </div>
+          </Row>
+
+          <Row label="Typewriter scroll">
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={typewriterMode}
+                onChange={(e) => setTypewriterMode(e.target.checked)}
+              />
+              <span style={{ fontSize: 13, color: 'var(--text-2)' }}>Keep cursor at 40% from top while typing</span>
+            </label>
           </Row>
 
           {project && (

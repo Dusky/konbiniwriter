@@ -3,11 +3,23 @@ import { useProjectStore } from '../../store/projectStore'
 import Editor from './Editor'
 import Corkboard from '../views/Corkboard'
 import Outliner from '../views/Outliner'
+import Timeline from '../views/Timeline'
 
-export default function EditorPane(): React.ReactElement {
+interface Props {
+  nodeId?: string
+  splitOpen?: boolean
+  pane?: 'left' | 'right'
+}
+
+export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.ReactElement {
   const project = useProjectStore((s) => s.project)
-  const selectedId = useProjectStore((s) => s.selectedId)
+  const storeSelectedId = useProjectStore((s) => s.selectedId)
   const view = useProjectStore((s) => s.view)
+  const selectNode = useProjectStore((s) => s.selectNode)
+  const setSplitId = useProjectStore((s) => s.setSplitId)
+
+  // The effective docId for this pane
+  const selectedId = nodeId !== undefined ? nodeId : storeSelectedId
 
   if (!project) {
     return (
@@ -24,12 +36,51 @@ export default function EditorPane(): React.ReactElement {
 
   if (view === 'corkboard') return <Corkboard />
   if (view === 'outliner')  return <Outliner />
+  if (view === 'timeline')  return <Timeline />
+
+  // Collect all non-folder nodes for the picker
+  const docNodes = Object.values(project.nodes).filter((n) => n.type !== 'folder')
+
+  const handlePickerChange = (id: string) => {
+    if (pane === 'right') {
+      setSplitId(id)
+    } else {
+      selectNode(id)
+    }
+  }
+
+  const paneHeader = splitOpen ? (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 8,
+      padding: '4px 10px', borderBottom: '1px solid var(--border)',
+      background: 'var(--bg-2)', flexShrink: 0, minHeight: 32,
+    }}>
+      <span style={{ fontSize: 12, color: 'var(--text-2)', fontWeight: 500, flexShrink: 0 }}>
+        {pane === 'left' ? 'Left' : 'Right'}
+      </span>
+      <select
+        value={selectedId ?? ''}
+        onChange={(e) => handlePickerChange(e.target.value)}
+        style={{
+          flex: 1, minWidth: 0, fontSize: 12, padding: '2px 6px',
+          borderRadius: 4, border: '1px solid var(--border)',
+          background: 'var(--bg-2)', color: 'var(--text)', cursor: 'pointer',
+        }}
+      >
+        <option value="" disabled>— pick a document —</option>
+        {docNodes.map((n) => (
+          <option key={n.id} value={n.id}>{n.title}</option>
+        ))}
+      </select>
+    </div>
+  ) : null
 
   // Editor view
   if (!selectedId || !selectedNode) {
     return (
-      <div className="main">
-        <div className="empty-state">
+      <div className="main" style={{ display: 'flex', flexDirection: 'column' }}>
+        {paneHeader}
+        <div className="empty-state" style={{ flex: 1 }}>
           <div className="wm">✦</div>
           <div className="big">Select a document to write</div>
         </div>
@@ -39,8 +90,9 @@ export default function EditorPane(): React.ReactElement {
 
   if (selectedNode.type === 'folder') {
     return (
-      <div className="main">
-        <div className="empty-state">
+      <div className="main" style={{ display: 'flex', flexDirection: 'column' }}>
+        {paneHeader}
+        <div className="empty-state" style={{ flex: 1 }}>
           <div className="wm">📁</div>
           <div className="big">{selectedNode.title}</div>
           <p style={{ color: 'var(--text-3)', fontSize: 13 }}>Switch to Corkboard or Outliner to see children</p>
@@ -59,7 +111,8 @@ export default function EditorPane(): React.ReactElement {
   }
 
   return (
-    <div className="main">
+    <div className="main" style={{ display: 'flex', flexDirection: 'column' }}>
+      {paneHeader}
       <div className="doc-bar">
         {ancestors.map((a, i) => (
           <React.Fragment key={i}>
@@ -71,7 +124,7 @@ export default function EditorPane(): React.ReactElement {
         ))}
         <span className="crumb"><b>{selectedNode.title}</b></span>
       </div>
-      <div className="editor-wrap">
+      <div className="editor-wrap" style={{ flex: 1, minHeight: 0 }}>
         <div className="editor-col">
           <Editor key={selectedId} docId={selectedId} />
         </div>

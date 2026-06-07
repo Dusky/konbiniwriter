@@ -28,6 +28,8 @@ export default function Studio(): React.ReactElement {
   const modal = useShellStore((s) => s.modal)
   const setModal = useShellStore((s) => s.setModal)
   const compositionMode = useProjectStore((s) => s.compositionMode)
+  const splitOpen = useProjectStore((s) => s.splitOpen)
+  const splitId = useProjectStore((s) => s.splitId)
 
   const activeProposalId = useProjectStore((s) => s.activeProposalId)
   const proposals = useProjectStore((s) => s.proposals)
@@ -52,7 +54,18 @@ export default function Studio(): React.ReactElement {
       <Toolbar />
       <div className={bodyClass}>
         {layout.binder && <Binder />}
-        <EditorPane />
+        {splitOpen ? (
+          <div style={{ display: 'flex', flex: 1, minWidth: 0, overflow: 'hidden' }}>
+            <div style={{ flex: 1, minWidth: 0, borderRight: '1px solid var(--border)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <EditorPane splitOpen={splitOpen} pane="left" />
+            </div>
+            <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <EditorPane splitOpen={splitOpen} pane="right" nodeId={splitId ?? undefined} />
+            </div>
+          </div>
+        ) : (
+          <EditorPane splitOpen={false} pane="left" />
+        )}
         {layout.insp && <Inspector />}
       </div>
       <StatusBar />

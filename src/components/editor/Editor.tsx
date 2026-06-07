@@ -1,13 +1,32 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react'
-import { EditorView } from '@codemirror/view'
-import { EditorState } from '@codemirror/state'
+import { EditorView, ViewPlugin } from '@codemirror/view'
+import { EditorState, Compartment } from '@codemirror/state'
 import { focusModeEffect, konbiniExtensions, setSlopSpansEffect, type SlopSpan } from './extensions'
 import { useProjectStore } from '../../store/projectStore'
+import { useShellStore } from '../../store/shellStore'
 import { useAutosave } from '../../hooks/useAutosave'
 import { useAIStore } from '../../store/aiStore'
 import CowriteBar from './CowriteBar'
 import { promptRegistry } from '../../lib/PromptRegistry'
 import { streamCompletion } from '../../lib/AIClient'
+
+function makeTypewriterPlugin() {
+  return ViewPlugin.fromClass(class {
+    update(update: import('@codemirror/view').ViewUpdate) {
+      if (!update.docChanged && !update.selectionSet) return
+      const view = update.view
+      const coords = view.coordsAtPos(view.state.selection.main.head)
+      if (!coords) return
+      const scrollEl = view.scrollDOM
+      const editorRect = scrollEl.getBoundingClientRect()
+      const relTop = coords.top - editorRect.top
+      if (relTop > editorRect.height * 0.4) {
+        const targetScrollTop = scrollEl.scrollTop + relTop - editorRect.height * 0.4
+        scrollEl.scrollTo({ top: targetScrollTop, behavior: 'smooth' })
+      }
+    }
+  })
+}
 
 interface Props {
   docId: string
@@ -16,6 +35,7 @@ interface Props {
 export default function Editor({ docId }: Props): React.ReactElement {
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
+  const typewriterCompartment = useRef(new Compartment())
 
   const project = useProjectStore((s) => s.project)
   const updateContent = useProjectStore((s) => s.updateContent)
@@ -24,6 +44,7 @@ export default function Editor({ docId }: Props): React.ReactElement {
   const aiEnabled = useAIStore((s) => s.enabled)
   const setSlopSpans = useProjectStore((s) => s.setSlopSpans)
   const setSlopRunning = useProjectStore((s) => s.setSlopRunning)
+  const typewriterMode = useShellStore((s) => s.typewriterMode)
 
   const content = project?.docs[docId]?.content ?? ''
 
@@ -119,7 +140,10 @@ export default function Editor({ docId }: Props): React.ReactElement {
 
     const state = EditorState.create({
       doc: content,
-      extensions: konbiniExtensions(handleChange),
+      extensions: [
+        ...konbiniExtensions(handleChange),
+        typewriterCompartment.current.of(typewriterMode ? makeTypewriterPlugin() : []),
+      ],
     })
 
     const view = new EditorView({ state, parent: containerRef.current })
@@ -286,6 +310,15 @@ export default function Editor({ docId }: Props): React.ReactElement {
     if (!view) return
     view.dispatch({ effects: focusModeEffect.of(focusMode) })
   }, [focusMode])
+
+  // Sync typewriter mode into CM6 compartment
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+    view.dispatch({
+      effects: typewriterCompartment.current.reconfigure(typewriterMode ? makeTypewriterPlugin() : []),
+    })
+  }, [typewriterMode])
 
   return (
     <div style={{ height: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }} onMouseUp={handleMouseUp} onMouseMove={handleMouseMove} onMouseLeave={() => setWikilinkTip(null)}>

@@ -14,6 +14,7 @@ export default function App(): React.ReactElement {
   const toggleInsp = useShellStore((s) => s.toggleInsp)
   const setTheme = useShellStore((s) => s.setTheme)
   const setView = useProjectStore((s) => s.setView)
+  const toggleSplit = useProjectStore((s) => s.toggleSplit)
   const setCompositionMode = useProjectStore((s) => s.setCompositionMode)
   const setFocusMode = useProjectStore((s) => s.setFocusMode)
   const unloadProject = useProjectStore((s) => s.unloadProject)
@@ -64,6 +65,9 @@ export default function App(): React.ReactElement {
     if (alt && e.key === 'c') { e.preventDefault(); setCompositionMode(true) }
     if (alt && e.key === 'o') { e.preventDefault(); setFocusMode(!useProjectStore.getState().focusMode) }
 
+    // Split editor
+    if (!shift && !alt && e.key === '\\') { e.preventDefault(); toggleSplit() }
+
     // Views
     if (!shift && !alt && e.key === '1') { e.preventDefault(); setView('editor') }
     if (!shift && !alt && e.key === '2') { e.preventDefault(); setView('corkboard') }
@@ -109,7 +113,7 @@ export default function App(): React.ReactElement {
       setScreen('launch')
       window.api.project.recents().then(setRecents).catch(console.error)
     }
-  }, [theme, project, screen, createNode, undoMutation])
+  }, [theme, project, screen, createNode, undoMutation, toggleSplit])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKey)

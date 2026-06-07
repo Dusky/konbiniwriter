@@ -17,6 +17,8 @@ export default function Toolbar(): React.ReactElement {
   const selectedId = useProjectStore((s) => s.selectedId)
   const project = useProjectStore((s) => s.project)
   const setScreen = useShellStore((s) => s.setScreen)
+  const splitOpen = useProjectStore((s) => s.splitOpen)
+  const toggleSplit = useProjectStore((s) => s.toggleSplit)
 
   const selectedNode = selectedId && project ? project.nodes[selectedId] : null
   const aiEnabled = useAIStore((s) => s.enabled)
@@ -45,11 +47,22 @@ export default function Toolbar(): React.ReactElement {
         <button className={view === 'editor'    ? 'on' : ''} onClick={() => setView('editor')}    title="Editor (⌘1)">Editor</button>
         <button className={view === 'corkboard' ? 'on' : ''} onClick={() => setView('corkboard')} title="Corkboard (⌘2)">Corkboard</button>
         <button className={view === 'outliner'  ? 'on' : ''} onClick={() => setView('outliner')}  title="Outliner (⌘3)">Outliner</button>
+        <button className={view === 'timeline'  ? 'on' : ''} onClick={() => setView('timeline')}  title="Timeline (⌘4)">≋ Timeline</button>
       </div>
 
       <div className="tb-sep" />
 
       <div className="tb-group">
+        <button
+          className={`tb-btn${splitOpen ? ' on' : ''}`}
+          title="Split Editor (⌘\)"
+          onClick={toggleSplit}
+        >
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
+            <rect x="1" y="2" width="6" height="12" rx="1" />
+            <rect x="9" y="2" width="6" height="12" rx="1" />
+          </svg>
+        </button>
         <button
           className={`tb-btn${focusMode ? ' on' : ''}`}
           title="Focus Mode (⌘⌥O)"
