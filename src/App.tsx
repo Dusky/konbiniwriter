@@ -65,6 +65,8 @@ export default function App(): React.ReactElement {
     if (e.key === '/') { e.preventDefault(); setModal('shortcuts') }
     if (!shift && !alt && e.key === ',') { e.preventDefault(); setModal('prefs') }
     if (shift && e.key === 'F') { e.preventDefault(); setModal('search') }
+    if (shift && e.key === 'K') { e.preventDefault(); setModal('codex') }
+    if (shift && e.key === 'A') { e.preventDefault(); setModal('ai-settings') }
 
     // New project / open (always available)
     if (!shift && !alt && e.key === 'n' && screen === 'launch') { e.preventDefault(); setModal('new-project') }

@@ -306,12 +306,13 @@ feels good on first launch. Budget it as a distinct work item in Phase 3/4.
 4. **`PromptRegistry` + `AgentRegistry`** — JSON-backed, override stack ✅
    (app defaults → user global → per-project), management UI (browse/edit/duplicate/
    reset/export/import), variable documentation
-5. **Codex** — character/location/lore entities, AI summary, editable facts, backlinks via
-   `MentionIndex`, continuity flags, propagation-debt seeds from fact edits
-6. **AI settings** — BYOK key entry + validation, per-feature model routing, global toggle,
-   Ollama local option
-7. **Co-write mode** — selection toolbar (Rewrite/Expand/Tighten/Describe/Brainstorm),
-   single-element inline generation, each → proposal → changeset review
+5. **Codex** — character/location/lore entities, editable facts, aliases, backlinks via
+   `MentionIndex`, category browser (character/location/item/concept/lore) ✅
+6. **AI settings** — BYOK key entry + validation (Anthropic + Ollama), global toggle ✅
+7. **Co-write mode** — selection toolbar (Rewrite/Expand/Tighten/Describe), streams via
+   `AIClient`, result → proposal → changeset review ✅
+
+### Phase 2 complete. ✅
 
 ### Phase 3 — Assisted Mode 🔲
 

@@ -22,6 +22,8 @@ export type ModalId =
   | 'prefs'
   | 'search'
   | 'prompt-registry'
+  | 'codex'
+  | 'ai-settings'
   | null
 
 // ── Project ───────────────────────────────────────────────────────────────────
@@ -181,6 +183,31 @@ export interface AgentTemplate {
   parentId?: string
   createdAt: ISO
   modifiedAt: ISO
+}
+
+// ── Codex ─────────────────────────────────────────────────────────────────────
+
+export type CodexCategory = 'character' | 'location' | 'item' | 'concept' | 'lore'
+
+export interface CodexFact {
+  id: ID
+  label: string
+  value: string
+  aiGenerated: boolean
+  confirmedAt: ISO | null
+}
+
+export interface CodexEntry {
+  id: ID
+  name: string
+  aliases: string[]         // all lowercased; used by MentionIndex
+  category: CodexCategory
+  summary: string           // AI-generated overview, editable
+  facts: CodexFact[]
+  imagePrompt?: string
+  createdAt: ISO
+  modifiedAt: ISO
+  aiGenerated: boolean
 }
 
 // ── Compile result ────────────────────────────────────────────────────────────

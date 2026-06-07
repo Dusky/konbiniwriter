@@ -1,9 +1,11 @@
-import React, { useEffect, useRef, useCallback } from 'react'
+import React, { useEffect, useRef, useCallback, useState } from 'react'
 import { EditorView } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { focusModeEffect, konbiniExtensions } from './extensions'
 import { useProjectStore } from '../../store/projectStore'
 import { useAutosave } from '../../hooks/useAutosave'
+import { useAIStore } from '../../store/aiStore'
+import CowriteBar from './CowriteBar'
 
 interface Props {
   docId: string
@@ -17,8 +19,11 @@ export default function Editor({ docId }: Props): React.ReactElement {
   const updateContent = useProjectStore((s) => s.updateContent)
   const setSaveStatus = useProjectStore((s) => s.setSaveStatus)
   const focusMode = useProjectStore((s) => s.focusMode)
+  const aiEnabled = useAIStore((s) => s.enabled)
 
   const content = project?.docs[docId]?.content ?? ''
+
+  const [cowrite, setCowrite] = useState<{ selection: string; anchorRect: DOMRect } | null>(null)
 
   // Autosave hook — fires 700ms after content changes
   useAutosave(docId)
@@ -30,6 +35,21 @@ export default function Editor({ docId }: Props): React.ReactElement {
     },
     [docId, updateContent, setSaveStatus]
   )
+
+  // Show co-write bar on mouseup if there's a selection and AI is enabled
+  const handleMouseUp = useCallback(() => {
+    if (!aiEnabled) return
+    const view = viewRef.current
+    if (!view) return
+    const { from, to } = view.state.selection.main
+    if (from === to) { setCowrite(null); return }
+    const selection = view.state.doc.sliceString(from, to).trim()
+    if (selection.length < 3) { setCowrite(null); return }
+    // Get bounding rect of selection anchor
+    const coords = view.coordsAtPos(from)
+    if (!coords) { setCowrite(null); return }
+    setCowrite({ selection, anchorRect: new DOMRect(coords.left, coords.top, 0, coords.bottom - coords.top) })
+  }, [aiEnabled])
 
   // Mount / remount when docId changes
   useEffect(() => {
@@ -77,9 +97,16 @@ export default function Editor({ docId }: Props): React.ReactElement {
   }, [focusMode])
 
   return (
-    <div
-      ref={containerRef}
-      style={{ height: '100%', position: 'relative' }}
-    />
+    <div style={{ height: '100%', position: 'relative' }} onMouseUp={handleMouseUp}>
+      <div ref={containerRef} style={{ height: '100%' }} />
+      {cowrite && (
+        <CowriteBar
+          docId={docId}
+          selection={cowrite.selection}
+          anchorRect={cowrite.anchorRect}
+          onClose={() => setCowrite(null)}
+        />
+      )}
+    </div>
   )
 }

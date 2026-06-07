@@ -38,12 +38,11 @@ const SHORTCUTS = [
     ],
   },
   {
-    heading: 'AI (Phase 2)',
+    heading: 'AI',
     rows: [
-      ['AI Assistant', 'mod+shift+a'],
-      ['Changeset Review', 'mod+shift+r'],
+      ['AI Settings / Enable', 'mod+shift+a'],
       ['Codex', 'mod+shift+k'],
-      ['Slop Proof', 'mod+shift+p'],
+      ['Prompt Registry', ''],
     ],
   },
 ]

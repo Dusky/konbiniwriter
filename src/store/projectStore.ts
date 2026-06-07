@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Project, KNode, DocBody, DocMeta, NodeType, ViewMode, SaveStatus, Snapshot, ID, Proposal } from '@shared/types'
+import type { Project, KNode, DocBody, DocMeta, NodeType, ViewMode, SaveStatus, Snapshot, ID, Proposal, CodexEntry } from '@shared/types'
 import { uid, wordCount } from '@shared/utils'
 import { type MentionIndex, buildIndex, updateIndex } from '../lib/MentionIndex'
 
@@ -15,6 +15,7 @@ interface ProjectState {
   mentionIndex: MentionIndex
   proposals: Proposal[]
   activeProposalId: ID | null
+  codex: CodexEntry[]
 
   // — project lifecycle —
   loadProject: (p: Project) => void
@@ -45,6 +46,10 @@ interface ProjectState {
   queueProposal: (p: Proposal) => void
   resolveProposal: (id: ID, status: 'applied' | 'discarded') => void
   setActiveProposal: (id: ID | null) => void
+
+  // — codex —
+  upsertCodexEntry: (entry: CodexEntry) => void
+  deleteCodexEntry: (id: ID) => void
 }
 
 // ── tree utilities (renderer-local, no disk access) ──────────────────────────
@@ -101,6 +106,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   mentionIndex: EMPTY_INDEX,
   proposals: [],
   activeProposalId: null,
+  codex: [],
 
   loadProject: (project) => set({
     project,
@@ -109,8 +115,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     saveStatus: 'saved',
     renamingId: null,
     mentionIndex: buildIndex(project.docs),
+    codex: [],
+    proposals: [],
+    activeProposalId: null,
   }),
-  unloadProject: () => set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX }),
+  unloadProject: () => set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], proposals: [], activeProposalId: null }),
 
   selectNode: (id) => set((s) => {
     if (!id || !s.project) return { selectedId: id }
@@ -201,4 +210,13 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     return { proposals, activeProposalId: next?.id ?? null }
   }),
   setActiveProposal: (id) => set({ activeProposalId: id }),
+
+  upsertCodexEntry: (entry) => set((s) => {
+    const existing = s.codex.findIndex((e) => e.id === entry.id)
+    const codex = existing >= 0
+      ? s.codex.map((e) => e.id === entry.id ? entry : e)
+      : [...s.codex, entry]
+    return { codex }
+  }),
+  deleteCodexEntry: (id) => set((s) => ({ codex: s.codex.filter((e) => e.id !== id) })),
 }))

@@ -17,6 +17,8 @@ import PrefsModal from './modals/PrefsModal'
 import SearchModal from './modals/SearchModal'
 import ChangesetModal from './modals/ChangesetModal'
 import PromptRegistryModal from './modals/PromptRegistryModal'
+import CodexModal from './modals/CodexModal'
+import AISettingsModal from './modals/AISettingsModal'
 
 export default function Studio(): React.ReactElement {
   const layout = useShellStore((s) => s.layout)
@@ -63,6 +65,8 @@ export default function Studio(): React.ReactElement {
       {modal === 'prefs'       && <PrefsModal       onClose={() => setModal(null)} />}
       {modal === 'search'          && <SearchModal         onClose={() => setModal(null)} />}
       {modal === 'prompt-registry' && <PromptRegistryModal  onClose={() => setModal(null)} />}
+      {modal === 'codex'           && <CodexModal           onClose={() => setModal(null)} />}
+      {modal === 'ai-settings'     && <AISettingsModal      onClose={() => setModal(null)} />}
 
       {activeProposal && (
         <ChangesetModal

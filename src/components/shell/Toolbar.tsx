@@ -1,6 +1,7 @@
 import React from 'react'
 import { useShellStore } from '../../store/shellStore'
 import { useProjectStore } from '../../store/projectStore'
+import { useAIStore } from '../../store/aiStore'
 
 export default function Toolbar(): React.ReactElement {
   const layout = useShellStore((s) => s.layout)
@@ -18,6 +19,7 @@ export default function Toolbar(): React.ReactElement {
   const setScreen = useShellStore((s) => s.setScreen)
 
   const selectedNode = selectedId && project ? project.nodes[selectedId] : null
+  const aiEnabled = useAIStore((s) => s.enabled)
 
   return (
     <div className="toolbar">
@@ -119,10 +121,31 @@ export default function Toolbar(): React.ReactElement {
 
       <div className="tb-sep" />
 
-      {/* AI opt-in (Phase 2 — shows as disabled spark for now) */}
-      <button className="tb-btn ai-enable" title="Enable AI layer (Phase 2)" disabled>
-        <span className="ai-spark">✦</span> AI
-      </button>
+      {aiEnabled ? (
+        <>
+          <div className="tb-group">
+            <button className="tb-btn" title="Codex (⌘⇧K)" onClick={() => setModal('codex')}>
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
+                <path d="M3 2h8l2 2v10H3z" /><path d="M6 6h4M6 9h4M6 12h2" />
+              </svg>
+              Codex
+            </button>
+            <button className="tb-btn" title="Prompt Registry" onClick={() => setModal('prompt-registry')}>
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
+                <path d="M2 4h12M2 8h8M2 12h10" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+          <div className="tb-sep" />
+          <button className="tb-btn" title="AI Settings" onClick={() => setModal('ai-settings')} style={{ color: 'var(--accent)' }}>
+            <span style={{ fontSize: 14 }}>✦</span> AI
+          </button>
+        </>
+      ) : (
+        <button className="tb-btn ai-enable" title="Enable AI (⌘⇧A)" onClick={() => setModal('ai-settings')}>
+          <span className="ai-spark">✦</span> AI
+        </button>
+      )}
     </div>
   )
 }
