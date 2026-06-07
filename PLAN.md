@@ -274,36 +274,36 @@ feels good on first launch. Budget it as a distinct work item in Phase 3/4.
 
 ## Phase build order
 
-### Phase 1 — The Writing Studio (zero AI; must stand alone) ✅ STARTED
+### Phase 1 — The Writing Studio (zero AI; must stand alone) ✅ COMPLETE
 
-**1a — Vertical slice** ✅ running
+**1a — Vertical slice** ✅
 - Create project → binder → click doc → write → debounced autosave to `.md` → close/reopen
   with work intact → toggle composition mode.
 
-**1b — Full studio surfaces** 🔲
-- Corkboard (editable synopses) ✅ built
-- Outliner (read-only) ✅ built
-- Inspector (label, status, synopsis, target, compile flag) ✅ built
-- Snapshots (take/list/restore + line-diff preview) ✅ built
-- Compile/export: subtree → markdown → `.docx` ✅ built
-- In-document find (`@codemirror/search`) 🔲 missing
-- Project-wide search (basic, in-memory) 🔲 missing
+**1b — Full studio surfaces** ✅
+- Corkboard (editable synopses) ✅
+- Outliner (read-only) ✅
+- Inspector (label, status, synopsis, target, compile flag) ✅
+- Snapshots (take/list/restore + line-diff preview) ✅
+- Compile/export: subtree → markdown → `.docx` ✅
+- In-document find (`@codemirror/search`, `Mod-F` in editor) ✅
+- Project-wide search (in-memory scan, `Mod+Shift+F`) ✅
 
-**1c — Project lifecycle + chrome** 🔲
-- New Project modal (templates) ✅ built
-- Open / recents on launch screen ✅ built
-- Preferences modal (theme, font, size, density) 🔲 stub only
-- Full keyboard map wired ✅ partial
+**1c — Project lifecycle + chrome** ✅
+- New Project modal (templates) ✅
+- Open / recents on launch screen ✅
+- Preferences modal (theme, font, size, density, accent) ✅ (`Mod+,`)
+- Full keyboard map wired ✅ (Mod+O, Mod+W, Mod+Shift+D/N, Mod+Alt+N, Mod+,)
 
-### Phase 2 — Proposal Spine + Prompt/Agent Registry + Co-write 🔲
+### Phase 2 — Proposal Spine + Prompt/Agent Registry + Co-write 🔲 STARTED
 
 *Build these in order — each unblocks the next.*
 
-1. **`MentionIndex`** — inverted entity→docs map, rebuilt on `updateContent`, exposed in store
-2. **`ContextBuilder`** — tiered context assembly with token budget; uses `MentionIndex`
+1. **`MentionIndex`** — inverted entity→docs map, rebuilt on `updateContent`, exposed in store ✅
+2. **`ContextBuilder`** — tiered context assembly with token budget; uses `MentionIndex` ✅
 3. **Changeset review surface** — proposal data model, diff engine, accept/reject per hunk,
-   apply seam → `updateContent`, group-level accept/reject, "Apply to binder"
-4. **`PromptRegistry` + `AgentRegistry`** — JSON-backed, override stack
+   apply seam → `updateContent`, group-level accept/reject, "Apply to binder" ✅
+4. **`PromptRegistry` + `AgentRegistry`** — JSON-backed, override stack ✅
    (app defaults → user global → per-project), management UI (browse/edit/duplicate/
    reset/export/import), variable documentation
 5. **Codex** — character/location/lore entities, AI summary, editable facts, backlinks via

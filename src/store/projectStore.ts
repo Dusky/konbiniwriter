@@ -1,6 +1,7 @@
 import { create } from 'zustand'
-import type { Project, KNode, DocBody, DocMeta, NodeType, ViewMode, SaveStatus, Snapshot, ID } from '@shared/types'
+import type { Project, KNode, DocBody, DocMeta, NodeType, ViewMode, SaveStatus, Snapshot, ID, Proposal } from '@shared/types'
 import { uid, wordCount } from '@shared/utils'
+import { type MentionIndex, buildIndex, updateIndex } from '../lib/MentionIndex'
 
 interface ProjectState {
   project: Project | null
@@ -11,6 +12,9 @@ interface ProjectState {
   renamingId: ID | null
   focusMode: boolean
   compositionMode: boolean
+  mentionIndex: MentionIndex
+  proposals: Proposal[]
+  activeProposalId: ID | null
 
   // — project lifecycle —
   loadProject: (p: Project) => void
@@ -36,6 +40,11 @@ interface ProjectState {
   addSnapshot: (nodeId: ID, snap: Snapshot) => void
   removeSnapshot: (nodeId: ID, snapId: ID) => void
   restoreContent: (nodeId: ID, content: string) => void
+
+  // — proposals (Phase 2 AI changeset review) —
+  queueProposal: (p: Proposal) => void
+  resolveProposal: (id: ID, status: 'applied' | 'discarded') => void
+  setActiveProposal: (id: ID | null) => void
 }
 
 // ── tree utilities (renderer-local, no disk access) ──────────────────────────
@@ -78,6 +87,8 @@ export function isDescendant(project: Project, ancestorId: ID, targetId: ID): bo
 
 // ── store ────────────────────────────────────────────────────────────────────
 
+const EMPTY_INDEX: MentionIndex = { aliasToDocIds: new Map(), docToAliases: new Map() }
+
 export const useProjectStore = create<ProjectState>((set, get) => ({
   project: null,
   selectedId: null,
@@ -87,9 +98,19 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   renamingId: null,
   focusMode: false,
   compositionMode: false,
+  mentionIndex: EMPTY_INDEX,
+  proposals: [],
+  activeProposalId: null,
 
-  loadProject: (project) => set({ project, selectedId: null, view: 'editor', saveStatus: 'saved', renamingId: null }),
-  unloadProject: () => set({ project: null, selectedId: null }),
+  loadProject: (project) => set({
+    project,
+    selectedId: null,
+    view: 'editor',
+    saveStatus: 'saved',
+    renamingId: null,
+    mentionIndex: buildIndex(project.docs),
+  }),
+  unloadProject: () => set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX }),
 
   selectNode: (id) => set((s) => {
     if (!id || !s.project) return { selectedId: id }
@@ -118,6 +139,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
           [docId]: { ...(s.project.docs[docId] ?? { snapshots: [] }), content },
         },
       },
+      mentionIndex: updateIndex(s.mentionIndex, docId, content),
     }
   }),
 
@@ -171,4 +193,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   restoreContent: (nodeId, content) => {
     get().updateContent(nodeId, content)
   },
+
+  queueProposal: (p) => set((s) => ({ proposals: [...s.proposals, p], activeProposalId: s.activeProposalId ?? p.id })),
+  resolveProposal: (id, status) => set((s) => {
+    const proposals = s.proposals.map((p) => p.id === id ? { ...p, status } : p)
+    const next = proposals.find((p) => p.status === 'pending' && p.id !== id)
+    return { proposals, activeProposalId: next?.id ?? null }
+  }),
+  setActiveProposal: (id) => set({ activeProposalId: id }),
 }))

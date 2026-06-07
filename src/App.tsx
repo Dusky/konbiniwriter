@@ -70,11 +70,13 @@ export default function App(): React.ReactElement {
     if (!shift && !alt && e.key === 'n' && screen === 'launch') { e.preventDefault(); setModal('new-project') }
     if (!shift && !alt && e.key === 'o') {
       e.preventDefault()
-      window.api.project.showOpenDialog().then((path) => {
-        if (path) window.api.project.open(path).then((p) => {
-          useProjectStore.getState().loadProject(p)
-          setScreen('studio')
-        })
+      window.api.project.showOpenDialog().then(async (path) => {
+        if (!path) return
+        const p = await window.api.project.open(path)
+        useProjectStore.getState().loadProject(p)
+        setScreen('studio')
+        const recents = await window.api.project.recents()
+        setRecents(recents)
       }).catch(console.error)
     }
 

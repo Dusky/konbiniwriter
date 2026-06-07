@@ -21,6 +21,7 @@ export type ModalId =
   | 'about'
   | 'prefs'
   | 'search'
+  | 'prompt-registry'
   | null
 
 // ── Project ───────────────────────────────────────────────────────────────────

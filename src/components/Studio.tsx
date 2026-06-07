@@ -15,6 +15,8 @@ import AboutModal from './modals/AboutModal'
 import NewProjectModal from './modals/NewProjectModal'
 import PrefsModal from './modals/PrefsModal'
 import SearchModal from './modals/SearchModal'
+import ChangesetModal from './modals/ChangesetModal'
+import PromptRegistryModal from './modals/PromptRegistryModal'
 
 export default function Studio(): React.ReactElement {
   const layout = useShellStore((s) => s.layout)
@@ -22,6 +24,17 @@ export default function Studio(): React.ReactElement {
   const setModal = useShellStore((s) => s.setModal)
   const compositionMode = useProjectStore((s) => s.compositionMode)
   const platform = useShellStore((s) => s.platform)
+
+  const activeProposalId = useProjectStore((s) => s.activeProposalId)
+  const proposals = useProjectStore((s) => s.proposals)
+  const queueProposal = useProjectStore((s) => s.queueProposal)
+  const resolveProposal = useProjectStore((s) => s.resolveProposal)
+  const updateContent = useProjectStore((s) => s.updateContent)
+  const project = useProjectStore((s) => s.project)
+
+  const activeProposal = activeProposalId
+    ? proposals.find((p) => p.id === activeProposalId) ?? null
+    : null
 
   const bodyClass = [
     'body',
@@ -48,7 +61,22 @@ export default function Studio(): React.ReactElement {
       {modal === 'about'       && <AboutModal      onClose={() => setModal(null)} />}
       {modal === 'new-project' && <NewProjectModal  onClose={() => setModal(null)} />}
       {modal === 'prefs'       && <PrefsModal       onClose={() => setModal(null)} />}
-      {modal === 'search'      && <SearchModal      onClose={() => setModal(null)} />}
+      {modal === 'search'          && <SearchModal         onClose={() => setModal(null)} />}
+      {modal === 'prompt-registry' && <PromptRegistryModal  onClose={() => setModal(null)} />}
+
+      {activeProposal && (
+        <ChangesetModal
+          proposal={activeProposal}
+          onApply={async (content, accepted) => {
+            if (!project) return
+            // Snapshot first (invariant: pre-AI snapshot is mandatory)
+            await window.api.snapshot.take(project.id, activeProposal.docId, `Before ${activeProposal.label}`)
+            updateContent(activeProposal.docId, content)
+            resolveProposal(activeProposal.id, 'applied')
+          }}
+          onDiscard={() => resolveProposal(activeProposal.id, 'discarded')}
+        />
+      )}
     </div>
   )
 }
