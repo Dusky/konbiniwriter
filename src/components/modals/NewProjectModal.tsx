@@ -1,0 +1,113 @@
+import React, { useState } from 'react'
+import { useShellStore } from '../../store/shellStore'
+import { useProjectStore } from '../../store/projectStore'
+import type { TemplateId } from '@shared/types'
+
+const TEMPLATES: { id: TemplateId; glyph: string; label: string; desc: string }[] = [
+  { id: 'novel',       glyph: '冊', label: 'Novel',       desc: 'Three-act structure with chapter/scene hierarchy.' },
+  { id: 'blank',       glyph: '□',  label: 'Blank',       desc: 'A single empty document to start freely.' },
+  { id: 'screenplay',  glyph: '幕', label: 'Screenplay',  desc: 'Acts and scenes in standard script format.' },
+  { id: 'nonfiction',  glyph: '頁', label: 'Non-fiction', desc: 'Chapters and sections for long-form non-fiction.' },
+]
+
+interface Props {
+  onClose: () => void
+}
+
+export default function NewProjectModal({ onClose }: Props): React.ReactElement {
+  const [title, setTitle] = useState('Untitled Project')
+  const [template, setTemplate] = useState<TemplateId>('novel')
+  const [location, setLocation] = useState('~/Documents/Konbini')
+  const [creating, setCreating] = useState(false)
+
+  const setScreen = useShellStore((s) => s.setScreen)
+  const touchRecent = useShellStore((s) => s.touchRecent)
+  const loadProject = useProjectStore((s) => s.loadProject)
+
+  const handleBrowse = async () => {
+    const path = await window.api.project.showSaveDialog(title)
+    if (path) setLocation(path.replace(/\/[^/]+\.konbini$/, '') || path)
+  }
+
+  const handleCreate = async () => {
+    if (!title.trim() || creating) return
+    setCreating(true)
+    try {
+      const project = await window.api.project.create({
+        title: title.trim(),
+        template,
+        location,
+      })
+      touchRecent({
+        id: project.id,
+        title: project.title,
+        location: project.settings.location,
+        opened: Date.now(),
+        words: 0,
+        template,
+        accent: project.settings.accent,
+      })
+      loadProject(project)
+      setScreen('studio')
+      onClose()
+    } catch (err) {
+      alert(`Could not create project: ${err}`)
+      setCreating(false)
+    }
+  }
+
+  return (
+    <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ maxWidth: 560 }}>
+        <div className="modal-hd">
+          <h3>New Project</h3>
+          <span className="sub">Choose a template and name your project</span>
+        </div>
+        <div className="modal-body">
+          <div className="np-field">
+            <label>Project Name</label>
+            <input
+              className="inp"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+              autoFocus
+            />
+          </div>
+          <div className="np-field">
+            <label>Template</label>
+            <div className="tmpl-grid">
+              {TEMPLATES.map((t) => (
+                <button
+                  key={t.id}
+                  className={`tmpl-card${template === t.id ? ' on' : ''}`}
+                  onClick={() => setTemplate(t.id)}
+                >
+                  <span className="tc-glyph">{t.glyph}</span>
+                  <span className="tc-label">{t.label}</span>
+                  <span className="tc-desc">{t.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="np-field">
+            <label>Location</label>
+            <div className="loc-row">
+              <div className="loc-path">
+                {location}/<b>{title || 'Untitled'}.konbini</b>
+              </div>
+              <button className="btn" onClick={handleBrowse}>Browse…</button>
+            </div>
+          </div>
+        </div>
+        <div className="modal-foot">
+          <span className="tb-spacer" />
+          <button className="btn ghost" onClick={onClose}>Cancel</button>
+          <button className="btn primary" onClick={handleCreate} disabled={creating || !title.trim()}>
+            {creating ? 'Creating…' : 'Create Project'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}

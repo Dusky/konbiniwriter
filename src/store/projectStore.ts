@@ -1,0 +1,174 @@
+import { create } from 'zustand'
+import type { Project, KNode, DocBody, DocMeta, NodeType, ViewMode, SaveStatus, Snapshot, ID } from '@shared/types'
+import { uid, wordCount } from '@shared/utils'
+
+interface ProjectState {
+  project: Project | null
+  selectedId: ID | null
+  view: ViewMode
+  saveStatus: SaveStatus
+  lastSaved: string | null
+  renamingId: ID | null
+  focusMode: boolean
+  compositionMode: boolean
+
+  // — project lifecycle —
+  loadProject: (p: Project) => void
+  unloadProject: () => void
+
+  // — selection & view —
+  selectNode: (id: ID | null) => void
+  setView: (v: ViewMode) => void
+  setRenamingId: (id: ID | null) => void
+  setFocusMode: (on: boolean) => void
+  setCompositionMode: (on: boolean) => void
+
+  // — content (THE single mutation seam) —
+  updateContent: (docId: ID, content: string) => void
+  setSaveStatus: (s: SaveStatus, lastSaved?: string) => void
+
+  // — structural mutations (optimistic; caller also calls IPC async) —
+  applyMutation: (result: { rootIds: ID[]; nodes: Record<ID, KNode>; docs: Record<ID, DocBody> }) => void
+  updateMeta: (nodeId: ID, patch: Partial<DocMeta>) => void
+  setProjectTitle: (title: string) => void
+
+  // — snapshots —
+  addSnapshot: (nodeId: ID, snap: Snapshot) => void
+  removeSnapshot: (nodeId: ID, snapId: ID) => void
+  restoreContent: (nodeId: ID, content: string) => void
+}
+
+// ── tree utilities (renderer-local, no disk access) ──────────────────────────
+
+export function flattenVisible(project: Project): Array<{ id: ID; depth: number }> {
+  const out: Array<{ id: ID; depth: number }> = []
+  const walk = (ids: ID[], depth: number) => {
+    for (const id of ids) {
+      const n = project.nodes[id]
+      if (!n) continue
+      out.push({ id, depth })
+      if (n.type === 'folder' && n.expanded) walk(n.childIds, depth + 1)
+    }
+  }
+  walk(project.rootIds, 0)
+  return out
+}
+
+export function subtreeWordCount(project: Project, id: ID): number {
+  const node = project.nodes[id]
+  if (!node) return 0
+  let total = 0
+  if (node.type !== 'folder') total += wordCount(project.docs[id]?.content ?? '')
+  for (const cid of node.childIds) total += subtreeWordCount(project, cid)
+  return total
+}
+
+export function descendants(project: Project, id: ID): ID[] {
+  const acc: ID[] = []
+  const walk = (i: ID) => {
+    for (const c of project.nodes[i]?.childIds ?? []) { acc.push(c); walk(c) }
+  }
+  walk(id)
+  return acc
+}
+
+export function isDescendant(project: Project, ancestorId: ID, targetId: ID): boolean {
+  return descendants(project, ancestorId).includes(targetId)
+}
+
+// ── store ────────────────────────────────────────────────────────────────────
+
+export const useProjectStore = create<ProjectState>((set, get) => ({
+  project: null,
+  selectedId: null,
+  view: 'editor',
+  saveStatus: 'saved',
+  lastSaved: null,
+  renamingId: null,
+  focusMode: false,
+  compositionMode: false,
+
+  loadProject: (project) => set({ project, selectedId: null, view: 'editor', saveStatus: 'saved', renamingId: null }),
+  unloadProject: () => set({ project: null, selectedId: null }),
+
+  selectNode: (id) => set((s) => {
+    if (!id || !s.project) return { selectedId: id }
+    const node = s.project.nodes[id]
+    if (!node) return { selectedId: id }
+    // Auto-switch view based on node type
+    const newView = node.type === 'folder'
+      ? (s.view === 'editor' ? 'corkboard' : s.view)
+      : 'editor'
+    return { selectedId: id, view: newView }
+  }),
+
+  setView: (view) => set({ view }),
+  setRenamingId: (renamingId) => set({ renamingId }),
+  setFocusMode: (focusMode) => set({ focusMode }),
+  setCompositionMode: (compositionMode) => set({ compositionMode }),
+
+  updateContent: (docId, content) => set((s) => {
+    if (!s.project) return {}
+    return {
+      saveStatus: 'saving',
+      project: {
+        ...s.project,
+        docs: {
+          ...s.project.docs,
+          [docId]: { ...(s.project.docs[docId] ?? { snapshots: [] }), content },
+        },
+      },
+    }
+  }),
+
+  setSaveStatus: (saveStatus, lastSaved) => set({ saveStatus, ...(lastSaved ? { lastSaved } : {}) }),
+
+  applyMutation: ({ rootIds, nodes, docs }) => set((s) => {
+    if (!s.project) return {}
+    return { project: { ...s.project, rootIds, nodes, docs } }
+  }),
+
+  updateMeta: (nodeId, patch) => set((s) => {
+    if (!s.project) return {}
+    const node = s.project.nodes[nodeId]
+    if (!node) return {}
+    return {
+      project: {
+        ...s.project,
+        nodes: { ...s.project.nodes, [nodeId]: { ...node, meta: { ...node.meta, ...patch } } },
+      },
+    }
+  }),
+
+  setProjectTitle: (title) => set((s) => {
+    if (!s.project) return {}
+    return { project: { ...s.project, title } }
+  }),
+
+  addSnapshot: (nodeId, snap) => set((s) => {
+    if (!s.project) return {}
+    const body = s.project.docs[nodeId] ?? { content: '', snapshots: [] }
+    return {
+      project: {
+        ...s.project,
+        docs: { ...s.project.docs, [nodeId]: { ...body, snapshots: [snap, ...body.snapshots] } },
+      },
+    }
+  }),
+
+  removeSnapshot: (nodeId, snapId) => set((s) => {
+    if (!s.project) return {}
+    const body = s.project.docs[nodeId]
+    if (!body) return {}
+    return {
+      project: {
+        ...s.project,
+        docs: { ...s.project.docs, [nodeId]: { ...body, snapshots: body.snapshots.filter((x) => x.id !== snapId) } },
+      },
+    }
+  }),
+
+  restoreContent: (nodeId, content) => {
+    get().updateContent(nodeId, content)
+  },
+}))
