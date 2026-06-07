@@ -58,7 +58,7 @@ export default function SnapshotModal({ onClose }: Props): React.ReactElement {
   if (!project || !nodeId || !node || node.type === 'folder') {
     return (
       <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-        <div className="modal" style={{ maxWidth: 560 }}>
+        <div className="modal" style={{ maxWidth: 560 }} role="dialog" aria-modal="true" aria-label="Snapshots">
           <div className="modal-hd"><h3>Snapshots</h3></div>
           <div className="modal-body" style={{ color: 'var(--text-3)' }}>Select a document first.</div>
           <div className="modal-foot"><span className="tb-spacer" /><button className="btn" onClick={onClose}>Close</button></div>
@@ -109,7 +109,7 @@ export default function SnapshotModal({ onClose }: Props): React.ReactElement {
 
   return (
     <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal">
+      <div className="modal" role="dialog" aria-modal="true" aria-label="Snapshots">
         <div className="modal-hd">
           <h3>Snapshots</h3>
           <span className="sub">{node.title}</span>
