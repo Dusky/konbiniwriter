@@ -107,26 +107,25 @@ export default function ReaderModal({ onClose }: Props): React.ReactElement {
   const anyDone = PERSONAS.some((p) => results[p.id]?.status === 'done')
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal modal-lg" onClick={(e) => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', gap: 0, padding: 0 }}>
-        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--ui-3)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <div className="modal-bg" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 680, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div className="modal-hd" style={{ justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontWeight: 600, fontSize: 15 }}>Reader Panel</div>
-            {docTitle && <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>{docTitle}</div>}
+            <h3 style={{ margin: 0 }}>Reader Panel</h3>
+            {docTitle && <span className="sub">{docTitle}</span>}
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {running
-              ? <button className="btn btn-secondary" onClick={stop}>Stop</button>
-              : <button className="btn btn-primary" onClick={runAll} disabled={!docContent.trim()}>
+              ? <button className="btn" onClick={stop}>Stop</button>
+              : <button className="btn primary" onClick={runAll} disabled={!docContent.trim()}>
                   {anyDone ? 'Re-run' : 'Run readers'}
                 </button>
             }
-            <button className="tb-btn" onClick={onClose} title="Close">✕</button>
           </div>
         </div>
 
         {/* Persona tabs */}
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--ui-3)', padding: '0 24px' }}>
+        <div style={{ display: 'flex', borderBottom: '0.5px solid var(--border)', padding: '0 20px' }}>
           {PERSONAS.map((p) => {
             const res = results[p.id]
             return (
@@ -144,8 +143,8 @@ export default function ReaderModal({ onClose }: Props): React.ReactElement {
               >
                 {p.emoji} {p.name}
                 {res?.status === 'streaming' && <span style={{ fontSize: 10, color: 'var(--st-prog)' }}>●</span>}
-                {res?.status === 'done' && <span style={{ fontSize: 10, color: 'var(--accent-ok, #22c55e)' }}>✓</span>}
-                {res?.status === 'error' && <span style={{ fontSize: 10, color: 'var(--accent-danger, #ef4444)' }}>!</span>}
+                {res?.status === 'done' && <span style={{ fontSize: 10, color: 'var(--st-final)' }}>✓</span>}
+                {res?.status === 'error' && <span style={{ fontSize: 10, color: 'var(--st-idea)' }}>!</span>}
               </button>
             )
           })}
@@ -162,14 +161,14 @@ export default function ReaderModal({ onClose }: Props): React.ReactElement {
             </div>
           )}
           {activeResult?.status === 'error' && (
-            <div style={{ color: 'var(--accent-danger, #ef4444)', fontSize: 13 }}>
+            <div style={{ color: 'var(--st-idea)', fontSize: 13 }}>
               Error: {activeResult.error}
             </div>
           )}
           {activeResult?.text && (
-            <div style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--text-1)', whiteSpace: 'pre-wrap' }}>
+            <div style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--text)', whiteSpace: 'pre-wrap' }}>
               {activeResult.text}
-              {activeResult.status === 'streaming' && <span className="cursor-blink">▌</span>}
+              {activeResult.status === 'streaming' && <span style={{ opacity: 0.7, animation: 'pulse 1s infinite' }}>▌</span>}
             </div>
           )}
         </div>

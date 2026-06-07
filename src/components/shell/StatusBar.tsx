@@ -57,7 +57,7 @@ export default function StatusBar(): React.ReactElement {
                 <span
                   style={{
                     display: 'inline-block', width: 48, height: 4,
-                    background: 'var(--ui-3)', borderRadius: 2, overflow: 'hidden',
+                    background: 'var(--border)', borderRadius: 2, overflow: 'hidden',
                     verticalAlign: 'middle', marginLeft: 4,
                   }}
                 >

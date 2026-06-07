@@ -10,33 +10,26 @@ const TEMPLATES: { id: TemplateId; glyph: string; label: string; desc: string }[
   { id: 'nonfiction',  glyph: '頁', label: 'Non-fiction', desc: 'Chapters and sections for long-form non-fiction.' },
 ]
 
-interface Props {
-  onClose: () => void
-}
+interface Props { onClose: () => void }
 
 export default function NewProjectModal({ onClose }: Props): React.ReactElement {
   const [title, setTitle] = useState('Untitled Project')
   const [template, setTemplate] = useState<TemplateId>('novel')
-  const [location, setLocation] = useState('~/Documents/Konbini')
   const [creating, setCreating] = useState(false)
 
   const setScreen = useShellStore((s) => s.setScreen)
   const touchRecent = useShellStore((s) => s.touchRecent)
   const loadProject = useProjectStore((s) => s.loadProject)
 
-  const handleBrowse = async () => {
-    const path = await window.api.project.showSaveDialog(title)
-    if (path) setLocation(path.replace(/\/[^/]+\.konbini$/, '') || path)
-  }
-
   const handleCreate = async () => {
     if (!title.trim() || creating) return
     setCreating(true)
     try {
+      // location='browser-pick' signals BrowserProjectService to open the folder picker
       const project = await window.api.project.create({
         title: title.trim(),
         template,
-        location,
+        location: 'browser-pick',
       })
       touchRecent({
         id: project.id,
@@ -51,7 +44,10 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
       setScreen('studio')
       onClose()
     } catch (err) {
-      alert(`Could not create project: ${err}`)
+      const msg = String(err)
+      if (!msg.includes('No folder selected')) {
+        alert(`Could not create project: ${err}`)
+      }
       setCreating(false)
     }
   }
@@ -90,13 +86,10 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
               ))}
             </div>
           </div>
-          <div className="np-field">
+          <div className="np-field" style={{ marginBottom: 0 }}>
             <label>Location</label>
-            <div className="loc-row">
-              <div className="loc-path">
-                {location}/<b>{title || 'Untitled'}.konbini</b>
-              </div>
-              <button className="btn" onClick={handleBrowse}>Browse…</button>
+            <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4, lineHeight: 1.5 }}>
+              A folder picker will open when you click Create. Your project will be saved as a <code style={{ fontFamily: 'var(--mono)', background: 'var(--bg)', padding: '1px 4px', borderRadius: 3 }}>.konbini</code> bundle in the chosen folder.
             </div>
           </div>
         </div>
@@ -104,7 +97,7 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
           <span className="tb-spacer" />
           <button className="btn ghost" onClick={onClose}>Cancel</button>
           <button className="btn primary" onClick={handleCreate} disabled={creating || !title.trim()}>
-            {creating ? 'Creating…' : 'Create Project'}
+            {creating ? 'Choose folder…' : 'Create Project'}
           </button>
         </div>
       </div>

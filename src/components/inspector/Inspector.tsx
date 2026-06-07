@@ -217,8 +217,8 @@ export default function Inspector(): React.ReactElement {
                         {s.score}/10
                       </span>
                     </div>
-                    <div style={{ height: 3, background: 'var(--ui-3)', borderRadius: 2, overflow: 'hidden', marginBottom: 4 }}>
-                      <div style={{ height: '100%', width: `${s.score * 10}%`, background: s.score >= 8 ? 'var(--accent-ok, #22c55e)' : s.score >= 5 ? 'var(--accent)' : 'var(--accent-danger, #ef4444)', borderRadius: 2 }} />
+                    <div style={{ height: 3, background: 'var(--border)', borderRadius: 2, overflow: 'hidden', marginBottom: 4 }}>
+                      <div style={{ height: '100%', width: `${s.score * 10}%`, background: s.score >= 8 ? 'var(--st-final)' : s.score >= 5 ? 'var(--accent)' : 'var(--st-idea)', borderRadius: 2 }} />
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--text-3)', lineHeight: 1.4 }}>{s.note}</div>
                   </div>

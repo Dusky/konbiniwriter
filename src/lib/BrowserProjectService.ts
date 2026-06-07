@@ -113,10 +113,18 @@ export class BrowserProjectService {
   // ── Create ────────────────────────────────────────────────────────────────
 
   async create(opts: { title: string; template: 'blank' | 'novel' | 'screenplay' | 'nonfiction'; location: string }): Promise<Project> {
-    // location is either a parent handle key (from showSaveDialog) or just a display string
+    // location may be a pre-picked parent handle key OR we open the picker now
     const [parentKey] = opts.location.split('::')
-    const parentHandle = this.tempHandles.get(parentKey)
-    if (!parentHandle) throw new Error('No parent directory handle. Use Browse… first.')
+    let parentHandle = this.tempHandles.get(parentKey)
+
+    if (!parentHandle) {
+      // No pre-picked handle — open directory picker inline
+      try {
+        parentHandle = await window.showDirectoryPicker({ mode: 'readwrite' })
+      } catch {
+        throw new Error('No folder selected.')
+      }
+    }
 
     const bundleName = `${opts.title.replace(/[<>:"/\\|?*]/g, '_')}.konbini`
     const bundleHandle = await parentHandle.getDirectoryHandle(bundleName, { create: true })
