@@ -74,11 +74,27 @@ function getCodexContext(
   index: MentionIndex,
   docId: ID,
 ): string {
-  // Phase 2: once Codex entities exist in project.settings.codex, look them up
-  // via mentionsIn(index, docId). For now return placeholder.
-  const aliases = mentionsIn(index, docId)
-  if (aliases.length === 0) return ''
-  return `Referenced entities: ${aliases.join(', ')}\n(Codex cards available in Phase 2)`
+  const codexEntries = (project.settings.codex as import('@shared/types').CodexEntry[] | undefined) ?? []
+  if (codexEntries.length === 0) return ''
+
+  const aliases = new Set(mentionsIn(index, docId))
+  if (aliases.size === 0) return ''
+
+  const matched = codexEntries.filter((entry) => {
+    if (aliases.has(entry.name.toLowerCase())) return true
+    return entry.aliases.some((a) => aliases.has(a.toLowerCase()))
+  })
+
+  if (matched.length === 0) return ''
+
+  return matched
+    .map((entry) => {
+      const header = `## ${entry.name} (${entry.category})`
+      const desc = entry.summary ?? ''
+      const facts = (entry.facts ?? []).map((f) => `${f.label}: ${f.value}`).join('\n')
+      return [header, desc, facts].filter(Boolean).join('\n')
+    })
+    .join('\n\n')
 }
 
 export function buildContext(

@@ -76,7 +76,7 @@ export default function App(): React.ReactElement {
     if (!shift && !alt && e.key === ',') { e.preventDefault(); setModal('prefs') }
     if (shift && e.key === 'F') { e.preventDefault(); setModal('search') }
     if (shift && e.key === 'K') { e.preventDefault(); setModal('codex') }
-    if (shift && e.key === 'A') { e.preventDefault(); setModal('ai-settings') }
+    if (shift && e.key === 'A') { e.preventDefault(); setModal('chat') }
     if (shift && e.key === 'R') { e.preventDefault(); setModal('reader') }
     if (shift && e.key === 'G') { e.preventDefault(); setModal('batch-generator') }
 

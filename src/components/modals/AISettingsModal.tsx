@@ -179,7 +179,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                   placeholder="https://api.openai.com/v1"
                   style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)', boxSizing: 'border-box' }}
                 />
-                <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-3)' }}>Any provider with an OpenAI-compatible <code style={{ fontFamily: 'var(--mono)', background: 'var(--ui-2)', padding: '1px 4px', borderRadius: 3 }}>/chat/completions</code> endpoint.</div>
+                <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-3)' }}>Any provider with an OpenAI-compatible <code style={{ fontFamily: 'var(--mono)', background: 'var(--bg-2)', padding: '1px 4px', borderRadius: 3 }}>/chat/completions</code> endpoint.</div>
               </Row>
               <Row label="API Key">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -211,7 +211,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                   {OPENAI_PRESETS.find((p) => p.url === openaiBaseUrl && !p.keyRequired) && (
                     <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
                       Local server — make sure it's running and has CORS enabled{' '}
-                      {openaiBaseUrl.includes('11434') && <>(Ollama: <code style={{ fontFamily: 'var(--mono)', background: 'var(--ui-2)', padding: '1px 4px', borderRadius: 3 }}>OLLAMA_ORIGINS=* ollama serve</code>)</>}.
+                      {openaiBaseUrl.includes('11434') && <>(Ollama: <code style={{ fontFamily: 'var(--mono)', background: 'var(--bg-2)', padding: '1px 4px', borderRadius: 3 }}>OLLAMA_ORIGINS=* ollama serve</code>)</>}.
                     </div>
                   )}
                 </div>

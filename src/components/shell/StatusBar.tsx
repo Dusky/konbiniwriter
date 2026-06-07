@@ -7,6 +7,7 @@ export default function StatusBar(): React.ReactElement {
   const selectedId = useProjectStore((s) => s.selectedId)
   const saveStatus = useProjectStore((s) => s.saveStatus)
   const setProjectWordTarget = useProjectStore((s) => s.setProjectWordTarget)
+  const sessionWordsAdded = useProjectStore((s) => s.sessionWordsAdded)
 
   const selectedNode = selectedId && project ? project.nodes[selectedId] : null
   const docContent = selectedId && project && selectedNode?.type !== 'folder'
@@ -52,6 +53,11 @@ export default function StatusBar(): React.ReactElement {
             onClick={() => { setDraft(wordTarget?.toString() ?? ''); setEditing(true) }}
           >
             Project: <b>{totalWords.toLocaleString()}</b>
+                {sessionWordsAdded > 0 && (
+                  <span style={{ color: 'var(--text-3)', fontWeight: 'normal' }}>
+                    {' · '}+{sessionWordsAdded.toLocaleString()} this session
+                  </span>
+                )}
             {wordTarget && (
               <> / <b>{wordTarget.toLocaleString()}</b> words
                 <span
@@ -84,7 +90,7 @@ export default function StatusBar(): React.ReactElement {
               onChange={(e) => setDraft(e.target.value)}
               onBlur={commitTarget}
               onKeyDown={(e) => { if (e.key === 'Enter') commitTarget(); if (e.key === 'Escape') setEditing(false) }}
-              style={{ width: 80, padding: '0 4px', height: 20, fontSize: 12, background: 'var(--ui-2)', border: '1px solid var(--ui-4)', borderRadius: 3, color: 'inherit' }}
+              style={{ width: 80, padding: '0 4px', height: 20, fontSize: 12, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 3, color: 'inherit' }}
               placeholder="goal"
             />
           </span>

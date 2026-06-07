@@ -47,7 +47,8 @@ const SHORTCUTS = [
   {
     heading: 'AI',
     rows: [
-      ['AI Settings / Enable', 'mod+shift+a'],
+      ['AI Chat', 'mod+shift+a'],
+      ['AI Settings / Enable', ''],
       ['Codex', 'mod+shift+k'],
       ['Reader Panel', 'mod+shift+r'],
       ['Batch Generator', 'mod+shift+g'],

@@ -19,6 +19,7 @@ interface ProjectState {
   slopSpans: import('../components/editor/extensions').SlopSpan[]
   slopRunning: boolean
   nodeHistory: Array<{ rootIds: ID[]; nodes: Record<ID, KNode> }>
+  sessionWordsAdded: number
 
   // — project lifecycle —
   loadProject: (p: Project) => void
@@ -58,6 +59,9 @@ interface ProjectState {
   // — slop scorer —
   setSlopSpans: (spans: import('../components/editor/extensions').SlopSpan[]) => void
   setSlopRunning: (on: boolean) => void
+
+  // — session tracking —
+  recordWordDelta: (delta: number) => void
 
   // — project settings —
   setProjectWordTarget: (target: number | undefined) => void
@@ -126,6 +130,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   slopRunning: false,
   nodeHistory: [],
   judgeResults: new Map(),
+  sessionWordsAdded: 0,
 
   loadProject: (project) => set({
     project,
@@ -139,8 +144,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     activeProposalId: null,
     nodeHistory: [],
     judgeResults: new Map(),
+    sessionWordsAdded: 0,
   }),
-  unloadProject: () => set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], judgeResults: new Map() }),
+  unloadProject: () => set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], judgeResults: new Map(), sessionWordsAdded: 0 }),
 
   selectNode: (id) => set((s) => {
     if (!id || !s.project) return { selectedId: id }
@@ -160,8 +166,14 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   updateContent: (docId, content) => set((s) => {
     if (!s.project) return {}
+    const prevContent = s.project.docs[docId]?.content ?? ''
+    const prevWords = wordCount(prevContent)
+    const newWords = wordCount(content)
+    const delta = newWords - prevWords
+    const sessionWordsAdded = Math.max(0, s.sessionWordsAdded + delta)
     return {
       saveStatus: 'saving',
+      sessionWordsAdded,
       project: {
         ...s.project,
         docs: {
@@ -267,6 +279,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     next.set(nodeId, result)
     return { judgeResults: next }
   }),
+
+  recordWordDelta: (delta) => set((s) => ({ sessionWordsAdded: Math.max(0, s.sessionWordsAdded + delta) })),
 
   setProjectWordTarget: (target) => {
     const p = get().project

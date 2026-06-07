@@ -30,6 +30,14 @@ export default function Editor({ docId }: Props): React.ReactElement {
   const [cowrite, setCowrite] = useState<{ selection: string; anchorRect: DOMRect } | null>(null)
   const [wikilinkTip, setWikilinkTip] = useState<{ title: string; synopsis: string; preview: string; x: number; y: number } | null>(null)
 
+  // Find & Replace state
+  const [findReplaceOpen, setFindReplaceOpen] = useState(false)
+  const [findText, setFindText] = useState('')
+  const [replaceText, setReplaceText] = useState('')
+  const [matches, setMatches] = useState<number[]>([])
+  const [currentMatch, setCurrentMatch] = useState(0)
+  const findInputRef = useRef<HTMLInputElement>(null)
+
   // Run slop proof on current doc — called from Toolbar
   const runProof = useCallback(async () => {
     const view = viewRef.current
@@ -165,6 +173,113 @@ export default function Editor({ docId }: Props): React.ReactElement {
     setWikilinkTip({ title: target.title, synopsis: target.meta.synopsis, preview, x: e.clientX, y: e.clientY })
   }, [project])
 
+  // Find & Replace logic
+  const searchMatches = useCallback((text: string, doc: string): number[] => {
+    if (!text) return []
+    const results: number[] = []
+    let idx = 0
+    while (idx <= doc.length - text.length) {
+      const pos = doc.indexOf(text, idx)
+      if (pos === -1) break
+      results.push(pos)
+      idx = pos + 1
+    }
+    return results
+  }, [])
+
+  useEffect(() => {
+    if (!findReplaceOpen) return
+    const view = viewRef.current
+    if (!view) { setMatches([]); return }
+    const doc = view.state.doc.toString()
+    const found = searchMatches(findText, doc)
+    setMatches(found)
+    setCurrentMatch(0)
+    if (found.length > 0) {
+      const pos = found[0]
+      view.dispatch({
+        selection: { anchor: pos, head: pos + findText.length },
+        effects: EditorView.scrollIntoView(pos, { y: 'center' }),
+      })
+    }
+  }, [findText, findReplaceOpen, searchMatches])
+
+  const goToMatch = useCallback((idx: number) => {
+    const view = viewRef.current
+    if (!view || matches.length === 0) return
+    const pos = matches[idx]
+    view.dispatch({
+      selection: { anchor: pos, head: pos + findText.length },
+      effects: EditorView.scrollIntoView(pos, { y: 'center' }),
+    })
+    view.focus()
+  }, [matches, findText])
+
+  const goNext = useCallback(() => {
+    if (matches.length === 0) return
+    const next = (currentMatch + 1) % matches.length
+    setCurrentMatch(next)
+    goToMatch(next)
+  }, [currentMatch, matches, goToMatch])
+
+  const goPrev = useCallback(() => {
+    if (matches.length === 0) return
+    const prev = (currentMatch - 1 + matches.length) % matches.length
+    setCurrentMatch(prev)
+    goToMatch(prev)
+  }, [currentMatch, matches, goToMatch])
+
+  const doReplace = useCallback(() => {
+    const view = viewRef.current // eslint-disable-line @typescript-eslint/no-shadow
+    if (!view || matches.length === 0) return
+    const pos = matches[currentMatch]
+    const sel = view.state.selection.main
+    // Only replace if selection matches current match
+    if (sel.from === pos && sel.to === pos + findText.length) {
+      view.dispatch({ changes: { from: pos, to: pos + findText.length, insert: replaceText } })
+      // Re-search after change
+      const doc = view.state.doc.toString()
+      const found = searchMatches(findText, doc)
+      setMatches(found)
+      const next = Math.min(currentMatch, found.length - 1)
+      setCurrentMatch(next >= 0 ? next : 0)
+      if (found.length > 0 && next >= 0) goToMatch(next)
+    } else {
+      goToMatch(currentMatch)
+    }
+  }, [matches, currentMatch, findText, replaceText, searchMatches, goToMatch])
+
+  const doReplaceAll = useCallback(() => {
+    const view = viewRef.current
+    if (!view || matches.length === 0) return
+    // Replace from last to first so positions stay valid
+    const changes = [...matches].reverse().map((pos) => ({
+      from: pos, to: pos + findText.length, insert: replaceText,
+    }))
+    view.dispatch({ changes })
+    setMatches([])
+    setCurrentMatch(0)
+    view.focus()
+  }, [matches, findText, replaceText])
+
+  // Keyboard shortcut: Cmd/Ctrl+H or Cmd/Ctrl+Shift+H opens find & replace
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey
+      if (mod && e.key === 'h') {
+        e.preventDefault()
+        setFindReplaceOpen((open) => !open)
+        setTimeout(() => findInputRef.current?.focus(), 50)
+      }
+      if (e.key === 'Escape' && findReplaceOpen) {
+        setFindReplaceOpen(false)
+        viewRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [findReplaceOpen])
+
   // Sync focus mode into CM6 state field
   useEffect(() => {
     const view = viewRef.current
@@ -173,12 +288,88 @@ export default function Editor({ docId }: Props): React.ReactElement {
   }, [focusMode])
 
   return (
-    <div style={{ height: '100%', position: 'relative' }} onMouseUp={handleMouseUp} onMouseMove={handleMouseMove} onMouseLeave={() => setWikilinkTip(null)}>
-      <div ref={containerRef} style={{ height: '100%' }} />
+    <div style={{ height: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }} onMouseUp={handleMouseUp} onMouseMove={handleMouseMove} onMouseLeave={() => setWikilinkTip(null)}>
+      {findReplaceOpen && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px',
+          background: 'var(--bg-2)', borderBottom: '1px solid var(--border)',
+          flexShrink: 0, flexWrap: 'wrap',
+        }}>
+          <input
+            ref={findInputRef}
+            value={findText}
+            onChange={(e) => setFindText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') goNext() }}
+            placeholder="Find"
+            style={{
+              padding: '3px 7px', borderRadius: 4, border: '1px solid var(--border)',
+              background: 'var(--bg-2)', color: 'var(--text)',
+              fontSize: 13, width: 160, outline: 'none',
+            }}
+          />
+          <input
+            value={replaceText}
+            onChange={(e) => setReplaceText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') doReplace() }}
+            placeholder="Replace with"
+            style={{
+              padding: '3px 7px', borderRadius: 4, border: '1px solid var(--border)',
+              background: 'var(--bg-2)', color: 'var(--text)',
+              fontSize: 13, width: 160, outline: 'none',
+            }}
+          />
+          <span style={{ fontSize: 12, color: 'var(--text-3)', minWidth: 60 }}>
+            {matches.length === 0 ? (findText ? '0 matches' : '') : `${currentMatch + 1} of ${matches.length}`}
+          </span>
+          {(['◀', '▶'] as const).map((label, i) => (
+            <button
+              key={label}
+              onClick={i === 0 ? goPrev : goNext}
+              disabled={matches.length === 0}
+              style={{
+                padding: '3px 8px', borderRadius: 4, border: '1px solid var(--border)',
+                background: 'var(--bg-2)', color: 'var(--text)',
+                cursor: matches.length === 0 ? 'not-allowed' : 'pointer', fontSize: 13,
+                opacity: matches.length === 0 ? 0.5 : 1,
+              }}
+            >{label}</button>
+          ))}
+          <button
+            onClick={doReplace}
+            disabled={matches.length === 0}
+            style={{
+              padding: '3px 8px', borderRadius: 4, border: '1px solid var(--border)',
+              background: 'var(--bg-2)', color: 'var(--text)',
+              cursor: matches.length === 0 ? 'not-allowed' : 'pointer', fontSize: 13,
+              opacity: matches.length === 0 ? 0.5 : 1,
+            }}
+          >Replace</button>
+          <button
+            onClick={doReplaceAll}
+            disabled={matches.length === 0}
+            style={{
+              padding: '3px 8px', borderRadius: 4, border: '1px solid var(--border)',
+              background: 'var(--bg-2)', color: 'var(--text)',
+              cursor: matches.length === 0 ? 'not-allowed' : 'pointer', fontSize: 13,
+              opacity: matches.length === 0 ? 0.5 : 1,
+            }}
+          >Replace All</button>
+          <button
+            onClick={() => { setFindReplaceOpen(false); viewRef.current?.focus() }}
+            style={{
+              marginLeft: 'auto', padding: '3px 8px', borderRadius: 4,
+              border: '1px solid var(--border)',
+              background: 'var(--bg-2)', color: 'var(--text)',
+              cursor: 'pointer', fontSize: 13,
+            }}
+          >✕</button>
+        </div>
+      )}
+      <div ref={containerRef} style={{ flex: 1, minHeight: 0 }} />
       {wikilinkTip && (
         <div style={{
           position: 'fixed', left: wikilinkTip.x + 12, top: wikilinkTip.y + 12,
-          background: 'var(--ui-2)', border: '1px solid var(--ui-4)', borderRadius: 6,
+          background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 6,
           padding: '10px 12px', maxWidth: 280, zIndex: 9000, pointerEvents: 'none',
           boxShadow: '0 4px 16px rgba(0,0,0,0.18)', fontSize: 13, lineHeight: 1.5,
         }}>

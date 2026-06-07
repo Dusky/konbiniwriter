@@ -5,6 +5,7 @@ import { STATUS_META, STATUS_ORDER, LABEL_META, LABEL_ORDER, wordCount, charCoun
 import type { StatusId, LabelId } from '@shared/types'
 import { promptRegistry } from '../../lib/PromptRegistry'
 import { streamCompletion } from '../../lib/AIClient'
+import { backlinksFor } from '../../lib/MentionIndex'
 
 interface JudgeScore { dimension: string; score: number; note: string }
 interface JudgeResult { scores: JudgeScore[]; verdict: string }
@@ -21,6 +22,9 @@ export default function Inspector(): React.ReactElement {
   const judgeResult = selectedId ? (judgeResultsMap.get(selectedId) ?? null) : null
   const [judgeRunning, setJudgeRunning] = useState(false)
   const [judgeError, setJudgeError] = useState<string | null>(null)
+  const mentionIndex = useProjectStore((s) => s.mentionIndex)
+  const selectNode = useProjectStore((s) => s.selectNode)
+  const [activeTab, setActiveTab] = useState<'info' | 'links'>('info')
 
   if (!project || !selectedId) {
     return (
@@ -82,8 +86,73 @@ export default function Inspector(): React.ReactElement {
     mutateNode({ type: 'updateMeta', id: selectedId, patch })
   }
 
+  const backlinkIds = node.type !== 'folder' && mentionIndex
+    ? backlinksFor(mentionIndex, node.title).filter((id) => id !== selectedId)
+    : []
+
   return (
     <div className="inspector">
+      {node.type !== 'folder' && (
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+          {(['info', 'links'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              style={{
+                flex: 1,
+                padding: '7px 0',
+                fontSize: 12,
+                fontWeight: activeTab === tab ? 600 : 400,
+                color: activeTab === tab ? 'var(--text)' : 'var(--text-3)',
+                background: 'none',
+                border: 'none',
+                borderBottom: activeTab === tab ? '2px solid var(--accent)' : '2px solid transparent',
+                cursor: 'pointer',
+                letterSpacing: 0.3,
+              }}
+            >
+              {tab === 'info' ? 'Info' : '↩ Links'}
+            </button>
+          ))}
+        </div>
+      )}
+      {activeTab === 'links' && node.type !== 'folder' ? (
+        <div className="insp-scroll">
+          <div className="insp-sec">
+            <h4>Backlinks</h4>
+            {backlinkIds.length === 0 ? (
+              <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '4px 0' }}>
+                No documents link here.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {backlinkIds.map((id) => {
+                  const n = project.nodes[id]
+                  if (!n) return null
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => selectNode(id)}
+                      style={{
+                        textAlign: 'left',
+                        padding: '5px 8px',
+                        background: 'var(--bg-2)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 4,
+                        fontSize: 12,
+                        color: 'var(--text)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {n.title}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
       <div className="insp-scroll">
         {/* Status & Label */}
         <div className="insp-sec">
@@ -224,7 +293,7 @@ export default function Inspector(): React.ReactElement {
                   </div>
                 ))}
                 {judgeResult.verdict && (
-                  <div style={{ marginTop: 8, padding: '8px 10px', background: 'var(--ui-2)', borderRadius: 4, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5, fontStyle: 'italic' }}>
+                  <div style={{ marginTop: 8, padding: '8px 10px', background: 'var(--bg-2)', borderRadius: 4, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5, fontStyle: 'italic' }}>
                     {judgeResult.verdict}
                   </div>
                 )}
@@ -248,6 +317,7 @@ export default function Inspector(): React.ReactElement {
           </div>
         </div>
       </div>
+      )}
     </div>
   )
 }
