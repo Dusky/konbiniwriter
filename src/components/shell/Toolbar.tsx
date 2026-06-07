@@ -137,6 +137,14 @@ export default function Toolbar(): React.ReactElement {
                 <path d="M2 4h12M2 8h8M2 12h10" strokeLinecap="round" />
               </svg>
             </button>
+            <button className="tb-btn" title="Reader Panel — 4-persona critique" onClick={() => setModal('reader')}>
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
+                <circle cx="5" cy="6" r="2.5" />
+                <circle cx="11" cy="6" r="2.5" />
+                <path d="M1 13c0-2 1.8-3.5 4-3.5M11 13c2.2 0 4 1.5 4 3.5M8 13c-1.5 0-2.5.8-2.5 2M8 13c1.5 0 2.5.8 2.5 2" strokeLinecap="round" />
+              </svg>
+              Readers
+            </button>
             <button
               className={`tb-btn${slopCount > 0 ? ' on' : ''}`}
               title="Slop Proof — flag clichés and weak prose"

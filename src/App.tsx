@@ -18,6 +18,7 @@ export default function App(): React.ReactElement {
   const setFocusMode = useProjectStore((s) => s.setFocusMode)
   const unloadProject = useProjectStore((s) => s.unloadProject)
   const applyMutation = useProjectStore((s) => s.applyMutation)
+  const undoMutation = useProjectStore((s) => s.undoMutation)
   const selectNode = useProjectStore((s) => s.selectNode)
   const setRenamingId = useProjectStore((s) => s.setRenamingId)
   const project = useProjectStore((s) => s.project)
@@ -46,6 +47,15 @@ export default function App(): React.ReactElement {
     const shift = e.shiftKey
     const alt = e.altKey
     if (!mod) return
+
+    // Structural undo (node ops) — only when editor is NOT focused (CM6 handles its own undo)
+    if (!shift && !alt && e.key === 'z') {
+      const tag = (document.activeElement as HTMLElement)?.tagName
+      const isCM = document.activeElement?.closest('.cm-editor')
+      if (!isCM && tag !== 'INPUT' && tag !== 'TEXTAREA') {
+        if (undoMutation()) e.preventDefault()
+      }
+    }
 
     // Navigation & layout
     if (alt && e.key === 'b') { e.preventDefault(); toggleBinder() }
@@ -97,7 +107,7 @@ export default function App(): React.ReactElement {
       setScreen('launch')
       window.api.project.recents().then(setRecents).catch(console.error)
     }
-  }, [theme, project, screen, createNode])
+  }, [theme, project, screen, createNode, undoMutation])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKey)

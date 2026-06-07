@@ -18,6 +18,7 @@ interface ProjectState {
   codex: CodexEntry[]
   slopSpans: import('../components/editor/extensions').SlopSpan[]
   slopRunning: boolean
+  nodeHistory: Array<{ rootIds: ID[]; nodes: Record<ID, KNode> }>
 
   // — project lifecycle —
   loadProject: (p: Project) => void
@@ -36,6 +37,7 @@ interface ProjectState {
 
   // — structural mutations (optimistic; caller also calls IPC async) —
   applyMutation: (result: { rootIds: ID[]; nodes: Record<ID, KNode>; docs: Record<ID, DocBody> }) => void
+  undoMutation: () => boolean   // returns true if undo was available
   updateMeta: (nodeId: ID, patch: Partial<DocMeta>) => void
   setProjectTitle: (title: string) => void
 
@@ -118,6 +120,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   codex: [],
   slopSpans: [],
   slopRunning: false,
+  nodeHistory: [],
 
   loadProject: (project) => set({
     project,
@@ -129,8 +132,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     codex: (project.settings.codex as CodexEntry[] | undefined) ?? [],
     proposals: [],
     activeProposalId: null,
+    nodeHistory: [],
   }),
-  unloadProject: () => set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false }),
+  unloadProject: () => set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [] }),
 
   selectNode: (id) => set((s) => {
     if (!id || !s.project) return { selectedId: id }
@@ -167,8 +171,21 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   applyMutation: ({ rootIds, nodes, docs }) => set((s) => {
     if (!s.project) return {}
-    return { project: { ...s.project, rootIds, nodes, docs } }
+    const snapshot = { rootIds: s.project.rootIds, nodes: s.project.nodes }
+    const history = [...s.nodeHistory, snapshot].slice(-50)
+    return { project: { ...s.project, rootIds, nodes, docs }, nodeHistory: history }
   }),
+
+  undoMutation: () => {
+    const s = get()
+    if (!s.project || s.nodeHistory.length === 0) return false
+    const prev = s.nodeHistory[s.nodeHistory.length - 1]
+    set({
+      project: { ...s.project, rootIds: prev.rootIds, nodes: prev.nodes },
+      nodeHistory: s.nodeHistory.slice(0, -1),
+    })
+    return true
+  },
 
   updateMeta: (nodeId, patch) => set((s) => {
     if (!s.project) return {}

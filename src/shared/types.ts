@@ -25,6 +25,7 @@ export type ModalId =
   | 'codex'
   | 'ai-settings'
   | 'batch-generator'
+  | 'reader'
   | null
 
 // ── Project ───────────────────────────────────────────────────────────────────
