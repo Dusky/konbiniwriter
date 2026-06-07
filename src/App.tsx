@@ -83,6 +83,7 @@ export default function App(): React.ReactElement {
     if (shift && e.key === 'A') { e.preventDefault(); setModal('chat') }
     if (shift && e.key === 'R') { e.preventDefault(); setModal('reader') }
     if (shift && e.key === 'G') { e.preventDefault(); setModal('batch-generator') }
+    if (shift && e.key === 'P') { e.preventDefault(); setModal('autopilot') }
 
     // New project / open (always available)
     if (!shift && !alt && e.key === 'n' && screen === 'launch') { e.preventDefault(); setModal('new-project') }

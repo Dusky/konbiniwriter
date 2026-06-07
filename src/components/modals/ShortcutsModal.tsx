@@ -53,6 +53,7 @@ const SHORTCUTS = [
       ['Codex', 'mod+shift+k'],
       ['Reader Panel', 'mod+shift+r'],
       ['Batch Generator', 'mod+shift+g'],
+      ['Autopilot', 'mod+shift+p'],
       ['Prompt Registry', ''],
     ],
   },

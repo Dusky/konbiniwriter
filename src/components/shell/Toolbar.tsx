@@ -126,6 +126,11 @@ export default function Toolbar(): React.ReactElement {
             <path d="M9.5 9.5L13 13" strokeLinecap="round" />
           </svg>
         </button>
+        <button className="tb-btn" title="Writing Stats" onClick={() => setModal('stats')}>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
+            <path d="M2 13V8M6 13V5M10 13V9M14 13V3" strokeLinecap="round" />
+          </svg>
+        </button>
         <button className="tb-btn" title="Preferences (⌘,)" onClick={() => setModal('prefs')}>
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
             <circle cx="8" cy="8" r="1.5" />
@@ -178,6 +183,7 @@ export default function Toolbar(): React.ReactElement {
             </svg>
             Generate
           </button>
+          <button className="tb-btn" title="Autopilot (⌘⇧P)" onClick={() => setModal('autopilot')}>▶▶</button>
           <div className="tb-sep" />
           <button className="tb-btn" title="AI Settings" onClick={() => setModal('ai-settings')} style={{ color: 'var(--accent)' }}>
             <span style={{ fontSize: 14 }}>✦</span> AI

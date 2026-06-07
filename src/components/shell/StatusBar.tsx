@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useProjectStore, subtreeWordCount } from '../../store/projectStore'
+import { useShellStore } from '../../store/shellStore'
 import { wordCount, charCount } from '@shared/utils'
 
 export default function StatusBar(): React.ReactElement {
@@ -8,6 +9,7 @@ export default function StatusBar(): React.ReactElement {
   const saveStatus = useProjectStore((s) => s.saveStatus)
   const setProjectWordTarget = useProjectStore((s) => s.setProjectWordTarget)
   const sessionWordsAdded = useProjectStore((s) => s.sessionWordsAdded)
+  const setModal = useShellStore((s) => s.setModal)
 
   const selectedNode = selectedId && project ? project.nodes[selectedId] : null
   const docContent = selectedId && project && selectedNode?.type !== 'folder'
@@ -54,7 +56,11 @@ export default function StatusBar(): React.ReactElement {
           >
             Project: <b>{totalWords.toLocaleString()}</b>
                 {sessionWordsAdded > 0 && (
-                  <span style={{ color: 'var(--text-3)', fontWeight: 'normal' }}>
+                  <span
+                    style={{ color: 'var(--text-3)', fontWeight: 'normal', cursor: 'pointer' }}
+                    title="View Writing Stats"
+                    onClick={(e) => { e.stopPropagation(); setModal('stats') }}
+                  >
                     {' · '}+{sessionWordsAdded.toLocaleString()} this session
                   </span>
                 )}
@@ -70,7 +76,7 @@ export default function StatusBar(): React.ReactElement {
                   <span style={{
                     display: 'block', height: '100%',
                     width: `${(progress ?? 0) * 100}%`,
-                    background: progress === 1 ? 'var(--accent-ok, #22c55e)' : 'var(--accent)',
+                    background: progress === 1 ? 'var(--st-final)' : 'var(--accent)',
                     borderRadius: 2,
                     transition: 'width 0.3s',
                   }} />

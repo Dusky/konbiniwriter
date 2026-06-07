@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { Project, KNode, DocBody, DocMeta, NodeType, ViewMode, SaveStatus, Snapshot, ID, Proposal, CodexEntry } from '@shared/types'
 import { uid, wordCount } from '@shared/utils'
 import { type MentionIndex, buildIndex, updateIndex } from '../lib/MentionIndex'
+import { statsService } from '../lib/StatsService'
 
 interface ProjectState {
   project: Project | null
@@ -73,6 +74,14 @@ interface ProjectState {
   // — judge scores (keyed by nodeId) —
   judgeResults: Map<ID, { scores: Array<{ dimension: string; score: number; note: string }>; verdict: string }>
   setJudgeResult: (nodeId: ID, result: { scores: Array<{ dimension: string; score: number; note: string }>; verdict: string }) => void
+
+  // — autopilot runner —
+  autopilotQueue: string[]
+  autopilotRunning: boolean
+  autopilotCurrent: string | null
+  setAutopilotQueue: (ids: string[]) => void
+  setAutopilotRunning: (on: boolean) => void
+  setAutopilotCurrent: (id: string | null) => void
 }
 
 // ── tree utilities (renderer-local, no disk access) ──────────────────────────
@@ -137,6 +146,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   nodeHistory: [],
   judgeResults: new Map(),
   sessionWordsAdded: 0,
+  autopilotQueue: [],
+  autopilotRunning: false,
+  autopilotCurrent: null,
 
   loadProject: (project) => set({
     project,
@@ -151,8 +163,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     nodeHistory: [],
     judgeResults: new Map(),
     sessionWordsAdded: 0,
+    autopilotQueue: [],
+    autopilotRunning: false,
+    autopilotCurrent: null,
   }),
-  unloadProject: () => set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], judgeResults: new Map(), sessionWordsAdded: 0 }),
+  unloadProject: () => set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], judgeResults: new Map(), sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null }),
 
   selectNode: (id) => set((s) => {
     if (!id || !s.project) return { selectedId: id }
@@ -178,6 +193,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const prevWords = wordCount(prevContent)
     const newWords = wordCount(content)
     const delta = newWords - prevWords
+    if (delta > 0) statsService.recordDelta(delta)
     const sessionWordsAdded = Math.max(0, s.sessionWordsAdded + delta)
     return {
       saveStatus: 'saving',
@@ -287,6 +303,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     next.set(nodeId, result)
     return { judgeResults: next }
   }),
+
+  setAutopilotQueue: (autopilotQueue) => set({ autopilotQueue }),
+  setAutopilotRunning: (autopilotRunning) => set({ autopilotRunning }),
+  setAutopilotCurrent: (autopilotCurrent) => set({ autopilotCurrent }),
 
   recordWordDelta: (delta) => set((s) => ({ sessionWordsAdded: Math.max(0, s.sessionWordsAdded + delta) })),
 

@@ -27,6 +27,8 @@ export type ModalId =
   | 'batch-generator'
   | 'reader'
   | 'chat'
+  | 'stats'
+  | 'autopilot'
   | null
 
 // ── Project ───────────────────────────────────────────────────────────────────
