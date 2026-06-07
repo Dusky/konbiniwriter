@@ -117,7 +117,7 @@ export default function CompileModal({ onClose }: Props): React.ReactElement {
 
   return (
     <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal">
+      <div className="modal" role="dialog" aria-modal="true" aria-label="Compile">
         <div className="modal-hd">
           <h3>Compile</h3>
           <span className="sub">{included.size} documents · {totalWords.toLocaleString()} words</span>

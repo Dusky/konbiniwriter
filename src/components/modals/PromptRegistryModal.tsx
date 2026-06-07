@@ -62,7 +62,7 @@ export default function PromptRegistryModal({ onClose }: Props): React.ReactElem
 
   return (
     <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ maxWidth: 900, maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+      <div className="modal" style={{ maxWidth: 900, maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} role="dialog" aria-modal="true" aria-label="Prompt Registry">
         <div className="modal-hd">
           <h3>Prompt Registry</h3>
           <span className="tb-spacer" />

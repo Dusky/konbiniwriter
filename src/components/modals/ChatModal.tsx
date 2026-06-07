@@ -127,6 +127,7 @@ export default function ChatModal({ onClose }: Props): React.ReactElement {
         className="modal"
         onClick={(e) => e.stopPropagation()}
         style={{ maxWidth: 680, height: 500, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+        role="dialog" aria-modal="true" aria-label="AI Chat"
       >
         {/* Header */}
         <div className="modal-hd" style={{ justifyContent: 'space-between' }}>

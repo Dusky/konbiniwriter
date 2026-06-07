@@ -100,7 +100,7 @@ export default function CodexModal({ onClose }: Props): React.ReactElement {
 
   return (
     <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ maxWidth: 920, maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+      <div className="modal" style={{ maxWidth: 920, maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} role="dialog" aria-modal="true" aria-label="Codex">
         <div className="modal-hd">
           <h3>Codex</h3>
           <span className="tb-spacer" />

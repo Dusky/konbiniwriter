@@ -164,9 +164,6 @@
   text-transform: uppercase; color: var(--text-2); font-weight: 600; margin-bottom: 12px; }
 .cg-dot { width: 8px; height: 8px; border-radius: 50%; }
 .codex-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(248px, 1fr)); gap: 14px; }
-.codex-card { text-align: left; background: var(--bg-2); border: 0.5px solid var(--border-2); border-radius: 11px;
-  padding: 14px; display: flex; flex-direction: column; min-height: 150px; border-top: 2px solid var(--etype); }
-.codex-card:hover { border-color: var(--etype); box-shadow: 0 6px 20px rgba(0,0,0,.25); transform: translateY(-1px); transition: .12s; }
 .cc-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .cc-glyph { font-size: 18px; color: var(--text-2); font-family: var(--mono); }
 .cc-glyph.lg { font-size: 30px; }
@@ -213,8 +210,6 @@
 .debt-item { border: 0.5px solid var(--border-2); border-radius: 11px; margin-bottom: 12px; overflow: hidden; background: var(--bg-2); }
 .debt-item.done { opacity: .7; }
 .debt-hd { display: flex; align-items: center; gap: 11px; padding: 13px 14px; cursor: pointer; }
-.debt-layer { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; font-weight: 700; color: var(--lc);
-  border: 1px solid color-mix(in oklch, var(--lc) 45%, transparent); padding: 2px 8px; border-radius: 5px; }
 .debt-title { flex: 1; font-size: 13.5px; color: var(--text); font-weight: 500; }
 .debt-count { font-size: 11.5px; color: var(--st-prog); font-weight: 600; }
 .debt-count.ok { color: var(--st-final); }

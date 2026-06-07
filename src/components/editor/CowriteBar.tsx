@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { useProjectStore } from '../../store/projectStore'
 import { useAIStore } from '../../store/aiStore'
 import { promptRegistry } from '../../lib/PromptRegistry'
@@ -32,6 +32,8 @@ export default function CowriteBar({ docId, selection, anchorRect, onClose }: Pr
   const [running, setRunning] = useState<Command | null>(null)
   const [error, setError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+
+  useEffect(() => () => { abortRef.current?.abort() }, [])
 
   const handleCommand = useCallback(async (cmd: Command) => {
     if (!project || running) return

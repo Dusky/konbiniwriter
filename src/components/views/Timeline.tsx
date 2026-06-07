@@ -127,7 +127,7 @@ export default function Timeline(): React.ReactElement {
                   try {
                     const result = await window.api.node.mutate(project.id, { type: 'move', id: dragId, newParentId: dt.parentId, atIndex: dt.atIndex })
                     applyMutation(result)
-                  } catch (err) { console.error(err) }
+                  } catch { return }
                 }}
               >
                 {row.sceneIds.length === 0 && (
@@ -172,7 +172,7 @@ export default function Timeline(): React.ReactElement {
                           try {
                             const result = await window.api.node.mutate(project.id, { type: 'move', id: dragId, newParentId: dt.parentId, atIndex: dt.atIndex })
                             applyMutation(result)
-                          } catch (err) { console.error(err) }
+                          } catch { return }
                         }}
                         onClick={() => selectNode(id)}
                         onDoubleClick={() => { selectNode(id); setView('editor') }}

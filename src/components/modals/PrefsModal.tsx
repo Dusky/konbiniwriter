@@ -57,7 +57,7 @@ export default function PrefsModal({ onClose }: Props): React.ReactElement {
 
   return (
     <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ maxWidth: 520 }}>
+      <div className="modal" style={{ maxWidth: 520 }} role="dialog" aria-modal="true" aria-label="Preferences">
         <div className="modal-hd"><h3>Preferences</h3></div>
         <div className="modal-body">
 

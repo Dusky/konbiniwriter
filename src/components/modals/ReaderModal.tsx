@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useProjectStore } from '../../store/projectStore'
 import { streamCompletion } from '../../lib/AIClient'
 
@@ -60,6 +60,8 @@ export default function ReaderModal({ onClose }: Props): React.ReactElement {
   const [activeTab, setActiveTab] = useState(PERSONAS[0].id)
   const abortRef = useRef<AbortController | null>(null)
 
+  useEffect(() => () => { abortRef.current?.abort() }, [])
+
   const docContent = selectedId && project
     ? (project.docs[selectedId]?.content ?? '')
     : ''
@@ -108,7 +110,7 @@ export default function ReaderModal({ onClose }: Props): React.ReactElement {
 
   return (
     <div className="modal-bg" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 680, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 680, display: 'flex', flexDirection: 'column', overflow: 'hidden' }} role="dialog" aria-modal="true" aria-label="Reader Panel">
         <div className="modal-hd" style={{ justifyContent: 'space-between' }}>
           <div>
             <h3 style={{ margin: 0 }}>Reader Panel</h3>

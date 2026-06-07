@@ -30,6 +30,7 @@ const SHORTCUTS = [
       ['Editor', 'mod+1'],
       ['Corkboard', 'mod+2'],
       ['Outliner', 'mod+3'],
+      ['Timeline', 'mod+4'],
       ['Toggle Binder', 'mod+alt+b'],
       ['Toggle Inspector', 'mod+alt+i'],
       ['Composition Mode', 'mod+alt+c'],
@@ -66,7 +67,7 @@ export default function ShortcutsModal({ onClose }: Props): React.ReactElement {
 
   return (
     <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ maxWidth: 780 }}>
+      <div className="modal" style={{ maxWidth: 780 }} role="dialog" aria-modal="true" aria-label="Keyboard Shortcuts">
         <div className="modal-hd"><h3>Keyboard Shortcuts</h3></div>
         <div className="modal-body">
           <div className="sc-grid">

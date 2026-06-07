@@ -99,7 +99,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
 
   return (
     <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ maxWidth: 580 }}>
+      <div className="modal" style={{ maxWidth: 580 }} role="dialog" aria-modal="true" aria-label="AI Settings">
         <div className="modal-hd">
           <h3>AI Settings</h3>
           <span style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 10, alignSelf: 'center' }}>

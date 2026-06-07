@@ -72,6 +72,7 @@ export default function App(): React.ReactElement {
     if (!shift && !alt && e.key === '1') { e.preventDefault(); setView('editor') }
     if (!shift && !alt && e.key === '2') { e.preventDefault(); setView('corkboard') }
     if (!shift && !alt && e.key === '3') { e.preventDefault(); setView('outliner') }
+    if (!shift && !alt && e.key === '4') { e.preventDefault(); setView('timeline') }
 
     // Modals
     if (shift && e.key === 'S') { e.preventDefault(); setModal('snapshot') }

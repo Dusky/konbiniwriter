@@ -12,7 +12,7 @@ export default function StatsModal({ onClose }: Props): React.ReactElement {
 
   return (
     <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ maxWidth: 520 }}>
+      <div className="modal" style={{ maxWidth: 520 }} role="dialog" aria-modal="true" aria-label="Writing Stats">
         <div className="modal-hd">
           <h3>Writing Stats</h3>
         </div>

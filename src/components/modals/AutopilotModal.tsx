@@ -38,6 +38,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
   const [streamText, setStreamText] = useState('')
   const [currentIndex, setCurrentIndex] = useState(0)
   const [totalCount, setTotalCount] = useState(0)
+  const [pipelineError, setPipelineError] = useState<string | null>(null)
 
   const stopped = useRef(false)
   const abortRef = useRef<AbortController>(new AbortController())
@@ -139,7 +140,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
               })
             })
           },
-          onError: (err) => { console.error('Autopilot error:', err) },
+          onError: (err) => { setPipelineError(err.message) },
         },
       )
     }
@@ -154,6 +155,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
     if (!canRun) return
     stopped.current = false
     abortRef.current = new AbortController()
+    setPipelineError(null)
     void runPipeline(checkedIds, promptId)
   }
 
@@ -168,7 +170,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
 
   return (
     <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && phase !== 'running' && onClose()}>
-      <div className="modal" style={{ maxWidth: 560 }}>
+      <div className="modal" style={{ maxWidth: 560 }} role="dialog" aria-modal="true" aria-label="Autopilot Runner">
         <div className="modal-hd"><h3>Autopilot Runner</h3></div>
 
         {phase === 'config' && (
@@ -261,6 +263,8 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
                   }}
                 />
               </div>
+
+              {pipelineError && <div style={{ color: 'var(--st-idea)', fontSize: 12, marginTop: 8 }}>{pipelineError}</div>}
 
               {/* Streaming output */}
               <pre

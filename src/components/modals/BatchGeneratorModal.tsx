@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useProjectStore, subtreeWordCount } from '../../store/projectStore'
 import { useAIStore } from '../../store/aiStore'
 import { promptRegistry } from '../../lib/PromptRegistry'
@@ -30,6 +30,9 @@ export default function BatchGeneratorModal({ onClose }: Props): React.ReactElem
   const [running, setRunning] = useState(false)
   const [log, setLog] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
+
+  useEffect(() => () => { abortRef.current?.abort() }, [])
 
   if (!project) return <></>
 
@@ -55,10 +58,11 @@ export default function BatchGeneratorModal({ onClose }: Props): React.ReactElem
       content: project.docs[targetId]?.content ?? '',
     })
 
+    abortRef.current = new AbortController()
     let full = ''
     await streamCompletion(
       [{ role: 'user', content: rendered }],
-      { model: template.model, maxTokens: template.maxTokens, temperature: template.temperature },
+      { model: template.model, maxTokens: template.maxTokens, temperature: template.temperature, signal: abortRef.current.signal },
       {
         onChunk: (chunk) => { full += chunk; setLog(full) },
         onDone: (result) => {
@@ -85,7 +89,7 @@ export default function BatchGeneratorModal({ onClose }: Props): React.ReactElem
 
   return (
     <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ maxWidth: 580 }}>
+      <div className="modal" style={{ maxWidth: 580 }} role="dialog" aria-modal="true" aria-label="Batch Generator">
         <div className="modal-hd"><h3>Batch Generators</h3></div>
         <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 

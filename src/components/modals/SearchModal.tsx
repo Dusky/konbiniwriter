@@ -63,7 +63,7 @@ export default function SearchModal({ onClose }: Props): React.ReactElement {
 
   return (
     <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ maxWidth: 640 }}>
+      <div className="modal" style={{ maxWidth: 640 }} role="dialog" aria-modal="true" aria-label="Search Project">
         <div className="modal-hd" style={{ paddingBottom: 0 }}>
           <input
             ref={inputRef}

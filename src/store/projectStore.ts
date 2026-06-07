@@ -166,8 +166,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     autopilotQueue: [],
     autopilotRunning: false,
     autopilotCurrent: null,
+    focusMode: false,
+    compositionMode: false,
+    splitOpen: false,
+    splitId: null,
   }),
-  unloadProject: () => set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], judgeResults: new Map(), sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null }),
+  unloadProject: () => set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], judgeResults: new Map(), sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, focusMode: false, compositionMode: false, splitOpen: false, splitId: null }),
 
   selectNode: (id) => set((s) => {
     if (!id || !s.project) return { selectedId: id }

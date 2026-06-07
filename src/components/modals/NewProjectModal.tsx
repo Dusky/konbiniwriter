@@ -63,7 +63,7 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
 
   return (
     <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ maxWidth: 560 }}>
+      <div className="modal" style={{ maxWidth: 560 }} role="dialog" aria-modal="true" aria-label="New Project">
         <div className="modal-hd">
           <h3>New Project</h3>
           <span className="sub">Choose a template and name your project</span>

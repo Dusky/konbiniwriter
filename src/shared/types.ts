@@ -53,7 +53,7 @@ export interface ProjectSettings {
   editorFont?: 'mono' | 'serif' | 'sans'
   editorSize?: number
   wordTarget?: number        // project-level word-count goal
-  codex?: unknown            // CodexEntry[] — stored as JSON, typed at load time
+  codex?: CodexEntry[]       // stored as JSON, typed at load time
   [k: string]: unknown
 }
 
