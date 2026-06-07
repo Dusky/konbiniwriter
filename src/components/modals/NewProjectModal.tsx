@@ -23,13 +23,22 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
 
   const handleCreate = async () => {
     if (!title.trim() || creating) return
+    // showDirectoryPicker must be called synchronously from the click handler.
+    // We pick the folder here, get an opaque key, then pass it to create().
+    let locationKey: string
+    try {
+      const key = await window.api.project.showSaveDialog(title.trim())
+      if (!key) return // user cancelled
+      locationKey = key
+    } catch {
+      return
+    }
     setCreating(true)
     try {
-      // location='browser-pick' signals BrowserProjectService to open the folder picker
       const project = await window.api.project.create({
         title: title.trim(),
         template,
-        location: 'browser-pick',
+        location: locationKey,
       })
       touchRecent({
         id: project.id,
@@ -89,7 +98,7 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
           <div className="np-field" style={{ marginBottom: 0 }}>
             <label>Location</label>
             <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4, lineHeight: 1.5 }}>
-              A folder picker will open when you click Create. Your project will be saved as a <code style={{ fontFamily: 'var(--mono)', background: 'var(--bg)', padding: '1px 4px', borderRadius: 3 }}>.konbini</code> bundle in the chosen folder.
+              A folder picker will open first. Your project will be saved as a <code style={{ fontFamily: 'var(--mono)', background: 'var(--bg)', padding: '1px 4px', borderRadius: 3 }}>.konbini</code> bundle inside it.
             </div>
           </div>
         </div>
