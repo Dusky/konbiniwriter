@@ -8,30 +8,25 @@ import type { RecentEntry } from '@shared/types'
 export default function Launch(): React.ReactElement {
   const recents = useShellStore((s) => s.recents)
   const setScreen = useShellStore((s) => s.setScreen)
-  const setModal = useShellStore((s) => s.setModal)
   const modal = useShellStore((s) => s.modal)
+  const setModal = useShellStore((s) => s.setModal)
   const removeRecent = useShellStore((s) => s.removeRecent)
   const loadProject = useProjectStore((s) => s.loadProject)
+  const [openErr, setOpenErr] = useState<string | null>(null)
+  const [opening, setOpening] = useState(false)
 
-  const openRecent = async (r: RecentEntry) => {
+  const doOpen = async () => {
+    setOpenErr(null)
+    setOpening(true)
     try {
-      const project = await window.api.project.open(r.location)
+      const handleKey = await window.api.project.showOpenDialog()
+      if (!handleKey) { setOpening(false); return }
+      const project = await window.api.project.open(handleKey)
       loadProject(project)
       setScreen('studio')
-    } catch (err) {
-      alert(`Could not open project: ${err}`)
-    }
-  }
-
-  const handleOpen = async () => {
-    const path = await window.api.project.showOpenDialog()
-    if (!path) return
-    try {
-      const project = await window.api.project.open(path)
-      loadProject(project)
-      setScreen('studio')
-    } catch (err) {
-      alert(`Could not open project: ${err}`)
+    } catch (e) {
+      setOpenErr(`Could not open project: ${e}`)
+      setOpening(false)
     }
   }
 
@@ -55,14 +50,18 @@ export default function Launch(): React.ReactElement {
                 <span className="llb-ic">✦</span>
                 <span><b>New Project</b><small>Start writing something new</small></span>
               </button>
-              <button className="ll-btn" onClick={handleOpen}>
+              <button className="ll-btn" onClick={doOpen} disabled={opening}>
                 <span className="llb-ic">⊕</span>
-                <span><b>Open Project</b><small>Browse for a .konbini bundle</small></span>
+                <span><b>Open Project</b><small>Browse for a .konbini folder</small></span>
               </button>
             </div>
           </div>
+          {openErr && (
+            <p style={{ fontSize: 12, color: 'var(--st-idea)', margin: '8px 0 0', lineHeight: 1.5 }}>{openErr}</p>
+          )}
           <div className="ll-foot">
             <span>Konbini v0.1.0</span>
+            <span style={{ opacity: 0.5, fontSize: 10 }}>Chrome / Edge required for disk access</span>
           </div>
         </div>
 
@@ -76,7 +75,12 @@ export default function Launch(): React.ReactElement {
               </div>
             ) : (
               recents.map((r) => (
-                <div key={r.id} className="recent-row" onClick={() => openRecent(r)}>
+                <div
+                  key={r.id}
+                  className="recent-row"
+                  onClick={doOpen}
+                  title={`${r.location} — click to re-open via folder picker`}
+                >
                   <div className="recent-spine" style={{ background: r.accent ?? 'var(--accent)' }} />
                   <div className="recent-main">
                     <div className="recent-title">{r.title}</div>

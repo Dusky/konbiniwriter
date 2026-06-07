@@ -76,10 +76,5 @@ export default function Editor({ docId }: Props): React.ReactElement {
     view.dispatch({ effects: focusModeEffect.of(focusMode) })
   }, [focusMode])
 
-  return (
-    <div
-      ref={containerRef}
-      style={{ height: '100%', position: 'relative' }}
-    />
-  )
+  return <div ref={containerRef} />
 }

@@ -397,8 +397,8 @@ html, body, #root { margin: 0; height: 100%; overflow: hidden; }
 .studio { display: flex; flex-direction: column; height: 100%; background: var(--bg); color: var(--text); overflow: hidden; }
 
 /* ── CodeMirror 6 resets ─────────────────────────────────────────────────── */
-.cm-editor { height: 100%; background: transparent !important; }
-.cm-scroller { overflow: auto !important; }
+.cm-editor { background: transparent !important; }
+.cm-scroller { overflow: visible !important; }
 .cm-content {
   font-family: var(--editor-font);
   font-size: var(--editor-size);
@@ -427,3 +427,13 @@ html, body, #root { margin: 0; height: 100%; overflow: hidden; }
 .cm-wikilink { color: var(--hl-link); border-bottom: 1px solid color-mix(in oklch, var(--hl-link) 45%, transparent); }
 /* focus mode */
 .cm-focus-dim { color: var(--dim) !important; }
+
+/* ── CM6 search panel ───────────────────────────────────────────────────── */
+.cm-search { background: var(--bg-2) !important; border-top: 0.5px solid var(--border) !important; padding: 6px 10px !important; }
+.cm-search input { background: var(--bg) !important; border: 0.5px solid var(--border-2) !important; border-radius: 6px !important; color: var(--text) !important; font-family: var(--ui-font) !important; font-size: 12.5px !important; padding: 4px 8px !important; outline: none !important; }
+.cm-search input:focus { border-color: var(--accent) !important; }
+.cm-search button { background: var(--bg-3) !important; border: 0.5px solid var(--border) !important; border-radius: 6px !important; color: var(--text) !important; font-size: 12px !important; padding: 4px 10px !important; margin-left: 4px !important; }
+.cm-search button:hover { border-color: var(--accent) !important; }
+.cm-search label { color: var(--text-2) !important; font-size: 12px !important; }
+.cm-searchMatch { background: color-mix(in oklch, var(--accent) 28%, transparent) !important; border-radius: 2px; }
+.cm-searchMatch-selected { background: color-mix(in oklch, var(--accent) 55%, transparent) !important; }

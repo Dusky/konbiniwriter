@@ -10,33 +10,45 @@ const TEMPLATES: { id: TemplateId; glyph: string; label: string; desc: string }[
   { id: 'nonfiction',  glyph: '頁', label: 'Non-fiction', desc: 'Chapters and sections for long-form non-fiction.' },
 ]
 
-interface Props {
-  onClose: () => void
-}
+interface Props { onClose: () => void }
 
 export default function NewProjectModal({ onClose }: Props): React.ReactElement {
   const [title, setTitle] = useState('Untitled Project')
   const [template, setTemplate] = useState<TemplateId>('novel')
-  const [location, setLocation] = useState('~/Documents/Konbini')
+  // locationKey: opaque handle key from BrowserProjectService; locationDisplay: shown to user
+  const [locationKey, setLocationKey] = useState<string | null>(null)
+  const [locationDisplay, setLocationDisplay] = useState<string>('')
   const [creating, setCreating] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
 
   const setScreen = useShellStore((s) => s.setScreen)
   const touchRecent = useShellStore((s) => s.touchRecent)
   const loadProject = useProjectStore((s) => s.loadProject)
 
   const handleBrowse = async () => {
-    const path = await window.api.project.showSaveDialog(title)
-    if (path) setLocation(path.replace(/\/[^/]+\.konbini$/, '') || path)
+    const result = await window.api.project.showSaveDialog(title)
+    if (!result) return
+    // result is "handleKey::dirName"
+    const [key, dirName] = result.split('::')
+    setLocationKey(result)
+    setLocationDisplay(dirName ?? result)
+    setErr(null)
   }
 
   const handleCreate = async () => {
     if (!title.trim() || creating) return
+    if (!locationKey) {
+      // Auto-show the picker if they haven't browsed yet
+      await handleBrowse()
+      return
+    }
     setCreating(true)
+    setErr(null)
     try {
       const project = await window.api.project.create({
         title: title.trim(),
         template,
-        location,
+        location: locationKey,
       })
       touchRecent({
         id: project.id,
@@ -50,11 +62,13 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
       loadProject(project)
       setScreen('studio')
       onClose()
-    } catch (err) {
-      alert(`Could not create project: ${err}`)
+    } catch (e) {
+      setErr(String(e))
       setCreating(false)
     }
   }
+
+  const canCreate = !!title.trim() && !creating
 
   return (
     <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -74,6 +88,7 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
               autoFocus
             />
           </div>
+
           <div className="np-field">
             <label>Template</label>
             <div className="tmpl-grid">
@@ -90,21 +105,35 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
               ))}
             </div>
           </div>
+
           <div className="np-field">
-            <label>Location</label>
+            <label>Save inside folder</label>
             <div className="loc-row">
-              <div className="loc-path">
-                {location}/<b>{title || 'Untitled'}.konbini</b>
+              <div className="loc-path" style={{ fontStyle: locationKey ? 'normal' : 'italic', opacity: locationKey ? 1 : 0.6 }}>
+                {locationKey
+                  ? <><b>{locationDisplay}</b> / {title || 'Untitled'}.konbini</>
+                  : 'Click Browse… to choose a folder'}
               </div>
               <button className="btn" onClick={handleBrowse}>Browse…</button>
             </div>
+            <p style={{ fontSize: 11, color: 'var(--text-3)', margin: '6px 0 0' }}>
+              The project will be created as <b>{title || 'Untitled'}.konbini</b> inside the folder you pick.
+              Requires a modern browser (Chrome/Edge) for filesystem access.
+            </p>
           </div>
+
+          {err && (
+            <div style={{ background: 'color-mix(in oklch, var(--st-idea) 15%, transparent)', border: '0.5px solid var(--st-idea)', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: 'var(--st-idea)', marginTop: 8 }}>
+              {err}
+            </div>
+          )}
         </div>
+
         <div className="modal-foot">
           <span className="tb-spacer" />
           <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn primary" onClick={handleCreate} disabled={creating || !title.trim()}>
-            {creating ? 'Creating…' : 'Create Project'}
+          <button className="btn primary" onClick={handleCreate} disabled={!canCreate}>
+            {creating ? 'Creating…' : locationKey ? 'Create Project' : 'Choose Folder & Create'}
           </button>
         </div>
       </div>

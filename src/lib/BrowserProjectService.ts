@@ -345,7 +345,7 @@ export class BrowserProjectService {
     })
     const doc = new Document({ sections: [{ children: paras }] })
     const blob = await Packer.toBuffer(doc)
-    return { blob: new Uint8Array(blob as ArrayBuffer), filename: `${projectTitle}.docx`, format: 'docx' }
+    return { blob: new Uint8Array(blob as unknown as ArrayBuffer), filename: `${projectTitle}.docx`, format: 'docx' }
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
