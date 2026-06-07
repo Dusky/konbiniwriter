@@ -14,6 +14,7 @@ async function validateAnthropicKey(apiKey: string): Promise<{ ok: boolean; erro
       headers: {
         'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
         'content-type': 'application/json',
       },
       body: JSON.stringify({
@@ -133,12 +134,18 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
             </Row>
           ) : (
             <Row label="Ollama host">
-              <input
-                value={ollamaHost}
-                onChange={(e) => setOllamaHost(e.target.value)}
-                placeholder="http://localhost:11434"
-                style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)' }}
-              />
+              <div style={{ width: '100%' }}>
+                <input
+                  value={ollamaHost}
+                  onChange={(e) => setOllamaHost(e.target.value)}
+                  placeholder="http://localhost:11434"
+                  style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)', boxSizing: 'border-box' }}
+                />
+                <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-3)', lineHeight: 1.5 }}>
+                  Ollama must allow browser access. Start with:{' '}
+                  <code style={{ fontFamily: 'var(--mono)', background: 'var(--ui-2)', padding: '1px 4px', borderRadius: 3 }}>OLLAMA_ORIGINS=* ollama serve</code>
+                </div>
+              </div>
             </Row>
           )}
 

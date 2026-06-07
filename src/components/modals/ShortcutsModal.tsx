@@ -16,6 +16,15 @@ const SHORTCUTS = [
     ],
   },
   {
+    heading: 'Edit',
+    rows: [
+      ['Undo Text', 'mod+z'],
+      ['Undo Tree Change', 'mod+z'],
+      ['Find in Document', 'mod+f'],
+      ['Search Project', 'mod+shift+f'],
+    ],
+  },
+  {
     heading: 'View',
     rows: [
       ['Editor', 'mod+1'],
@@ -26,8 +35,6 @@ const SHORTCUTS = [
       ['Composition Mode', 'mod+alt+c'],
       ['Focus Mode', 'mod+alt+o'],
       ['Light / Dark', 'mod+alt+t'],
-      ['Find in Document', 'mod+f'],
-      ['Search Project', 'mod+shift+f'],
     ],
   },
   {
@@ -42,6 +49,8 @@ const SHORTCUTS = [
     rows: [
       ['AI Settings / Enable', 'mod+shift+a'],
       ['Codex', 'mod+shift+k'],
+      ['Reader Panel', 'mod+shift+r'],
+      ['Batch Generator', 'mod+shift+g'],
       ['Prompt Registry', ''],
     ],
   },

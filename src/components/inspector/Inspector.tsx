@@ -16,7 +16,9 @@ export default function Inspector(): React.ReactElement {
   const applyMutation = useProjectStore((s) => s.applyMutation)
   const aiEnabled = useAIStore((s) => s.enabled)
 
-  const [judgeResult, setJudgeResult] = useState<JudgeResult | null>(null)
+  const judgeResultsMap = useProjectStore((s) => s.judgeResults)
+  const setJudgeResultStore = useProjectStore((s) => s.setJudgeResult)
+  const judgeResult = selectedId ? (judgeResultsMap.get(selectedId) ?? null) : null
   const [judgeRunning, setJudgeRunning] = useState(false)
   const [judgeError, setJudgeError] = useState<string | null>(null)
 
@@ -59,7 +61,7 @@ export default function Inspector(): React.ReactElement {
             const jsonMatch = full.match(/\[[\s\S]*?\]/)
             const scores: JudgeScore[] = jsonMatch ? JSON.parse(jsonMatch[0]) : []
             const afterJson = jsonMatch ? full.slice(full.indexOf(jsonMatch[0]) + jsonMatch[0].length).trim() : ''
-            setJudgeResult({ scores, verdict: afterJson })
+            setJudgeResultStore(selectedId, { scores, verdict: afterJson })
           } catch {
             setJudgeError('Could not parse judge response')
           }

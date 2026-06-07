@@ -45,6 +45,7 @@ export default function SnapshotModal({ onClose }: Props): React.ReactElement {
   const [selectedSnap, setSelectedSnap] = useState<Snapshot | null>(null)
   const [newTitle, setNewTitle] = useState('')
   const [taking, setTaking] = useState(false)
+  const [restoring, setRestoring] = useState(false)
 
   const nodeId = selectedId
   const node = nodeId && project ? project.nodes[nodeId] : null
@@ -82,11 +83,18 @@ export default function SnapshotModal({ onClose }: Props): React.ReactElement {
 
   const handleRestore = async (snap: Snapshot) => {
     if (!confirm(`Restore to snapshot "${snap.title || snap.takenAt}"? Current content will be auto-snapshotted first.`)) return
-    const { content, snapshot } = await window.api.snapshot.restore(project.id, nodeId, snap.id)
-    restoreContent(nodeId, content)
-    addSnapshot(nodeId, snapshot)
-    setSnapshots((prev) => [snapshot, ...prev])
-    onClose()
+    setRestoring(true)
+    try {
+      const { content, snapshot } = await window.api.snapshot.restore(project.id, nodeId, snap.id)
+      restoreContent(nodeId, content)
+      addSnapshot(nodeId, snapshot)
+      setSnapshots((prev) => [snapshot, ...prev])
+      onClose()
+    } catch (e) {
+      alert('Restore failed: ' + (e as Error).message)
+    } finally {
+      setRestoring(false)
+    }
   }
 
   const handleDelete = async (snap: Snapshot) => {
@@ -136,7 +144,7 @@ export default function SnapshotModal({ onClose }: Props): React.ReactElement {
                     <div className="si-t">{snap.title || 'Snapshot'}</div>
                     <div className="si-m">{relTime(snap.takenAt)} · {snap.words} words</div>
                   </div>
-                  <button className="btn sm" onClick={(e) => { e.stopPropagation(); handleRestore(snap) }}>Restore</button>
+                  <button className="btn sm" disabled={restoring} onClick={(e) => { e.stopPropagation(); handleRestore(snap) }}>{restoring ? '…' : 'Restore'}</button>
                   <button className="btn sm danger" onClick={(e) => { e.stopPropagation(); handleDelete(snap) }}>✕</button>
                 </div>
               ))}

@@ -54,6 +54,7 @@ async function streamAnthropic(
       headers: {
         'x-api-key': opts.apiKey,
         'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
         'content-type': 'application/json',
       },
       body: JSON.stringify(body),

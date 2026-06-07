@@ -1,5 +1,6 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useShellStore, type Density, type EditorFont } from '../../store/shellStore'
+import { useProjectStore } from '../../store/projectStore'
 
 interface Props { onClose: () => void }
 
@@ -41,6 +42,16 @@ export default function PrefsModal({ onClose }: Props): React.ReactElement {
   const setEditorFont = useShellStore((s) => s.setEditorFont)
   const editorSize = useShellStore((s) => s.editorSize)
   const setEditorSize = useShellStore((s) => s.setEditorSize)
+
+  const project = useProjectStore((s) => s.project)
+  const setProjectWordTarget = useProjectStore((s) => s.setProjectWordTarget)
+  const wordTarget = project?.settings?.wordTarget
+  const [targetDraft, setTargetDraft] = useState(wordTarget?.toString() ?? '')
+
+  function commitTarget(val: string) {
+    const n = parseInt(val.replace(/[^0-9]/g, ''), 10)
+    setProjectWordTarget(isNaN(n) || n <= 0 ? undefined : n)
+  }
 
   return (
     <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -119,6 +130,22 @@ export default function PrefsModal({ onClose }: Props): React.ReactElement {
               })}
             </div>
           </Row>
+
+          {project && (
+            <Row label="Word Goal">
+              <input
+                type="number"
+                min={0}
+                value={targetDraft}
+                placeholder="e.g. 80000"
+                onChange={(e) => setTargetDraft(e.target.value)}
+                onBlur={(e) => commitTarget(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') commitTarget(targetDraft) }}
+                style={{ width: 100, padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)' }}
+              />
+              <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--text-3)' }}>words (project target)</span>
+            </Row>
+          )}
 
         </div>
         <div className="modal-foot">

@@ -61,6 +61,10 @@ interface ProjectState {
 
   // — project settings —
   setProjectWordTarget: (target: number | undefined) => void
+
+  // — judge scores (keyed by nodeId) —
+  judgeResults: Map<ID, { scores: Array<{ dimension: string; score: number; note: string }>; verdict: string }>
+  setJudgeResult: (nodeId: ID, result: { scores: Array<{ dimension: string; score: number; note: string }>; verdict: string }) => void
 }
 
 // ── tree utilities (renderer-local, no disk access) ──────────────────────────
@@ -121,6 +125,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   slopSpans: [],
   slopRunning: false,
   nodeHistory: [],
+  judgeResults: new Map(),
 
   loadProject: (project) => set({
     project,
@@ -133,8 +138,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     proposals: [],
     activeProposalId: null,
     nodeHistory: [],
+    judgeResults: new Map(),
   }),
-  unloadProject: () => set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [] }),
+  unloadProject: () => set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], judgeResults: new Map() }),
 
   selectNode: (id) => set((s) => {
     if (!id || !s.project) return { selectedId: id }
@@ -255,6 +261,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   setSlopSpans: (slopSpans) => set({ slopSpans, slopRunning: false }),
   setSlopRunning: (on) => set({ slopRunning: on }),
+
+  setJudgeResult: (nodeId, result) => set((s) => {
+    const next = new Map(s.judgeResults)
+    next.set(nodeId, result)
+    return { judgeResults: next }
+  }),
 
   setProjectWordTarget: (target) => {
     const p = get().project
