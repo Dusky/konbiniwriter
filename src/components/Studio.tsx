@@ -24,6 +24,8 @@ import ReaderModal from './modals/ReaderModal'
 import ChatModal from './modals/ChatModal'
 import StatsModal from './modals/StatsModal'
 import AutopilotModal from './modals/AutopilotModal'
+import CommandPalette from './modals/CommandPalette'
+import HistoryModal from './modals/HistoryModal'
 
 export default function Studio(): React.ReactElement {
   const layout = useShellStore((s) => s.layout)
@@ -74,6 +76,8 @@ export default function Studio(): React.ReactElement {
 
       {compositionMode && <CompositionMode />}
 
+      {modal === 'command-palette' && <CommandPalette onClose={() => setModal(null)} />}
+      {modal === 'history'     && <HistoryModal    onClose={() => setModal(null)} />}
       {modal === 'snapshot'    && <SnapshotModal   onClose={() => setModal(null)} />}
       {modal === 'compile'     && <CompileModal    onClose={() => setModal(null)} />}
       {modal === 'shortcuts'   && <ShortcutsModal  onClose={() => setModal(null)} />}

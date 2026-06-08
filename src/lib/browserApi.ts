@@ -50,7 +50,7 @@ const api: KonbiniAPI = {
     mutate: (pid, op) => svc.mutateNode(pid, op),
   },
   snapshot: {
-    take: (pid, nid, title) => svc.takeSnapshot(pid, nid, title),
+    take: (pid, nid, title, kind) => svc.takeSnapshot(pid, nid, title, kind),
     restore: (pid, nid, sid) => svc.restoreSnapshot(pid, nid, sid),
     list: (pid, nid) => svc.listSnapshots(pid, nid),
     delete: (pid, nid, sid) => svc.deleteSnapshot(pid, nid, sid),

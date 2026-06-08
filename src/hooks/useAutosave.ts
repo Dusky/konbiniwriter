@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useProjectStore } from '../store/projectStore'
+import { historyService } from '../lib/HistoryService'
 
 const DEBOUNCE_MS = 700
 
@@ -20,6 +21,8 @@ export function useAutosave(docId: string | null): void {
       try {
         await window.api.doc.write(project.id, docId, content)
         setSaveStatus('saved', new Date().toISOString())
+        // Accrue a browsable version history as the author writes (throttled).
+        historyService.maybeCapture(project.id, docId, content)
       } catch (err) {
         console.error('Autosave failed:', err)
         setSaveStatus('unsaved')

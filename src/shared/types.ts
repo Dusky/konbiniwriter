@@ -15,7 +15,9 @@ export type CompileFormat = 'markdown' | 'docx' | 'print'
 export type ModalId =
   | 'new-project'
   | 'open-project'
+  | 'command-palette'
   | 'snapshot'
+  | 'history'
   | 'compile'
   | 'shortcuts'
   | 'about'
@@ -87,6 +89,7 @@ export interface Snapshot {
   takenAt: ISO
   content: string
   words: number
+  kind?: 'manual' | 'auto'   // absent = manual (back-compat with older bundles)
 }
 
 // ── Recents ───────────────────────────────────────────────────────────────────
@@ -245,7 +248,7 @@ export interface KonbiniAPI {
     mutate(projectId: ID, op: NodeOp): Promise<{ rootIds: ID[]; nodes: Record<ID, KNode>; docs: Record<ID, DocBody> }>
   }
   snapshot: {
-    take(projectId: ID, nodeId: ID, title?: string): Promise<Snapshot>
+    take(projectId: ID, nodeId: ID, title?: string, kind?: 'manual' | 'auto'): Promise<Snapshot>
     restore(projectId: ID, nodeId: ID, snapshotId: ID): Promise<{ content: string; snapshot: Snapshot }>
     list(projectId: ID, nodeId: ID): Promise<Snapshot[]>
     delete(projectId: ID, nodeId: ID, snapshotId: ID): Promise<void>

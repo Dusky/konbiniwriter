@@ -207,11 +207,11 @@ export class NodeProjectService {
 
   // ── Snapshots ────────────────────────────────────────────────────────────────
 
-  async takeSnapshot(projectId: string, nodeId: string, title = ''): Promise<Snapshot> {
+  async takeSnapshot(projectId: string, nodeId: string, title = '', kind: 'manual' | 'auto' = 'manual'): Promise<Snapshot> {
     const dir = this.getPath(projectId)
     const proj = this.getProject(projectId)
     const content = proj.docs[nodeId]?.content ?? ''
-    const snap: Snapshot = { id: uid('snap'), title, takenAt: new Date().toISOString(), content, words: wordCount(content) }
+    const snap: Snapshot = { id: uid('snap'), title, takenAt: new Date().toISOString(), content, words: wordCount(content), kind }
     await writeText(dir, content, 'snapshots', nodeId, `${snap.id}.md`)
     if (!proj.docs[nodeId]) proj.docs[nodeId] = { content, snapshots: [] }
     proj.docs[nodeId].snapshots = [{ ...snap, content: '' }, ...proj.docs[nodeId].snapshots]

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useProjectStore } from '../../store/projectStore'
+import { useShellStore } from '../../store/shellStore'
 import type { Snapshot } from '@shared/types'
 
 function relTime(iso: string): string {
@@ -40,6 +41,7 @@ export default function SnapshotModal({ onClose }: Props): React.ReactElement {
   const removeSnapshot = useProjectStore((s) => s.removeSnapshot)
   const restoreContent = useProjectStore((s) => s.restoreContent)
   const updateContent = useProjectStore((s) => s.updateContent)
+  const setModal = useShellStore((s) => s.setModal)
 
   const [snapshots, setSnapshots] = useState<Snapshot[]>([])
   const [selectedSnap, setSelectedSnap] = useState<Snapshot | null>(null)
@@ -168,6 +170,7 @@ export default function SnapshotModal({ onClose }: Props): React.ReactElement {
           </div>
         </div>
         <div className="modal-foot">
+          <button className="btn sm" onClick={() => setModal('history')}>Document History →</button>
           <span className="tb-spacer" />
           <button className="btn" onClick={onClose}>Close</button>
         </div>

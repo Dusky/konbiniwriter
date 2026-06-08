@@ -75,6 +75,7 @@ export default function App(): React.ReactElement {
     if (!shift && !alt && e.key === '4') { e.preventDefault(); setView('timeline') }
 
     // Modals
+    if (!shift && !alt && e.key === 'k' && screen === 'studio') { e.preventDefault(); setModal('command-palette') }
     if (shift && e.key === 'S') { e.preventDefault(); setModal('snapshot') }
     if (shift && e.key === 'E') { e.preventDefault(); setModal('compile') }
     if (e.key === '/') { e.preventDefault(); setModal('shortcuts') }

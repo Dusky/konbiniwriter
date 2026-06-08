@@ -255,11 +255,11 @@ class NodeProjectService {
         }
     }
     // ── Snapshots ────────────────────────────────────────────────────────────────
-    async takeSnapshot(projectId, nodeId, title = '') {
+    async takeSnapshot(projectId, nodeId, title = '', kind = 'manual') {
         const dir = this.getPath(projectId);
         const proj = this.getProject(projectId);
         const content = proj.docs[nodeId]?.content ?? '';
-        const snap = { id: (0, utils_1.uid)('snap'), title, takenAt: new Date().toISOString(), content, words: (0, utils_1.wordCount)(content) };
+        const snap = { id: (0, utils_1.uid)('snap'), title, takenAt: new Date().toISOString(), content, words: (0, utils_1.wordCount)(content), kind };
         await writeText(dir, content, 'snapshots', nodeId, `${snap.id}.md`);
         if (!proj.docs[nodeId])
             proj.docs[nodeId] = { content, snapshots: [] };

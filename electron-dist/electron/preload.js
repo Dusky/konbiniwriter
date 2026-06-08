@@ -132,7 +132,7 @@ const api = {
         mutate: (pid, op) => NodeProjectService_1.nodeProjectService.mutateNode(pid, op),
     },
     snapshot: {
-        take: (pid, nid, title) => NodeProjectService_1.nodeProjectService.takeSnapshot(pid, nid, title),
+        take: (pid, nid, title, kind) => NodeProjectService_1.nodeProjectService.takeSnapshot(pid, nid, title, kind),
         restore: (pid, nid, sid) => NodeProjectService_1.nodeProjectService.restoreSnapshot(pid, nid, sid),
         list: (pid, nid) => NodeProjectService_1.nodeProjectService.listSnapshots(pid, nid),
         delete: (pid, nid, sid) => NodeProjectService_1.nodeProjectService.deleteSnapshot(pid, nid, sid),

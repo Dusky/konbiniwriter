@@ -42,6 +42,8 @@ const SHORTCUTS = [
   {
     heading: 'Other',
     rows: [
+      ['Command Palette', 'mod+k'],
+      ['Document History', ''],
       ['Preferences', 'mod+,'],
       ['Keyboard Shortcuts', 'mod+/'],
     ],
