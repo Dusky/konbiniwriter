@@ -60,7 +60,18 @@ export interface ProjectSettings {
   codex?: CodexEntry[]       // stored as JSON, typed at load time
   debt?: DebtItem[]          // propagation-debt inbox (persisted with project)
   voiceFingerprint?: string  // foundation: prose style guide, injected as context
+  autopilotRun?: AutopilotRunState | null  // in-progress autopilot run, for resume
   [k: string]: unknown
+}
+
+// A persisted Autopilot run so an interrupted run (stop, close, refresh) can be
+// resumed from where it left off. Cleared on natural completion or discard.
+export interface AutopilotRunState {
+  promptId: string
+  useGate: boolean
+  queue: ID[]      // ordered node IDs this run is processing
+  doneIds: ID[]    // nodes whose proposal has already been resolved
+  startedAt: ISO
 }
 
 // ── Propagation debt ──────────────────────────────────────────────────────────

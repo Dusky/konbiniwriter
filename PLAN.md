@@ -487,6 +487,11 @@ These are structural guarantees, not conventions. Violating any of them breaks a
   config; the runner halts before starting a new scene once the run's cost crosses it (in-flight
   scene finishes), and the done screen reports the cap stop. Over-cap estimates are flagged before
   the run starts. Turns spend *awareness* into an enforced guardrail for autonomous runs.
+- Resumable runs ✅ — a run persists its queue + per-scene progress to
+  `project.settings.autopilotRun` (`AutopilotRunState`); after each proposal resolves, progress is
+  saved. An interruption (Stop, spend cap, close, or browser refresh) leaves the state on disk;
+  reopening the runner offers **Resume** (skips resolved scenes, restores prompt + gate choice) or
+  **Discard**. Natural completion clears it. Long autonomous runs are now robust to interruption.
 - Outline → scaffold → draft handoff ✅ — "Scaffold → draft" in `FoundationModal` parses the gated
   outline (`builtin:foundation:outline-parse`) into chapters, creates a document per chapter
   (title + synopsis metadata) under a **Manuscript** folder, then opens the Autopilot runner

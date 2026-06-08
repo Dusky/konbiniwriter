@@ -7,7 +7,7 @@ import { createProposal } from '../../lib/ProposalService'
 import { streamCompletion } from '../../lib/AIClient'
 import { runQualityGate } from '../../lib/QualityGate'
 import { costOf, formatUSD } from '../../lib/Pricing'
-import type { ID, PromptTemplate } from '@shared/types'
+import type { ID, PromptTemplate, AutopilotRunState } from '@shared/types'
 
 // The gate scores prose craft, so it only makes sense for drafting prompts.
 const gateEligibleFor = (p?: PromptTemplate | null): boolean =>
@@ -40,6 +40,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
   const setAutopilotCurrent = useProjectStore((s) => s.setAutopilotCurrent)
   const autopilotPreset = useProjectStore((s) => s.autopilotPreset)
   const setAutopilotPreset = useProjectStore((s) => s.setAutopilotPreset)
+  const setAutopilotRun = useProjectStore((s) => s.setAutopilotRun)
   const aiModel = useAIStore((s) => (s.provider === 'anthropic' ? s.anthropicModel : s.openaiModel))
   const spendUSD = useAIStore((s) => s.spendUSD)
   const spendCapUSD = useAIStore((s) => s.spendCapUSD)
@@ -55,6 +56,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
   const [useGate, setUseGate] = useState(true)
   const [gateStatus, setGateStatus] = useState<string | null>(null)
   const [capHit, setCapHit] = useState(false)
+  const [currentTitle, setCurrentTitle] = useState('')
 
   const stopped = useRef(false)
   const abortRef = useRef<AbortController>(new AbortController())
@@ -101,6 +103,14 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
   const gateEligible = gateEligibleFor(allPrompts.find((p) => p.id === promptId))
   const gateOn = useGate && gateEligible
 
+  // A persisted run is resumable if it still has unresolved, existing nodes.
+  const storedRun = (project.settings.autopilotRun as AutopilotRunState | null | undefined) ?? null
+  const resumable = storedRun && storedRun.queue.some((id) => project.nodes[id] && !storedRun.doneIds.includes(id))
+    ? storedRun : null
+  const resumeRemaining = resumable
+    ? resumable.queue.filter((id) => project.nodes[id] && !resumable.doneIds.includes(id)).length
+    : 0
+
   // Rough pre-run cost estimate: generation per scene, plus the gate's
   // score → revise → score loop (assume ~1 revision round). List prices.
   const checkedKey = checkedIds.join(',')
@@ -127,30 +137,37 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checkedKey, promptId, gateOn, aiModel, project])
 
-  const runPipeline = async (nodeIds: ID[], selectedPromptId: string) => {
+  const runPipeline = async (nodeIds: ID[], selectedPromptId: string, gateChoice: boolean, doneIds: ID[], startedAt: string) => {
     setPhase('running')
     setTotalCount(nodeIds.length)
     setAutopilotRunning(true)
     setAutopilotQueue(nodeIds)
 
     const template = promptRegistry.get(selectedPromptId)
-    const gateOn = useGate && gateEligibleFor(template)
+    const gateOn = gateChoice && gateEligibleFor(template)
+
+    // Persist run state so an interruption (stop / close / refresh) is resumable.
+    const done = new Set(doneIds)
+    const persist = () => setAutopilotRun({ promptId: selectedPromptId, useGate: gateChoice, queue: nodeIds, doneIds: [...done], startedAt })
+    persist()
 
     for (let i = 0; i < nodeIds.length; i++) {
       if (stopped.current) break
+      const nodeId = nodeIds[i]
+      if (done.has(nodeId)) continue // already processed in a prior run
       // Spend cap: halt before starting a new scene once the run's cost crosses
       // the ceiling (a scene already in flight is allowed to finish).
       if (spendCapUSD > 0 && (useAIStore.getState().spendUSD - runStartSpend.current) >= spendCapUSD) {
         setCapHit(true)
         break
       }
-      const nodeId = nodeIds[i]
-      setCurrentIndex(i)
+      setCurrentIndex(done.size)
       setAutopilotCurrent(nodeId)
       setStreamText('')
       setGateStatus(null)
 
       const node = project.nodes[nodeId]
+      setCurrentTitle(node?.title ?? '')
       const synopsis = node?.meta.synopsis ?? ''
       const content = project.docs[nodeId]?.content ?? ''
 
@@ -236,7 +253,15 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
           }
         })
       })
+
+      // Scene resolved — record progress so a later interruption resumes past it.
+      done.add(nodeId)
+      persist()
     }
+
+    // Natural completion (every node resolved) clears the resume state;
+    // an interrupted run (stop / cap / abort) leaves it persisted.
+    if (nodeIds.every((id) => done.has(id))) setAutopilotRun(null)
 
     setAutopilotRunning(false)
     setAutopilotCurrent(null)
@@ -251,7 +276,22 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
     setPipelineError(null)
     setCapHit(false)
     runStartSpend.current = useAIStore.getState().spendUSD
-    void runPipeline(checkedIds, promptId)
+    void runPipeline(checkedIds, promptId, useGate, [], new Date().toISOString())
+  }
+
+  // Resume a persisted run, skipping scenes already resolved.
+  const handleResume = () => {
+    if (!resumable) return
+    const validQueue = resumable.queue.filter((id) => project.nodes[id])
+    const validDone = resumable.doneIds.filter((id) => project.nodes[id])
+    setPromptId(resumable.promptId)
+    setUseGate(resumable.useGate)
+    stopped.current = false
+    abortRef.current = new AbortController()
+    setPipelineError(null)
+    setCapHit(false)
+    runStartSpend.current = useAIStore.getState().spendUSD
+    void runPipeline(validQueue, resumable.promptId, resumable.useGate, validDone, resumable.startedAt)
   }
 
   const handleStop = () => {
@@ -259,9 +299,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
     abortRef.current.abort()
   }
 
-  const currentNodeTitle = phase === 'running'
-    ? (project.nodes[checkedIds[currentIndex]]?.title ?? '')
-    : ''
+  const currentNodeTitle = phase === 'running' ? currentTitle : ''
 
   return (
     <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && phase !== 'running' && onClose()}>
@@ -271,6 +309,17 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
         {phase === 'config' && (
           <>
             <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Resume banner */}
+              {resumable && (
+                <div style={{ border: '1px solid var(--accent)', background: 'var(--sel-bg)', borderRadius: 8, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ flex: 1, fontSize: 13, color: 'var(--text)' }}>
+                    <strong>Unfinished run</strong> — {resumeRemaining} of {resumable.queue.length} scene{resumable.queue.length === 1 ? '' : 's'} left.
+                  </div>
+                  <button className="btn sm" onClick={() => setAutopilotRun(null)}>Discard</button>
+                  <button className="btn sm" onClick={handleResume} style={{ background: 'var(--accent)', color: 'var(--accent-fg)', borderColor: 'transparent' }}>Resume</button>
+                </div>
+              )}
+
               {/* Prompt selector */}
               <div>
                 <label style={{ fontSize: 11, color: 'var(--text-3)', display: 'block', marginBottom: 6 }}>Prompt</label>
@@ -441,8 +490,14 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
               </div>
             </div>
             <div className="modal-foot">
+              {resumable && <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{resumeRemaining} scene{resumeRemaining === 1 ? '' : 's'} left</span>}
               <span className="tb-spacer" />
               <button className="btn" onClick={onClose}>Close</button>
+              {resumable && (
+                <button className="btn" onClick={handleResume} style={{ background: 'var(--accent)', color: 'var(--accent-fg)', borderColor: 'transparent' }}>
+                  Resume
+                </button>
+              )}
             </div>
           </>
         )}
