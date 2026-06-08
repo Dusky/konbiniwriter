@@ -488,13 +488,18 @@ These are structural guarantees, not conventions. Violating any of them breaks a
   (`builtin:revision:voice`) rewrites the scene to match the voice through changeset review.
   Surfaced in the Debt Inbox ("Check voice" + voice "Draft fix"). Completes the propagation-debt
   loop across canon / outline / voice.
-- Outline quality gate ✅ — first **eval → revise control loop**. `builtin:evaluation:outline-gate`
-  scores the outline 0–100 (structure/causality/stakes/arcs/pacing/originality); below the
-  threshold (75) it auto-revises via `builtin:foundation:outline-revise` against the critique, up to
-  2 rounds, then reports the score + remaining notes. Surfaced in `FoundationModal` (auto-revise
-  toggle + manual "Score outline"). This is the reusable gate pattern Autopilot's phase transitions
-  will build on.
-- Remaining Foundation: canon database step; then generalize the gate to draft/eval phases.
+- Quality gate ✅ — reusable **eval → revise control loop** extracted to `lib/QualityGate.ts`
+  (`runQualityGate(initial, cfg)`: scorer prompt returns `{overall,issues,suggestions}` JSON →
+  reviser prompt rewrites against the critique → re-score, up to `maxRounds`; returns the final
+  text + score + pass/fail). Pure of the document seam — callers route the result through the
+  proposal pipeline.
+  - **Outline gate** (`FoundationModal`): `builtin:evaluation:outline-gate` +
+    `builtin:foundation:outline-revise`, auto-revise toggle + manual "Score outline".
+  - **Draft gate** (`BatchGeneratorModal`, chapter drafts): `builtin:evaluation:draft-gate`
+    (prose craft + anti-slop) + `builtin:revision:draft`; scores & auto-revises the draft before it
+    reaches changeset review, with a live phase indicator.
+  This is the gate primitive Autopilot's phase transitions reuse — swap prompts, not machinery.
+- Remaining Foundation: canon database step; then drive the gate from the Autopilot runner.
 - Remaining: phase-transition model (foundation→draft→eval→revise), canon DB + voice fingerprint
   steps + quality gate, spend cap + cost estimate, resumable runs, Elo ranking, critic/professor loops
 

@@ -588,6 +588,81 @@ Only report clear conflicts. If the scene is consistent (or simply silent) on a 
     modifiedAt: ISO(),
   },
   {
+    id: 'builtin:evaluation:draft-gate',
+    name: 'Draft Quality Gate',
+    description: 'Score a chapter of prose for craft quality and return issues + fixes.',
+    feature: 'evaluation',
+    model: 'claude-opus-4-8',
+    temperature: 0.2,
+    maxTokens: 1500,
+    template: `You are a demanding fiction editor scoring a single chapter of prose for craft quality.
+
+<synopsis>
+{{synopsis}}
+</synopsis>
+
+<context>
+{{context}}
+</context>
+
+<chapter>
+{{document}}
+</chapter>
+
+Score the chapter 0–100 overall, judging: prose quality and rhythm, concrete sensory detail (show, don't tell), scene and dialogue craft, pacing, voice consistency, and freedom from AI "slop" (clichés, filler, hedging, repetition, throat-clearing).
+
+Return ONLY JSON:
+{ "overall": <0-100>, "issues": ["<specific craft problem, with a brief quote or location>", ...], "suggestions": ["<specific, actionable fix>", ...] }
+
+Be concrete — vague praise or nitpicks are useless. Return ONLY valid JSON.`,
+    variables: [
+      { name: 'synopsis', description: 'What this chapter is meant to cover' },
+      { name: 'context', description: 'Scene/codex/voice context' },
+      { name: 'document', description: 'The chapter prose to score' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:revision:draft',
+    name: 'Revise Chapter Draft',
+    description: 'Rewrite a chapter to fix craft problems without changing the plot (gate loop).',
+    feature: 'autopilot',
+    phase: 'revise',
+    model: 'claude-opus-4-8',
+    temperature: 0.7,
+    maxTokens: 8000,
+    template: `You are revising a chapter of fiction to fix specific craft problems, without changing the plot.
+
+<synopsis>
+{{synopsis}}
+</synopsis>
+
+<context>
+{{context}}
+</context>
+
+<editor_notes>
+{{critique}}
+</editor_notes>
+
+<chapter>
+{{document}}
+</chapter>
+
+Rewrite the chapter to address every editor note — sharpen the prose, add concrete detail, tighten dialogue and pacing, and cut slop — while preserving all plot events, character actions, and scene structure. Do not add or remove scenes. Return only the revised chapter prose, no commentary.`,
+    variables: [
+      { name: 'synopsis', description: 'What this chapter is meant to cover' },
+      { name: 'context', description: 'Scene/codex/voice context' },
+      { name: 'critique', description: 'Editor notes to address' },
+      { name: 'document', description: 'The chapter prose to revise' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
     id: 'builtin:evaluation:voice-drift',
     name: 'Voice Drift Check',
     description: 'Flag where a scene drifts from the established voice fingerprint.',

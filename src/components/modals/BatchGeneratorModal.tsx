@@ -5,6 +5,7 @@ import { promptRegistry } from '../../lib/PromptRegistry'
 import { buildContext, renderContext } from '../../lib/ContextBuilder'
 import { createProposal } from '../../lib/ProposalService'
 import { streamCompletion } from '../../lib/AIClient'
+import { runQualityGate } from '../../lib/QualityGate'
 import type { ID } from '@shared/types'
 
 type GeneratorId = 'cast' | 'beat-sheet' | 'chapter-draft' | 'judge'
@@ -30,6 +31,8 @@ export default function BatchGeneratorModal({ onClose }: Props): React.ReactElem
   const [running, setRunning] = useState(false)
   const [log, setLog] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [useGate, setUseGate] = useState(true)
+  const [gateStatus, setGateStatus] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => () => { abortRef.current?.abort() }, [])
@@ -44,6 +47,7 @@ export default function BatchGeneratorModal({ onClose }: Props): React.ReactElem
     setRunning(true)
     setError(null)
     setLog('')
+    setGateStatus(null)
 
     const template = promptRegistry.get(selected.promptId)
     if (!template) { setRunning(false); return }
@@ -51,40 +55,73 @@ export default function BatchGeneratorModal({ onClose }: Props): React.ReactElem
     const ctxPacket = buildContext(project, mentionIndex, targetId, 'batch')
     const contextStr = renderContext(ctxPacket)
     const nodeSynopsis = project.nodes[targetId]?.meta.synopsis ?? ''
+    const effSynopsis = synopsis.trim() || nodeSynopsis
+    const original = project.docs[targetId]?.content ?? ''
 
     const rendered = promptRegistry.render(selected.promptId, {
       context: contextStr,
-      synopsis: synopsis.trim() || nodeSynopsis,
-      content: project.docs[targetId]?.content ?? '',
+      synopsis: effSynopsis,
+      content: original,
     })
 
-    abortRef.current = new AbortController()
-    let full = ''
-    await streamCompletion(
-      [{ role: 'user', content: rendered }],
-      { model: template.model, maxTokens: template.maxTokens, temperature: template.temperature, signal: abortRef.current.signal },
-      {
-        onChunk: (chunk) => { full += chunk; setLog(full) },
-        onDone: (result) => {
-          const targetNode = project.nodes[targetId]
-          const original = project.docs[targetId]?.content ?? ''
-          const proposal = createProposal({
-            docId: targetId,
-            docTitle: targetNode?.title ?? 'Document',
-            command: gen === 'judge' ? 'batch' : 'draft',
-            label: `${selected.label}: ${targetNode?.title ?? ''}`,
-            group: 'batch',
-            original,
-            proposed: gen === 'judge' ? original + '\n\n---\n\n**Evaluation**\n\n' + result : result,
-            promptId: selected.promptId,
-          })
-          queueProposal(proposal)
-          setRunning(false)
-          onClose()
-        },
-        onError: (err) => { setError(err.message); setRunning(false) },
-      },
-    )
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    // 1) Generate the candidate.
+    let result = ''
+    try {
+      result = await new Promise<string>((resolve, reject) => {
+        controller.signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
+        let full = ''
+        streamCompletion(
+          [{ role: 'user', content: rendered }],
+          { model: template.model, maxTokens: template.maxTokens, temperature: template.temperature, signal: controller.signal },
+          { onChunk: (c) => { full += c; setLog(full) }, onDone: resolve, onError: reject },
+        ).catch(reject)
+      })
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') setError((e as Error).message)
+      setRunning(false)
+      return
+    }
+
+    // 2) For chapter drafts, run the quality gate (score → auto-revise if weak).
+    let proposed = gen === 'judge' ? original + '\n\n---\n\n**Evaluation**\n\n' + result : result
+    if (gen === 'chapter-draft' && useGate) {
+      try {
+        const outcome = await runQualityGate(result, {
+          scorePromptId: 'builtin:evaluation:draft-gate',
+          revisePromptId: 'builtin:revision:draft',
+          scoreVars: (doc) => ({ synopsis: effSynopsis, context: contextStr, document: doc }),
+          reviseVars: (doc, critique) => ({ synopsis: effSynopsis, context: contextStr, document: doc, critique }),
+          signal: controller.signal,
+          onRevise: (s) => setLog(s),
+          onPhase: (phase, round) => setGateStatus(
+            phase === 'revising' ? `Revising draft (round ${round})…` : `Scoring draft${round ? ` after revision ${round}` : ''}…`
+          ),
+        })
+        proposed = outcome.text
+        setGateStatus(`Scored ${outcome.score.overall}/100${outcome.passed ? ' · pass' : ` · auto-revised ${outcome.rounds}×`}`)
+      } catch (e) {
+        if ((e as Error).name === 'AbortError') { setRunning(false); return }
+        setError(`Quality gate failed (${(e as Error).message}); using the ungated draft.`)
+      }
+    }
+
+    // 3) Queue for changeset review.
+    const targetNode = project.nodes[targetId]
+    queueProposal(createProposal({
+      docId: targetId,
+      docTitle: targetNode?.title ?? 'Document',
+      command: gen === 'judge' ? 'batch' : 'draft',
+      label: `${selected.label}: ${targetNode?.title ?? ''}`,
+      group: 'batch',
+      original,
+      proposed,
+      promptId: selected.promptId,
+    }))
+    setRunning(false)
+    onClose()
   }
 
   return (
@@ -144,6 +181,15 @@ export default function BatchGeneratorModal({ onClose }: Props): React.ReactElem
               />
             </div>
           )}
+
+          {/* Quality gate (chapter drafts only) */}
+          {gen === 'chapter-draft' && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-2)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={useGate} onChange={(e) => setUseGate(e.target.checked)} />
+              Quality gate — score &amp; auto-revise the draft before review
+            </label>
+          )}
+          {gateStatus && <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>{gateStatus}</div>}
 
           {/* Live output */}
           {log && (

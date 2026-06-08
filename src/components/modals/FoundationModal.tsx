@@ -4,6 +4,7 @@ import { useAIStore } from '../../store/aiStore'
 import { promptRegistry } from '../../lib/PromptRegistry'
 import { createProposal } from '../../lib/ProposalService'
 import { streamCompletion } from '../../lib/AIClient'
+import { runQualityGate } from '../../lib/QualityGate'
 import { uid } from '@shared/utils'
 import type { ID, CodexEntry, CodexFact } from '@shared/types'
 
@@ -72,44 +73,29 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
         : id === 'characters' ? { concept: cur.concept, world: cur.world }
           : { concept: cur.concept, world: cur.world, characters: cur.characters }
 
-  // — Outline quality gate (eval → revise loop) —
-  const scoreOutline = async (outline: string): Promise<GateResult> => {
-    const raw = await gen('builtin:evaluation:outline-gate',
-      { concept: text.concept, world: text.world, characters: text.characters, outline }, () => {})
-    try {
-      const o = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] ?? '{}')
-      const overall = Math.max(0, Math.min(100, Number(o.overall) || 0))
-      return {
-        overall,
-        verdict: overall >= GATE_THRESHOLD ? 'pass' : 'revise',
-        issues: Array.isArray(o.issues) ? o.issues.map(String) : [],
-        suggestions: Array.isArray(o.suggestions) ? o.suggestions.map(String) : [],
-        rounds: 0,
-      }
-    } catch {
-      return { overall: 0, verdict: 'revise', issues: ['Could not parse gate output.'], suggestions: [], rounds: 0 }
-    }
-  }
-
-  const reviseOutline = (outline: string, critique: string): Promise<string> =>
-    gen('builtin:foundation:outline-revise',
-      { concept: text.concept, world: text.world, characters: text.characters, outline, critique },
-      (s) => setStep('outline', s))
-
-  // Score, then auto-revise the outline until it passes or rounds run out.
+  // — Outline quality gate (eval → revise loop, via the shared QualityGate) —
   const gateLoop = async (initial: string) => {
     setGate(null)
-    let current = initial
-    let res = await scoreOutline(current)
-    let round = 0
-    while (res.verdict === 'revise' && round < MAX_GATE_ROUNDS) {
-      round++
-      const critique = [...res.issues, ...res.suggestions].filter(Boolean).join('\n')
-      current = (await reviseOutline(current, critique)).trim()
-      setStep('outline', current)
-      res = await scoreOutline(current)
-    }
-    setGate({ ...res, rounds: round })
+    const controller = new AbortController()
+    abortRef.current = controller
+    const outcome = await runQualityGate(initial, {
+      scorePromptId: 'builtin:evaluation:outline-gate',
+      revisePromptId: 'builtin:foundation:outline-revise',
+      threshold: GATE_THRESHOLD,
+      maxRounds: MAX_GATE_ROUNDS,
+      scoreVars: (outline) => ({ concept: text.concept, world: text.world, characters: text.characters, outline }),
+      reviseVars: (outline, critique) => ({ concept: text.concept, world: text.world, characters: text.characters, outline, critique }),
+      signal: controller.signal,
+      onRevise: (s) => setStep('outline', s),
+    })
+    setStep('outline', outcome.text)
+    setGate({
+      overall: outcome.score.overall,
+      verdict: outcome.passed ? 'pass' : 'revise',
+      issues: outcome.score.issues,
+      suggestions: outcome.score.suggestions,
+      rounds: outcome.rounds,
+    })
   }
 
   const runGate = async () => {
