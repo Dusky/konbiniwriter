@@ -6,6 +6,7 @@ import NewProjectModal from '../modals/NewProjectModal'
 import CommandPalette from '../modals/CommandPalette'
 import ShortcutsModal from '../modals/ShortcutsModal'
 import AboutModal from '../modals/AboutModal'
+import WindowControls from '../shell/WindowControls'
 import { isFileSystemAccessSupported } from '../../lib/BrowserProjectService'
 import { isOPFSSupported } from '../../lib/OPFSProjectService'
 import type { RecentEntry } from '@shared/types'
@@ -66,6 +67,8 @@ export default function Launch(): React.ReactElement {
 
   return (
     <div className="launch-stage">
+      {/* Frameless-window drag strip + controls (Electron, non-mac) */}
+      <div className="win-bar"><span style={{ flex: 1 }} /><WindowControls /></div>
       <div className="launch-win">
         {/* Left panel */}
         <div className="launch-left">

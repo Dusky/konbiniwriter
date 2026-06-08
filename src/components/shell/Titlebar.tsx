@@ -1,6 +1,7 @@
 import React from 'react'
 import { useShellStore } from '../../store/shellStore'
 import { useProjectStore } from '../../store/projectStore'
+import WindowControls from './WindowControls'
 
 export default function Titlebar(): React.ReactElement {
   const project = useProjectStore((s) => s.project)
@@ -27,9 +28,10 @@ export default function Titlebar(): React.ReactElement {
         {saveStatus === 'saving' && <><span className="save-dot" />Saving…</>}
         {saveStatus === 'saved' && <><span className="save-dot" />Saved</>}
       </div>
-      <button className="tb-btn" title="Back to projects" onClick={handleClose} style={{ marginLeft: 6 }}>
-        ✕ Close
+      <button className="tb-btn" title="Close project — back to projects" onClick={handleClose} style={{ marginLeft: 6 }}>
+        ✕ Close project
       </button>
+      <WindowControls />
     </div>
   )
 }

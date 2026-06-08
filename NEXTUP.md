@@ -8,7 +8,14 @@ is the "rough edges + what to build next" list.)
 
 ## P0 — Broken UX
 
-### 1. Window decorations / no way to quit the app  ⟵ headline bug
+### 1. Window decorations / no way to quit the app  — ✅ FIXED
+Shared `WindowControls` (`src/components/shell/WindowControls.tsx`) renders
+minimize / maximize-restore / close-window wired to `window.api.shell.*`, shown
+in the Studio titlebar and on a draggable Launch-screen strip (`.win-bar`).
+Electron-only, hidden on macOS (native traffic lights remain). The old "✕ Close"
+is relabeled **"✕ Close project"**. Original report below for reference.
+
+<details><summary>Original diagnosis</summary>
 **Symptom:** clicking "✕ Close" returns you to the project-selection screen, and
 from there the app is unquittable — only Alt+F4 (or ⌘Q) works.
 
@@ -41,6 +48,7 @@ from there the app is unquittable — only Alt+F4 (or ⌘Q) works.
   (`src/styles/theme.css:392`) so the frameless window is movable from launch.
 - Consider macOS: with `titleBarStyle: 'hidden'` the native traffic lights may
   still render on mac — verify per-platform so controls don't double up.
+</details>
 
 ---
 

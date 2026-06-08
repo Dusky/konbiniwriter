@@ -391,7 +391,20 @@ html, body, #root { margin: 0; height: 100%; overflow: hidden; }
 /* Frameless window drag region */
 .titlebar { -webkit-app-region: drag; }
 .titlebar button, .titlebar .tb-btn, .titlebar .seg,
-.titlebar .icon-btn, .titlebar .save-pill { -webkit-app-region: no-drag; }
+.titlebar .icon-btn, .titlebar .save-pill, .titlebar .win-controls { -webkit-app-region: no-drag; }
+
+/* Launch-screen drag strip (so the frameless window is movable from launch) */
+.win-bar { position: absolute; top: 0; left: 0; right: 0; height: 32px; display: flex;
+  align-items: center; padding: 0 4px; z-index: 10; -webkit-app-region: drag; }
+.win-bar .win-controls { -webkit-app-region: no-drag; }
+
+/* Native-style window controls (Electron, win/linux) */
+.win-controls { display: flex; align-items: center; gap: 2px; margin-left: 6px; }
+.win-controls .wc { display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 26px; border: none; border-radius: 5px; background: transparent;
+  color: var(--text-2); cursor: pointer; }
+.win-controls .wc:hover { background: var(--bg-3); color: var(--text); }
+.win-controls .wc.close:hover { background: oklch(0.55 0.20 25); color: white; }
 
 /* Studio fills the whole window (no .stage wrapper needed in Electron) */
 .studio { display: flex; flex-direction: column; height: 100%; background: var(--bg); color: var(--text); overflow: hidden; }
