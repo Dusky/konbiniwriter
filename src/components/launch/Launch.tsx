@@ -10,35 +10,42 @@ import type { RecentEntry } from '@shared/types'
 export default function Launch(): React.ReactElement {
   const recents = useShellStore((s) => s.recents)
   const setScreen = useShellStore((s) => s.setScreen)
-  const setModal = useShellStore((s) => s.setModal)
   const modal = useShellStore((s) => s.modal)
+  const setModal = useShellStore((s) => s.setModal)
   const removeRecent = useShellStore((s) => s.removeRecent)
   const loadProject = useProjectStore((s) => s.loadProject)
+  const [openErr, setOpenErr] = useState<string | null>(null)
+  const [opening, setOpening] = useState(false)
 
-  const openRecent = async (r: RecentEntry) => {
+  const finish = (project: Awaited<ReturnType<typeof window.api.project.open>>) => {
+    loadProject(project)
+    setScreen('studio')
+  }
+
+  // Open via folder picker (FSA / Electron native dialog).
+  const doOpen = async () => {
+    setOpenErr(null)
+    setOpening(true)
     try {
-      const project = await window.api.project.open(r.location)
-      loadProject(project)
-      setScreen('studio')
-    } catch (err) {
-      alert(`Could not open project: ${err}`)
+      const handleKey = await window.api.project.showOpenDialog()
+      if (!handleKey) { setOpening(false); return }
+      finish(await window.api.project.open(handleKey))
+    } catch (e) {
+      setOpenErr(`Could not open project: ${e}`)
+      setOpening(false)
     }
   }
 
-  const handleOpen = async () => {
-    // OPFS mode: no external file picker available — reopen via Recents
-    if (!isFileSystemAccessSupported() && isOPFSSupported()) {
-      alert('In Firefox, projects are stored in browser storage. Use the Recent Projects list to reopen them.')
-      return
-    }
-    const path = await window.api.project.showOpenDialog()
-    if (!path) return
+  // Open a recent. Try the stored location directly first; if that fails
+  // (stale FSA handle), fall back to the folder picker.
+  const openRecent = async (r: RecentEntry) => {
+    setOpenErr(null)
+    setOpening(true)
     try {
-      const project = await window.api.project.open(path)
-      loadProject(project)
-      setScreen('studio')
-    } catch (err) {
-      alert(`Could not open project: ${err}`)
+      finish(await window.api.project.open(r.location))
+    } catch {
+      setOpening(false)
+      await doOpen()
     }
   }
 
@@ -47,6 +54,10 @@ export default function Launch(): React.ReactElement {
     await window.api.project.removeRecent(id)
     removeRecent(id)
   }
+
+  // Only browser-FSA needs the "Chrome/Edge required" caveat. OPFS browsers
+  // and Electron both have working storage.
+  const showFsaCaveat = !isFileSystemAccessSupported() && !isOPFSSupported()
 
   return (
     <div className="launch-stage">
@@ -57,9 +68,9 @@ export default function Launch(): React.ReactElement {
             <div className="ll-mark">✦</div>
             <div className="ll-name">Konbini</div>
             <div className="ll-tag">Writing Studio</div>
-            {!isFileSystemAccessSupported() && (
+            {showFsaCaveat && (
               <div style={{ marginBottom: 12, padding: '10px 12px', background: 'oklch(0.25 0.04 30)', border: '1px solid oklch(0.4 0.08 30)', borderRadius: 6, fontSize: 12, color: 'oklch(0.85 0.05 30)', lineHeight: 1.5 }}>
-                ⚠ Konbini requires Chrome or Edge 86+. File access is not supported in this browser.
+                ⚠ This browser lacks file storage support. Use Chrome, Edge, Firefox, or the desktop app.
               </div>
             )}
             <div className="ll-actions">
@@ -67,12 +78,15 @@ export default function Launch(): React.ReactElement {
                 <span className="llb-ic">✦</span>
                 <span><b>New Project</b><small>Start writing something new</small></span>
               </button>
-              <button className="ll-btn" onClick={handleOpen}>
+              <button className="ll-btn" onClick={doOpen} disabled={opening}>
                 <span className="llb-ic">⊕</span>
-                <span><b>Open Project</b><small>Browse for a .konbini bundle</small></span>
+                <span><b>Open Project</b><small>Browse for a .konbini folder</small></span>
               </button>
             </div>
           </div>
+          {openErr && (
+            <p style={{ fontSize: 12, color: 'var(--st-idea)', margin: '8px 0 0', lineHeight: 1.5 }}>{openErr}</p>
+          )}
           <div className="ll-foot">
             <span>Konbini v0.1.0</span>
           </div>
@@ -88,7 +102,12 @@ export default function Launch(): React.ReactElement {
               </div>
             ) : (
               recents.map((r) => (
-                <div key={r.id} className="recent-row" onClick={() => openRecent(r)}>
+                <div
+                  key={r.id}
+                  className="recent-row"
+                  onClick={() => openRecent(r)}
+                  title={r.location}
+                >
                   <div className="recent-spine" style={{ background: r.accent ?? 'var(--accent)' }} />
                   <div className="recent-main">
                     <div className="recent-title">{r.title}</div>

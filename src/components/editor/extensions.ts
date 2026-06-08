@@ -1,9 +1,9 @@
-import { EditorView, Decoration, ViewPlugin, ViewUpdate, WidgetType } from '@codemirror/view'
+import { EditorView, Decoration, ViewPlugin, ViewUpdate } from '@codemirror/view'
 import { StateField, StateEffect, RangeSetBuilder } from '@codemirror/state'
 import { markdown } from '@codemirror/lang-markdown'
 import { syntaxHighlighting, HighlightStyle } from '@codemirror/language'
 import { defaultKeymap, historyKeymap, history, indentWithTab } from '@codemirror/commands'
-import { keymap, lineNumbers, highlightActiveLine } from '@codemirror/view'
+import { keymap } from '@codemirror/view'
 import { search, searchKeymap } from '@codemirror/search'
 import { tags } from '@lezer/highlight'
 
@@ -122,8 +122,9 @@ const slopPlugin = ViewPlugin.fromClass(class {
 
 // ── Base editor theme ─────────────────────────────────────────────────────────
 export const konbiniTheme = EditorView.theme({
-  '&': { height: '100%', background: 'transparent' },
-  '.cm-scroller': { fontFamily: 'var(--editor-font)', fontSize: 'var(--editor-size)' },
+  // No fixed height — the editor grows with content; the parent editor-wrap scrolls.
+  '&': { background: 'transparent' },
+  '.cm-scroller': { fontFamily: 'var(--editor-font)', fontSize: 'var(--editor-size)', overflow: 'visible !important' },
   '.cm-content': { padding: '0', caretColor: 'var(--accent)' },
   '.cm-line': { padding: '0' },
   '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--accent)', borderLeftWidth: '2px' },

@@ -28,6 +28,9 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
     setError(null)
     setCreating(true)
     try {
+      // Single-call flow: 'browser-pick' opens the folder picker synchronously
+      // within the user gesture (FSA), the native dialog (Electron), or is
+      // ignored entirely (OPFS / Firefox). One path for every backend.
       const project = await window.api.project.create({
         title: title.trim(),
         template,
@@ -46,7 +49,7 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
       setScreen('studio')
       onClose()
     } catch (err) {
-      const isUserCancel = err instanceof DOMException && (err as DOMException).name === 'AbortError'
+      const isUserCancel = (err instanceof DOMException && (err as DOMException).name === 'AbortError')
         || String(err).includes('No folder selected')
       if (!isUserCancel) setError(String(err).replace(/^Error:\s*/, ''))
       setCreating(false)
@@ -71,6 +74,7 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
               autoFocus
             />
           </div>
+
           <div className="np-field">
             <label>Template</label>
             <div className="tmpl-grid">
@@ -87,6 +91,7 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
               ))}
             </div>
           </div>
+
           <div className="np-field" style={{ marginBottom: 0 }}>
             <label>Location</label>
             <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4, lineHeight: 1.5 }}>
@@ -94,9 +99,10 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
             </div>
           </div>
         </div>
+
         {!isFileSystemAccessSupported() && (
           <div style={{ margin: '0 20px 12px', padding: '10px 12px', background: 'oklch(0.25 0.04 30)', border: '1px solid oklch(0.4 0.08 30)', borderRadius: 6, fontSize: 12, color: 'oklch(0.85 0.05 30)', lineHeight: 1.5 }}>
-            ⚠ Konbini requires Chrome or Edge 86+ for file access. Your current browser does not support the File System Access API.
+            ⚠ This browser has no disk access — your project will be saved in browser storage (Firefox/Safari). For real files on disk, use Chrome/Edge or the desktop app.
           </div>
         )}
         {error && (
@@ -104,11 +110,12 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
             {error}
           </div>
         )}
+
         <div className="modal-foot">
           <span className="tb-spacer" />
           <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn primary" onClick={handleCreate} disabled={creating || !title.trim() || !isFileSystemAccessSupported()}>
-            {creating ? 'Opening folder picker…' : 'Create Project'}
+          <button className="btn primary" onClick={handleCreate} disabled={creating || !title.trim()}>
+            {creating ? 'Creating…' : 'Create Project'}
           </button>
         </div>
       </div>

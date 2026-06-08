@@ -1,383 +1,481 @@
-# Konbini — Architecture & Build Plan
+# Konbini — Build Plan
 
-> **Status:** Phase 1 vertical slice (writing studio, zero AI) — webapp running, bundle format
-> established, IPC seam in place via `window.api` abstraction.
-
----
-
-## What's been decided (don't re-litigate)
-
-| Decision | Rationale |
-|---|---|
-| React + Zustand + CodeMirror 6 | Standard, well-understood, CM6 is the only serious option for live-preview MD |
-| Webapp-first, Electron-later | Dev velocity; File System Access API gives real disk access in Chrome today; `window.api` abstraction makes migration a one-file swap |
-| Bundle format: `.konbini/` folder | Plain Markdown files + `project.json` manifest; Dropbox/iCloud safe; human-readable; no proprietary DB |
-| AI is opt-in, off by default | With AI off the app is byte-for-byte Phase 1. The toggle gate is architectural, not a CSS flag |
-| All AI output lands in changeset review before any `.md` is touched | Enforced by routing every AI write through `updateContent()` |
-| Every prompt/agent is in an editable registry | Hardcoded prompts anywhere are a bug |
+> **Last updated:** 2026-06-07  
+> **Current phase:** 1a complete, 1b built (needs polish), 1c partial
 
 ---
 
-## Current file layout
+## Decisions made — don't re-litigate
 
-```
-konbiniwrite/
-├── index.html
-├── vite.config.ts
-├── tsconfig.json
-├── package.json
-├── PLAN.md                    ← this file
-└── src/
-    ├── main.tsx               # mounts React; imports browserApi first
-    ├── App.tsx                # screen router + keyboard shortcuts
-    ├── env.d.ts               # window.api type declaration
-    │
-    ├── shared/                # imported by BOTH lib/ and components/
-    │   ├── types.ts           # ALL canonical types (Project, Node, Proposal, PromptTemplate…)
-    │   ├── utils.ts           # uid, wordCount, fmtKey, STATUS_META, LABEL_META
-    │   └── templates.ts      # buildProjectFromTemplate (blank/novel/screenplay/nonfiction)
-    │                          # novel template seeds the full "Midnight Aisle" demo project
-    │
-    ├── lib/                   # data layer — swapped for Electron preload on migration
-    │   ├── browserApi.ts      # implements KonbiniAPI using BrowserProjectService;
-    │   │                      # assigned to window.api at startup
-    │   ├── BrowserProjectService.ts  # File System Access API; read/write .konbini bundles
-    │   └── RecentsService.ts  # localStorage-backed recents registry
-    │
-    ├── store/
-    │   ├── projectStore.ts    # Zustand: Project state + tree helpers + updateContent seam
-    │   └── shellStore.ts      # Zustand: screen, theme, layout, modal, recents
-    │
-    ├── components/
-    │   ├── Studio.tsx         # 3-pane shell (binder | editor | inspector)
-    │   ├── shell/
-    │   │   ├── Titlebar.tsx
-    │   │   ├── Toolbar.tsx    # view seg, toggles, snapshot/compile buttons, AI spark (disabled)
-    │   │   └── StatusBar.tsx
-    │   ├── binder/
-    │   │   ├── Binder.tsx     # tree, drag-drop (HTML5 DnD), footer add buttons
-    │   │   ├── TreeRow.tsx    # (inline in Binder.tsx for now)
-    │   │   └── ContextMenu.tsx
-    │   ├── editor/
-    │   │   ├── EditorPane.tsx # routes to Editor / Corkboard / Outliner
-    │   │   ├── Editor.tsx     # CodeMirror 6 mount; syncs focusMode state field
-    │   │   ├── extensions.ts  # CM6 extensions: markdown, live-style HL, wikilinks, focus mode
-    │   │   └── CompositionMode.tsx
-    │   ├── inspector/
-    │   │   └── Inspector.tsx  # status, label, synopsis, word-count target, include-in-compile
-    │   ├── views/
-    │   │   ├── Corkboard.tsx  # editable synopsis cards
-    │   │   └── Outliner.tsx   # read-only table
-    │   ├── modals/
-    │   │   ├── NewProjectModal.tsx
-    │   │   ├── SnapshotModal.tsx   # take/list/restore + line-diff preview
-    │   │   ├── CompileModal.tsx    # subtree picker + markdown/docx export
-    │   │   ├── ShortcutsModal.tsx
-    │   │   └── AboutModal.tsx
-    │   └── launch/
-    │       └── Launch.tsx     # brand panel + new/open + recents list
-    │
-    ├── hooks/
-    │   └── useAutosave.ts     # debounced 700ms → window.api.doc.write
-    │
-    └── styles/
-        ├── theme.css          # OKLCH design tokens, dark/light, density, CM6 resets
-        ├── ai.css             # AI layer tokens (loaded now, gated in DOM by aiStore.enabled)
-        └── lifecycle.css      # launch screen, chrome variants, menus
-```
+| Decision | Chosen | Why |
+|---|---|---|
+| Stack | React + Zustand + CodeMirror 6 | Proven; CM6 is the only real choice for live-preview Markdown |
+| Runtime | Webapp-first (File System Access API), Electron-later | Dev velocity; `window.api` abstraction makes migration a one-file swap |
+| Bundle format | `.konbini/` folder of Markdown files + `project.json` | Portable, human-readable, Dropbox/iCloud safe, no proprietary DB |
+| AI gate | Opt-in, off by default | Studio is complete and fully usable with zero AI |
+| AI output path | Always → proposal → changeset review → `updateContent()` | Enforced architecturally; AI never silently overwrites |
+| Prompt storage | Editable registry (JSON), not hardcoded strings | Hardcoded prompts are bugs; users must be able to tune defaults |
 
 ---
 
-## The `window.api` contract (migration seam)
+## Phase status
+
+### Phase 1a — Vertical slice ✅
+
+- [x] Create project via File System Access API
+- [x] Binder: nested tree, disclosure, selection
+- [x] Click document → CM6 editor opens with content
+- [x] Type → debounced autosave → `.md` file written to disk
+- [x] Close and reopen: work intact (bundle on disk)
+- [x] Composition mode (full-screen, Esc exits, chrome on hover)
+
+### Phase 1b — Full studio surfaces ✅ (built, needs polish)
+
+- [x] Corkboard — editable synopsis index cards
+- [x] Outliner — read-only metadata table
+- [x] Inspector — label, status, synopsis, word-count target, compile flag
+- [x] Snapshots — take / list / restore + line-diff preview
+- [x] Compile — subtree picker, Markdown + .docx export
+- [x] In-document find — CM6 search panel (Ctrl/Cmd+F)
+- [ ] Project-wide search — scan all docs by keyword (Phase 2 shares index infrastructure)
+- [ ] Focus mode: currently dims by line; should dim by paragraph block
+
+### Phase 1c — Project lifecycle + chrome 🔲
+
+- [x] Launch screen — brand panel, new/open/recents
+- [x] New Project modal — 4 templates, folder picker
+- [x] Open Project — FS handle picker
+- [ ] Recent projects: clicking re-opens picker (browser sessions lose FS handles without IndexedDB). Fix: store `FileSystemDirectoryHandle` objects in IndexedDB keyed by project ID. Resolved once per session with `handle.requestPermission({ mode: 'readwrite' })`.
+- [ ] Preferences modal — theme, editor font (mono/serif/sans), editor size (14–22px), density (compact/balanced/roomy)
+- [ ] Full keyboard map wired: ⌘⌥N (new folder), ⌘⇧D (new doc), ⌘⇧N (new scene), ⌘D (duplicate)
+- [ ] Binder: new-node inline rename flow needs polish — currently fires after create but focus timing is off in some cases
+- [ ] Status bar: show cursor position (line:col)
+- [ ] Word count: project total in status bar should exclude Trash subtree
+
+---
+
+## Phase 2 — Proposal Spine + Prompt/Agent Registry + Co-write 🔲
+
+Build in this order. Each unlocks the next.
+
+### 2.1 MentionIndex
+
+An inverted map from entity alias → Set\<docId\>. Rebuilt asynchronously on every `updateContent` call. Lives in the project store as a derived structure (not persisted — rebuilds on open from doc content).
 
 ```typescript
-interface KonbiniAPI {
-  project: { create, open, recents, close, removeRecent, showOpenDialog, showSaveDialog }
-  doc:     { read, write }          // write = the updateContent seam
-  node:    { mutate }               // all structural ops go through here
-  snapshot:{ take, restore, list, delete }
-  compile: { run }
-  shell:   { platform, minimize, maximize, close, isMaximized }
+interface MentionIndex {
+  // entity id → [{docId, count, positions}]
+  byEntity: Map<string, Array<{ docId: string; count: number }>>
+  // docId → [entity ids mentioned]
+  byDoc: Map<string, string[]>
+  // rebuild from all docs (called on open, debounced on updateContent)
+  rebuild(docs: Record<string, DocBody>, entities: Record<string, Entity>): void
 }
 ```
 
-**Browser:** `src/lib/browserApi.ts` assigns `window.api` using `BrowserProjectService`
-(File System Access API).
+Used by: Codex backlink panel, propagation-debt inbox, `ContextBuilder`.
 
-**Electron (future):** `src/preload/index.ts` assigns `window.api` via `contextBridge` + IPC.
-No component changes required.
+### 2.2 ContextBuilder
+
+Assembles the context packet for any AI call. Token-budget aware. Uses `MentionIndex` to select relevant codex cards.
+
+```typescript
+interface ContextPacket {
+  scene: string           // full doc content (always)
+  chapterSynopsis: string // parent synopsis
+  outlineExcerpt: string  // N levels of synopses, truncated to budget
+  codexCards: Entity[]    // entities mentioned in scene (via MentionIndex)
+  voiceFingerprint?: string  // from Foundation phase
+  canon?: string          // from Foundation phase
+  tokenCount: number
+}
+
+class ContextBuilder {
+  static for(docId: string, feature: PromptFeature, budget: number): ContextPacket
+}
+```
+
+### 2.3 Changeset review surface
+
+The keystone. All AI output lands here. No AI write bypasses it.
+
+**Data model:**
+
+```typescript
+interface Proposal {
+  id: string
+  docId: string
+  docTitle: string
+  command: ProposalCommand        // 'rewrite'|'expand'|'tighten'|'draft'|...
+  label: string                   // "Rewrite selection"
+  group: string                   // groups proposals: "Co-write"|"Autopilot · Revision"
+  original: string                // full doc content before
+  proposed: string                // full doc content after
+  createdAt: string
+  accepted: number[]              // hunk indices currently accepted (default = all)
+  nHunks: number
+  status: 'pending'|'applied'|'discarded'
+  seq: number
+  // provenance (from day one — cheap to carry, miserable to retrofit)
+  promptId: string                // → PromptRegistry
+  agentId?: string                // → AgentRegistry
+  model: string
+  temperature: number
+  contextFingerprint: string      // hash of ContextPacket used
+  costCents: number
+}
+
+// Diff segments (computed at render time, never stored)
+type DiffSegment =
+  | { type: 'ctx'; lines: string[] }
+  | { type: 'hunk'; idx: number; del: string[]; add: string[] }
+```
+
+**Apply seam** (enforced invariant — no exceptions):
+```
+ProposalService.apply(proposalId)
+  → snapshot.take(docId, 'before AI edit')   ← mandatory, always
+  → applySegments(buildSegments(original, proposed), accepted)
+  → window.api.doc.write(projectId, docId, result)
+  → updateContent(docId, result)
+  → maybeRaiseDebt(proposal)
+```
+
+**UI:** Two-column panel. Left rail: proposals grouped by source, each showing doc title + hunk count + accept/reject badges. Right: redline diff with per-hunk Accept/Reject toggles. Group-level "Accept All" / "Reject All". Footer: "Apply to binder" button (commits all pending-accepted through the seam).
+
+### 2.4 PromptRegistry + AgentRegistry
+
+Single source of truth for every AI instruction. Override stack: app defaults → user global → per-project.
+
+```typescript
+interface PromptTemplate {
+  id: string              // e.g. "inline.rewrite", "eval.judge.rubric"
+  name: string
+  description: string
+  feature: PromptFeature  // 'inline'|'chat'|'codex'|'batch'|'evaluation'|'autopilot'
+  phase?: AutopilotPhase  // 'foundation'|'draft'|'eval'|'revise'
+  model: string           // default model for this prompt
+  temperature: number
+  maxTokens?: number
+  template: string        // text with {{variable}} placeholders
+  variables: PromptVariable[]  // documented context vars
+  isBuiltin: boolean
+  parentId?: string       // if user override of a builtin
+  createdAt: string
+  modifiedAt: string
+}
+
+interface PromptVariable {
+  name: string            // e.g. "selection", "codex.characters"
+  description: string     // shown in prompt editor variable picker
+  example?: string
+}
+```
+
+**Context variables available to templates:**
+
+| Variable | Provides |
+|---|---|
+| `{{selection}}` | Selected text in editor |
+| `{{document}}` | Full current document markdown |
+| `{{document.title}}` | Node title |
+| `{{document.synopsis}}` | Node synopsis |
+| `{{outline}}` | Recursive synopsis tree |
+| `{{manuscript}}` | Concatenated compile subtree |
+| `{{codex}}` | Full entity store JSON |
+| `{{codex.characters}}` | Character entities only |
+| `{{codex.locations}}` | Location entities only |
+| `{{codex.lore}}` | Lore entities only |
+| `{{voiceFingerprint}}` | Foundation output |
+| `{{canon}}` | Canon database (foundation output) |
+| `{{scene.synopsis}}` | Current scene synopsis |
+| `{{chapter.synopsis}}` | Parent chapter synopsis |
+| `{{slop.flags}}` | Scorer flag list (for revision) |
+
+**Storage:**
+- App defaults: `resources/prompts/registry.json` + `resources/prompts/agents.json` (shipped, read-only)
+- User global: `userData/konbini/prompt-overrides.json`
+- Per-project: `<bundle>/ai-overrides.json` (sidecar to `project.json`)
+
+**Management UI (Prompt & Agent Library):** Browse all prompts grouped by feature. Each shows: name, description, template text, model, temperature, available variables. Actions: Edit, Duplicate, Reset to Default, Export, Import.
+
+### 2.5 Codex
+
+Story bible for character/location/lore entities.
+
+```typescript
+interface Entity {
+  id: string
+  type: 'character' | 'location' | 'lore'
+  name: string
+  aliases: string[]         // used by MentionIndex for scan
+  summary: string           // AI-generated, editable
+  facts: Record<string, string>  // structured key-value facts
+  flags: ContinuityFlag[]   // AI-detected potential issues
+  linkedDocId?: string      // associated binder document
+}
+
+interface ContinuityFlag {
+  severity: 'warn' | 'info'
+  text: string
+  docId?: string
+}
+```
+
+Editing an entity fact raises propagation debt (see Phase 4).
+
+Codex entities stored in `project.json` under a top-level `codex` key (uses the `ext` bag at node level for backlinks).
+
+### 2.6 AI Settings + BYOK
+
+- Global AI toggle (off by default)
+- Per-feature toggles (inline, chat, scorer, judge, draft, foundation)
+- Per-feature model routing
+- API key entry + validation (test call before accepting)
+- Ollama local option
+- Running cost tally (per-session)
+- Linux keychain fallback: if `keytar` fails, fall back to an AES-256-GCM encrypted JSON file in `userData` with the key derived from a machine fingerprint
+
+### 2.7 Co-write mode
+
+**Selection toolbar** — appears on text selection:
+- Rewrite, Expand, Tighten, Describe, Brainstorm
+- Each calls the relevant `PromptRegistry` template with `{{selection}}` + `{{document}}` + codex context
+- Each returns a proposal → changeset review
+
+**Inline generation** — from the binder footer or context menu:
+- "Draft this scene" (for empty/stub scenes)
+- "Generate character note"
+- Returns a proposal, not a direct write
 
 ---
 
-## Bundle format (on disk)
+## Phase 3 — Assisted Mode 🔲
 
-```
-My Novel.konbini/
-  project.json          # manifest: nodes, meta, ordering, settings
-                        # docs[].content = "" (content lives in .md files)
-                        # docs[].snapshots[] = metadata only (content in snapshot files)
-  docs/
-    <nodeId>.md         # one per document/scene; human-readable
-  snapshots/
-    <nodeId>/
-      <snapshotId>.md
-```
+### Batch generators
 
-`project.json` schema: `schemaVersion: 1`. Bump on breaking shape changes.
-`ProjectService` reads `schemaVersion` on open and runs migration functions before returning.
+Each generator:
+1. Pulls its prompt from `PromptRegistry`
+2. Assembles context via `ContextBuilder`
+3. Returns a **set of proposals** (one per document), not a direct write
+4. All land in changeset review, grouped by generator name
 
----
+Generators:
+- **Full cast** — generate a character note for each named character detected in manuscript
+- **Beat sheet** — generate scene synopses for all empty synopsis fields
+- **All locations** — generate location notes for each location detected
+- **Draft this chapter** — draft all empty scenes in selected chapter
 
-## The single document-mutation seam
+Each offers "just this one" vs "the whole set" at invocation time.
 
-```
-User types in CM6
-  → EditorView.updateListener fires
-  → projectStore.updateContent(docId, content)    ← sets saveStatus: 'saving'
-  → useAutosave debounces 700ms
-  → window.api.doc.write(projectId, docId, content)
-  → BrowserProjectService.writeDoc() → FileSystemWritableFileStream
+### On-demand evaluation
 
-AI proposal accepted (Phase 2)
-  → applySegments(buildSegments(original, proposed), acceptedHunks)
-  → window.api.doc.write(...)                     ← same path
-```
+Run against any selection or document. All thresholds and rubrics are registry-editable.
 
-Nothing else may write `.md` content. This is what makes "AI never silently overwrites" a
-structural guarantee rather than a convention.
+**Slop scorer** — mechanical, no LLM needed:
+- Lexicon: clichés, banned filler words, filter words ("she felt", "she noticed"), telling-not-showing phrases, sentence-length uniformity
+- Flags shown as inline highlights (coloured underlines by category)
+- Counts per category + overall score (0–100, higher = cleaner)
+- Lexicon is a `PromptTemplate` with type "evaluation.slop.lexicon" (editable list)
 
----
+**LLM judge** — rubric-based scoring:
+- Rubric categories: prose quality, voice adherence, character distinctiveness, beat coverage
+- Each scored 1–10 with a brief note
+- Full rubric is a `PromptTemplate` with type "evaluation.judge.rubric"
 
-## Known gaps — prioritized
+**Reader panel** — four persona perspectives:
+- Genre Fan, Lit-Fic Reader, The Skeptic, Speed Reader
+- Each is an `AgentTemplate` with a system prompt defining their reading priorities
+- Each returns a one-paragraph take + verdict
 
-### Tier 1: Block Phase 2 if not designed first
-
-**1. Reference / dependency index (`MentionIndex`)**
-
-Every headline Phase 2+ feature silently assumes the app knows which documents reference which
-entities. Codex backlinks, propagation-debt inbox ("3 scenes reference stale canon"), and
-AI context selection all depend on this. Without it those features are lies.
-
-Design: an inverted map `entityAlias → Set<docId>` maintained in the store. Rebuilt by a
-debounced worker on `updateContent`. Used by:
-- Codex backlink panel
-- Debt inbox ("which docs reference this changed fact?")
-- AI `ContextBuilder` ("which codex cards are relevant to this scene?")
-
-Build this as its own layer at the start of Phase 2, before Codex or debt.
-
-**2. Context / token budgeting (`ContextBuilder`)**
-
-Injecting codex + outline + canon + surrounding scenes into a generator will blow past context
-windows for any real novel. This needs a strategy before generators are written, because it
-changes the shape of every generator and every pipeline step.
-
-Design: tiered assembly with a token budget.
-```
-ContextBuilder.for(docId, feature) → ContextPacket
-  full scene content        (always)
-  chapter synopsis          (always)
-  parent/sibling synopses   (if budget allows)
-  codex cards               (entities mentioned in scene, via MentionIndex)
-  outline excerpt           (N levels, truncated)
-  voice fingerprint         (foundation output, if available)
-  canon snapshot            (foundation output, if available)
-```
-Each tier knows its token cost. The builder fills budget top-down and truncates at the margin.
-The `MentionIndex` is what makes "entities mentioned in scene" retrievable without scanning.
-
-Both `MentionIndex` and `ContextBuilder` belong in Phase 2, in the same sprint as the
-proposal spine and `PromptRegistry`.
-
-**3. Atomic writes + pre-AI snapshot guarantee**
-
-Current `writeText()` in `BrowserProjectService` uses `createWritable()` → `write()` → `close()`,
-which the browser implements as a temp-file swap (atomic at the FS level). This is correct.
-
-Gaps to close before Phase 2 ships:
-- `applySegments` in the proposal layer MUST call `snapshot.take()` before calling
-  `doc.write()`. This is noted in the architecture but not yet enforced as a hard invariant.
-  Make it impossible to skip: `ProposalService.apply()` always snapshots first.
-- External-change detection (user edits a `.md` in another editor, or Dropbox syncs
-  underneath): track `project.json` mtime; warn if it changed since we opened. Out of scope
-  for Phase 1, but the hook is the `schemaVersion` / `modified` field.
-
-**4. Unified undo + provenance**
-
-CM6 has its own undo stack. An accepted changeset currently dispatches a CM6 transaction
-(content sync), which lands in CM6 history correctly. But:
-- Structural mutations (rename, move, create) are NOT in the CM6 history.
-- We need a single `Cmd-Z` history that covers both.
-
-Design: structural mutations go through a lightweight `CommandHistory` (Zustand slice) that
-records inverse ops. CM6 covers text. The editor's undo shortcut first tries CM6; if at the
-bottom of its stack it pops from `CommandHistory`.
-
-Provenance: `Proposal` already has `promptId` and `agentId`. Add `model`, `temperature`,
-`contextFingerprint` (hash of the context packet used) in Phase 2. Cheap to carry forward
-from day one; miserable to reconstruct later.
-
-### Tier 2: Plan now, build when the feature is built
-
-**5. Project-wide search + in-document find**
-
-Table stakes for a writing studio; embarrassing to ship without. In-document find is a single
-CM6 extension (`@codemirror/search`, one line). Project-wide search scans `docs[*].content`
-in the store — simple for Phase 1 scale, index-backed later.
-
-Add in-document find to Phase 1c. Add project-wide search to Phase 2 alongside the `MentionIndex`
-(they share the same inverted-index infrastructure).
-
-**6. Autopilot long-run mechanics**
-
-Streaming output into the proposal UI, real cancellation (the STOP button must cancel the
-in-flight fetch, not just stop rendering), a job queue, resumability if the app closes mid-run.
-Long pipelines cannot be fire-and-pray. Design the `AutopilotRunner` as a stateful class with
-explicit phase transitions before building Phase 4.
-
-**7. BYOK first-run onboarding**
-
-A new user has no API key. The entire AI layer is dead until they paste one. The onboarding
-flow must: show a welcome state when AI is first enabled, walk through key entry, and
-*validate* the key with a cheap test call before accepting it. Also: the Linux keychain
-(libsecret/gnome-keyring) is notoriously flaky — design a fallback to an encrypted local
-store so keys don't silently fail to persist on Linux.
-
-**8. Scale: lazy loading + virtualization**
-
-A novel is hundreds of documents. Current approach loads all `.md` content eagerly on open.
-This must change before the store grows past ~50 documents:
-- Lazy-load doc bodies: only fetch `.md` content when a document is selected
-- Virtualize binder/outliner (only render visible rows)
-- Build search against an index rather than scanning in-memory content
-
-Design the lazy-load seam now (the `window.api.doc.read` call already exists; just don't call
-it eagerly). Virtualization can wait until the binder has real performance pain.
-
-**9. The default prompt library is content, not code**
-
-"Ships well-tuned defaults" hides a real authoring deliverable: someone has to write and tune
-dozens of prompts, the four reader persona definitions, the judge rubric, the slop lexicon
-thresholds, and the anti-slop drafting instructions. This is what determines whether the app
-feels good on first launch. Budget it as a distinct work item in Phase 3/4.
-
-### Tier 3: Consciously deferred
-
-- Code signing / notarization / auto-update (required to distribute; not required to build)
-- Testing strategy for `BrowserProjectService` (it's the one module where a bug eats a novel;
-  needs integration tests with a mock FileSystem, not unit tests)
-- Unicode/CJK word counting (space-splitting is wrong for Japanese; relevant given the name)
-- License audit if any pipeline logic is ported from existing autonovel-style projects
-- epub/PDF export (out of scope per spec; leave pluggable seam in `CompileService`)
+**Adversarial editor** — suggests specific cuts:
+- Applies filler/filter lexicon, returns ranked cut list with context
+- Author approves each cut → flows into changeset review
 
 ---
 
-## Phase build order
+## Phase 4 — Autopilot 🔲
 
-### Phase 1 — The Writing Studio (zero AI; must stand alone) ✅ COMPLETE
+### AutopilotRunner
 
-**1a — Vertical slice** ✅
-- Create project → binder → click doc → write → debounced autosave to `.md` → close/reopen
-  with work intact → toggle composition mode.
+A stateful class with explicit phase transitions. Not fire-and-pray.
 
-**1b — Full studio surfaces** ✅
-- Corkboard (editable synopses) ✅
-- Outliner (read-only) ✅
-- Inspector (label, status, synopsis, target, compile flag) ✅
-- Snapshots (take/list/restore + line-diff preview) ✅
-- Compile/export: subtree → markdown → `.docx` ✅
-- In-document find (`@codemirror/search`, `Mod-F` in editor) ✅
-- Project-wide search (in-memory scan, `Mod+Shift+F`) ✅
+```typescript
+type RunStatus = 'idle' | 'running' | 'paused' | 'done' | 'stopped' | 'error'
+type PhaseStatus = 'pending' | 'running' | 'done' | 'failed' | 'skipped'
 
-**1c — Project lifecycle + chrome** ✅
-- New Project modal (templates) ✅
-- Open / recents on launch screen ✅
-- Preferences modal (theme, font, size, density, accent) ✅ (`Mod+,`)
-- Full keyboard map wired ✅ (Mod+O, Mod+W, Mod+Shift+D/N, Mod+Alt+N, Mod+,)
+interface AutopilotRun {
+  id: string
+  scope: 'full' | 'chapter' | 'scene'
+  checkpoint: 'pause'    // pause between phases for author review
+            | 'straight' // run to completion, one final review
+  spendCapCents: number
+  startedAt: number
+  status: RunStatus
+  phaseIdx: number
+  phases: Array<{ id: PipelinePhaseId; label: string; status: PhaseStatus; log: string[] }>
+  spentCents: number
+  proposals: string[]    // proposal IDs created by this run
+}
+```
 
-### Phase 2 — Proposal Spine + Prompt/Agent Registry + Co-write 🔲 STARTED
+Real cancellation: every generator call is an `AbortController`-wrapped fetch. The STOP button calls `runner.stop()` which calls `controller.abort()` on the in-flight request. The run record is preserved with status `'stopped'`; spent cost is accurate.
 
-*Build these in order — each unblocks the next.*
+Resumability: if the app closes mid-run, the run record is in `aiStore` (persisted to `localStorage`). On next open, the user is shown the incomplete run and can resume from the last completed phase.
 
-1. **`MentionIndex`** — inverted entity→docs map, rebuilt on `updateContent`, exposed in store ✅
-2. **`ContextBuilder`** — tiered context assembly with token budget; uses `MentionIndex` ✅
-3. **Changeset review surface** — proposal data model, diff engine, accept/reject per hunk,
-   apply seam → `updateContent`, group-level accept/reject, "Apply to binder" ✅
-4. **`PromptRegistry` + `AgentRegistry`** — JSON-backed, override stack ✅
-   (app defaults → user global → per-project), management UI (browse/edit/duplicate/
-   reset/export/import), variable documentation
-5. **Codex** — character/location/lore entities, editable facts, aliases, backlinks via
-   `MentionIndex`, category browser (character/location/item/concept/lore) ✅
-6. **AI settings** — BYOK key entry + validation (Anthropic + Ollama), global toggle ✅
-7. **Co-write mode** — selection toolbar (Rewrite/Expand/Tighten/Describe), streams via
-   `AIClient`, result → proposal → changeset review ✅
+### Pipeline phases
 
-### Phase 2 complete. ✅
+All prompts, thresholds, and stop conditions are in `PromptRegistry`/`AgentRegistry`. None are hardcoded.
+
+**Foundation**
+1. Seed concept — expand a premise into a story concept
+2. World bible — setting, rules, atmosphere
+3. Character registry — cast with roles, arcs, relationships
+4. Outline + beat sheet — chapter/scene breakdown with foreshadowing ledger
+5. Canon database — facts that must be consistent (names, dates, rules)
+6. Voice fingerprint — prose style guide derived from author samples
+7. Quality gate — score the outline; if below threshold, loop back to step 4
+
+**Drafting**
+- Per-chapter drafting under anti-slop rules (voice fingerprint + slop lexicon injected)
+- Sequential (not parallel) to maintain narrative continuity
+- Keep-or-retry: each draft is scored; if below gate threshold, auto-retry up to N times
+- Drafting queue UI: shows each chapter with status (queued / drafting / kept / retrying), score, retry count
+
+**Evaluation**
+- Slop scorer → LLM judge → adversarial cuts → Elo ranking across chapters → reader panel → critic+professor loop
+- Stop condition for critic+professor loop: configurable — "until no major issues" or "N iterations max". Defined in `AgentRegistry`.
+
+**Revision**
+- Auto revision briefs: for each chapter with evaluation issues, generate a brief describing what to change
+- Rewrite-from-brief: apply each brief to produce a revised draft
+- Batch cut applicator: apply adversarial cuts in bulk
+- All output → proposals → changeset review
+
+### Propagation-debt inbox
+
+Five co-evolving layers: **voice / world / characters / outline / prose** + **canon** cutting across all.
+
+A change in any layer creates downstream debt:
+- Author edits an entity fact in Codex → canon changes → scenes referencing that fact are stale
+- Author edits a scene → voice may have drifted → voice fingerprint needs update
+- AI revises prose → outline synopsis may be stale
+
+Debt is raised by `DebtService.raise(event)` and stored in `aiStore.debt`.
+
+Each debt item:
+```typescript
+interface DebtItem {
+  id: string
+  layer: 'voice' | 'world' | 'character' | 'outline' | 'prose' | 'canon'
+  title: string          // e.g. "Canon changed: store has eight aisles"
+  detail: string         // what changed and why it creates debt
+  source: string         // entity id or doc id that caused the change
+  affected: Array<{
+    docId: string
+    note: string         // e.g. "Mentions the ninth aisle as the anomaly"
+    resolved: boolean
+  }>
+  createdAt: string
+}
+```
+
+Author resolves each affected document:
+- **Open** — jump to that document
+- **Draft fix** — generate a targeted revision proposal via co-write
+- **Mark OK** — acknowledge and close
+
+Everything resolves through changeset review. Debt from AI changes is raised by `ProposalService.apply()` → `DebtService.maybeRaiseFromProposal()`.
+
+### Export extras (build last, build lightly)
+
+- **Cover studio** — basic canvas with title/author/image, export PNG
+- **Audiobook studio** — chapter concatenation with pause markers, export text for TTS pipeline
+- **Typeset PDF** — basic page layout, export via browser `window.print()` with a print stylesheet
+
+---
+
+## Electron packaging (any phase, when needed)
+
+1. `src/preload/index.ts` — `contextBridge.exposeInMainWorld('api', { ... })` with the same `KonbiniAPI` interface
+2. `src/main/index.ts` — BrowserWindow, menu, IPC registration
+3. `src/main/services/NodeProjectService.ts` — same interface as `BrowserProjectService`, uses `fs/promises`
+4. `src/main/ipc/` — one handler file per IPC group
+5. `electron.vite.config.ts` — replaces `vite.config.ts` (add main/preload entries)
+6. `electron-builder.yml` — packaging config
+
+Zero changes to any component or store. The `window.api` assignment in `src/main.tsx` switches from `browserApi.ts` to the preload.
+
+---
+
+## Non-negotiable invariants
+
+These are structural guarantees, not conventions. Violating any of them breaks a core promise to the author.
+
+1. **AI off = zero AI in DOM.** With `aiStore.enabled = false`, no AI component renders and no AI code path executes. The studio must be byte-for-byte identical to Phase 1 with AI off.
+
+2. **No AI write reaches `.md` directly.** Every AI output — from a single inline rewrite to a full Autopilot run — flows through: AI call → `Proposal` → changeset review → `ProposalService.apply()` → `updateContent()`. Nothing else. The `BrowserProjectService.writeDoc()` / `window.api.doc.write()` path is the only door.
+
+3. **Every prompt and agent is registry-editable.** The `PromptRegistry` and `AgentRegistry` are the single source of truth. A hardcoded prompt string anywhere in TypeScript is a bug. Every generator, evaluator, and pipeline phase must pull its instruction text, model, and parameters from the registry at call time.
+
+4. **`updateContent()` is the only document-mutation seam.** The editor, snapshot restore, and AI proposal apply all write document text through this function. It is the wrap point for autosave debouncing, snapshot-before-AI, and the diff/proposal layer. Nothing else may mutate `.md` content.
+
+5. **Pre-AI snapshot is mandatory, no exceptions.** `ProposalService.apply()` must call `snapshot.take(docId, 'before AI edit')` before calling `doc.write()`. This cannot be skipped even for "small" changes. The snapshot is the safety net that makes AI edits truly non-destructive.
+
+6. **Node IDs are stable and never reused.** Once assigned, a node ID is permanent for the lifetime of the project. Codex entity backlinks, AI proposal history, and snapshot associations all depend on this. Deleting a node deletes its ID; that ID is never assigned to a new node.
+
+---
+
+## Progress tracker
+
+### Phase 1 — The Writing Studio (zero AI; stands alone) ✅ COMPLETE
+- Vertical slice: create → binder → write → debounced autosave to `.md` → reopen intact → composition mode ✅
+- Corkboard (editable synopses), Outliner, Inspector (label/status/synopsis/target/compile flag) ✅
+- Snapshots (take/list/restore + line-diff preview), Compile/export subtree → markdown/`.docx` ✅
+- In-document find (`Mod-F`), project-wide search (`Mod+Shift+F`) ✅
+- New Project modal, Open/recents, Preferences (`Mod+,`), full keyboard map ✅
+
+### Phase 2 — Proposal Spine + Registries + Co-write ✅ COMPLETE
+- `MentionIndex` (entity→docs, rebuilt on `updateContent`) ✅
+- `ContextBuilder` (tiered context, token budget) ✅
+- Changeset review (proposal model, diff engine, per-hunk + group accept/reject → `updateContent`) ✅
+- `PromptRegistry` + `AgentRegistry` (JSON-backed, app→user→project override stack, management UI) ✅
+- Codex (entities, editable facts, aliases, backlinks, category browser) ✅
+- AI settings (BYOK key + validation, multi-provider, global toggle) ✅
+- Co-write mode (Rewrite/Expand/Tighten/Describe/Brainstorm → proposal → review) ✅
 
 ### Phase 3 — Assisted Mode 🔲 STARTED
+- Batch generators (cast, beat sheet, chapter draft, evaluate prose) ✅
+- Slop scorer (CM6 wavy underlines, Proof button) ✅
+- Reader panel, AI Chat, Autopilot runner, Writing Stats, Timeline drag, split editor, typewriter scroll ✅
+- Remaining: propagation-debt inbox (stale fact detection), deeper structural undo
 
-- Batch generators (cast, beat sheet, chapter draft, evaluate prose) ✅ BatchGeneratorModal
-- Slop scorer: CM6 wavy-underline decorations, excerpt-based matching, Proof button ✅
-- Added Brainstorm command to Co-write bar ✅
-- Batch prompts added to PromptRegistry (cast, beat-sheet, chapter-draft, LLM judge) ✅
-- Bug fix: Codex entries now persisted to project.json via window.api.codex.save ✅
+### Phase 4 — Autopilot 🔲 STARTED (basic runner shipped)
+- `AutopilotRunner`: sequential node processing through changeset review ✅
+- Remaining: phase-transition model (foundation→draft→eval→revise), spend cap + cost
+  estimate, resumable runs, Elo ranking, critic/professor loops, propagation-debt across
+  voice/world/characters/outline/prose layers
 
-Remaining Phase 3:
-- Reader panel (4 personas evaluate a chapter — adventurous/literary/commercial/skeptic)
-- Propagation-debt inbox (stale fact detection across codex ↔ docs)
-- CommandHistory: Cmd+Z for structural mutations (rename/move/create)
-
-### Phase 4 — Autopilot 🔲
-
-- `AutopilotRunner`: stateful, phase-transition model, real cancellation, resumable
-- Run launcher: scope, per-run checkpoint ("pause between phases" vs "run to review"),
-  spend cap, cost estimate before, live tally + STOP during
-- Pipeline phases (all prompts/thresholds from registry):
-  - **Foundation**: seed → world bible → character registry → outline + foreshadowing ledger
-    → canon database → voice fingerprint → quality-score gate (loops to threshold)
-  - **Drafting**: per-chapter anti-slop drafting, batch sequential, keep-or-retry queue
-    with status/score/retry-count visible
-  - **Evaluation**: slop scorer → LLM judge → adversarial editor → Elo ranking →
-    reader panel → critic+professor loop with visible stop condition
-  - **Revision**: auto revision briefs → rewrite-from-brief → batch cut applicator
-- **Propagation-debt inbox**: five co-evolving layers (voice/world/characters/outline/prose)
-  + canon; a change in one creates downstream debt surfaced for review/resolve; applies to
-  author edits AND AI changes; resolves into changeset review
-- Export extras (cover studio, audiobook studio, typeset PDF): build last and lightly
-
-### Electron packaging (any phase, when needed) 🔲
-
-1. Add `src/preload/index.ts` — same `KonbiniAPI` interface, `contextBridge` + IPC
-2. Add `src/main/` — `ProjectService` using `fs/promises` (same interface as `BrowserProjectService`)
-3. Update `vite.config.ts` → `electron.vite.config.ts` (rename only; rename config filename)
-4. Add `electron-builder.yml`
-5. No component changes required
+### Electron packaging ✅ COMPLETE
+- `electron/main.ts` (BrowserWindow, IPC, native dialogs) ✅
+- `electron/preload.ts` (`contextBridge` exposing `KonbiniAPI`, recents in userData) ✅
+- `electron/NodeProjectService.ts` (`fs/promises`, real paths) ✅
+- Firefox/Safari fallback: `OPFSProjectService` (browser storage) ✅
+- Scripts: `electron:dev`, `electron:build`; `electron-builder` config in `package.json` ✅
 
 ---
 
-## Design tokens (quick reference)
+## Design tokens (quick ref)
 
 All in `src/styles/theme.css`. Colors are OKLCH throughout.
 
-| Token | Value |
-|---|---|
-| `--accent` (default) | `oklch(0.64 0.11 300)` — violet |
-| `--bg` (dark) | `oklch(0.168 0.006 285)` |
-| `--text` (dark) | `oklch(0.918 0.006 285)` |
-| Editor font | IBM Plex Mono (default) / Spectral / IBM Plex Sans |
-| Editor size | 17px default, 14–22px range |
-| Density rows | compact 22px / balanced 27px / roomy 33px |
+| Token | Dark value | Light value |
+|---|---|---|
+| `--accent` | `oklch(0.64 0.11 300)` violet | same |
+| `--bg` | `oklch(0.168 0.006 285)` | `oklch(0.965 0.003 90)` |
+| `--text` | `oklch(0.918 0.006 285)` | `oklch(0.245 0.008 285)` |
+| `--st-idea` | `oklch(0.66 0.12 20)` red | same |
+| `--st-final` | `oklch(0.68 0.11 150)` green | same |
+| Editor font | IBM Plex Mono (default) / Spectral / IBM Plex Sans | same |
 
-Accent hue alts (same L/C): blue 250 · green 150 · amber 75 · red 20.
-
----
-
-## Non-negotiable invariants (repeat here so they don't drift)
-
-1. **AI off = zero AI in DOM.** With `aiStore.enabled = false`, no AI component renders.
-2. **No AI write reaches `.md` directly.** Every AI output → proposal → changeset review →
-   `updateContent` only.
-3. **Every prompt/agent is registry-editable.** Hardcoded prompt strings are bugs.
-4. **`updateContent()` is the only doc mutation seam.** Nothing else writes `.md` content.
-5. **Pre-AI snapshot is mandatory.** `ProposalService.apply()` always snapshots before writing.
-6. **Stable IDs forever.** Node IDs are never reused; codex and AI references rely on them.
+Accent hue alternates (same lightness/chroma): blue 250 · green 150 · amber 75 · red 20.
