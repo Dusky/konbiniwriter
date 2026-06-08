@@ -9,6 +9,8 @@ export default function StatusBar(): React.ReactElement {
   const saveStatus = useProjectStore((s) => s.saveStatus)
   const setProjectWordTarget = useProjectStore((s) => s.setProjectWordTarget)
   const sessionWordsAdded = useProjectStore((s) => s.sessionWordsAdded)
+  const cursor = useProjectStore((s) => s.cursor)
+  const view = useProjectStore((s) => s.view)
   const setModal = useShellStore((s) => s.setModal)
 
   const selectedNode = selectedId && project ? project.nodes[selectedId] : null
@@ -19,8 +21,11 @@ export default function StatusBar(): React.ReactElement {
   const docWords = wordCount(docContent)
   const docChars = charCount(docContent)
 
+  // Project total excludes the Trash subtree — discarded work shouldn't count.
   const totalWords = project
-    ? project.rootIds.reduce((acc, id) => acc + subtreeWordCount(project, id), 0)
+    ? project.rootIds
+        .filter((id) => id !== project.trashId)
+        .reduce((acc, id) => acc + subtreeWordCount(project, id), 0)
     : 0
 
   const wordTarget = project?.settings?.wordTarget
@@ -45,6 +50,11 @@ export default function StatusBar(): React.ReactElement {
       )}
       {selectedNode?.type !== 'folder' && docWords > 0 && (
         <span><b>{docWords}</b> words · <b>{docChars}</b> chars</span>
+      )}
+      {view === 'editor' && selectedNode?.type !== 'folder' && cursor && (
+        <span style={{ color: 'var(--text-3)' }}>
+          Ln <b>{cursor.line}</b>, Col <b>{cursor.col}</b>
+        </span>
       )}
 
       <div className="sb-r">

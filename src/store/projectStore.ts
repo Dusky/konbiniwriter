@@ -23,6 +23,7 @@ interface ProjectState {
   slopRunning: boolean
   nodeHistory: Array<{ rootIds: ID[]; nodes: Record<ID, KNode> }>
   sessionWordsAdded: number
+  cursor: { line: number; col: number } | null
 
   // — project lifecycle —
   loadProject: (p: Project) => void
@@ -36,6 +37,7 @@ interface ProjectState {
   setRenamingId: (id: ID | null) => void
   setFocusMode: (on: boolean) => void
   setCompositionMode: (on: boolean) => void
+  setCursor: (c: { line: number; col: number } | null) => void
 
   // — content (THE single mutation seam) —
   updateContent: (docId: ID, content: string) => void
@@ -149,6 +151,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   autopilotQueue: [],
   autopilotRunning: false,
   autopilotCurrent: null,
+  cursor: null,
 
   loadProject: (project) => set({
     project,
@@ -170,18 +173,19 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     compositionMode: false,
     splitOpen: false,
     splitId: null,
+    cursor: null,
   }),
-  unloadProject: () => set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], judgeResults: new Map(), sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, focusMode: false, compositionMode: false, splitOpen: false, splitId: null }),
+  unloadProject: () => set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], judgeResults: new Map(), sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null }),
 
   selectNode: (id) => set((s) => {
-    if (!id || !s.project) return { selectedId: id }
+    if (!id || !s.project) return { selectedId: id, cursor: null }
     const node = s.project.nodes[id]
-    if (!node) return { selectedId: id }
+    if (!node) return { selectedId: id, cursor: null }
     // Auto-switch view based on node type
     const newView = node.type === 'folder'
       ? (s.view === 'editor' ? 'corkboard' : s.view)
       : 'editor'
-    return { selectedId: id, view: newView }
+    return { selectedId: id, view: newView, cursor: null }
   }),
 
   setSplitId: (splitId) => set({ splitId }),
@@ -190,6 +194,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   setRenamingId: (renamingId) => set({ renamingId }),
   setFocusMode: (focusMode) => set({ focusMode }),
   setCompositionMode: (compositionMode) => set({ compositionMode }),
+  setCursor: (cursor) => set({ cursor }),
 
   updateContent: (docId, content) => set((s) => {
     if (!s.project) return {}

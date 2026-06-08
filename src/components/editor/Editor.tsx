@@ -44,6 +44,7 @@ export default function Editor({ docId }: Props): React.ReactElement {
   const aiEnabled = useAIStore((s) => s.enabled)
   const setSlopSpans = useProjectStore((s) => s.setSlopSpans)
   const setSlopRunning = useProjectStore((s) => s.setSlopRunning)
+  const setCursor = useProjectStore((s) => s.setCursor)
   const typewriterMode = useShellStore((s) => s.typewriterMode)
 
   const content = project?.docs[docId]?.content ?? ''
@@ -119,6 +120,11 @@ export default function Editor({ docId }: Props): React.ReactElement {
     [docId, updateContent, setSaveStatus]
   )
 
+  const handleCursor = useCallback(
+    (line: number, col: number) => setCursor({ line, col }),
+    [setCursor]
+  )
+
   // Show co-write bar on mouseup if there's a selection and AI is enabled
   const handleMouseUp = useCallback(() => {
     if (!aiEnabled) return
@@ -141,7 +147,7 @@ export default function Editor({ docId }: Props): React.ReactElement {
     const state = EditorState.create({
       doc: content,
       extensions: [
-        ...konbiniExtensions(handleChange),
+        ...konbiniExtensions(handleChange, handleCursor),
         typewriterCompartment.current.of(typewriterMode ? makeTypewriterPlugin() : []),
       ],
     })
@@ -149,8 +155,11 @@ export default function Editor({ docId }: Props): React.ReactElement {
     const view = new EditorView({ state, parent: containerRef.current })
     viewRef.current = view
 
-    // Focus the editor
+    // Focus the editor and publish the initial cursor position
     view.focus()
+    const head = view.state.selection.main.head
+    const initLine = view.state.doc.lineAt(head)
+    handleCursor(initLine.number, head - initLine.from + 1)
 
     return () => {
       view.destroy()

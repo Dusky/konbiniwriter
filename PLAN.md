@@ -38,7 +38,7 @@
 - [x] Compile — subtree picker, Markdown + .docx export
 - [x] In-document find — CM6 search panel (Ctrl/Cmd+F)
 - [ ] Project-wide search — scan all docs by keyword (Phase 2 shares index infrastructure)
-- [ ] Focus mode: currently dims by line; should dim by paragraph block
+- [x] Focus mode: dims by paragraph block (contiguous non-blank lines around cursor)
 
 ### Phase 1c — Project lifecycle + chrome 🔲
 
@@ -49,8 +49,8 @@
 - [ ] Preferences modal — theme, editor font (mono/serif/sans), editor size (14–22px), density (compact/balanced/roomy)
 - [ ] Full keyboard map wired: ⌘⌥N (new folder), ⌘⇧D (new doc), ⌘⇧N (new scene), ⌘D (duplicate)
 - [ ] Binder: new-node inline rename flow needs polish — currently fires after create but focus timing is off in some cases
-- [ ] Status bar: show cursor position (line:col)
-- [ ] Word count: project total in status bar should exclude Trash subtree
+- [x] Status bar: show cursor position (line:col)
+- [x] Word count: project total in status bar excludes Trash subtree
 
 ---
 

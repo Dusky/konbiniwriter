@@ -70,10 +70,17 @@ const focusModePlugin = ViewPlugin.fromClass(class {
   build(view: EditorView) {
     if (!view.state.field(focusModeField)) return Decoration.none
     const builder = new RangeSetBuilder<Decoration>()
-    const cursorLine = view.state.doc.lineAt(view.state.selection.main.head).number
-    for (let i = 1; i <= view.state.doc.lines; i++) {
-      if (i !== cursorLine) {
-        const line = view.state.doc.line(i)
+    const doc = view.state.doc
+    const cursorLine = doc.lineAt(view.state.selection.main.head).number
+    // Expand to the surrounding paragraph block: contiguous non-blank lines,
+    // bounded by blank lines (or the document edges).
+    let start = cursorLine
+    let end = cursorLine
+    while (start > 1 && doc.line(start - 1).text.trim() !== '') start--
+    while (end < doc.lines && doc.line(end + 1).text.trim() !== '') end++
+    for (let i = 1; i <= doc.lines; i++) {
+      if (i < start || i > end) {
+        const line = doc.line(i)
         builder.add(line.from, line.from, Decoration.line({ class: 'cm-focus-dim' }))
       }
     }
@@ -144,7 +151,10 @@ export const konbiniTheme = EditorView.theme({
 })
 
 // ── Assembled extension set ───────────────────────────────────────────────────
-export function konbiniExtensions(onChange?: (content: string) => void) {
+export function konbiniExtensions(
+  onChange?: (content: string) => void,
+  onCursor?: (line: number, col: number) => void,
+) {
   return [
     history(),
     search({ top: true }),
@@ -158,8 +168,13 @@ export function konbiniExtensions(onChange?: (content: string) => void) {
     slopPlugin,
     konbiniTheme,
     EditorView.lineWrapping,
-    ...(onChange ? [EditorView.updateListener.of((u) => {
-      if (u.docChanged) onChange(u.state.doc.toString())
+    ...(onChange || onCursor ? [EditorView.updateListener.of((u) => {
+      if (onChange && u.docChanged) onChange(u.state.doc.toString())
+      if (onCursor && (u.selectionSet || u.docChanged)) {
+        const head = u.state.selection.main.head
+        const line = u.state.doc.lineAt(head)
+        onCursor(line.number, head - line.from + 1)
+      }
     })] : []),
   ]
 }
