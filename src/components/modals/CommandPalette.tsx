@@ -121,6 +121,7 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
         { id: 'ai-reader', label: 'Reader Panel…', section: 'AI', hint: '⌘⇧R', run: openModal('reader') },
         { id: 'ai-foundation', label: 'Foundation (seed → world → cast)…', section: 'AI', run: openModal('foundation') },
         { id: 'ai-batch', label: 'Batch Generators…', section: 'AI', hint: '⌘⇧G', run: openModal('batch-generator') },
+        { id: 'ai-bestof', label: 'Best of N (variant tournament)…', section: 'AI', run: openModal('bestof') },
         { id: 'ai-autopilot', label: 'Autopilot…', section: 'AI', hint: '⌘⇧P', run: openModal('autopilot') },
         { id: 'ai-prompts', label: 'Prompt Registry…', section: 'AI', run: openModal('prompt-registry') },
         { id: 'ai-settings', label: 'AI Settings…', section: 'AI', run: openModal('ai-settings') },

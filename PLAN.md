@@ -449,6 +449,11 @@ These are structural guarantees, not conventions. Violating any of them breaks a
 - Batch generators (cast, beat sheet, chapter draft, evaluate prose) ✅
 - Slop scorer (CM6 wavy underlines, Proof button) ✅
 - Reader panel, AI Chat, Autopilot runner, Writing Stats, Timeline drag, split editor, typewriter scroll ✅
+- Best of N / Elo ranking ✅ — `lib/Ranking.ts` (`rankVariants`): round-robin pairwise LLM judging
+  (`builtin:evaluation:compare`, A/B side alternated to blunt position bias) with Elo scoring — the
+  comparative counterpart to QualityGate's absolute scoring. `BestOfModal` generates N variants
+  (2–4) of the selected scene at elevated temperature, ranks them, shows the leaderboard (Elo +
+  W/L/T), and sends the chosen winner through changeset review. Toolbar (🏆) + command palette.
 - Propagation-debt inbox (v1) ✅ — editing a Codex fact raises a `DebtItem` (via
   `DebtService.fromFactChange` + `MentionIndex`) listing scenes that reference the
   entity; the inbox (toolbar badge + `debt` modal) offers Open / Draft fix (registry

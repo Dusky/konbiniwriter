@@ -28,6 +28,7 @@ export type ModalId =
   | 'ai-settings'
   | 'batch-generator'
   | 'reader'
+  | 'bestof'
   | 'chat'
   | 'stats'
   | 'autopilot'

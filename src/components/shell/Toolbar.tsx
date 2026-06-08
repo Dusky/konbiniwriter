@@ -164,6 +164,9 @@ export default function Toolbar(): React.ReactElement {
               </svg>
               Readers
             </button>
+            <button className="tb-btn" title="Best of N — generate variants, rank them, keep the winner" onClick={() => setModal('bestof')}>
+              <span style={{ fontSize: 13 }}>🏆</span> Best of N
+            </button>
             <button
               className={`tb-btn${slopCount > 0 ? ' on' : ''}`}
               title="Slop Proof — flag clichés and weak prose"

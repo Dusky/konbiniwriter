@@ -643,6 +643,33 @@ Only report clear conflicts. If the scene is consistent (or simply silent) on a 
     modifiedAt: ISO(),
   },
   {
+    id: 'builtin:evaluation:compare',
+    name: 'Pairwise Compare',
+    description: 'Judge which of two versions of the same scene is the stronger prose.',
+    feature: 'evaluation',
+    model: 'claude-opus-4-8',
+    temperature: 0.2,
+    maxTokens: 600,
+    template: `You are blind-judging which of two versions of the SAME scene is stronger prose. They share the same intended content; judge execution only — prose quality, voice, vividness, pacing, dialogue, and freedom from slop.
+
+<version_a>
+{{a}}
+</version_a>
+
+<version_b>
+{{b}}
+</version_b>
+
+Pick the better version. Return ONLY JSON: { "winner": "A" | "B" | "tie", "reason": "<one sentence>" }. Use "tie" only if they are genuinely indistinguishable in quality.`,
+    variables: [
+      { name: 'a', description: 'Version A' },
+      { name: 'b', description: 'Version B' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
     id: 'builtin:evaluation:draft-gate',
     name: 'Draft Quality Gate',
     description: 'Score a chapter of prose for craft quality and return issues + fixes.',
