@@ -454,8 +454,11 @@ These are structural guarantees, not conventions. Violating any of them breaks a
   entity; the inbox (toolbar badge + `debt` modal) offers Open / Draft fix (registry
   prompt `builtin:revision:canon` → proposal → changeset review) / Mark OK per doc.
   Persisted in `project.settings.debt`.
-- Remaining: debt from AI prose edits (`ProposalService.apply` → `maybeRaiseFromProposal`),
-  cross-layer debt (voice/outline), deeper structural undo
+- Prose→outline debt (heuristic) ✅ — applying a whole-doc revision (`draft`/`revision`/`batch`)
+  that changes prose substantially (≥40 words or ≥30%) raises an outline-layer "synopsis may be
+  stale" item (Open / Mark OK, no AI) via `DebtService.maybeRaiseFromProposal` at the apply seam.
+- Remaining: LLM-judged canon-contradiction debt from prose edits, cross-layer debt
+  (voice drift), auto-resolve debt on proposal apply, deeper structural undo
 
 ### Phase 4 — Autopilot 🔲 STARTED (basic runner shipped)
 - `AutopilotRunner`: sequential node processing through changeset review ✅

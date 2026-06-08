@@ -27,6 +27,7 @@ import AutopilotModal from './modals/AutopilotModal'
 import CommandPalette from './modals/CommandPalette'
 import HistoryModal from './modals/HistoryModal'
 import DebtInboxModal from './modals/DebtInboxModal'
+import { debtService } from '../lib/DebtService'
 
 export default function Studio(): React.ReactElement {
   const layout = useShellStore((s) => s.layout)
@@ -41,6 +42,7 @@ export default function Studio(): React.ReactElement {
   const resolveProposal = useProjectStore((s) => s.resolveProposal)
   const updateContent = useProjectStore((s) => s.updateContent)
   const addSnapshot = useProjectStore((s) => s.addSnapshot)
+  const raiseDebt = useProjectStore((s) => s.raiseDebt)
   const project = useProjectStore((s) => s.project)
 
   const activeProposal = activeProposalId
@@ -106,6 +108,10 @@ export default function Studio(): React.ReactElement {
             addSnapshot(activeProposal.docId, snap)
             updateContent(activeProposal.docId, content)
             resolveProposal(activeProposal.id, 'applied')
+            // Prose→outline debt: a substantial whole-doc revision may have
+            // outdated the scene's synopsis.
+            const debtItem = debtService.maybeRaiseFromProposal({ project, proposal: activeProposal, applied: content })
+            if (debtItem) raiseDebt(debtItem)
           }}
           onDiscard={() => resolveProposal(activeProposal.id, 'discarded')}
         />
