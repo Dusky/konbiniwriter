@@ -53,6 +53,7 @@ export default function HistoryModal({ onClose }: Props): React.ReactElement {
   const [selected, setSelected] = useState<Snapshot | null>(null)
   const [filter, setFilter] = useState<Filter>('all')
   const [restoring, setRestoring] = useState(false)
+  const [compareMode, setCompareMode] = useState<'current' | 'previous'>('current')
   const [ctx, setCtx] = useState<{ x: number; y: number; snap: Snapshot } | null>(null)
 
   const nodeId = selectedId
@@ -106,8 +107,24 @@ export default function HistoryModal({ onClose }: Props): React.ReactElement {
     if (selected?.id === snap.id) setSelected(null)
   }
 
-  const diff = selected ? lineDiff(selected.content, currentContent) : []
-  const curWords = currentContent.trim() ? currentContent.trim().split(/\s+/).length : 0
+  // Compare endpoints. 'current' diffs the selected version against the live
+  // document; 'previous' diffs the version immediately older than it against
+  // it — i.e. what THIS version changed. `snapshots` is newest-first, so the
+  // predecessor is the next index after the selected one.
+  const selectedIdx = selected ? snapshots.findIndex((s) => s.id === selected.id) : -1
+  const predecessor = selectedIdx >= 0 ? snapshots[selectedIdx + 1] : undefined
+  const effectiveMode: 'current' | 'previous' = compareMode === 'previous' && predecessor ? 'previous' : 'current'
+
+  const oldEnd = effectiveMode === 'previous' ? predecessor : selected
+  const newEnd = effectiveMode === 'previous' ? selected : null   // null = current document
+  const oldContent = oldEnd?.content ?? ''
+  const newContent = newEnd ? newEnd.content : currentContent
+  const oldWords = oldEnd ? oldEnd.words : 0
+  const newWords = newEnd ? newEnd.words : (currentContent.trim() ? currentContent.trim().split(/\s+/).length : 0)
+  const oldLabel = oldEnd ? relTime(oldEnd.takenAt) : '—'
+  const newLabel = newEnd ? relTime(newEnd.takenAt) : 'current'
+
+  const diff = selected ? lineDiff(oldContent, newContent) : []
 
   // Group visible versions by calendar day for the timeline.
   const groups: Array<{ label: string; items: Snapshot[] }> = []
@@ -187,9 +204,32 @@ export default function HistoryModal({ onClose }: Props): React.ReactElement {
 
           {/* Right: diff preview */}
           <div>
+            {selected && (
+              <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+                <button
+                  onClick={() => setCompareMode('current')}
+                  style={{
+                    padding: '2px 9px', borderRadius: 999, fontSize: 11, cursor: 'pointer', border: '1px solid var(--border-2)',
+                    background: effectiveMode === 'current' ? 'var(--accent-soft)' : 'transparent',
+                    color: effectiveMode === 'current' ? 'var(--text)' : 'var(--text-3)',
+                  }}
+                >vs. current</button>
+                <button
+                  onClick={() => setCompareMode('previous')}
+                  disabled={!predecessor}
+                  title={predecessor ? 'Compare with the previous version' : 'This is the oldest version'}
+                  style={{
+                    padding: '2px 9px', borderRadius: 999, fontSize: 11, cursor: predecessor ? 'pointer' : 'not-allowed',
+                    border: '1px solid var(--border-2)', opacity: predecessor ? 1 : 0.4,
+                    background: effectiveMode === 'previous' ? 'var(--accent-soft)' : 'transparent',
+                    color: effectiveMode === 'previous' ? 'var(--text)' : 'var(--text-3)',
+                  }}
+                >vs. previous</button>
+              </div>
+            )}
             <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 8 }}>
               {selected
-                ? `This version (${selected.words}w) → current (${curWords}w)`
+                ? `${oldLabel} (${oldWords}w) → ${newLabel} (${newWords}w)`
                 : 'Select a version to compare with the current text'}
             </div>
             {selected && (
@@ -216,7 +256,12 @@ export default function HistoryModal({ onClose }: Props): React.ReactElement {
           x={ctx.x}
           y={ctx.y}
           items={[
-            { label: 'Compare with current', action: () => setSelected(ctx.snap) },
+            { label: 'Compare with current', action: () => { setSelected(ctx.snap); setCompareMode('current') } },
+            {
+              label: 'Compare with previous',
+              action: () => { setSelected(ctx.snap); setCompareMode('previous') },
+              disabled: snapshots.findIndex((s) => s.id === ctx.snap.id) >= snapshots.length - 1,
+            },
             { label: 'Restore this version', action: () => handleRestore(ctx.snap) },
             { label: '---', action: () => {} },
             { label: 'Delete version', action: () => handleDelete(ctx.snap), danger: true },
