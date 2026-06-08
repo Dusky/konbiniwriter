@@ -476,6 +476,9 @@ These are structural guarantees, not conventions. Violating any of them breaks a
   (each step feeds the next), editable previews, registry prompts `builtin:foundation:*`. "Send to
   project" creates a **Foundation** folder + a doc per part and queues each as a proposal
   (`original: ''`) through changeset review. Toolbar (❖ Foundation) + command palette.
+  "Add cast to Codex" (on by default) extracts structured character entries via
+  `builtin:foundation:codex` and upserts them into the Codex (lighting up MentionIndex +
+  continuity checks).
 - Remaining: phase-transition model (foundation→draft→eval→revise), canon DB + voice fingerprint
   steps + quality gate, spend cap + cost estimate, resumable runs, Elo ranking, critic/professor loops
 

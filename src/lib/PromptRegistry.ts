@@ -381,6 +381,30 @@ Avoid archetypes; make each specific to this story. Return only the markdown, no
     modifiedAt: ISO(),
   },
   {
+    id: 'builtin:foundation:codex',
+    name: 'Foundation · Cast → Codex',
+    description: 'Extract structured character records (for the Codex) from a cast description.',
+    feature: 'autopilot',
+    phase: 'foundation',
+    model: 'claude-sonnet-4-6',
+    temperature: 0.3,
+    maxTokens: 3000,
+    template: `You are extracting structured character records from a cast description.
+
+<cast>
+{{characters}}
+</cast>
+
+Return a JSON array — one object per character:
+[{ "name": "<full name>", "aliases": ["<nickname>", ...], "summary": "<1-2 sentence overview>", "facts": [{ "label": "Role", "value": "..." }, { "label": "...", "value": "..." }] }]
+
+Include 2–5 concrete facts per character (role, age, occupation, defining trait, key relationship — only what the text supports). "aliases" may be empty. Return ONLY valid JSON.`,
+    variables: [{ name: 'characters', description: 'The cast markdown to structure' }],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
     id: 'builtin:evaluation:continuity',
     name: 'Continuity Check',
     description: 'Find places where a scene contradicts established Codex facts.',

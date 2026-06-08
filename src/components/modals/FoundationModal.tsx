@@ -4,7 +4,8 @@ import { useAIStore } from '../../store/aiStore'
 import { promptRegistry } from '../../lib/PromptRegistry'
 import { createProposal } from '../../lib/ProposalService'
 import { streamCompletion } from '../../lib/AIClient'
-import type { ID } from '@shared/types'
+import { uid } from '@shared/utils'
+import type { ID, CodexEntry, CodexFact } from '@shared/types'
 
 type StepId = 'concept' | 'world' | 'characters'
 
@@ -20,11 +21,14 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
   const project = useProjectStore((s) => s.project)
   const applyMutation = useProjectStore((s) => s.applyMutation)
   const queueProposal = useProjectStore((s) => s.queueProposal)
+  const upsertCodexEntry = useProjectStore((s) => s.upsertCodexEntry)
   const aiEnabled = useAIStore((s) => s.enabled)
 
   const [seed, setSeed] = useState('')
   const [text, setText] = useState<Record<StepId, string>>({ concept: '', world: '', characters: '' })
   const [running, setRunning] = useState<StepId | 'all' | null>(null)
+  const [addToCodex, setAddToCodex] = useState(true)
+  const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
@@ -58,7 +62,7 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
         : { concept: cur.concept, world: cur.world }
 
   const runStep = async (id: StepId) => {
-    if (running) return
+    if (running || sending) return
     if (id === 'concept' && !seed.trim()) { setError('Enter a seed first.'); return }
     setRunning(id); setError(null)
     try {
@@ -72,7 +76,7 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
   }
 
   const runAll = async () => {
-    if (running || !seed.trim()) { if (!seed.trim()) setError('Enter a seed first.'); return }
+    if (running || sending || !seed.trim()) { if (!seed.trim()) setError('Enter a seed first.'); return }
     setRunning('all'); setError(null)
     const acc: Record<StepId, string> = { ...text }
     try {
@@ -110,13 +114,49 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
     }))
   }
 
-  // Create the docs and queue each as a proposal for changeset review.
-  const sendToProject = async () => {
-    const folderId = await ensureFolder()
-    for (const step of STEPS) {
-      if (text[step.id].trim()) await createDocProposal(folderId, step.docTitle, text[step.id])
+  // Parse the cast into structured Codex character entries (added directly —
+  // Codex is structured data, not part of the doc proposal pipeline).
+  const extractCodex = async (cast: string) => {
+    const raw = await gen('builtin:foundation:codex', { characters: cast }, () => {})
+    let parsed: Array<{ name?: string; aliases?: string[]; summary?: string; facts?: Array<{ label?: string; value?: string }> }> = []
+    try { parsed = JSON.parse(raw.match(/\[[\s\S]*\]/)?.[0] ?? '[]') } catch { parsed = [] }
+    const now = new Date().toISOString()
+    for (const e of parsed) {
+      if (!e.name?.trim()) continue
+      const facts: CodexFact[] = (e.facts ?? [])
+        .filter((f) => f.label?.trim() && f.value?.trim())
+        .map((f) => ({ id: uid(), label: f.label!.trim(), value: f.value!.trim(), aiGenerated: true, confirmedAt: null }))
+      const entry: CodexEntry = {
+        id: uid(),
+        name: e.name.trim(),
+        aliases: (e.aliases ?? []).map((a) => a.toLowerCase().trim()).filter(Boolean),
+        category: 'character',
+        summary: e.summary?.trim() ?? '',
+        facts,
+        createdAt: now,
+        modifiedAt: now,
+        aiGenerated: true,
+      }
+      upsertCodexEntry(entry)
     }
-    onClose()
+  }
+
+  // Create the docs and queue each as a proposal for changeset review; optionally
+  // also seed the Codex from the cast.
+  const sendToProject = async () => {
+    setSending(true)
+    setError(null)
+    try {
+      const folderId = await ensureFolder()
+      for (const step of STEPS) {
+        if (text[step.id].trim()) await createDocProposal(folderId, step.docTitle, text[step.id])
+      }
+      if (addToCodex && text.characters.trim()) await extractCodex(text.characters)
+      onClose()
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') setError(`Send failed: ${(e as Error).message}`)
+      setSending(false)
+    }
   }
 
   const hasAnyOutput = STEPS.some((s) => text[s.id].trim())
@@ -140,7 +180,7 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
           <h3>Foundation</h3>
           <span className="sub">seed → concept → world → cast</span>
           <span className="tb-spacer" />
-          <button className="btn sm" disabled={!!running} onClick={runAll}>
+          <button className="btn sm" disabled={!!running || sending} onClick={runAll}>
             {running === 'all' ? 'Generating…' : 'Generate all'}
           </button>
         </div>
@@ -159,7 +199,7 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
 
           {STEPS.map((step) => {
             // world & characters need the concept text first.
-            const disabled = !!running || (step.id !== 'concept' && !text.concept.trim())
+            const disabled = !!running || sending || (step.id !== 'concept' && !text.concept.trim())
             return (
               <div key={step.id} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
@@ -183,18 +223,19 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
         </div>
 
         <div className="modal-foot">
-          <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
-            Sends each part to a “Foundation” folder via changeset review.
-          </span>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-2)', cursor: 'pointer' }}>
+            <input type="checkbox" checked={addToCodex} onChange={(e) => setAddToCodex(e.target.checked)} />
+            Add cast to Codex
+          </label>
           <span className="tb-spacer" />
-          <button className="btn" onClick={onClose} disabled={!!running}>Cancel</button>
+          <button className="btn" onClick={onClose} disabled={!!running || sending}>Cancel</button>
           <button
             className="btn"
             onClick={sendToProject}
-            disabled={!!running || !hasAnyOutput}
+            disabled={!!running || sending || !hasAnyOutput}
             style={{ background: 'var(--accent)', color: 'var(--accent-fg)', borderColor: 'transparent' }}
           >
-            Send to project →
+            {sending ? 'Sending…' : 'Send to project →'}
           </button>
         </div>
       </div>
