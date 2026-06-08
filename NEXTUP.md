@@ -57,11 +57,15 @@ from there the app is unquittable — only Alt+F4 (or ⌘Q) works.
 - **Reader-panel aggregate verdict** — ✅ done. Each reader ends with a
   `VERDICT: <0-100> | keep/drop` line (parsed, stripped from the prose); the
   header shows panel avg score + keep tally, each tab shows its own verdict chip.
-- **Critic/judge agents into the Autopilot eval phase** — the runner gates drafts
-  with `QualityGate`; wire the `critic`/`judge` agent categories (now registry-
-  editable) into an optional deeper eval pass per scene.
-- **Richer export** — confirm/extend Compile to DOCX/EPUB (the `docx` dep is
-  already present). Check `src/components/modals/` compile + `StatsService`.
+- **Critic/judge agents into the Autopilot eval phase** — the runner already gates
+  drafts with `QualityGate` (effectively a judge), so this is optional and partly
+  overlaps. If pursued: seed default `critic`/`judge` agents and offer a deeper
+  per-scene eval pass distinct from the numeric gate. Lower priority.
+- **Export — EPUB only** — Compile already does **Markdown, Word (.docx), and
+  Print/PDF** (`CompileModal.tsx`; docx wired in `BrowserProjectService.ts` /
+  `OPFSProjectService.ts` / `NodeProjectService`). Remaining gap: **EPUB**, which
+  needs a zip dep (JSZip) + OPF/container/XHTML scaffolding. Deferred — real chunk,
+  low marginal value over PDF/DOCX.
 
 ## P2 — Known debt (don't expand; migrate when convenient)
 
