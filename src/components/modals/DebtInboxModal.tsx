@@ -65,6 +65,55 @@ export default function DebtInboxModal({ onClose }: Props): React.ReactElement {
     }
   }
 
+  const checkVoice = async () => {
+    if (!project || !selectedId) return
+    setChecking(true)
+    setCheckResult(null)
+    setError(null)
+    const controller = new AbortController()
+    checkAbort.current = controller
+    try {
+      const { items, hasVoice, checked } = await debtService.checkVoiceDrift({
+        project, docId: selectedId, voice: project.settings.voiceFingerprint ?? '', signal: controller.signal,
+      })
+      items.forEach((it) => raiseDebt(it))
+      setCheckResult(
+        !hasVoice
+          ? 'No voice fingerprint saved — generate one in Foundation first.'
+          : !checked
+            ? 'This scene has no prose to check.'
+            : items.length === 0
+              ? 'No voice drift found.'
+              : `Flagged ${items.length} voice drift${items.length === 1 ? '' : 's'}.`
+      )
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') setError((e as Error).message)
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  const draftVoiceFix = async (item: DebtItem, docId: ID) => {
+    if (!project) return
+    const voice = project.settings.voiceFingerprint ?? ''
+    if (!voice.trim()) { setError('No voice fingerprint saved. Generate one in Foundation first.'); return }
+    const key = `${item.id}:${docId}`
+    setDrafting(key)
+    setError(null)
+    try {
+      const issues = [item.detail, ...item.affected.filter((a) => a.docId === docId).map((a) => a.note)]
+        .filter(Boolean).join('\n')
+      const proposal = await debtService.draftVoiceFix({
+        project, mentionIndex, docId, voice, issues, debtId: item.id,
+      })
+      queueProposal(proposal)
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') setError((e as Error).message)
+    } finally {
+      setDrafting(null)
+    }
+  }
+
   const openDoc = (docId: ID) => { selectNode(docId); onClose() }
 
   const draftFix = async (item: DebtItem, docId: ID) => {
@@ -101,14 +150,24 @@ export default function DebtInboxModal({ onClose }: Props): React.ReactElement {
           <span className="sub">{openCount} open</span>
           <span className="tb-spacer" />
           {canCheck && (
-            <button
-              className="btn sm"
-              disabled={checking}
-              onClick={checkContinuity}
-              title={`Run an AI continuity check on “${selectedNode?.title}” against the Codex`}
-            >
-              {checking ? 'Checking…' : 'Check current scene'}
-            </button>
+            <>
+              <button
+                className="btn sm"
+                disabled={checking}
+                onClick={checkContinuity}
+                title={`Run an AI continuity check on “${selectedNode?.title}” against the Codex`}
+              >
+                {checking ? 'Checking…' : 'Check continuity'}
+              </button>
+              <button
+                className="btn sm"
+                disabled={checking}
+                onClick={checkVoice}
+                title={`Check “${selectedNode?.title}” against the saved voice fingerprint`}
+              >
+                Check voice
+              </button>
+            </>
           )}
         </div>
 
@@ -163,11 +222,15 @@ export default function DebtInboxModal({ onClose }: Props): React.ReactElement {
                         ) : (
                           <>
                             <button className="btn sm" onClick={() => openDoc(a.docId)}>Open</button>
-                            {aiEnabled && item.revision && (
+                            {aiEnabled && item.layer === 'voice' ? (
+                              <button className="btn sm" disabled={drafting === key} onClick={() => draftVoiceFix(item, a.docId)}>
+                                {drafting === key ? '…' : 'Draft fix'}
+                              </button>
+                            ) : aiEnabled && item.revision ? (
                               <button className="btn sm" disabled={drafting === key} onClick={() => draftFix(item, a.docId)}>
                                 {drafting === key ? '…' : 'Draft fix'}
                               </button>
-                            )}
+                            ) : null}
                             <button className="btn sm" onClick={() => resolveDebtAffected(item.id, a.docId)}>Mark OK</button>
                           </>
                         )}

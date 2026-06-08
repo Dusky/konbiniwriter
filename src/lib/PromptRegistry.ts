@@ -503,6 +503,36 @@ Only report clear conflicts. If the scene is consistent (or simply silent) on a 
     modifiedAt: ISO(),
   },
   {
+    id: 'builtin:evaluation:voice-drift',
+    name: 'Voice Drift Check',
+    description: 'Flag where a scene drifts from the established voice fingerprint.',
+    feature: 'evaluation',
+    model: 'claude-opus-4-8',
+    temperature: 0.2,
+    maxTokens: 2000,
+    template: `You are a prose-voice auditor. Compare the scene against the established VOICE FINGERPRINT and flag where the prose drifts from it.
+
+<voice_fingerprint>
+{{voice}}
+</voice_fingerprint>
+
+<scene>
+{{document}}
+</scene>
+
+Report only genuine, specific drifts — places where the prose breaks a rule of the voice (POV, tense, diction/register, rhythm, imagery, dialogue style). Ignore nitpicks and content you can't judge from the fingerprint. Return a JSON array:
+[{ "aspect": "<POV | tense | diction | rhythm | imagery | dialogue | pacing>", "issue": "<what drifts and why it breaks the voice, one sentence>", "excerpt": "<short verbatim quote from the scene, <=120 chars>" }]
+
+If the scene is consistent with the voice, return []. Return ONLY valid JSON.`,
+    variables: [
+      { name: 'voice', description: 'The saved voice fingerprint / style guide' },
+      { name: 'document', description: 'The scene prose to audit' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
     id: 'builtin:revision:canon',
     name: 'Reconcile Canon Change',
     description: 'Revise a document so it stays consistent after a Codex fact changed (propagation debt).',
@@ -534,6 +564,44 @@ Revise the document so every reference to {{entity}} is consistent with the upda
       { name: 'fact', description: 'The fact label that changed' },
       { name: 'oldValue', description: 'Previous fact value' },
       { name: 'newValue', description: 'Updated fact value' },
+      { name: 'context', description: 'Scene/codex context' },
+      { name: 'document', description: 'Full current document markdown' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:revision:voice',
+    name: 'Revise to Voice',
+    description: 'Rewrite a scene so its prose conforms to the voice fingerprint (voice debt).',
+    feature: 'autopilot',
+    phase: 'revise',
+    model: 'claude-opus-4-8',
+    temperature: 0.5,
+    maxTokens: 8000,
+    template: `You are a line editor revising a scene to match an established prose voice — without changing what happens.
+
+<voice_fingerprint>
+{{voice}}
+</voice_fingerprint>
+
+<drift_notes>
+{{issues}}
+</drift_notes>
+
+<context>
+{{context}}
+</context>
+
+<document>
+{{document}}
+</document>
+
+Rewrite the document so its prose conforms to the voice fingerprint, addressing the drift notes. Preserve every plot event, beat, line of dialogue's meaning, and the scene's structure — change only the prose style (rhythm, diction, POV/tense handling, imagery). Do not add or remove story content. Return only the full revised document text, no commentary.`,
+    variables: [
+      { name: 'voice', description: 'The saved voice fingerprint / style guide' },
+      { name: 'issues', description: 'The flagged drift notes to address' },
       { name: 'context', description: 'Scene/codex context' },
       { name: 'document', description: 'Full current document markdown' },
     ],

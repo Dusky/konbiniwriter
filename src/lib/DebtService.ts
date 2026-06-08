@@ -16,6 +16,8 @@ import { streamCompletion } from './AIClient'
 
 const REVISION_PROMPT_ID = 'builtin:revision:canon'
 const CONTINUITY_PROMPT_ID = 'builtin:evaluation:continuity'
+const VOICE_DRIFT_PROMPT_ID = 'builtin:evaluation:voice-drift'
+const VOICE_FIX_PROMPT_ID = 'builtin:revision:voice'
 
 // Proposal commands whose original/proposed span the WHOLE document, so a
 // before/after at proposal scope reflects the document. (Co-write commands are
@@ -190,6 +192,104 @@ export const debtService = {
       }))
 
     return { items, entitiesChecked: entities.length }
+  },
+
+  /**
+   * On-demand LLM voice-drift check: ask the model where a scene's prose drifts
+   * from the saved voice fingerprint. Raises one voice-layer debt item per drift
+   * (fixable via `draftVoiceFix`). `hasVoice` distinguishes "no fingerprint" and
+   * `checked` distinguishes "empty scene" from "no drift found".
+   */
+  async checkVoiceDrift(opts: {
+    project: Project
+    docId: ID
+    voice: string
+    signal?: AbortSignal
+  }): Promise<{ items: DebtItem[]; hasVoice: boolean; checked: boolean }> {
+    const { project, docId, voice, signal } = opts
+    const template = promptRegistry.get(VOICE_DRIFT_PROMPT_ID)
+    if (!template) throw new Error(`Missing prompt template: ${VOICE_DRIFT_PROMPT_ID}`)
+
+    const fingerprint = voice.trim()
+    if (!fingerprint) return { items: [], hasVoice: false, checked: false }
+    const document = project.docs[docId]?.content ?? ''
+    if (!document.trim()) return { items: [], hasVoice: true, checked: false }
+
+    const rendered = promptRegistry.render(VOICE_DRIFT_PROMPT_ID, { voice: fingerprint, document })
+
+    const raw = await new Promise<string>((resolve, reject) => {
+      if (signal) signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
+      streamCompletion(
+        [{ role: 'user', content: rendered }],
+        { model: template.model, maxTokens: template.maxTokens, temperature: template.temperature, signal },
+        { onChunk: () => {}, onDone: resolve, onError: reject },
+      ).catch(reject)
+    })
+
+    let flags: Array<{ aspect?: string; issue?: string; excerpt?: string }> = []
+    try { flags = JSON.parse(raw.match(/\[[\s\S]*\]/)?.[0] ?? '[]') } catch { flags = [] }
+
+    const docTitle = project.nodes[docId]?.title ?? 'this scene'
+    const items: DebtItem[] = flags
+      .filter((f) => f.issue?.trim())
+      .map((f) => {
+        const aspect = (f.aspect || 'voice').trim()
+        const excerpt = f.excerpt?.trim()
+        return {
+          id: uid('debt'),
+          layer: 'voice' as const,
+          title: `${docTitle} · ${aspect} drift`,
+          detail: excerpt ? `“${excerpt}”` : f.issue!.trim(),
+          // Stable per doc+aspect so re-checking updates rather than stacks.
+          source: `voice:${docId}:${aspect}`,
+          affected: [{ docId, note: f.issue!.trim(), resolved: false }],
+          createdAt: new Date().toISOString(),
+        }
+      })
+
+    return { items, hasVoice: true, checked: true }
+  },
+
+  /** Generate a revision proposal rewriting one document to match the voice. */
+  draftVoiceFix(opts: {
+    project: Project
+    mentionIndex: MentionIndex
+    docId: ID
+    voice: string
+    issues: string
+    debtId?: ID
+    signal?: AbortSignal
+  }): Promise<Proposal> {
+    const { project, mentionIndex, docId, voice, issues, debtId, signal } = opts
+    const template = promptRegistry.get(VOICE_FIX_PROMPT_ID)
+    if (!template) return Promise.reject(new Error(`Missing prompt template: ${VOICE_FIX_PROMPT_ID}`))
+
+    const document = project.docs[docId]?.content ?? ''
+    const context = renderContext(buildContext(project, mentionIndex, docId, 'inline'))
+    const rendered = promptRegistry.render(VOICE_FIX_PROMPT_ID, { voice, issues, context, document })
+
+    return new Promise<Proposal>((resolve, reject) => {
+      if (signal) signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
+      streamCompletion(
+        [{ role: 'user', content: rendered }],
+        { model: template.model, maxTokens: template.maxTokens, temperature: template.temperature, signal },
+        {
+          onChunk: () => {},
+          onDone: (full) => resolve(createProposal({
+            docId,
+            docTitle: project.nodes[docId]?.title ?? 'Document',
+            command: 'revision',
+            label: `Voice: ${project.nodes[docId]?.title ?? ''}`.trim(),
+            group: 'Propagation debt',
+            original: document,
+            proposed: full.trim(),
+            promptId: VOICE_FIX_PROMPT_ID,
+            debtRef: debtId ? { debtId, docId } : undefined,
+          })),
+          onError: (err) => reject(err),
+        },
+      ).catch(reject)
+    })
   },
 
   /** Generate a revision proposal reconciling one document with the new fact. */

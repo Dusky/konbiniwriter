@@ -483,8 +483,12 @@ These are structural guarantees, not conventions. Violating any of them breaks a
   doc via proposal) and a **Voice Fingerprint** (`builtin:foundation:voice`) derived from existing
   prose (or the concept if none yet), saved to `project.settings.voiceFingerprint` and injected by
   `ContextBuilder` as a context tier so co-write/batch/autopilot prompts follow the voice.
-- Remaining Foundation: canon database step, quality gate (score outline → loop), and voice-drift
-  debt (now that a fingerprint exists to compare against).
+- Voice-drift debt ✅ — `DebtService.checkVoiceDrift` audits a scene against the saved fingerprint
+  (`builtin:evaluation:voice-drift`) and raises voice-layer debt items; `draftVoiceFix`
+  (`builtin:revision:voice`) rewrites the scene to match the voice through changeset review.
+  Surfaced in the Debt Inbox ("Check voice" + voice "Draft fix"). Completes the propagation-debt
+  loop across canon / outline / voice.
+- Remaining Foundation: canon database step, quality gate (score outline → loop).
 - Remaining: phase-transition model (foundation→draft→eval→revise), canon DB + voice fingerprint
   steps + quality gate, spend cap + cost estimate, resumable runs, Elo ranking, critic/professor loops
 
