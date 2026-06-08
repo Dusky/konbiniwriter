@@ -54,9 +54,9 @@ from there the app is unquittable — only Alt+F4 (or ⌘Q) works.
 
 ## P1 — Depth / features flagged but not built
 
-- **Reader-panel aggregate verdict** — each persona currently returns prose only.
-  Have each also emit a score + "would keep reading," and show a panel summary
-  (mean score, keep-reading tally). `src/components/modals/ReaderModal.tsx`.
+- **Reader-panel aggregate verdict** — ✅ done. Each reader ends with a
+  `VERDICT: <0-100> | keep/drop` line (parsed, stripped from the prose); the
+  header shows panel avg score + keep tally, each tab shows its own verdict chip.
 - **Critic/judge agents into the Autopilot eval phase** — the runner gates drafts
   with `QualityGate`; wire the `critic`/`judge` agent categories (now registry-
   editable) into an optional deeper eval pass per scene.

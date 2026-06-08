@@ -29,6 +29,17 @@ function readerPersonas(): Persona[] {
   }))
 }
 
+// Each reader ends with a structured line we can aggregate (instruction rides on
+// the user message, so the editable persona system prompts stay untouched).
+function parseVerdict(text: string): { score: number | null; keep: boolean | null } {
+  const m = text.match(/VERDICT:\s*(\d{1,3})\s*\|\s*(keep|drop|yes|no)/i)
+  if (!m) return { score: null, keep: null }
+  return { score: Math.min(100, Math.max(0, parseInt(m[1], 10))), keep: /keep|yes/i.test(m[2]) }
+}
+function stripVerdict(text: string): string {
+  return text.replace(/\s*VERDICT:[^\n]*$/i, '').trim()
+}
+
 interface PersonaResult {
   text: string
   status: 'idle' | 'streaming' | 'done' | 'error'
@@ -68,7 +79,7 @@ export default function ReaderModal({ onClose }: Props): React.ReactElement {
     setRunning(true)
     setResults({})
 
-    const userMessage = `Please give your honest reaction to this excerpt:\n\n---\n${docContent.slice(0, 6000)}\n---`
+    const userMessage = `Please give your honest reaction to this excerpt:\n\n---\n${docContent.slice(0, 6000)}\n---\n\nEnd your reply with exactly one line in this format:\nVERDICT: <0-100 engagement score> | <keep or drop>`
 
     await Promise.all(personas.map(async (p) => {
       setPersonaResult(p.id, { status: 'streaming', text: '' })
@@ -99,6 +110,16 @@ export default function ReaderModal({ onClose }: Props): React.ReactElement {
   const activeResult = results[activeTab]
   const anyDone = personas.some((p) => results[p.id]?.status === 'done')
 
+  // Aggregate panel verdict across finished readers.
+  const verdicts = personas
+    .map((p) => (results[p.id]?.status === 'done' ? parseVerdict(results[p.id].text) : null))
+    .filter((v): v is { score: number | null; keep: boolean | null } => v !== null)
+  const scores = verdicts.map((v) => v.score).filter((s): s is number => s != null)
+  const avgScore = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null
+  const keepTotal = verdicts.filter((v) => v.keep != null).length
+  const keepCount = verdicts.filter((v) => v.keep === true).length
+  const activeVerdict = activeResult?.status === 'done' ? parseVerdict(activeResult.text) : null
+
   return (
     <div className="modal-bg" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 680, display: 'flex', flexDirection: 'column', overflow: 'hidden' }} role="dialog" aria-modal="true" aria-label="Reader Panel">
@@ -107,7 +128,12 @@ export default function ReaderModal({ onClose }: Props): React.ReactElement {
             <h3 style={{ margin: 0 }}>Reader Panel</h3>
             {docTitle && <span className="sub">{docTitle}</span>}
           </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            {avgScore != null && (
+              <span style={{ fontSize: 12, color: 'var(--text-2)', fontFamily: 'var(--mono)' }} title="Average engagement · readers who'd keep reading">
+                Panel <strong style={{ color: 'var(--text)' }}>{avgScore}</strong>/100 · {keepCount}/{keepTotal} keep
+              </span>
+            )}
             {running
               ? <button className="btn" onClick={stop}>Stop</button>
               : <button className="btn primary" onClick={runAll} disabled={!docContent.trim()}>
@@ -159,10 +185,20 @@ export default function ReaderModal({ onClose }: Props): React.ReactElement {
             </div>
           )}
           {activeResult?.text && (
-            <div style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--text)', whiteSpace: 'pre-wrap' }}>
-              {activeResult.text}
-              {activeResult.status === 'streaming' && <span style={{ opacity: 0.7, animation: 'pulse 1s infinite' }}>▌</span>}
-            </div>
+            <>
+              {activeVerdict?.score != null && (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '4px 10px', borderRadius: 14, background: 'var(--bg-2)', fontSize: 12 }}>
+                  <span style={{ fontFamily: 'var(--mono)', fontWeight: 600, color: 'var(--text)' }}>{activeVerdict.score}/100</span>
+                  <span style={{ color: activeVerdict.keep ? 'var(--st-final)' : 'var(--st-idea)' }}>
+                    {activeVerdict.keep ? '✓ would keep reading' : '✕ would put it down'}
+                  </span>
+                </div>
+              )}
+              <div style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--text)', whiteSpace: 'pre-wrap' }}>
+                {activeResult.status === 'streaming' ? activeResult.text : stripVerdict(activeResult.text)}
+                {activeResult.status === 'streaming' && <span style={{ opacity: 0.7, animation: 'pulse 1s infinite' }}>▌</span>}
+              </div>
+            </>
           )}
         </div>
       </div>
