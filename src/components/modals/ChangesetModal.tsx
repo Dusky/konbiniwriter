@@ -80,7 +80,9 @@ export default function ChangesetModal({ proposal, onApply, onDiscard }: Props):
   const nTotal = hunks.length
 
   return (
-    <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onDiscard()}>
+    // Backdrop is inert: applying or discarding a proposal must be an explicit
+    // choice so a stray click can't throw away the generated draft.
+    <div className="modal-bg">
       <div className="modal" style={{ maxWidth: 720, maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
         <div className="modal-hd">
           <div>

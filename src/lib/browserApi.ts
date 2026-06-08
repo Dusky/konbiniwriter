@@ -3,10 +3,11 @@
 // Electron migration: this file is replaced by the contextBridge preload.
 // Every component already calls window.api — nothing else changes.
 
-import type { KonbiniAPI } from '@shared/types'
+import type { KonbiniAPI, Project } from '@shared/types'
 import { isFileSystemAccessSupported, browserProjectService } from './BrowserProjectService'
 import { isOPFSSupported, opfsProjectService } from './OPFSProjectService'
 import { recentsService } from './RecentsService'
+import { handleStore } from './HandleStore'
 
 // Use FSA (Chrome/Edge) if available, fall back to OPFS (Firefox/Safari)
 const svc = isFileSystemAccessSupported() ? browserProjectService : opfsProjectService
@@ -36,9 +37,27 @@ const api: KonbiniAPI = {
       })
       return project
     },
+    async openRecent(id, location) {
+      // Chrome/Edge: try the persisted FSA handle first (no picker). Falls
+      // through to a location open — which, on FSA, throws if no handle is
+      // available, letting the caller surface the folder picker instead.
+      let project: Project | null = null
+      if (svc === browserProjectService) {
+        project = await browserProjectService.openByHandle(id)
+      }
+      if (!project) project = await svc.open(location)
+      recentsService.touch({
+        id: project.id, title: project.title,
+        location: project.settings.location,
+        words: Object.values(project.docs).reduce((a, d) => a + wordCount(d.content), 0),
+        template: project.settings.template,
+        accent: project.settings.accent,
+      })
+      return project
+    },
     recents: async () => recentsService.getAll(),
     close: (id) => svc.close(id),
-    removeRecent: async (id) => { recentsService.remove(id) },
+    removeRecent: async (id) => { recentsService.remove(id); void handleStore.del(id) },
     showOpenDialog: () => svc.showOpenDialog(),
     showSaveDialog: (name) => svc.showSaveDialog(name),
   },
@@ -50,7 +69,7 @@ const api: KonbiniAPI = {
     mutate: (pid, op) => svc.mutateNode(pid, op),
   },
   snapshot: {
-    take: (pid, nid, title) => svc.takeSnapshot(pid, nid, title),
+    take: (pid, nid, title, kind) => svc.takeSnapshot(pid, nid, title, kind),
     restore: (pid, nid, sid) => svc.restoreSnapshot(pid, nid, sid),
     list: (pid, nid) => svc.listSnapshots(pid, nid),
     delete: (pid, nid, sid) => svc.deleteSnapshot(pid, nid, sid),
@@ -73,6 +92,7 @@ const api: KonbiniAPI = {
     maximize: () => {},
     close: () => window.close(),
     isMaximized: async () => false,
+    onMaximizeChange: () => () => {},
   },
 }
 

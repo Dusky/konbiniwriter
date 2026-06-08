@@ -20,6 +20,7 @@ export default function App(): React.ReactElement {
   const unloadProject = useProjectStore((s) => s.unloadProject)
   const applyMutation = useProjectStore((s) => s.applyMutation)
   const undoMutation = useProjectStore((s) => s.undoMutation)
+  const redoMutation = useProjectStore((s) => s.redoMutation)
   const selectNode = useProjectStore((s) => s.selectNode)
   const setRenamingId = useProjectStore((s) => s.setRenamingId)
   const project = useProjectStore((s) => s.project)
@@ -47,15 +48,30 @@ export default function App(): React.ReactElement {
     const mod = e.metaKey || e.ctrlKey
     const shift = e.shiftKey
     const alt = e.altKey
+
+    // Escape closes the open modal. Generative modals (which hold expensive,
+    // unsaved AI output) and the palette/search (own their Escape) are excluded
+    // so a stray Escape can't silently discard work.
+    if (e.key === 'Escape') {
+      const open = useShellStore.getState().modal
+      if (open && !['foundation', 'bestof', 'critic', 'command-palette', 'search'].includes(open)) {
+        e.preventDefault()
+        setModal(null)
+      }
+      return
+    }
+
     if (!mod) return
 
-    // Structural undo (node ops) — only when editor is NOT focused (CM6 handles its own undo)
-    if (!shift && !alt && e.key === 'z') {
-      const tag = (document.activeElement as HTMLElement)?.tagName
-      const isCM = document.activeElement?.closest('.cm-editor')
-      if (!isCM && tag !== 'INPUT' && tag !== 'TEXTAREA') {
-        if (undoMutation()) e.preventDefault()
-      }
+    // Structural undo/redo (node ops) — only when editor is NOT focused (CM6
+    // handles its own text undo/redo).
+    const tag = (document.activeElement as HTMLElement)?.tagName
+    const inField = !!document.activeElement?.closest('.cm-editor') || tag === 'INPUT' || tag === 'TEXTAREA'
+    if (!inField && !alt && e.key === 'z') {
+      if (shift ? redoMutation() : undoMutation()) e.preventDefault()
+    }
+    if (!inField && !alt && e.key === 'y') {
+      if (redoMutation()) e.preventDefault()
     }
 
     // Navigation & layout
@@ -75,6 +91,7 @@ export default function App(): React.ReactElement {
     if (!shift && !alt && e.key === '4') { e.preventDefault(); setView('timeline') }
 
     // Modals
+    if (!shift && !alt && e.key === 'k') { e.preventDefault(); setModal('command-palette') }
     if (shift && e.key === 'S') { e.preventDefault(); setModal('snapshot') }
     if (shift && e.key === 'E') { e.preventDefault(); setModal('compile') }
     if (e.key === '/') { e.preventDefault(); setModal('shortcuts') }
@@ -115,7 +132,7 @@ export default function App(): React.ReactElement {
       setScreen('launch')
       window.api.project.recents().then(setRecents).catch(console.error)
     }
-  }, [theme, project, screen, createNode, undoMutation, toggleSplit])
+  }, [theme, project, screen, createNode, undoMutation, redoMutation, toggleSplit])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKey)

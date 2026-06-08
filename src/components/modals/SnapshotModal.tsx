@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useProjectStore } from '../../store/projectStore'
+import { useShellStore } from '../../store/shellStore'
+import ContextMenu from '../common/ContextMenu'
 import type { Snapshot } from '@shared/types'
 
 function relTime(iso: string): string {
@@ -40,12 +42,14 @@ export default function SnapshotModal({ onClose }: Props): React.ReactElement {
   const removeSnapshot = useProjectStore((s) => s.removeSnapshot)
   const restoreContent = useProjectStore((s) => s.restoreContent)
   const updateContent = useProjectStore((s) => s.updateContent)
+  const setModal = useShellStore((s) => s.setModal)
 
   const [snapshots, setSnapshots] = useState<Snapshot[]>([])
   const [selectedSnap, setSelectedSnap] = useState<Snapshot | null>(null)
   const [newTitle, setNewTitle] = useState('')
   const [taking, setTaking] = useState(false)
   const [restoring, setRestoring] = useState(false)
+  const [ctx, setCtx] = useState<{ x: number; y: number; snap: Snapshot } | null>(null)
 
   const nodeId = selectedId
   const node = nodeId && project ? project.nodes[nodeId] : null
@@ -139,6 +143,7 @@ export default function SnapshotModal({ onClose }: Props): React.ReactElement {
                   key={snap.id}
                   className={`snap-item${selectedSnap?.id === snap.id ? ' sel' : ''}`}
                   onClick={() => setSelectedSnap(snap)}
+                  onContextMenu={(e) => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, snap }) }}
                 >
                   <div className="si-main">
                     <div className="si-t">{snap.title || 'Snapshot'}</div>
@@ -168,10 +173,24 @@ export default function SnapshotModal({ onClose }: Props): React.ReactElement {
           </div>
         </div>
         <div className="modal-foot">
+          <button className="btn sm" onClick={() => setModal('history')}>Document History →</button>
           <span className="tb-spacer" />
           <button className="btn" onClick={onClose}>Close</button>
         </div>
       </div>
+      {ctx && (
+        <ContextMenu
+          x={ctx.x}
+          y={ctx.y}
+          items={[
+            { label: 'Preview diff', action: () => setSelectedSnap(ctx.snap) },
+            { label: 'Restore', action: () => handleRestore(ctx.snap) },
+            { label: '---', action: () => {} },
+            { label: 'Delete', action: () => handleDelete(ctx.snap), danger: true },
+          ]}
+          onClose={() => setCtx(null)}
+        />
+      )}
     </div>
   )
 }

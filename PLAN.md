@@ -38,19 +38,20 @@
 - [x] Compile — subtree picker, Markdown + .docx export
 - [x] In-document find — CM6 search panel (Ctrl/Cmd+F)
 - [ ] Project-wide search — scan all docs by keyword (Phase 2 shares index infrastructure)
-- [ ] Focus mode: currently dims by line; should dim by paragraph block
+- [x] Focus mode: dims by paragraph block (contiguous non-blank lines around cursor)
 
 ### Phase 1c — Project lifecycle + chrome 🔲
 
 - [x] Launch screen — brand panel, new/open/recents
 - [x] New Project modal — 4 templates, folder picker
 - [x] Open Project — FS handle picker
-- [ ] Recent projects: clicking re-opens picker (browser sessions lose FS handles without IndexedDB). Fix: store `FileSystemDirectoryHandle` objects in IndexedDB keyed by project ID. Resolved once per session with `handle.requestPermission({ mode: 'readwrite' })`.
+- [x] Recent projects reopen directly: FSA `FileSystemDirectoryHandle`s are persisted in IndexedDB (`HandleStore`) keyed by project ID and resolved via `requestPermission({ mode: 'readwrite' })` on the recent-row click; falls back to the picker if the handle is gone/denied. OPFS + Electron reopen by location.
 - [ ] Preferences modal — theme, editor font (mono/serif/sans), editor size (14–22px), density (compact/balanced/roomy)
 - [ ] Full keyboard map wired: ⌘⌥N (new folder), ⌘⇧D (new doc), ⌘⇧N (new scene), ⌘D (duplicate)
-- [ ] Binder: new-node inline rename flow needs polish — currently fires after create but focus timing is off in some cases
-- [ ] Status bar: show cursor position (line:col)
-- [ ] Word count: project total in status bar should exclude Trash subtree
+- [x] Right-click context menus across surfaces. `ContextMenu` lives in `components/common/`; shared `useNodeMenu` builder wired into Corkboard cards + Outliner rows (Open, New Doc/Scene, Duplicate, Snapshot, History, Trash); History + Snapshot version items get Restore/Compare/Delete menus. Editor menu wired via the single `runCowrite` seam (Cut/Copy/Paste, Select All, co-write commands when text is selected, Take Snapshot, Document History). Editor mode is `EDITOR_MENU_MODE` in `Editor.tsx` — currently `'selection'` (custom menu only with a selection, native spellcheck menu otherwise); flip to `'always'` for a custom menu on every right-click.
+- [x] Binder: new-node inline rename flow — single effect seeds the title and focuses+selects the input on the next frame, fixing the post-create focus races
+- [x] Status bar: show cursor position (line:col)
+- [x] Word count: project total in status bar excludes Trash subtree
 
 ---
 
@@ -448,13 +449,111 @@ These are structural guarantees, not conventions. Violating any of them breaks a
 - Batch generators (cast, beat sheet, chapter draft, evaluate prose) ✅
 - Slop scorer (CM6 wavy underlines, Proof button) ✅
 - Reader panel, AI Chat, Autopilot runner, Writing Stats, Timeline drag, split editor, typewriter scroll ✅
-- Remaining: propagation-debt inbox (stale fact detection), deeper structural undo
+- Reader panel → registry ✅ — personas were hardcoded in `ReaderModal` (invariant #3 debt); now each
+  is a registry **`reader` agent** (`builtin:agent:reader:*`) tying a model/temperature to an editable
+  persona **system prompt** (`builtin:reader:*`, feature `evaluation`). Instructions are editable in the
+  Prompt Registry; agent `model: ''` falls back to the active provider's default so the panel works on
+  any backend. `AgentRegistry` now surfaces user-added agents and has `byCategory`/`delete`/`duplicate`.
+  Sane defaults (the original 4 personas) ship built-in.
+- Agent config UI ✅ — the registry modal gained an **Agents** tab beside Prompts: list of agents,
+  editor for name / emoji / description / category / system-prompt (picker) / model (blank = provider
+  default) / temperature / max-tokens, with Save · Reset-to-default (builtins) · Duplicate · Delete
+  (custom) · **+ New agent**. Per-agent model/temperature and new personas are now editable in-app;
+  instructions stay on the Prompts tab. Closes the invariant-#3 cleanup end to end.
+- Best of N / Elo ranking ✅ — `lib/Ranking.ts` (`rankVariants`): round-robin pairwise LLM judging
+  (`builtin:evaluation:compare`, A/B side alternated to blunt position bias) with Elo scoring — the
+  comparative counterpart to QualityGate's absolute scoring. `BestOfModal` generates N variants
+  (2–4) of the selected scene at elevated temperature, ranks them, shows the leaderboard (Elo +
+  W/L/T), and sends the chosen winner through changeset review. Toolbar (🏆) + command palette.
+- Critic / professor loop ✅ — `builtin:evaluation:professor` gives a developmental, margin-notes
+  critique of a scene (overall assessment + 2–5 ranked issue/suggestion notes, JSON). `CriticModal`
+  shows it; the author **selects which notes** to act on, then "Draft revision" runs
+  `builtin:revision:draft` against just those notes → changeset review (re-critique after applying).
+  Explainable, author-steered critique — distinct from the gate's automated pass/fail. Toolbar (🎓)
+  + command palette. Evaluation toolkit now spans absolute (gate), comparative (Elo), qualitative
+  (reader panel), and developmental (critic).
+- Propagation-debt inbox (v1) ✅ — editing a Codex fact raises a `DebtItem` (via
+  `DebtService.fromFactChange` + `MentionIndex`) listing scenes that reference the
+  entity; the inbox (toolbar badge + `debt` modal) offers Open / Draft fix (registry
+  prompt `builtin:revision:canon` → proposal → changeset review) / Mark OK per doc.
+  Persisted in `project.settings.debt`.
+- Prose→outline debt (heuristic) ✅ — applying a whole-doc revision (`draft`/`revision`/`batch`)
+  that changes prose substantially (≥40 words or ≥30%) raises an outline-layer "synopsis may be
+  stale" item (Open / Mark OK, no AI) via `DebtService.maybeRaiseFromProposal` at the apply seam.
+- Debt auto-resolve on apply ✅ — a draft-fix proposal carries a `debtRef`; applying it
+  (not drafting it) resolves the originating affected doc at the apply seam. Discarding leaves
+  it open.
+- LLM-judged canon-contradiction debt ✅ — on-demand "Check current scene" in the debt inbox
+  (`DebtService.checkContinuity` + registry prompt `builtin:evaluation:continuity`) asks the
+  model which referenced Codex facts the prose contradicts; each flag becomes a canon-layer
+  DebtItem with a draft-fix that reconciles prose → canon. Opt-in (manual trigger) — no
+  per-apply API cost.
+- Structural undo/redo ✅ — past/future stacks in `projectStore`; ⌘Z / ⌘⇧Z / ⌘Y (when the
+  editor isn't focused), binder footer buttons + command palette. Persisted through a new
+  `setTree` node op so store, service, and on-disk manifest stay in sync (docs/content untouched).
+- Remaining: cross-layer debt (voice drift)
 
-### Phase 4 — Autopilot 🔲 STARTED (basic runner shipped)
-- `AutopilotRunner`: sequential node processing through changeset review ✅
-- Remaining: phase-transition model (foundation→draft→eval→revise), spend cap + cost
-  estimate, resumable runs, Elo ranking, critic/professor loops, propagation-debt across
-  voice/world/characters/outline/prose layers
+### Phase 4 — Autopilot 🔲 STARTED (gated runner)
+- `AutopilotRunner` (`AutopilotModal`): sequential node processing through changeset review ✅
+- Gated runner ✅ — when a drafting prompt is selected, each generated draft runs through
+  `runQualityGate` (score → auto-revise) **before** its proposal is queued; live phase/score
+  indicator, falls back to the ungated draft on gate error. This is the produce → gate → advance
+  pipeline: Foundation lays down outline/voice/canon, the runner drafts each scene against them and
+  won't surface a draft for review until it clears the bar. Toggle in the runner config.
+- Spend awareness ✅ — `AIClient` now captures real token usage from both stream formats (Anthropic
+  `message_start`/`message_delta`; OpenAI `stream_options.include_usage`) and records it centrally;
+  `lib/Pricing.ts` holds list prices (Opus 4.x $5/$25, Sonnet 4.6 $3/$15, Haiku 4.5 $1/$5 per 1M;
+  null for unknown/BYOK models); `aiStore` keeps a session tally (tokens, USD, calls, unpriced).
+  Surfaced as a "Session usage" panel in AI Settings (with reset) and, in the Autopilot runner, a
+  **pre-run cost estimate** (generation + gate loop) plus **live "spent this run"** during/after a run.
+- Spend cap ✅ — a persisted USD ceiling (`aiStore.spendCapUSD`, 0 = none) set in the Autopilot
+  config; the runner halts before starting a new scene once the run's cost crosses it (in-flight
+  scene finishes), and the done screen reports the cap stop. Over-cap estimates are flagged before
+  the run starts. Turns spend *awareness* into an enforced guardrail for autonomous runs.
+- Resumable runs ✅ — a run persists its queue + per-scene progress to
+  `project.settings.autopilotRun` (`AutopilotRunState`); after each proposal resolves, progress is
+  saved. An interruption (Stop, spend cap, close, or browser refresh) leaves the state on disk;
+  reopening the runner offers **Resume** (skips resolved scenes, restores prompt + gate choice) or
+  **Discard**. Natural completion clears it. Long autonomous runs are now robust to interruption.
+- Outline → scaffold → draft handoff ✅ — "Scaffold → draft" in `FoundationModal` parses the gated
+  outline (`builtin:foundation:outline-parse`) into chapters, creates a document per chapter
+  (title + synopsis metadata) under a **Manuscript** folder, then opens the Autopilot runner
+  pre-selected on those nodes with the chapter drafter chosen (via `autopilotPreset`). One path from
+  seed → foundation → a folder of gated chapter drafts. Chapter prose still arrives as proposals.
+- Foundation (v1) ✅ — `FoundationModal`: seed → concept → world bible → cast, chained in-memory
+  (each step feeds the next), editable previews, registry prompts `builtin:foundation:*`. "Send to
+  project" creates a **Foundation** folder + a doc per part and queues each as a proposal
+  (`original: ''`) through changeset review. Toolbar (❖ Foundation) + command palette.
+  "Add cast to Codex" (on by default) extracts structured character entries via
+  `builtin:foundation:codex` and upserts them into the Codex (lighting up MentionIndex +
+  continuity checks).
+- Foundation outline + voice fingerprint ✅ — added an **Outline** step (`builtin:foundation:outline`,
+  doc via proposal) and a **Voice Fingerprint** (`builtin:foundation:voice`) derived from existing
+  prose (or the concept if none yet), saved to `project.settings.voiceFingerprint` and injected by
+  `ContextBuilder` as a context tier so co-write/batch/autopilot prompts follow the voice.
+- Voice-drift debt ✅ — `DebtService.checkVoiceDrift` audits a scene against the saved fingerprint
+  (`builtin:evaluation:voice-drift`) and raises voice-layer debt items; `draftVoiceFix`
+  (`builtin:revision:voice`) rewrites the scene to match the voice through changeset review.
+  Surfaced in the Debt Inbox ("Check voice" + voice "Draft fix"). Completes the propagation-debt
+  loop across canon / outline / voice.
+- Quality gate ✅ — reusable **eval → revise control loop** extracted to `lib/QualityGate.ts`
+  (`runQualityGate(initial, cfg)`: scorer prompt returns `{overall,issues,suggestions}` JSON →
+  reviser prompt rewrites against the critique → re-score, up to `maxRounds`; returns the final
+  text + score + pass/fail). Pure of the document seam — callers route the result through the
+  proposal pipeline.
+  - **Outline gate** (`FoundationModal`): `builtin:evaluation:outline-gate` +
+    `builtin:foundation:outline-revise`, auto-revise toggle + manual "Score outline".
+  - **Draft gate** (`BatchGeneratorModal`, chapter drafts): `builtin:evaluation:draft-gate`
+    (prose craft + anti-slop) + `builtin:revision:draft`; scores & auto-revises the draft before it
+    reaches changeset review, with a live phase indicator.
+  This is the gate primitive Autopilot's phase transitions reuse — swap prompts, not machinery.
+- Canon database ✅ — "Add world to Codex (canon)" (on by default) extracts the World Bible into
+  structured **non-character** Codex entries (locations, items, lore, concepts) via
+  `builtin:foundation:canon`, upserted into the same Codex the continuity checker, MentionIndex, and
+  propagation debt already key off. Foundation now seeds the full bible — cast *and* world canon.
+  Foundation generators are complete.
+- Remaining: phase-transition model (foundation→draft→eval→revise), canon DB + voice fingerprint
+  steps + quality gate, spend cap + cost estimate, resumable runs, Elo ranking, critic/professor loops
 
 ### Electron packaging ✅ COMPLETE
 - `electron/main.ts` (BrowserWindow, IPC, native dialogs) ✅
@@ -462,6 +561,11 @@ These are structural guarantees, not conventions. Violating any of them breaks a
 - `electron/NodeProjectService.ts` (`fs/promises`, real paths) ✅
 - Firefox/Safari fallback: `OPFSProjectService` (browser storage) ✅
 - Scripts: `electron:dev`, `electron:build`; `electron-builder` config in `package.json` ✅
+- App icon (`build/icon.png`, brand ✦) wired per-platform ✅
+- CI release ✅ — `.github/workflows/release.yml`: 3-OS matrix (Linux AppImage / macOS dmg /
+  Windows nsis), `electron-builder --publish always` to a GitHub Release on a `v*` tag
+  (manual `workflow_dispatch` = build-only dry run). Binaries never live in git — they're
+  release assets. To cut a release: `git tag v0.1.0 && git push origin v0.1.0`.
 
 ---
 

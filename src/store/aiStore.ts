@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { costOf } from '../lib/Pricing'
 
 export type AIProvider = 'anthropic' | 'openai'
 
@@ -23,6 +24,18 @@ interface AIState {
   setOpenaiBaseUrl: (url: string) => void
   setOpenaiKey: (key: string) => void
   setOpenaiModel: (model: string) => void
+
+  // — session spend tally (in-memory; resets on reload) —
+  spendInputTokens: number
+  spendOutputTokens: number
+  spendUSD: number          // sum of priced calls
+  spendCalls: number
+  spendUnpriced: number     // calls whose model has no known price
+  recordSpend: (model: string, inputTokens: number, outputTokens: number) => void
+  resetSpend: () => void
+
+  spendCapUSD: number       // 0 = no cap; halts an autopilot run when the run's cost crosses it
+  setSpendCap: (usd: number) => void
 }
 
 const SK = 'konbini:ai'
@@ -52,4 +65,24 @@ export const useAIStore = create<AIState>((set) => ({
   setOpenaiBaseUrl: (openaiBaseUrl) => { save(`${SK}:openaiBaseUrl`, openaiBaseUrl); set({ openaiBaseUrl }) },
   setOpenaiKey: (openaiKey) => { save(`${SK}:openaiKey`, openaiKey); set({ openaiKey }) },
   setOpenaiModel: (openaiModel) => { save(`${SK}:openaiModel`, openaiModel); set({ openaiModel }) },
+
+  spendInputTokens: 0,
+  spendOutputTokens: 0,
+  spendUSD: 0,
+  spendCalls: 0,
+  spendUnpriced: 0,
+  recordSpend: (model, inputTokens, outputTokens) => set((s) => {
+    const cost = costOf(model, inputTokens, outputTokens)
+    return {
+      spendInputTokens: s.spendInputTokens + inputTokens,
+      spendOutputTokens: s.spendOutputTokens + outputTokens,
+      spendUSD: s.spendUSD + (cost ?? 0),
+      spendCalls: s.spendCalls + 1,
+      spendUnpriced: s.spendUnpriced + (cost === null ? 1 : 0),
+    }
+  }),
+  resetSpend: () => set({ spendInputTokens: 0, spendOutputTokens: 0, spendUSD: 0, spendCalls: 0, spendUnpriced: 0 }),
+
+  spendCapUSD: parseFloat(load(`${SK}:spendCap`, '0')) || 0,
+  setSpendCap: (spendCapUSD) => { save(`${SK}:spendCap`, String(spendCapUSD)); set({ spendCapUSD }) },
 }))

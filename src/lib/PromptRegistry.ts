@@ -1,4 +1,4 @@
-import type { PromptTemplate, AgentTemplate, PromptFeature } from '@shared/types'
+import type { PromptTemplate, AgentTemplate, AgentCategory, PromptFeature } from '@shared/types'
 import { uid } from '@shared/utils'
 
 // ── Default built-in prompts ─────────────────────────────────────────────────
@@ -290,25 +290,676 @@ Then a brief overall verdict (2 sentences max).`,
     createdAt: ISO(),
     modifiedAt: ISO(),
   },
-]
-
-export const DEFAULT_AGENTS: AgentTemplate[] = [
   {
-    id: 'builtin:agent:reader:general',
-    name: 'General Reader',
-    description: 'A thoughtful general fiction reader with broad tastes.',
-    category: 'reader',
-    systemPromptId: 'builtin:inline:rewrite',
-    model: 'claude-sonnet-4-6',
-    temperature: 0.7,
-    parameters: {
-      persona: 'general reader',
-      focusAreas: ['pacing', 'clarity', 'engagement'],
-    },
+    id: 'builtin:foundation:concept',
+    name: 'Foundation · Concept',
+    description: 'Expand a one-line seed into a story concept.',
+    feature: 'autopilot',
+    phase: 'foundation',
+    model: 'claude-opus-4-8',
+    temperature: 0.8,
+    maxTokens: 2000,
+    template: `You are a developmental editor shaping a story concept from a one-line seed.
+
+<seed>
+{{seed}}
+</seed>
+
+Expand this into a story concept. Cover, as short markdown sections:
+- Genre & tone
+- Logline (one sharp sentence)
+- The central dramatic question
+- Primary conflict and stakes
+- Core themes
+- What makes it distinct
+
+Be concrete and specific — no generic placeholders. Return only the markdown, no preamble.`,
+    variables: [{ name: 'seed', description: 'The one-line premise' }],
     isBuiltin: true,
     createdAt: ISO(),
     modifiedAt: ISO(),
   },
+  {
+    id: 'builtin:foundation:world',
+    name: 'Foundation · World Bible',
+    description: 'Derive a setting bible from the story concept.',
+    feature: 'autopilot',
+    phase: 'foundation',
+    model: 'claude-opus-4-8',
+    temperature: 0.8,
+    maxTokens: 3000,
+    template: `You are a worldbuilder establishing the setting bible for a novel.
+
+<concept>
+{{concept}}
+</concept>
+
+Write a concise world bible as short markdown sections:
+- Setting & time period
+- Rules that govern this world (social, physical, or magical)
+- Atmosphere & sensory texture
+- Key locations (3–6, each one line)
+
+Ground every choice in the concept. Return only the markdown, no preamble.`,
+    variables: [{ name: 'concept', description: 'The story concept' }],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:foundation:characters',
+    name: 'Foundation · Characters',
+    description: 'Build the principal cast from concept and world.',
+    feature: 'autopilot',
+    phase: 'foundation',
+    model: 'claude-opus-4-8',
+    temperature: 0.85,
+    maxTokens: 3000,
+    template: `You are a developmental editor building the principal cast for a novel.
+
+<concept>
+{{concept}}
+</concept>
+
+<world>
+{{world}}
+</world>
+
+Create the principal cast (4–7 characters). For each, a short markdown section with:
+- **Name** — role (protagonist / antagonist / supporting)
+- Core description (one line)
+- A defining contradiction or wound
+- Their relationship to the central conflict
+
+Avoid archetypes; make each specific to this story. Return only the markdown, no preamble.`,
+    variables: [
+      { name: 'concept', description: 'The story concept' },
+      { name: 'world', description: 'The world bible' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:foundation:outline',
+    name: 'Foundation · Outline',
+    description: 'Build a chapter-by-chapter outline from concept, world, and cast.',
+    feature: 'autopilot',
+    phase: 'foundation',
+    model: 'claude-opus-4-8',
+    temperature: 0.75,
+    maxTokens: 5000,
+    template: `You are a story structure consultant outlining a novel.
+
+<concept>
+{{concept}}
+</concept>
+
+<world>
+{{world}}
+</world>
+
+<characters>
+{{characters}}
+</characters>
+
+Produce a chapter-by-chapter outline (as many chapters as the story needs). For each chapter:
+- **Chapter N — Title**
+- A 2–3 sentence synopsis: what happens and what changes
+- Principal characters present
+
+Group into acts if it helps. Keep momentum and causality clear (each chapter should set up the next). Return only the markdown.`,
+    variables: [
+      { name: 'concept', description: 'The story concept' },
+      { name: 'world', description: 'The world bible' },
+      { name: 'characters', description: 'The cast' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:foundation:voice',
+    name: 'Foundation · Voice Fingerprint',
+    description: 'Derive a prose style guide from sample prose (or the concept if none exists yet).',
+    feature: 'autopilot',
+    phase: 'foundation',
+    model: 'claude-opus-4-8',
+    temperature: 0.4,
+    maxTokens: 2000,
+    template: `You are a prose-style analyst producing a VOICE FINGERPRINT — a concise, prescriptive style guide an author or AI co-writer can follow to keep one consistent voice.
+
+<samples>
+{{samples}}
+</samples>
+
+Describe the target prose voice as short markdown sections:
+- POV & tense
+- Sentence rhythm & length
+- Diction & register (word choice, formality)
+- Imagery & figurative language
+- Dialogue style
+- Pacing tendencies
+- Things to avoid
+
+Be specific and prescriptive (rules, not vibes). Return only the markdown.`,
+    variables: [{ name: 'samples', description: 'Prose samples, or a description of the intended work' }],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:evaluation:outline-gate',
+    name: 'Outline Quality Gate',
+    description: 'Score a novel outline for structural quality and decide pass/revise.',
+    feature: 'evaluation',
+    model: 'claude-opus-4-8',
+    temperature: 0.2,
+    maxTokens: 1500,
+    template: `You are a tough but fair developmental editor scoring a novel OUTLINE for structural quality.
+
+<concept>
+{{concept}}
+</concept>
+
+<world>
+{{world}}
+</world>
+
+<characters>
+{{characters}}
+</characters>
+
+<outline>
+{{outline}}
+</outline>
+
+Score the outline 0–100 overall, judging: act/structure shape, causality (each chapter sets up the next), escalation of stakes, character-arc progression, pacing, and originality (avoids cliché beats).
+
+Return ONLY JSON:
+{ "overall": <0-100>, "issues": ["<concrete structural problem>", ...], "suggestions": ["<specific, actionable fix>", ...] }
+
+Be specific and concrete — every issue should name where in the outline it occurs. Return ONLY valid JSON.`,
+    variables: [
+      { name: 'concept', description: 'The story concept' },
+      { name: 'world', description: 'The world bible' },
+      { name: 'characters', description: 'The cast' },
+      { name: 'outline', description: 'The outline to score' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:foundation:outline-revise',
+    name: 'Foundation · Revise Outline',
+    description: 'Revise a novel outline to address editor critique (quality-gate loop).',
+    feature: 'autopilot',
+    phase: 'foundation',
+    model: 'claude-opus-4-8',
+    temperature: 0.75,
+    maxTokens: 5000,
+    template: `You are revising a novel outline to fix specific structural problems.
+
+<concept>
+{{concept}}
+</concept>
+
+<world>
+{{world}}
+</world>
+
+<characters>
+{{characters}}
+</characters>
+
+<current_outline>
+{{outline}}
+</current_outline>
+
+<editor_notes>
+{{critique}}
+</editor_notes>
+
+Produce an improved chapter-by-chapter outline that addresses every editor note while keeping what already works. Keep the same format: **Chapter N — Title**, a 2–3 sentence synopsis, and principal characters present. Return only the markdown outline.`,
+    variables: [
+      { name: 'concept', description: 'The story concept' },
+      { name: 'world', description: 'The world bible' },
+      { name: 'characters', description: 'The cast' },
+      { name: 'outline', description: 'The current outline' },
+      { name: 'critique', description: 'Editor notes to address' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:foundation:canon',
+    name: 'Foundation · World → Canon',
+    description: 'Extract structured world canon (locations, items, lore, concepts) from the world bible.',
+    feature: 'autopilot',
+    phase: 'foundation',
+    model: 'claude-sonnet-4-6',
+    temperature: 0.3,
+    maxTokens: 3000,
+    template: `You are extracting structured world canon from a setting bible.
+
+<world>
+{{world}}
+</world>
+
+<concept>
+{{concept}}
+</concept>
+
+Return a JSON array — one object per notable world entity (places, organizations/factions, items/artifacts, and key concepts, rules, or systems). DO NOT include characters (people).
+[{ "category": "location" | "item" | "lore" | "concept", "name": "<name>", "aliases": ["<alt name>", ...], "summary": "<1-2 sentence overview>", "facts": [{ "label": "...", "value": "..." }] }]
+
+Categories: "location" for places, "item" for objects/artifacts, "lore" for history/myth/factions/organizations, "concept" for rules/systems/abstract ideas. Include 2–5 concrete facts each; "aliases" may be empty. Return ONLY valid JSON.`,
+    variables: [
+      { name: 'world', description: 'The world bible to structure' },
+      { name: 'concept', description: 'The story concept (for grounding)' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:foundation:outline-parse',
+    name: 'Foundation · Parse Outline',
+    description: 'Convert an outline into a structured chapter list for scaffolding.',
+    feature: 'autopilot',
+    phase: 'foundation',
+    model: 'claude-sonnet-4-6',
+    temperature: 0.2,
+    maxTokens: 4000,
+    template: `You are converting a novel outline into a structured chapter list.
+
+<outline>
+{{outline}}
+</outline>
+
+Return a JSON array, one object per chapter, IN ORDER:
+[{ "title": "<chapter heading, e.g. 'Chapter 1 — The Cartographer'>", "synopsis": "<a 1–3 sentence brief a writer can draft this chapter from: what happens and what changes>" }]
+
+Preserve the outline's chapters exactly — do not invent, merge, or drop chapters. Return ONLY valid JSON.`,
+    variables: [{ name: 'outline', description: 'The outline markdown to parse' }],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:foundation:codex',
+    name: 'Foundation · Cast → Codex',
+    description: 'Extract structured character records (for the Codex) from a cast description.',
+    feature: 'autopilot',
+    phase: 'foundation',
+    model: 'claude-sonnet-4-6',
+    temperature: 0.3,
+    maxTokens: 3000,
+    template: `You are extracting structured character records from a cast description.
+
+<cast>
+{{characters}}
+</cast>
+
+Return a JSON array — one object per character:
+[{ "name": "<full name>", "aliases": ["<nickname>", ...], "summary": "<1-2 sentence overview>", "facts": [{ "label": "Role", "value": "..." }, { "label": "...", "value": "..." }] }]
+
+Include 2–5 concrete facts per character (role, age, occupation, defining trait, key relationship — only what the text supports). "aliases" may be empty. Return ONLY valid JSON.`,
+    variables: [{ name: 'characters', description: 'The cast markdown to structure' }],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:evaluation:continuity',
+    name: 'Continuity Check',
+    description: 'Find places where a scene contradicts established Codex facts.',
+    feature: 'evaluation',
+    model: 'claude-opus-4-8',
+    temperature: 0.2,
+    maxTokens: 2000,
+    template: `You are a continuity checker for a novel. Compare the scene against the established canon facts and find genuine CONTRADICTIONS — places where the prose states or strongly implies something that conflicts with a fact.
+
+<canon_facts>
+{{facts}}
+</canon_facts>
+
+<scene>
+{{document}}
+</scene>
+
+Return a JSON array. Each entry is a real contradiction (not a mere omission):
+[{ "entity": "<entity name>", "fact": "<fact label>", "value": "<the canon value>", "issue": "<what the scene says and why it conflicts, one sentence>" }]
+
+Only report clear conflicts. If the scene is consistent (or simply silent) on a fact, do not report it. Return ONLY valid JSON. If there are no contradictions, return [].`,
+    variables: [
+      { name: 'facts', description: 'Formatted canon facts for entities in the scene' },
+      { name: 'document', description: 'The scene prose to check' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:evaluation:professor',
+    name: 'Professor Critique',
+    description: 'A developmental, margin-notes critique of a scene — the few highest-impact fixes.',
+    feature: 'evaluation',
+    model: 'claude-opus-4-8',
+    temperature: 0.4,
+    maxTokens: 2000,
+    template: `You are a writing professor giving a developmental critique of a single scene. Be incisive and specific — name the few changes that would most improve it, not a laundry list. Reward what works; don't manufacture problems.
+
+<synopsis>
+{{synopsis}}
+</synopsis>
+
+<context>
+{{context}}
+</context>
+
+<scene>
+{{document}}
+</scene>
+
+Return ONLY JSON:
+{ "assessment": "<2-3 sentences: an honest overall read — what works and what holds it back>", "notes": [{ "issue": "<a specific craft problem (structure, characterization, prose, momentum, theme); name where it occurs>", "suggestion": "<a concrete, actionable direction to fix it>" }] }
+
+Give 2–5 notes, ordered by importance. Return ONLY valid JSON.`,
+    variables: [
+      { name: 'synopsis', description: 'What this scene is meant to do' },
+      { name: 'context', description: 'Scene/codex/voice context' },
+      { name: 'document', description: 'The scene prose to critique' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:evaluation:compare',
+    name: 'Pairwise Compare',
+    description: 'Judge which of two versions of the same scene is the stronger prose.',
+    feature: 'evaluation',
+    model: 'claude-opus-4-8',
+    temperature: 0.2,
+    maxTokens: 600,
+    template: `You are blind-judging which of two versions of the SAME scene is stronger prose. They share the same intended content; judge execution only — prose quality, voice, vividness, pacing, dialogue, and freedom from slop.
+
+<version_a>
+{{a}}
+</version_a>
+
+<version_b>
+{{b}}
+</version_b>
+
+Pick the better version. Return ONLY JSON: { "winner": "A" | "B" | "tie", "reason": "<one sentence>" }. Use "tie" only if they are genuinely indistinguishable in quality.`,
+    variables: [
+      { name: 'a', description: 'Version A' },
+      { name: 'b', description: 'Version B' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:evaluation:draft-gate',
+    name: 'Draft Quality Gate',
+    description: 'Score a chapter of prose for craft quality and return issues + fixes.',
+    feature: 'evaluation',
+    model: 'claude-opus-4-8',
+    temperature: 0.2,
+    maxTokens: 1500,
+    template: `You are a demanding fiction editor scoring a single chapter of prose for craft quality.
+
+<synopsis>
+{{synopsis}}
+</synopsis>
+
+<context>
+{{context}}
+</context>
+
+<chapter>
+{{document}}
+</chapter>
+
+Score the chapter 0–100 overall, judging: prose quality and rhythm, concrete sensory detail (show, don't tell), scene and dialogue craft, pacing, voice consistency, and freedom from AI "slop" (clichés, filler, hedging, repetition, throat-clearing).
+
+Return ONLY JSON:
+{ "overall": <0-100>, "issues": ["<specific craft problem, with a brief quote or location>", ...], "suggestions": ["<specific, actionable fix>", ...] }
+
+Be concrete — vague praise or nitpicks are useless. Return ONLY valid JSON.`,
+    variables: [
+      { name: 'synopsis', description: 'What this chapter is meant to cover' },
+      { name: 'context', description: 'Scene/codex/voice context' },
+      { name: 'document', description: 'The chapter prose to score' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:revision:draft',
+    name: 'Revise Chapter Draft',
+    description: 'Rewrite a chapter to fix craft problems without changing the plot (gate loop).',
+    feature: 'autopilot',
+    phase: 'revise',
+    model: 'claude-opus-4-8',
+    temperature: 0.7,
+    maxTokens: 8000,
+    template: `You are revising a chapter of fiction to fix specific craft problems, without changing the plot.
+
+<synopsis>
+{{synopsis}}
+</synopsis>
+
+<context>
+{{context}}
+</context>
+
+<editor_notes>
+{{critique}}
+</editor_notes>
+
+<chapter>
+{{document}}
+</chapter>
+
+Rewrite the chapter to address every editor note — sharpen the prose, add concrete detail, tighten dialogue and pacing, and cut slop — while preserving all plot events, character actions, and scene structure. Do not add or remove scenes. Return only the revised chapter prose, no commentary.`,
+    variables: [
+      { name: 'synopsis', description: 'What this chapter is meant to cover' },
+      { name: 'context', description: 'Scene/codex/voice context' },
+      { name: 'critique', description: 'Editor notes to address' },
+      { name: 'document', description: 'The chapter prose to revise' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:evaluation:voice-drift',
+    name: 'Voice Drift Check',
+    description: 'Flag where a scene drifts from the established voice fingerprint.',
+    feature: 'evaluation',
+    model: 'claude-opus-4-8',
+    temperature: 0.2,
+    maxTokens: 2000,
+    template: `You are a prose-voice auditor. Compare the scene against the established VOICE FINGERPRINT and flag where the prose drifts from it.
+
+<voice_fingerprint>
+{{voice}}
+</voice_fingerprint>
+
+<scene>
+{{document}}
+</scene>
+
+Report only genuine, specific drifts — places where the prose breaks a rule of the voice (POV, tense, diction/register, rhythm, imagery, dialogue style). Ignore nitpicks and content you can't judge from the fingerprint. Return a JSON array:
+[{ "aspect": "<POV | tense | diction | rhythm | imagery | dialogue | pacing>", "issue": "<what drifts and why it breaks the voice, one sentence>", "excerpt": "<short verbatim quote from the scene, <=120 chars>" }]
+
+If the scene is consistent with the voice, return []. Return ONLY valid JSON.`,
+    variables: [
+      { name: 'voice', description: 'The saved voice fingerprint / style guide' },
+      { name: 'document', description: 'The scene prose to audit' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:revision:canon',
+    name: 'Reconcile Canon Change',
+    description: 'Revise a document so it stays consistent after a Codex fact changed (propagation debt).',
+    feature: 'autopilot',
+    phase: 'revise',
+    model: 'claude-opus-4-8',
+    temperature: 0.4,
+    maxTokens: 8000,
+    template: `You are a continuity editor revising a scene to match updated canon.
+
+<canon_change>
+Entity: {{entity}}
+Fact: {{fact}}
+Was: {{oldValue}}
+Now: {{newValue}}
+</canon_change>
+
+<context>
+{{context}}
+</context>
+
+<document>
+{{document}}
+</document>
+
+Revise the document so every reference to {{entity}} is consistent with the updated fact. Change ONLY what the canon update requires — preserve the voice, structure, tense, and all unrelated content. If nothing in the document actually depends on this fact, return the document unchanged. Return only the full revised document text, no commentary.`,
+    variables: [
+      { name: 'entity', description: 'The entity whose fact changed' },
+      { name: 'fact', description: 'The fact label that changed' },
+      { name: 'oldValue', description: 'Previous fact value' },
+      { name: 'newValue', description: 'Updated fact value' },
+      { name: 'context', description: 'Scene/codex context' },
+      { name: 'document', description: 'Full current document markdown' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:revision:voice',
+    name: 'Revise to Voice',
+    description: 'Rewrite a scene so its prose conforms to the voice fingerprint (voice debt).',
+    feature: 'autopilot',
+    phase: 'revise',
+    model: 'claude-opus-4-8',
+    temperature: 0.5,
+    maxTokens: 8000,
+    template: `You are a line editor revising a scene to match an established prose voice — without changing what happens.
+
+<voice_fingerprint>
+{{voice}}
+</voice_fingerprint>
+
+<drift_notes>
+{{issues}}
+</drift_notes>
+
+<context>
+{{context}}
+</context>
+
+<document>
+{{document}}
+</document>
+
+Rewrite the document so its prose conforms to the voice fingerprint, addressing the drift notes. Preserve every plot event, beat, line of dialogue's meaning, and the scene's structure — change only the prose style (rhythm, diction, POV/tense handling, imagery). Do not add or remove story content. Return only the full revised document text, no commentary.`,
+    variables: [
+      { name: 'voice', description: 'The saved voice fingerprint / style guide' },
+      { name: 'issues', description: 'The flagged drift notes to address' },
+      { name: 'context', description: 'Scene/codex context' },
+      { name: 'document', description: 'Full current document markdown' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+
+  // ── Reader-panel personas (editable system prompts behind the reader agents) ──
+  {
+    id: 'builtin:reader:adventurous',
+    name: 'Reader · Adventurous',
+    description: 'Reader persona: reads for excitement, pace, and surprise.',
+    feature: 'evaluation',
+    model: 'claude-sonnet-4-6',
+    temperature: 0.8,
+    maxTokens: 500,
+    template: `You are an adventurous fiction reader who loves fast-paced stories, unexpected twists, and compelling hooks. You prioritize excitement, momentum, and whether you'd keep reading. Be direct and specific. 200 words max.`,
+    variables: [],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:reader:literary',
+    name: 'Reader · Literary',
+    description: 'Reader persona: reads for prose, voice, and depth.',
+    feature: 'evaluation',
+    model: 'claude-sonnet-4-6',
+    temperature: 0.8,
+    maxTokens: 500,
+    template: `You are a literary fiction reader who prizes distinctive prose, thematic depth, and authentic voice. You're sensitive to rhythm, imagery, and subtext. Be specific about what works and what doesn't. 200 words max.`,
+    variables: [],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:reader:commercial',
+    name: 'Reader · Commercial',
+    description: 'Reader persona: reads for marketability and audience appeal.',
+    feature: 'evaluation',
+    model: 'claude-sonnet-4-6',
+    temperature: 0.8,
+    maxTokens: 500,
+    template: `You are a commercial fiction editor who thinks about market positioning, reader expectations, and genre conventions. You evaluate clarity, hooks, and broad appeal. Be practical and specific. 200 words max.`,
+    variables: [],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:reader:skeptic',
+    name: 'Reader · Skeptic',
+    description: 'Reader persona: hunts for plot holes, inconsistencies, and weak spots.',
+    feature: 'evaluation',
+    model: 'claude-sonnet-4-6',
+    temperature: 0.8,
+    maxTokens: 500,
+    template: `You are a skeptical reader who actively looks for plot holes, weak character motivation, logical inconsistencies, and prose problems. Be critical and specific — your job is to find what's broken. 200 words max.`,
+    variables: [],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+]
+
+// Reader agents tie a persona prompt to a model/temperature. `model: ''` means
+// "use the active provider's default model" so the panel works on any backend.
+const readerAgent = (id: string, name: string, emoji: string, description: string, promptId: string): AgentTemplate => ({
+  id, name, description, category: 'reader',
+  systemPromptId: promptId, model: '', temperature: 0.8,
+  parameters: { emoji, maxTokens: 500 },
+  isBuiltin: true, createdAt: ISO(), modifiedAt: ISO(),
+})
+
+export const DEFAULT_AGENTS: AgentTemplate[] = [
+  readerAgent('builtin:agent:reader:adventurous', 'Adventurous', '🗺', 'Reads for excitement, pace, and surprise', 'builtin:reader:adventurous'),
+  readerAgent('builtin:agent:reader:literary', 'Literary', '📚', 'Reads for prose, voice, and depth', 'builtin:reader:literary'),
+  readerAgent('builtin:agent:reader:commercial', 'Commercial', '📈', 'Reads for marketability and audience appeal', 'builtin:reader:commercial'),
+  readerAgent('builtin:agent:reader:skeptic', 'Skeptic', '🔍', 'Hunts for plot holes and weak spots', 'builtin:reader:skeptic'),
 ]
 
 // ── Registry ─────────────────────────────────────────────────────────────────
@@ -394,7 +1045,14 @@ export class AgentRegistry {
   }
 
   all(): AgentTemplate[] {
-    return DEFAULT_AGENTS.map((a) => this.overrides.get(a.id) ?? a)
+    const defaults = DEFAULT_AGENTS.map((a) => this.overrides.get(a.id) ?? a)
+    const defaultIds = new Set(DEFAULT_AGENTS.map((a) => a.id))
+    const userAgents = [...this.overrides.values()].filter((a) => !defaultIds.has(a.id))
+    return [...defaults, ...userAgents]
+  }
+
+  byCategory(category: AgentCategory): AgentTemplate[] {
+    return this.all().filter((a) => a.category === category)
   }
 
   get(id: string): AgentTemplate | null {
@@ -409,6 +1067,28 @@ export class AgentRegistry {
   reset(id: string): void {
     this.overrides.delete(id)
     saveTo(STORAGE_KEY_AGENTS, [...this.overrides.values()])
+  }
+
+  delete(id: string): void {
+    if (DEFAULT_AGENTS.some((a) => a.id === id)) return // can't delete builtins (use reset)
+    this.overrides.delete(id)
+    saveTo(STORAGE_KEY_AGENTS, [...this.overrides.values()])
+  }
+
+  duplicate(id: string): AgentTemplate | null {
+    const source = this.get(id)
+    if (!source) return null
+    const copy: AgentTemplate = {
+      ...source,
+      id: `user:${uid()}`,
+      name: `${source.name} (copy)`,
+      isBuiltin: false,
+      parentId: source.id,
+      createdAt: new Date().toISOString(),
+      modifiedAt: new Date().toISOString(),
+    }
+    this.save(copy)
+    return copy
   }
 }
 

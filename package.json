@@ -42,10 +42,10 @@
   "build": {
     "appId": "com.konbini.writer",
     "productName": "Konbini",
-    "directories": { "output": "release" },
+    "directories": { "output": "release", "buildResources": "build" },
     "files": ["dist/**/*", "electron-dist/**/*"],
-    "linux": { "target": "AppImage", "category": "Office" },
-    "mac": { "target": "dmg", "category": "public.app-category.productivity" },
-    "win": { "target": "nsis" }
+    "linux": { "target": "AppImage", "category": "Office", "icon": "build/icon.png" },
+    "mac": { "target": "dmg", "category": "public.app-category.productivity", "icon": "build/icon.png" },
+    "win": { "target": "nsis", "icon": "build/icon.png" }
   }
 }

@@ -24,6 +24,13 @@ import ReaderModal from './modals/ReaderModal'
 import ChatModal from './modals/ChatModal'
 import StatsModal from './modals/StatsModal'
 import AutopilotModal from './modals/AutopilotModal'
+import CommandPalette from './modals/CommandPalette'
+import HistoryModal from './modals/HistoryModal'
+import DebtInboxModal from './modals/DebtInboxModal'
+import FoundationModal from './modals/FoundationModal'
+import BestOfModal from './modals/BestOfModal'
+import CriticModal from './modals/CriticModal'
+import { debtService } from '../lib/DebtService'
 
 export default function Studio(): React.ReactElement {
   const layout = useShellStore((s) => s.layout)
@@ -38,6 +45,8 @@ export default function Studio(): React.ReactElement {
   const resolveProposal = useProjectStore((s) => s.resolveProposal)
   const updateContent = useProjectStore((s) => s.updateContent)
   const addSnapshot = useProjectStore((s) => s.addSnapshot)
+  const raiseDebt = useProjectStore((s) => s.raiseDebt)
+  const resolveDebtAffected = useProjectStore((s) => s.resolveDebtAffected)
   const project = useProjectStore((s) => s.project)
 
   const activeProposal = activeProposalId
@@ -74,6 +83,8 @@ export default function Studio(): React.ReactElement {
 
       {compositionMode && <CompositionMode />}
 
+      {modal === 'command-palette' && <CommandPalette onClose={() => setModal(null)} />}
+      {modal === 'history'     && <HistoryModal    onClose={() => setModal(null)} />}
       {modal === 'snapshot'    && <SnapshotModal   onClose={() => setModal(null)} />}
       {modal === 'compile'     && <CompileModal    onClose={() => setModal(null)} />}
       {modal === 'shortcuts'   && <ShortcutsModal  onClose={() => setModal(null)} />}
@@ -89,6 +100,10 @@ export default function Studio(): React.ReactElement {
       {modal === 'chat'            && <ChatModal            onClose={() => setModal(null)} />}
       {modal === 'stats'           && <StatsModal           onClose={() => setModal(null)} />}
       {modal === 'autopilot'       && <AutopilotModal       onClose={() => setModal(null)} />}
+      {modal === 'debt'            && <DebtInboxModal       onClose={() => setModal(null)} />}
+      {modal === 'foundation'      && <FoundationModal      onClose={() => setModal(null)} />}
+      {modal === 'bestof'          && <BestOfModal          onClose={() => setModal(null)} />}
+      {modal === 'critic'          && <CriticModal          onClose={() => setModal(null)} />}
 
       {activeProposal && (
         <ChangesetModal
@@ -100,6 +115,15 @@ export default function Studio(): React.ReactElement {
             addSnapshot(activeProposal.docId, snap)
             updateContent(activeProposal.docId, content)
             resolveProposal(activeProposal.id, 'applied')
+            // If this proposal was reconciling a debt item, applying it closes
+            // that affected document.
+            if (activeProposal.debtRef) {
+              resolveDebtAffected(activeProposal.debtRef.debtId, activeProposal.debtRef.docId)
+            }
+            // Prose→outline debt: a substantial whole-doc revision may have
+            // outdated the scene's synopsis.
+            const debtItem = debtService.maybeRaiseFromProposal({ project, proposal: activeProposal, applied: content })
+            if (debtItem) raiseDebt(debtItem)
           }}
           onDiscard={() => resolveProposal(activeProposal.id, 'discarded')}
         />

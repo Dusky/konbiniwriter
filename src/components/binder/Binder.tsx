@@ -1,7 +1,7 @@
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useProjectStore, flattenVisible, subtreeWordCount, isDescendant } from '../../store/projectStore'
 import { useShellStore } from '../../store/shellStore'
-import ContextMenu, { type MenuItem } from './ContextMenu'
+import ContextMenu, { type MenuItem } from '../common/ContextMenu'
 import { STATUS_META, fmtWords } from '@shared/utils'
 import type { ID, NodeType } from '@shared/types'
 
@@ -20,11 +20,32 @@ export default function Binder(): React.ReactElement {
   const selectNode = useProjectStore((s) => s.selectNode)
   const applyMutation = useProjectStore((s) => s.applyMutation)
   const setRenamingId = useProjectStore((s) => s.setRenamingId)
+  const undoMutation = useProjectStore((s) => s.undoMutation)
+  const redoMutation = useProjectStore((s) => s.redoMutation)
+  const canUndo = useProjectStore((s) => s.nodeHistory.length > 0)
+  const canRedo = useProjectStore((s) => s.nodeFuture.length > 0)
   const setModal = useShellStore((s) => s.setModal)
 
   const [ctx, setCtx] = useState<{ x: number; y: number; id: ID } | null>(null)
   const [drag, setDrag] = useState<DragState | null>(null)
   const [renameValue, setRenameValue] = useState('')
+  const renameInputRef = useRef<HTMLInputElement>(null)
+
+  // When rename mode opens for a node — from any trigger (create, context menu,
+  // keyboard) — seed the field with the node's current title and reliably move
+  // focus into the input on the next frame, selecting the text so typing
+  // replaces it. Doing this here (rather than relying on `autoFocus`) fixes the
+  // timing races that left the input blurred after create.
+  useEffect(() => {
+    if (!renamingId) return
+    const title = useProjectStore.getState().project?.nodes[renamingId]?.title ?? ''
+    setRenameValue(title)
+    const raf = requestAnimationFrame(() => {
+      const el = renameInputRef.current
+      if (el) { el.focus(); el.select() }
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [renamingId])
 
   if (!project) return <div className="binder" />
 
@@ -42,7 +63,7 @@ export default function Binder(): React.ReactElement {
     const result = await mutate({ type: 'create', parentId, nodeType })
     // The new node id is in result.nodes — find the node with _newId set
     const newId = Object.values(result.nodes).find((n) => n.ext['_newId'])?.id
-    if (newId) { selectNode(newId); setRenamingId(newId); setRenameValue('') }
+    if (newId) { selectNode(newId); setRenamingId(newId) }
   }
 
   const handleRenameCommit = async (id: ID, title: string) => {
@@ -160,7 +181,7 @@ export default function Binder(): React.ReactElement {
                 <span className="tw-label">
                   {renamingId === id ? (
                     <input
-                      autoFocus
+                      ref={renameInputRef}
                       value={renameValue}
                       onChange={(e) => setRenameValue(e.target.value)}
                       onBlur={() => handleRenameCommit(id, renameValue)}
@@ -197,6 +218,8 @@ export default function Binder(): React.ReactElement {
           mutate({ type: 'create', parentId, nodeType: 'document' })
         }}>+</button>
         <button className="icon-btn" title="New Folder (⌘⌥N)" onClick={() => mutate({ type: 'create', parentId: null, nodeType: 'folder' })}>📁</button>
+        <button className="icon-btn" title="Undo (⌘Z)" disabled={!canUndo} onClick={() => undoMutation()}>↶</button>
+        <button className="icon-btn" title="Redo (⌘⇧Z)" disabled={!canRedo} onClick={() => redoMutation()}>↷</button>
         <span style={{ flex: 1 }} />
         <button className="icon-btn" title="Delete / Trash" onClick={() => selectedId && mutate({ type: 'trash', id: selectedId })}>🗑</button>
       </div>

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Project, KNode, DocBody, DocMeta, NodeType, ViewMode, SaveStatus, Snapshot, ID, Proposal, CodexEntry } from '@shared/types'
+import type { Project, KNode, DocBody, DocMeta, NodeType, ViewMode, SaveStatus, Snapshot, ID, Proposal, CodexEntry, DebtItem } from '@shared/types'
 import { uid, wordCount } from '@shared/utils'
 import { type MentionIndex, buildIndex, updateIndex } from '../lib/MentionIndex'
 import { statsService } from '../lib/StatsService'
@@ -19,10 +19,15 @@ interface ProjectState {
   proposals: Proposal[]
   activeProposalId: ID | null
   codex: CodexEntry[]
+  debt: DebtItem[]
   slopSpans: import('../components/editor/extensions').SlopSpan[]
   slopRunning: boolean
   nodeHistory: Array<{ rootIds: ID[]; nodes: Record<ID, KNode> }>
+  nodeFuture: Array<{ rootIds: ID[]; nodes: Record<ID, KNode> }>
   sessionWordsAdded: number
+  cursor: { line: number; col: number } | null
+  // A range to reveal+select in the editor once its doc is active (search jump).
+  pendingReveal: { docId: ID; from: number; len: number } | null
 
   // — project lifecycle —
   loadProject: (p: Project) => void
@@ -36,6 +41,8 @@ interface ProjectState {
   setRenamingId: (id: ID | null) => void
   setFocusMode: (on: boolean) => void
   setCompositionMode: (on: boolean) => void
+  setCursor: (c: { line: number; col: number } | null) => void
+  setPendingReveal: (r: { docId: ID; from: number; len: number } | null) => void
 
   // — content (THE single mutation seam) —
   updateContent: (docId: ID, content: string) => void
@@ -44,6 +51,7 @@ interface ProjectState {
   // — structural mutations (optimistic; caller also calls IPC async) —
   applyMutation: (result: { rootIds: ID[]; nodes: Record<ID, KNode>; docs: Record<ID, DocBody> }) => void
   undoMutation: () => boolean   // returns true if undo was available
+  redoMutation: () => boolean   // returns true if redo was available
   updateMeta: (nodeId: ID, patch: Partial<DocMeta>) => void
   setProjectTitle: (title: string) => void
 
@@ -61,6 +69,11 @@ interface ProjectState {
   upsertCodexEntry: (entry: CodexEntry) => void
   deleteCodexEntry: (id: ID) => void
 
+  // — propagation debt —
+  raiseDebt: (item: DebtItem) => void
+  resolveDebtAffected: (debtId: ID, docId: ID) => void
+  dismissDebt: (debtId: ID) => void
+
   // — slop scorer —
   setSlopSpans: (spans: import('../components/editor/extensions').SlopSpan[]) => void
   setSlopRunning: (on: boolean) => void
@@ -70,6 +83,8 @@ interface ProjectState {
 
   // — project settings —
   setProjectWordTarget: (target: number | undefined) => void
+  setVoiceFingerprint: (text: string) => void
+  setAutopilotRun: (run: import('@shared/types').AutopilotRunState | null) => void
 
   // — judge scores (keyed by nodeId) —
   judgeResults: Map<ID, { scores: Array<{ dimension: string; score: number; note: string }>; verdict: string }>
@@ -79,9 +94,11 @@ interface ProjectState {
   autopilotQueue: string[]
   autopilotRunning: boolean
   autopilotCurrent: string | null
+  autopilotPreset: string[]        // node IDs to pre-select in the runner (e.g. scaffolded chapters)
   setAutopilotQueue: (ids: string[]) => void
   setAutopilotRunning: (on: boolean) => void
   setAutopilotCurrent: (id: string | null) => void
+  setAutopilotPreset: (ids: string[]) => void
 }
 
 // ── tree utilities (renderer-local, no disk access) ──────────────────────────
@@ -141,14 +158,19 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   proposals: [],
   activeProposalId: null,
   codex: [],
+  debt: [],
   slopSpans: [],
   slopRunning: false,
   nodeHistory: [],
+  nodeFuture: [],
   judgeResults: new Map(),
   sessionWordsAdded: 0,
   autopilotQueue: [],
   autopilotRunning: false,
   autopilotCurrent: null,
+  autopilotPreset: [],
+  cursor: null,
+  pendingReveal: null,
 
   loadProject: (project) => set({
     project,
@@ -158,30 +180,35 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     renamingId: null,
     mentionIndex: buildIndex(project.docs),
     codex: (project.settings.codex as CodexEntry[] | undefined) ?? [],
+    debt: (project.settings.debt as DebtItem[] | undefined) ?? [],
     proposals: [],
     activeProposalId: null,
     nodeHistory: [],
+    nodeFuture: [],
     judgeResults: new Map(),
     sessionWordsAdded: 0,
     autopilotQueue: [],
     autopilotRunning: false,
     autopilotCurrent: null,
+    autopilotPreset: [],
     focusMode: false,
     compositionMode: false,
     splitOpen: false,
     splitId: null,
+    cursor: null,
+    pendingReveal: null,
   }),
-  unloadProject: () => set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], judgeResults: new Map(), sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, focusMode: false, compositionMode: false, splitOpen: false, splitId: null }),
+  unloadProject: () => set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], debt: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], nodeFuture: [], judgeResults: new Map(), sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, autopilotPreset: [], focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null }),
 
   selectNode: (id) => set((s) => {
-    if (!id || !s.project) return { selectedId: id }
+    if (!id || !s.project) return { selectedId: id, cursor: null }
     const node = s.project.nodes[id]
-    if (!node) return { selectedId: id }
+    if (!node) return { selectedId: id, cursor: null }
     // Auto-switch view based on node type
     const newView = node.type === 'folder'
       ? (s.view === 'editor' ? 'corkboard' : s.view)
       : 'editor'
-    return { selectedId: id, view: newView }
+    return { selectedId: id, view: newView, cursor: null }
   }),
 
   setSplitId: (splitId) => set({ splitId }),
@@ -190,6 +217,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   setRenamingId: (renamingId) => set({ renamingId }),
   setFocusMode: (focusMode) => set({ focusMode }),
   setCompositionMode: (compositionMode) => set({ compositionMode }),
+  setCursor: (cursor) => set({ cursor }),
+  setPendingReveal: (pendingReveal) => set({ pendingReveal }),
 
   updateContent: (docId, content) => set((s) => {
     if (!s.project) return {}
@@ -219,17 +248,38 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     if (!s.project) return {}
     const snapshot = { rootIds: s.project.rootIds, nodes: s.project.nodes }
     const history = [...s.nodeHistory, snapshot].slice(-50)
-    return { project: { ...s.project, rootIds, nodes, docs }, nodeHistory: history }
+    // A fresh mutation invalidates the redo stack.
+    return { project: { ...s.project, rootIds, nodes, docs }, nodeHistory: history, nodeFuture: [] }
   }),
 
+  // Undo/redo move whole-tree snapshots between the past/future stacks and
+  // persist the restored tree through the `setTree` op so the in-memory store,
+  // the project service, and the on-disk manifest stay in sync. Document
+  // content is untouched (only structure changes).
   undoMutation: () => {
     const s = get()
     if (!s.project || s.nodeHistory.length === 0) return false
     const prev = s.nodeHistory[s.nodeHistory.length - 1]
+    const current = { rootIds: s.project.rootIds, nodes: s.project.nodes }
     set({
       project: { ...s.project, rootIds: prev.rootIds, nodes: prev.nodes },
       nodeHistory: s.nodeHistory.slice(0, -1),
+      nodeFuture: [...s.nodeFuture, current],
     })
+    window.api.node.mutate(s.project.id, { type: 'setTree', rootIds: prev.rootIds, nodes: prev.nodes }).catch(console.error)
+    return true
+  },
+  redoMutation: () => {
+    const s = get()
+    if (!s.project || s.nodeFuture.length === 0) return false
+    const next = s.nodeFuture[s.nodeFuture.length - 1]
+    const current = { rootIds: s.project.rootIds, nodes: s.project.nodes }
+    set({
+      project: { ...s.project, rootIds: next.rootIds, nodes: next.nodes },
+      nodeFuture: s.nodeFuture.slice(0, -1),
+      nodeHistory: [...s.nodeHistory, current].slice(-50),
+    })
+    window.api.node.mutate(s.project.id, { type: 'setTree', rootIds: next.rootIds, nodes: next.nodes }).catch(console.error)
     return true
   },
 
@@ -299,6 +349,28 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     return { codex }
   }),
 
+  raiseDebt: (item) => set((s) => {
+    // Supersede any existing unresolved item from the same source + title
+    // (re-editing the same fact updates the open item instead of stacking).
+    const debt = [item, ...s.debt.filter((d) => !(d.source === item.source && d.title === item.title))]
+    if (s.project) window.api.settings.save(s.project.id, { debt }).catch(console.error)
+    return { debt }
+  }),
+  resolveDebtAffected: (debtId, docId) => set((s) => {
+    const debt = s.debt.map((d) =>
+      d.id === debtId
+        ? { ...d, affected: d.affected.map((a) => a.docId === docId ? { ...a, resolved: true } : a) }
+        : d
+    )
+    if (s.project) window.api.settings.save(s.project.id, { debt }).catch(console.error)
+    return { debt }
+  }),
+  dismissDebt: (debtId) => set((s) => {
+    const debt = s.debt.filter((d) => d.id !== debtId)
+    if (s.project) window.api.settings.save(s.project.id, { debt }).catch(console.error)
+    return { debt }
+  }),
+
   setSlopSpans: (slopSpans) => set({ slopSpans, slopRunning: false }),
   setSlopRunning: (on) => set({ slopRunning: on }),
 
@@ -311,6 +383,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   setAutopilotQueue: (autopilotQueue) => set({ autopilotQueue }),
   setAutopilotRunning: (autopilotRunning) => set({ autopilotRunning }),
   setAutopilotCurrent: (autopilotCurrent) => set({ autopilotCurrent }),
+  setAutopilotPreset: (autopilotPreset) => set({ autopilotPreset }),
 
   recordWordDelta: (delta) => set((s) => ({ sessionWordsAdded: Math.max(0, s.sessionWordsAdded + delta) })),
 
@@ -320,5 +393,21 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const updated = { ...p, settings: { ...p.settings, wordTarget: target } }
     set({ project: updated })
     window.api.settings.save(p.id, { wordTarget: target })
+  },
+
+  setVoiceFingerprint: (text) => {
+    const p = get().project
+    if (!p) return
+    const updated = { ...p, settings: { ...p.settings, voiceFingerprint: text } }
+    set({ project: updated })
+    window.api.settings.save(p.id, { voiceFingerprint: text }).catch(console.error)
+  },
+
+  setAutopilotRun: (run) => {
+    const p = get().project
+    if (!p) return
+    const updated = { ...p, settings: { ...p.settings, autopilotRun: run } }
+    set({ project: updated })
+    window.api.settings.save(p.id, { autopilotRun: run }).catch(console.error)
   },
 }))

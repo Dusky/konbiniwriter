@@ -3,6 +3,10 @@ import { useShellStore } from '../../store/shellStore'
 import { useProjectStore } from '../../store/projectStore'
 import { relTime, fmtWords } from '@shared/utils'
 import NewProjectModal from '../modals/NewProjectModal'
+import CommandPalette from '../modals/CommandPalette'
+import ShortcutsModal from '../modals/ShortcutsModal'
+import AboutModal from '../modals/AboutModal'
+import WindowControls from '../shell/WindowControls'
 import { isFileSystemAccessSupported } from '../../lib/BrowserProjectService'
 import { isOPFSSupported } from '../../lib/OPFSProjectService'
 import type { RecentEntry } from '@shared/types'
@@ -36,13 +40,15 @@ export default function Launch(): React.ReactElement {
     }
   }
 
-  // Open a recent. Try the stored location directly first; if that fails
-  // (stale FSA handle), fall back to the folder picker.
+  // Open a recent. On Chrome/Edge this resolves the persisted directory handle
+  // (re-prompting for permission if needed); on OPFS/Electron it opens by
+  // location. If the handle is gone or permission is denied, fall back to the
+  // folder picker.
   const openRecent = async (r: RecentEntry) => {
     setOpenErr(null)
     setOpening(true)
     try {
-      finish(await window.api.project.open(r.location))
+      finish(await window.api.project.openRecent(r.id, r.location))
     } catch {
       setOpening(false)
       await doOpen()
@@ -61,6 +67,8 @@ export default function Launch(): React.ReactElement {
 
   return (
     <div className="launch-stage">
+      {/* Frameless-window drag strip + controls (Electron, non-mac) */}
+      <div className="win-bar"><span style={{ flex: 1 }} /><WindowControls /></div>
       <div className="launch-win">
         {/* Left panel */}
         <div className="launch-left">
@@ -132,6 +140,9 @@ export default function Launch(): React.ReactElement {
       {modal === 'new-project' && (
         <NewProjectModal onClose={() => setModal(null)} />
       )}
+      {modal === 'command-palette' && <CommandPalette onClose={() => setModal(null)} />}
+      {modal === 'shortcuts' && <ShortcutsModal onClose={() => setModal(null)} />}
+      {modal === 'about' && <AboutModal onClose={() => setModal(null)} />}
     </div>
   )
 }

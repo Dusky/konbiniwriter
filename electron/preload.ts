@@ -84,6 +84,19 @@ const api: KonbiniAPI = {
       return project
     },
 
+    // Electron reopens recents by real path — no handle persistence needed.
+    async openRecent(_id, location) {
+      const project = await svc.open(location)
+      await touchRecent({
+        id: project.id, title: project.title,
+        location: project.settings.location,
+        words: Object.values(project.docs).reduce((a, d) => a + wordCount(d.content), 0),
+        template: project.settings.template,
+        accent: project.settings.accent,
+      })
+      return project
+    },
+
     recents: loadRecents,
 
     close: (id) => svc.close(id),
@@ -112,7 +125,7 @@ const api: KonbiniAPI = {
   },
 
   snapshot: {
-    take: (pid, nid, title) => svc.takeSnapshot(pid, nid, title),
+    take: (pid, nid, title, kind) => svc.takeSnapshot(pid, nid, title, kind),
     restore: (pid, nid, sid) => svc.restoreSnapshot(pid, nid, sid),
     list: (pid, nid) => svc.listSnapshots(pid, nid),
     delete: (pid, nid, sid) => svc.deleteSnapshot(pid, nid, sid),
@@ -136,6 +149,11 @@ const api: KonbiniAPI = {
     maximize: () => { ipcRenderer.invoke('shell:maximize') },
     close: () => { ipcRenderer.invoke('shell:close') },
     isMaximized: () => ipcRenderer.invoke('shell:isMaximized'),
+    onMaximizeChange: (cb: (maximized: boolean) => void) => {
+      const handler = (_e: unknown, maximized: boolean) => cb(maximized)
+      ipcRenderer.on('shell:maximized', handler)
+      return () => { ipcRenderer.removeListener('shell:maximized', handler) }
+    },
   },
 }
 

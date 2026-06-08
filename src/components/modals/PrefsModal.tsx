@@ -44,6 +44,10 @@ export default function PrefsModal({ onClose }: Props): React.ReactElement {
   const setEditorSize = useShellStore((s) => s.setEditorSize)
   const typewriterMode = useShellStore((s) => s.typewriterMode)
   const setTypewriterMode = useShellStore((s) => s.setTypewriterMode)
+  const autoVersion = useShellStore((s) => s.autoVersion)
+  const setAutoVersion = useShellStore((s) => s.setAutoVersion)
+  const historyRetentionDays = useShellStore((s) => s.historyRetentionDays)
+  const setHistoryRetentionDays = useShellStore((s) => s.setHistoryRetentionDays)
 
   const project = useProjectStore((s) => s.project)
   const setProjectWordTarget = useProjectStore((s) => s.setProjectWordTarget)
@@ -142,6 +146,30 @@ export default function PrefsModal({ onClose }: Props): React.ReactElement {
               />
               <span style={{ fontSize: 13, color: 'var(--text-2)' }}>Keep cursor at 40% from top while typing</span>
             </label>
+          </Row>
+
+          <Row label="Auto-history">
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={autoVersion}
+                onChange={(e) => setAutoVersion(e.target.checked)}
+              />
+              <span style={{ fontSize: 13, color: 'var(--text-2)' }}>Auto-save versions as you write</span>
+            </label>
+          </Row>
+
+          <Row label="Keep versions">
+            <Seg<string>
+              options={[
+                { label: '7 days', value: '7' },
+                { label: '14 days', value: '14' },
+                { label: '30 days', value: '30' },
+                { label: 'Forever', value: '0' },
+              ]}
+              value={String(historyRetentionDays)}
+              onChange={(v) => setHistoryRetentionDays(Number(v))}
+            />
           </Row>
 
           {project && (

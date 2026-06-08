@@ -15,7 +15,9 @@ export type CompileFormat = 'markdown' | 'docx' | 'print'
 export type ModalId =
   | 'new-project'
   | 'open-project'
+  | 'command-palette'
   | 'snapshot'
+  | 'history'
   | 'compile'
   | 'shortcuts'
   | 'about'
@@ -26,9 +28,13 @@ export type ModalId =
   | 'ai-settings'
   | 'batch-generator'
   | 'reader'
+  | 'bestof'
+  | 'critic'
   | 'chat'
   | 'stats'
   | 'autopilot'
+  | 'foundation'
+  | 'debt'
   | null
 
 // ── Project ───────────────────────────────────────────────────────────────────
@@ -54,7 +60,45 @@ export interface ProjectSettings {
   editorSize?: number
   wordTarget?: number        // project-level word-count goal
   codex?: CodexEntry[]       // stored as JSON, typed at load time
+  debt?: DebtItem[]          // propagation-debt inbox (persisted with project)
+  voiceFingerprint?: string  // foundation: prose style guide, injected as context
+  autopilotRun?: AutopilotRunState | null  // in-progress autopilot run, for resume
   [k: string]: unknown
+}
+
+// A persisted Autopilot run so an interrupted run (stop, close, refresh) can be
+// resumed from where it left off. Cleared on natural completion or discard.
+export interface AutopilotRunState {
+  promptId: string
+  useGate: boolean
+  queue: ID[]      // ordered node IDs this run is processing
+  doneIds: ID[]    // nodes whose proposal has already been resolved
+  startedAt: ISO
+}
+
+// ── Propagation debt ──────────────────────────────────────────────────────────
+// A change in one layer (e.g. a Codex canon fact) leaves downstream documents
+// stale. Each DebtItem records the change and the documents it may have
+// invalidated, so the author can review/redraft them through the proposal pipe.
+
+export type DebtLayer = 'voice' | 'world' | 'character' | 'outline' | 'prose' | 'canon'
+
+export interface DebtAffected {
+  docId: ID
+  note: string          // why this doc is implicated, e.g. a matched snippet
+  resolved: boolean
+}
+
+export interface DebtItem {
+  id: ID
+  layer: DebtLayer
+  title: string         // e.g. "Mara · age changed"
+  detail: string        // what changed, e.g. '"29" → "31"'
+  source: string        // entity id (or doc id) that caused the change
+  affected: DebtAffected[]
+  createdAt: ISO
+  // Structured change context for AI-assisted reconciliation (canon debt).
+  revision?: { entityName: string; factLabel: string; oldValue: string; newValue: string }
 }
 
 export interface KNode {
@@ -87,6 +131,7 @@ export interface Snapshot {
   takenAt: ISO
   content: string
   words: number
+  kind?: 'manual' | 'auto'   // absent = manual (back-compat with older bundles)
 }
 
 // ── Recents ───────────────────────────────────────────────────────────────────
@@ -113,6 +158,7 @@ export type NodeOp =
   | { type: 'updateMeta'; id: ID; patch: Partial<DocMeta> }
   | { type: 'setExpanded'; id: ID; expanded: boolean }
   | { type: 'setProjectTitle'; title: string }
+  | { type: 'setTree'; rootIds: ID[]; nodes: Record<ID, KNode> }  // undo/redo restore
 
 // ── Proposal / Changeset (Phase 2 spine — defined here so the seam is clear) ─
 
@@ -139,6 +185,9 @@ export interface Proposal {
   costEstimateCents?: number
   promptId?: string
   agentId?: string
+  // If this proposal was generated to resolve a propagation-debt item, applying
+  // it auto-resolves that affected document.
+  debtRef?: { debtId: ID; docId: ID }
 }
 
 export type DiffSegment =
@@ -231,6 +280,7 @@ export interface KonbiniAPI {
   project: {
     create(opts: { title: string; template: TemplateId; location: string }): Promise<Project>
     open(path: string): Promise<Project>
+    openRecent(id: ID, location: string): Promise<Project>
     recents(): Promise<RecentEntry[]>
     close(id: ID): Promise<void>
     removeRecent(id: ID): Promise<void>
@@ -245,7 +295,7 @@ export interface KonbiniAPI {
     mutate(projectId: ID, op: NodeOp): Promise<{ rootIds: ID[]; nodes: Record<ID, KNode>; docs: Record<ID, DocBody> }>
   }
   snapshot: {
-    take(projectId: ID, nodeId: ID, title?: string): Promise<Snapshot>
+    take(projectId: ID, nodeId: ID, title?: string, kind?: 'manual' | 'auto'): Promise<Snapshot>
     restore(projectId: ID, nodeId: ID, snapshotId: ID): Promise<{ content: string; snapshot: Snapshot }>
     list(projectId: ID, nodeId: ID): Promise<Snapshot[]>
     delete(projectId: ID, nodeId: ID, snapshotId: ID): Promise<void>
@@ -265,5 +315,7 @@ export interface KonbiniAPI {
     maximize(): void
     close(): void
     isMaximized(): Promise<boolean>
+    /** Subscribe to maximize/unmaximize from any source (button, OS, double-click). Returns an unsubscribe fn. */
+    onMaximizeChange?(cb: (maximized: boolean) => void): () => void
   }
 }

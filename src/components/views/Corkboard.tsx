@@ -1,6 +1,8 @@
-import React, { useRef } from 'react'
+import React, { useRef, useState } from 'react'
 import { useProjectStore } from '../../store/projectStore'
 import { STATUS_META, LABEL_META, wordCount } from '@shared/utils'
+import ContextMenu from '../common/ContextMenu'
+import { useNodeMenu } from '../common/useNodeMenu'
 
 export default function Corkboard(): React.ReactElement {
   const project = useProjectStore((s) => s.project)
@@ -10,6 +12,8 @@ export default function Corkboard(): React.ReactElement {
   const updateMeta = useProjectStore((s) => s.updateMeta)
   const applyMutation = useProjectStore((s) => s.applyMutation)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const nodeMenu = useNodeMenu()
+  const [ctx, setCtx] = useState<{ x: number; y: number; id: string } | null>(null)
 
   if (!project) return <div className="main" />
 
@@ -44,6 +48,7 @@ export default function Corkboard(): React.ReactElement {
                 style={{ '--card-label': labelColor } as React.CSSProperties}
                 onClick={() => selectNode(id)}
                 onDoubleClick={() => { selectNode(id); setView('editor') }}
+                onContextMenu={(e) => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, id }) }}
               >
                 <div className="pin" />
                 <div className="ct">
@@ -71,6 +76,9 @@ export default function Corkboard(): React.ReactElement {
           )}
         </div>
       </div>
+      {ctx && (
+        <ContextMenu x={ctx.x} y={ctx.y} items={nodeMenu(ctx.id)} onClose={() => setCtx(null)} />
+      )}
     </div>
   )
 }

@@ -9,6 +9,13 @@
 import type { Project, KNode, DocBody, NodeOp, Snapshot, ID, CompileFormat, CompileResult } from '@shared/types'
 import { uid, wordCount } from '@shared/utils'
 import { buildProjectFromTemplate } from '@shared/templates'
+import { handleStore } from './HandleStore'
+
+// FSA permission methods aren't in the base DOM lib types yet.
+type PermissionHandle = FileSystemDirectoryHandle & {
+  queryPermission?(opts: { mode: 'read' | 'readwrite' }): Promise<PermissionState>
+  requestPermission?(opts: { mode: 'read' | 'readwrite' }): Promise<PermissionState>
+}
 
 export function isFileSystemAccessSupported(): boolean {
   return typeof window !== 'undefined' && typeof (window as unknown as { showDirectoryPicker?: unknown }).showDirectoryPicker === 'function'
@@ -104,7 +111,33 @@ export class BrowserProjectService {
   async open(handleKey: string): Promise<Project> {
     const bundleHandle = this.tempHandles.get(handleKey) ?? this.handles.get(handleKey)
     if (!bundleHandle) throw new Error('No directory handle for key: ' + handleKey)
+    const project = await this.loadFromHandle(bundleHandle)
+    this.tempHandles.delete(handleKey)
+    return project
+  }
 
+  // Reopen a recent project directly from its persisted FSA handle, skipping the
+  // folder picker. Returns null if no handle is stored or permission is denied
+  // (the caller then falls back to the picker).
+  async openByHandle(projectId: string): Promise<Project | null> {
+    const handle = (await handleStore.get(projectId)) as PermissionHandle | undefined
+    if (!handle) return null
+    const opts = { mode: 'readwrite' as const }
+    let perm = (await handle.queryPermission?.(opts)) ?? 'prompt'
+    if (perm !== 'granted') perm = (await handle.requestPermission?.(opts)) ?? 'denied'
+    if (perm !== 'granted') return null
+    try {
+      return await this.loadFromHandle(handle)
+    } catch {
+      // Bundle moved/deleted — forget the stale handle.
+      void handleStore.del(projectId)
+      return null
+    }
+  }
+
+  // Shared core: read the manifest + doc bodies from a resolved bundle handle,
+  // register it under the project id, and persist it for future quick-reopen.
+  private async loadFromHandle(bundleHandle: FileSystemDirectoryHandle): Promise<Project> {
     const manifestText = await readText(bundleHandle, 'project.json')
     if (!manifestText) throw new Error('Not a Konbini project (no project.json)')
 
@@ -116,10 +149,10 @@ export class BrowserProjectService {
       project.docs[nodeId] = { content: content ?? '', snapshots: project.docs[nodeId]?.snapshots ?? [] }
     }
 
-    // Promote handle to a stable slot keyed by project.id
+    // Promote handle to a stable slot keyed by project.id, and persist it.
     this.handles.set(project.id, bundleHandle)
-    this.tempHandles.delete(handleKey)
     this.projects.set(project.id, project)
+    void handleStore.put(project.id, bundleHandle)
     return project
   }
 
@@ -160,6 +193,7 @@ export class BrowserProjectService {
     this.handles.set(project.id, bundleHandle)
     this.tempHandles.delete(parentKey)
     this.projects.set(project.id, project)
+    void handleStore.put(project.id, bundleHandle)
     return project
   }
 
@@ -289,16 +323,22 @@ export class BrowserProjectService {
       case 'setExpanded':
         if (p.nodes[op.id]) p.nodes[op.id].expanded = op.expanded
         break
+      case 'setTree':
+        // Undo/redo: replace the whole tree. Docs are untouched (content edits
+        // are preserved); orphaned doc files from a prior delete aren't revived.
+        p.rootIds = op.rootIds
+        p.nodes = op.nodes
+        break
     }
   }
 
   // ── Snapshots ─────────────────────────────────────────────────────────────
 
-  async takeSnapshot(projectId: string, nodeId: string, title = ''): Promise<Snapshot> {
+  async takeSnapshot(projectId: string, nodeId: string, title = '', kind: 'manual' | 'auto' = 'manual'): Promise<Snapshot> {
     const h = this.getHandle(projectId)
     const p = this.getProject(projectId)
     const content = p.docs[nodeId]?.content ?? ''
-    const snap: Snapshot = { id: uid('snap'), title, takenAt: new Date().toISOString(), content, words: wordCount(content) }
+    const snap: Snapshot = { id: uid('snap'), title, takenAt: new Date().toISOString(), content, words: wordCount(content), kind }
     await writeText(h, content, 'snapshots', nodeId, `${snap.id}.md`)
     if (!p.docs[nodeId]) p.docs[nodeId] = { content, snapshots: [] }
     // Store metadata only in manifest (content in file)

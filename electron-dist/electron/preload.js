@@ -111,6 +111,18 @@ const api = {
             });
             return project;
         },
+        // Electron reopens recents by real path — no handle persistence needed.
+        async openRecent(_id, location) {
+            const project = await NodeProjectService_1.nodeProjectService.open(location);
+            await touchRecent({
+                id: project.id, title: project.title,
+                location: project.settings.location,
+                words: Object.values(project.docs).reduce((a, d) => a + (0, utils_1.wordCount)(d.content), 0),
+                template: project.settings.template,
+                accent: project.settings.accent,
+            });
+            return project;
+        },
         recents: loadRecents,
         close: (id) => NodeProjectService_1.nodeProjectService.close(id),
         removeRecent: async (id) => removeRecent(id),
@@ -132,7 +144,7 @@ const api = {
         mutate: (pid, op) => NodeProjectService_1.nodeProjectService.mutateNode(pid, op),
     },
     snapshot: {
-        take: (pid, nid, title) => NodeProjectService_1.nodeProjectService.takeSnapshot(pid, nid, title),
+        take: (pid, nid, title, kind) => NodeProjectService_1.nodeProjectService.takeSnapshot(pid, nid, title, kind),
         restore: (pid, nid, sid) => NodeProjectService_1.nodeProjectService.restoreSnapshot(pid, nid, sid),
         list: (pid, nid) => NodeProjectService_1.nodeProjectService.listSnapshots(pid, nid),
         delete: (pid, nid, sid) => NodeProjectService_1.nodeProjectService.deleteSnapshot(pid, nid, sid),
@@ -152,6 +164,11 @@ const api = {
         maximize: () => { electron_1.ipcRenderer.invoke('shell:maximize'); },
         close: () => { electron_1.ipcRenderer.invoke('shell:close'); },
         isMaximized: () => electron_1.ipcRenderer.invoke('shell:isMaximized'),
+        onMaximizeChange: (cb) => {
+            const handler = (_e, maximized) => cb(maximized);
+            electron_1.ipcRenderer.on('shell:maximized', handler);
+            return () => { electron_1.ipcRenderer.removeListener('shell:maximized', handler); };
+        },
     },
 };
 electron_1.contextBridge.exposeInMainWorld('api', api);

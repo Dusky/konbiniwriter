@@ -1,88 +1,51 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { useProjectStore } from '../../store/projectStore'
 import { useAIStore } from '../../store/aiStore'
-import { promptRegistry } from '../../lib/PromptRegistry'
-import { createProposal } from '../../lib/ProposalService'
-import { buildContext, renderContext } from '../../lib/ContextBuilder'
-import { streamCompletion } from '../../lib/AIClient'
-
-type Command = 'rewrite' | 'expand' | 'tighten' | 'describe' | 'brainstorm'
-
-const COMMANDS: { id: Command; label: string; promptId: string }[] = [
-  { id: 'rewrite',    label: 'Rewrite',    promptId: 'builtin:inline:rewrite' },
-  { id: 'expand',     label: 'Expand',     promptId: 'builtin:inline:expand' },
-  { id: 'tighten',    label: 'Tighten',    promptId: 'builtin:inline:tighten' },
-  { id: 'describe',   label: 'Describe',   promptId: 'builtin:inline:describe' },
-  { id: 'brainstorm', label: 'Brainstorm', promptId: 'builtin:inline:brainstorm' },
-]
+import { COWRITE_COMMANDS, runCowrite, type CowriteCommand } from '../../lib/cowrite'
 
 interface Props {
   docId: string
   selection: string
   anchorRect: DOMRect
   onClose: () => void
+  autoRun?: CowriteCommand   // when set (from the right-click menu), runs immediately
 }
 
-export default function CowriteBar({ docId, selection, anchorRect, onClose }: Props): React.ReactElement {
+export default function CowriteBar({ docId, selection, anchorRect, onClose, autoRun }: Props): React.ReactElement {
   const project = useProjectStore((s) => s.project)
   const mentionIndex = useProjectStore((s) => s.mentionIndex)
   const queueProposal = useProjectStore((s) => s.queueProposal)
   const { enabled } = useAIStore()
 
-  const [running, setRunning] = useState<Command | null>(null)
+  const [running, setRunning] = useState<CowriteCommand | null>(null)
   const [error, setError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => () => { abortRef.current?.abort() }, [])
 
-  const handleCommand = useCallback(async (cmd: Command) => {
+  const handleCommand = useCallback(async (cmd: CowriteCommand) => {
     if (!project || running) return
-    const prompt = COMMANDS.find((c) => c.id === cmd)!
-    const template = promptRegistry.get(prompt.promptId)
-    if (!template) return
-
     setRunning(cmd)
     setError(null)
-
-    const ctxPacket = buildContext(project, mentionIndex, docId, 'inline')
-    const contextStr = renderContext(ctxPacket)
-
-    const rendered = promptRegistry.render(prompt.promptId, {
-      context: contextStr,
-      selection,
-      content: selection,
-    })
-
     const controller = new AbortController()
     abortRef.current = controller
-
-    await streamCompletion(
-      [{ role: 'user', content: rendered }],
-      { model: template.model, maxTokens: template.maxTokens, temperature: template.temperature, signal: controller.signal },
-      {
-        onChunk: () => {},
-        onDone: (full) => {
-          const proposal = createProposal({
-            docId,
-            docTitle: project.nodes[docId]?.title ?? 'Document',
-            command: cmd,
-            label: `${prompt.label}: ${selection.slice(0, 40)}${selection.length > 40 ? '…' : ''}`,
-            group: 'cowrite',
-            original: selection,
-            proposed: full.trim(),
-            promptId: prompt.promptId,
-          })
-          queueProposal(proposal)
-          setRunning(null)
-          onClose()
-        },
-        onError: (err) => {
-          setError(err.message)
-          setRunning(null)
-        },
-      },
-    )
+    try {
+      const proposal = await runCowrite({ command: cmd, project, mentionIndex, docId, selection, signal: controller.signal })
+      queueProposal(proposal)
+      setRunning(null)
+      onClose()
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') { setRunning(null); return }
+      setError((err as Error).message)
+      setRunning(null)
+    }
   }, [project, mentionIndex, docId, selection, running, queueProposal, onClose])
+
+  // Auto-run a command when invoked from the right-click menu (once).
+  const autoRanRef = useRef(false)
+  useEffect(() => {
+    if (autoRun && !autoRanRef.current) { autoRanRef.current = true; handleCommand(autoRun) }
+  }, [autoRun, handleCommand])
 
   const handleStop = () => {
     abortRef.current?.abort()
@@ -113,7 +76,7 @@ export default function CowriteBar({ docId, selection, anchorRect, onClose }: Pr
       }}
       onMouseDown={(e) => e.preventDefault()} // don't steal focus from editor
     >
-      {COMMANDS.map((cmd) => (
+      {COWRITE_COMMANDS.map((cmd) => (
         <button
           key={cmd.id}
           onClick={() => handleCommand(cmd.id)}
