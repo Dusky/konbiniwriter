@@ -4,8 +4,12 @@
 // Every component already calls window.api — nothing else changes.
 
 import type { KonbiniAPI } from '@shared/types'
-import { browserProjectService as svc } from './BrowserProjectService'
+import { isFileSystemAccessSupported, browserProjectService } from './BrowserProjectService'
+import { isOPFSSupported, opfsProjectService } from './OPFSProjectService'
 import { recentsService } from './RecentsService'
+
+// Use FSA (Chrome/Edge) if available, fall back to OPFS (Firefox/Safari)
+const svc = isFileSystemAccessSupported() ? browserProjectService : opfsProjectService
 import { wordCount } from '@shared/utils'
 
 const api: KonbiniAPI = {

@@ -4,6 +4,7 @@ import { useProjectStore } from '../../store/projectStore'
 import { relTime, fmtWords } from '@shared/utils'
 import NewProjectModal from '../modals/NewProjectModal'
 import { isFileSystemAccessSupported } from '../../lib/BrowserProjectService'
+import { isOPFSSupported } from '../../lib/OPFSProjectService'
 import type { RecentEntry } from '@shared/types'
 
 export default function Launch(): React.ReactElement {
@@ -25,6 +26,11 @@ export default function Launch(): React.ReactElement {
   }
 
   const handleOpen = async () => {
+    // OPFS mode: no external file picker available — reopen via Recents
+    if (!isFileSystemAccessSupported() && isOPFSSupported()) {
+      alert('In Firefox, projects are stored in browser storage. Use the Recent Projects list to reopen them.')
+      return
+    }
     const path = await window.api.project.showOpenDialog()
     if (!path) return
     try {

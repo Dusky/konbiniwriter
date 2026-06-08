@@ -4,10 +4,14 @@
   "description": "Local-first writing studio for long-form fiction",
   "private": true,
   "type": "module",
+  "main": "electron-dist/electron/main.js",
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "electron:compile": "tsc -p electron/tsconfig.json",
+    "electron:dev": "npm run electron:compile && cross-env ELECTRON_DEV=1 electron .",
+    "electron:build": "npm run build && npm run electron:compile && electron-builder"
   },
   "devDependencies": {
     "@codemirror/commands": "^6.7.1",
@@ -29,6 +33,18 @@
   },
   "dependencies": {
     "@codemirror/search": "^6.7.0",
-    "@types/diff": "^7.0.2"
+    "@types/diff": "^7.0.2",
+    "cross-env": "^7.0.3",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.konbini.writer",
+    "productName": "Konbini",
+    "directories": { "output": "release" },
+    "files": ["dist/**/*", "electron-dist/**/*"],
+    "linux": { "target": "AppImage", "category": "Office" },
+    "mac": { "target": "dmg", "category": "public.app-category.productivity" },
+    "win": { "target": "nsis" }
   }
 }

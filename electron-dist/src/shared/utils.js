@@ -1,0 +1,82 @@
+"use strict";
+// shared/utils.ts — pure helpers, no Node/DOM deps
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.LABEL_ORDER = exports.LABEL_META = exports.STATUS_ORDER = exports.STATUS_META = void 0;
+exports.uid = uid;
+exports.stripMd = stripMd;
+exports.wordCount = wordCount;
+exports.charCount = charCount;
+exports.relTime = relTime;
+exports.fmtWords = fmtWords;
+exports.fmtKey = fmtKey;
+let _uid = 0;
+function uid(prefix = 'id') {
+    _uid += 1;
+    return `${prefix}-${Date.now().toString(36)}-${_uid.toString(36)}`;
+}
+function stripMd(s) {
+    return (s || '')
+        .replace(/`{1,3}[^`]*`{1,3}/g, ' ')
+        .replace(/[#>*_~\-[\]]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+function wordCount(s) {
+    const t = stripMd(s);
+    if (!t)
+        return 0;
+    return t.split(/\s+/).filter(Boolean).length;
+}
+function charCount(s) {
+    return (s || '').length;
+}
+function relTime(ms) {
+    const d = (Date.now() - ms) / 1000;
+    if (d < 60)
+        return 'just now';
+    if (d < 3600)
+        return `${Math.floor(d / 60)} min ago`;
+    if (d < 86400) {
+        const h = Math.floor(d / 3600);
+        return `${h} ${h === 1 ? 'hour' : 'hours'} ago`;
+    }
+    const days = Math.floor(d / 86400);
+    if (days === 1)
+        return 'yesterday';
+    if (days < 30)
+        return `${days} days ago`;
+    return new Date(ms).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+}
+function fmtWords(n) {
+    if (n >= 1000)
+        return `${(n / 1000).toFixed(1)}k`;
+    return String(n);
+}
+/** Platform-specific key chord formatting. */
+function fmtKey(combo, platform) {
+    const mac = platform === 'darwin';
+    const map = mac
+        ? { mod: '⌘', shift: '⇧', alt: '⌥', ctrl: '⌃', enter: '⏎', delete: '⌫' }
+        : { mod: 'Ctrl', shift: 'Shift', alt: 'Alt', ctrl: 'Ctrl', enter: 'Enter', delete: 'Del' };
+    const parts = combo.split('+').map((t) => map[t] ?? t.toUpperCase());
+    const dedup = parts.filter((p, i) => i === 0 || p !== parts[i - 1]);
+    return mac ? dedup.join('') : dedup.join('+');
+}
+exports.STATUS_META = {
+    idea: { label: 'Idea', color: 'var(--st-idea)' },
+    todo: { label: 'To Do', color: 'var(--st-todo)' },
+    inprogress: { label: 'In Progress', color: 'var(--st-prog)' },
+    draft: { label: 'First Draft', color: 'var(--st-draft)' },
+    revised: { label: 'Revised', color: 'var(--st-rev)' },
+    final: { label: 'Final', color: 'var(--st-final)' },
+};
+exports.STATUS_ORDER = ['idea', 'todo', 'inprogress', 'draft', 'revised', 'final'];
+exports.LABEL_META = {
+    none: { label: 'No Label', color: 'transparent' },
+    scene: { label: 'Scene', color: 'oklch(0.62 0.11 300)' },
+    chapter: { label: 'Chapter', color: 'oklch(0.62 0.10 250)' },
+    note: { label: 'Note', color: 'oklch(0.64 0.09 190)' },
+    character: { label: 'Character', color: 'oklch(0.66 0.12 70)' },
+    idea: { label: 'Idea', color: 'oklch(0.64 0.12 20)' },
+};
+exports.LABEL_ORDER = ['none', 'scene', 'chapter', 'note', 'character', 'idea'];
