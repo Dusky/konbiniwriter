@@ -454,7 +454,12 @@ These are structural guarantees, not conventions. Violating any of them breaks a
   persona **system prompt** (`builtin:reader:*`, feature `evaluation`). Instructions are editable in the
   Prompt Registry; agent `model: ''` falls back to the active provider's default so the panel works on
   any backend. `AgentRegistry` now surfaces user-added agents and has `byCategory`/`delete`/`duplicate`.
-  Sane defaults (the original 4 personas) ship built-in. (Follow-up: an agent-config UI for model/temp.)
+  Sane defaults (the original 4 personas) ship built-in.
+- Agent config UI ✅ — the registry modal gained an **Agents** tab beside Prompts: list of agents,
+  editor for name / emoji / description / category / system-prompt (picker) / model (blank = provider
+  default) / temperature / max-tokens, with Save · Reset-to-default (builtins) · Duplicate · Delete
+  (custom) · **+ New agent**. Per-agent model/temperature and new personas are now editable in-app;
+  instructions stay on the Prompts tab. Closes the invariant-#3 cleanup end to end.
 - Best of N / Elo ranking ✅ — `lib/Ranking.ts` (`rankVariants`): round-robin pairwise LLM judging
   (`builtin:evaluation:compare`, A/B side alternated to blunt position bias) with Elo scoring — the
   comparative counterpart to QualityGate's absolute scoring. `BestOfModal` generates N variants
