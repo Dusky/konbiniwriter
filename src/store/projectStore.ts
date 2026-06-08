@@ -24,6 +24,8 @@ interface ProjectState {
   nodeHistory: Array<{ rootIds: ID[]; nodes: Record<ID, KNode> }>
   sessionWordsAdded: number
   cursor: { line: number; col: number } | null
+  // A range to reveal+select in the editor once its doc is active (search jump).
+  pendingReveal: { docId: ID; from: number; len: number } | null
 
   // — project lifecycle —
   loadProject: (p: Project) => void
@@ -38,6 +40,7 @@ interface ProjectState {
   setFocusMode: (on: boolean) => void
   setCompositionMode: (on: boolean) => void
   setCursor: (c: { line: number; col: number } | null) => void
+  setPendingReveal: (r: { docId: ID; from: number; len: number } | null) => void
 
   // — content (THE single mutation seam) —
   updateContent: (docId: ID, content: string) => void
@@ -152,6 +155,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   autopilotRunning: false,
   autopilotCurrent: null,
   cursor: null,
+  pendingReveal: null,
 
   loadProject: (project) => set({
     project,
@@ -174,8 +178,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     splitOpen: false,
     splitId: null,
     cursor: null,
+    pendingReveal: null,
   }),
-  unloadProject: () => set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], judgeResults: new Map(), sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null }),
+  unloadProject: () => set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], judgeResults: new Map(), sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null }),
 
   selectNode: (id) => set((s) => {
     if (!id || !s.project) return { selectedId: id, cursor: null }
@@ -195,6 +200,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   setFocusMode: (focusMode) => set({ focusMode }),
   setCompositionMode: (compositionMode) => set({ compositionMode }),
   setCursor: (cursor) => set({ cursor }),
+  setPendingReveal: (pendingReveal) => set({ pendingReveal }),
 
   updateContent: (docId, content) => set((s) => {
     if (!s.project) return {}

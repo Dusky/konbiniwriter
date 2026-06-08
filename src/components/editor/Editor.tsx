@@ -45,6 +45,8 @@ export default function Editor({ docId }: Props): React.ReactElement {
   const setSlopSpans = useProjectStore((s) => s.setSlopSpans)
   const setSlopRunning = useProjectStore((s) => s.setSlopRunning)
   const setCursor = useProjectStore((s) => s.setCursor)
+  const pendingReveal = useProjectStore((s) => s.pendingReveal)
+  const setPendingReveal = useProjectStore((s) => s.setPendingReveal)
   const typewriterMode = useShellStore((s) => s.typewriterMode)
 
   const content = project?.docs[docId]?.content ?? ''
@@ -183,6 +185,22 @@ export default function Editor({ docId }: Props): React.ReactElement {
       })
     }
   }, [content, docId])
+
+  // Reveal a search hit: select the range, scroll it to center, focus.
+  useEffect(() => {
+    if (!pendingReveal || pendingReveal.docId !== docId) return
+    const view = viewRef.current
+    if (!view) return
+    const max = view.state.doc.length
+    const from = Math.min(pendingReveal.from, max)
+    const to = Math.min(from + pendingReveal.len, max)
+    view.dispatch({
+      selection: { anchor: from, head: to },
+      effects: EditorView.scrollIntoView(from, { y: 'center' }),
+    })
+    view.focus()
+    setPendingReveal(null)
+  }, [pendingReveal, docId, content, setPendingReveal])
 
   // Wikilink hover tooltip
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
