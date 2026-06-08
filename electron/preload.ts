@@ -149,6 +149,11 @@ const api: KonbiniAPI = {
     maximize: () => { ipcRenderer.invoke('shell:maximize') },
     close: () => { ipcRenderer.invoke('shell:close') },
     isMaximized: () => ipcRenderer.invoke('shell:isMaximized'),
+    onMaximizeChange: (cb: (maximized: boolean) => void) => {
+      const handler = (_e: unknown, maximized: boolean) => cb(maximized)
+      ipcRenderer.on('shell:maximized', handler)
+      return () => { ipcRenderer.removeListener('shell:maximized', handler) }
+    },
   },
 }
 

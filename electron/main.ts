@@ -16,7 +16,7 @@ function createWindow(): void {
     width: 1400,
     height: 900,
     minWidth: 900,
-    minHeight: 600,
+    minHeight: 640,       // keeps the 560px launch card clear of the 32px drag strip
     frame: false,         // custom titlebar
     titleBarStyle: 'hidden',
     backgroundColor: '#1a1a1f',
@@ -34,6 +34,11 @@ function createWindow(): void {
   } else {
     win.loadFile(path.join(__dirname, '../dist/index.html'))
   }
+
+  // Push maximize state to the renderer so window controls stay in sync no matter
+  // how the window was (un)maximized — button, OS shortcut, or titlebar double-click.
+  win.on('maximize', () => win?.webContents.send('shell:maximized', true))
+  win.on('unmaximize', () => win?.webContents.send('shell:maximized', false))
 
   win.on('closed', () => { win = null })
 }

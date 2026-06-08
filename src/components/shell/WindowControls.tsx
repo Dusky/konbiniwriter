@@ -11,14 +11,15 @@ export default function WindowControls(): React.ReactElement | null {
 
   useEffect(() => {
     shell?.isMaximized?.().then(setMaximized).catch(() => {})
+    // Stay in sync with maximize/unmaximize from any source (OS shortcut, drag,
+    // double-click) — not just our own button.
+    return shell?.onMaximizeChange?.(setMaximized)
   }, [shell])
 
   if (!isElectron || !shell || shell.platform === 'darwin') return null
 
-  const onMax = () => {
-    shell.maximize()
-    setMaximized((m) => !m)
-  }
+  // State is driven by the main-process event; the button just requests the toggle.
+  const onMax = () => shell.maximize()
 
   return (
     <div className="win-controls">

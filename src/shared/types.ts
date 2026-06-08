@@ -315,5 +315,7 @@ export interface KonbiniAPI {
     maximize(): void
     close(): void
     isMaximized(): Promise<boolean>
+    /** Subscribe to maximize/unmaximize from any source (button, OS, double-click). Returns an unsubscribe fn. */
+    onMaximizeChange?(cb: (maximized: boolean) => void): () => void
   }
 }

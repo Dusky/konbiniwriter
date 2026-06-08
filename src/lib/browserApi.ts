@@ -92,6 +92,7 @@ const api: KonbiniAPI = {
     maximize: () => {},
     close: () => window.close(),
     isMaximized: async () => false,
+    onMaximizeChange: () => () => {},
   },
 }
 

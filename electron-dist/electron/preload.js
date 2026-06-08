@@ -164,6 +164,11 @@ const api = {
         maximize: () => { electron_1.ipcRenderer.invoke('shell:maximize'); },
         close: () => { electron_1.ipcRenderer.invoke('shell:close'); },
         isMaximized: () => electron_1.ipcRenderer.invoke('shell:isMaximized'),
+        onMaximizeChange: (cb) => {
+            const handler = (_e, maximized) => cb(maximized);
+            electron_1.ipcRenderer.on('shell:maximized', handler);
+            return () => { electron_1.ipcRenderer.removeListener('shell:maximized', handler); };
+        },
     },
 };
 electron_1.contextBridge.exposeInMainWorld('api', api);

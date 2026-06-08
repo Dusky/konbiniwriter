@@ -64,14 +64,14 @@ Same "no way to close / lose work on a stray action" family as the window bug.
   Critic now have inert backdrops (dismiss via their explicit Cancel/Close), so a
   misclick can't wipe generated concept/variants/critique.
 
-**Remaining sweep notes (minor, not yet fixed):**
-- `WindowControls` maximize glyph can desync if the window is maximized via OS
-  double-click/shortcut (state only polled on mount). Cosmetic.
-- Launch `.win-bar` drag strip could clip the top ~32px of `.launch-win` on very
-  short windows (< ~620px tall); no interactive element sits there in the common
-  case. Low likelihood.
+**Remaining sweep notes:**
+- `WindowControls` maximize-glyph desync — ✅ FIXED: main now emits
+  `maximize`/`unmaximize` events (`shell.onMaximizeChange`); the glyph stays in
+  sync regardless of how the window was (un)maximized.
+- Launch `.win-bar` drag-strip clip on short windows — ✅ FIXED: min window
+  height bumped to 640 so the centered 560px launch card clears the 32px strip.
 - `ReaderModal` still closes on backdrop click (results are cheap/re-runnable —
-  left as-is for now).
+  left as-is by choice).
 
 ---
 
