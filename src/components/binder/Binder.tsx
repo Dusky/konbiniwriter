@@ -20,6 +20,10 @@ export default function Binder(): React.ReactElement {
   const selectNode = useProjectStore((s) => s.selectNode)
   const applyMutation = useProjectStore((s) => s.applyMutation)
   const setRenamingId = useProjectStore((s) => s.setRenamingId)
+  const undoMutation = useProjectStore((s) => s.undoMutation)
+  const redoMutation = useProjectStore((s) => s.redoMutation)
+  const canUndo = useProjectStore((s) => s.nodeHistory.length > 0)
+  const canRedo = useProjectStore((s) => s.nodeFuture.length > 0)
   const setModal = useShellStore((s) => s.setModal)
 
   const [ctx, setCtx] = useState<{ x: number; y: number; id: ID } | null>(null)
@@ -214,6 +218,8 @@ export default function Binder(): React.ReactElement {
           mutate({ type: 'create', parentId, nodeType: 'document' })
         }}>+</button>
         <button className="icon-btn" title="New Folder (⌘⌥N)" onClick={() => mutate({ type: 'create', parentId: null, nodeType: 'folder' })}>📁</button>
+        <button className="icon-btn" title="Undo (⌘Z)" disabled={!canUndo} onClick={() => undoMutation()}>↶</button>
+        <button className="icon-btn" title="Redo (⌘⇧Z)" disabled={!canRedo} onClick={() => redoMutation()}>↷</button>
         <span style={{ flex: 1 }} />
         <button className="icon-btn" title="Delete / Trash" onClick={() => selectedId && mutate({ type: 'trash', id: selectedId })}>🗑</button>
       </div>

@@ -465,7 +465,10 @@ These are structural guarantees, not conventions. Violating any of them breaks a
   model which referenced Codex facts the prose contradicts; each flag becomes a canon-layer
   DebtItem with a draft-fix that reconciles prose → canon. Opt-in (manual trigger) — no
   per-apply API cost.
-- Remaining: cross-layer debt (voice drift), deeper structural undo
+- Structural undo/redo ✅ — past/future stacks in `projectStore`; ⌘Z / ⌘⇧Z / ⌘Y (when the
+  editor isn't focused), binder footer buttons + command palette. Persisted through a new
+  `setTree` node op so store, service, and on-disk manifest stay in sync (docs/content untouched).
+- Remaining: cross-layer debt (voice drift)
 
 ### Phase 4 — Autopilot 🔲 STARTED (basic runner shipped)
 - `AutopilotRunner`: sequential node processing through changeset review ✅

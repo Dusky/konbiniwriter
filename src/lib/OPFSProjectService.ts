@@ -260,6 +260,11 @@ export class OPFSProjectService {
       case 'setExpanded':
         if (p.nodes[op.id]) p.nodes[op.id].expanded = op.expanded
         break
+      case 'setTree':
+        // Undo/redo: replace the whole tree; docs are left untouched.
+        p.rootIds = op.rootIds
+        p.nodes = op.nodes
+        break
     }
   }
 

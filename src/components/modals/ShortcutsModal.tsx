@@ -20,6 +20,7 @@ const SHORTCUTS = [
     rows: [
       ['Undo Text', 'mod+z'],
       ['Undo Tree Change', 'mod+z'],
+      ['Redo Tree Change', 'mod+shift+z'],
       ['Find in Document', 'mod+f'],
       ['Search Project', 'mod+shift+f'],
     ],

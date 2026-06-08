@@ -23,6 +23,7 @@ interface ProjectState {
   slopSpans: import('../components/editor/extensions').SlopSpan[]
   slopRunning: boolean
   nodeHistory: Array<{ rootIds: ID[]; nodes: Record<ID, KNode> }>
+  nodeFuture: Array<{ rootIds: ID[]; nodes: Record<ID, KNode> }>
   sessionWordsAdded: number
   cursor: { line: number; col: number } | null
   // A range to reveal+select in the editor once its doc is active (search jump).
@@ -50,6 +51,7 @@ interface ProjectState {
   // — structural mutations (optimistic; caller also calls IPC async) —
   applyMutation: (result: { rootIds: ID[]; nodes: Record<ID, KNode>; docs: Record<ID, DocBody> }) => void
   undoMutation: () => boolean   // returns true if undo was available
+  redoMutation: () => boolean   // returns true if redo was available
   updateMeta: (nodeId: ID, patch: Partial<DocMeta>) => void
   setProjectTitle: (title: string) => void
 
@@ -156,6 +158,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   slopSpans: [],
   slopRunning: false,
   nodeHistory: [],
+  nodeFuture: [],
   judgeResults: new Map(),
   sessionWordsAdded: 0,
   autopilotQueue: [],
@@ -176,6 +179,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     proposals: [],
     activeProposalId: null,
     nodeHistory: [],
+    nodeFuture: [],
     judgeResults: new Map(),
     sessionWordsAdded: 0,
     autopilotQueue: [],
@@ -188,7 +192,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     cursor: null,
     pendingReveal: null,
   }),
-  unloadProject: () => set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], debt: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], judgeResults: new Map(), sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null }),
+  unloadProject: () => set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], debt: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], nodeFuture: [], judgeResults: new Map(), sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null }),
 
   selectNode: (id) => set((s) => {
     if (!id || !s.project) return { selectedId: id, cursor: null }
@@ -238,17 +242,38 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     if (!s.project) return {}
     const snapshot = { rootIds: s.project.rootIds, nodes: s.project.nodes }
     const history = [...s.nodeHistory, snapshot].slice(-50)
-    return { project: { ...s.project, rootIds, nodes, docs }, nodeHistory: history }
+    // A fresh mutation invalidates the redo stack.
+    return { project: { ...s.project, rootIds, nodes, docs }, nodeHistory: history, nodeFuture: [] }
   }),
 
+  // Undo/redo move whole-tree snapshots between the past/future stacks and
+  // persist the restored tree through the `setTree` op so the in-memory store,
+  // the project service, and the on-disk manifest stay in sync. Document
+  // content is untouched (only structure changes).
   undoMutation: () => {
     const s = get()
     if (!s.project || s.nodeHistory.length === 0) return false
     const prev = s.nodeHistory[s.nodeHistory.length - 1]
+    const current = { rootIds: s.project.rootIds, nodes: s.project.nodes }
     set({
       project: { ...s.project, rootIds: prev.rootIds, nodes: prev.nodes },
       nodeHistory: s.nodeHistory.slice(0, -1),
+      nodeFuture: [...s.nodeFuture, current],
     })
+    window.api.node.mutate(s.project.id, { type: 'setTree', rootIds: prev.rootIds, nodes: prev.nodes }).catch(console.error)
+    return true
+  },
+  redoMutation: () => {
+    const s = get()
+    if (!s.project || s.nodeFuture.length === 0) return false
+    const next = s.nodeFuture[s.nodeFuture.length - 1]
+    const current = { rootIds: s.project.rootIds, nodes: s.project.nodes }
+    set({
+      project: { ...s.project, rootIds: next.rootIds, nodes: next.nodes },
+      nodeFuture: s.nodeFuture.slice(0, -1),
+      nodeHistory: [...s.nodeHistory, current].slice(-50),
+    })
+    window.api.node.mutate(s.project.id, { type: 'setTree', rootIds: next.rootIds, nodes: next.nodes }).catch(console.error)
     return true
   },
 

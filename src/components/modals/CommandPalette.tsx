@@ -84,6 +84,9 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
     }
 
     const cmds: Command[] = [
+      // Edit
+      { id: 'undo', label: 'Undo Tree Change', section: 'Edit', hint: '⌘Z', run: () => proj.undoMutation() },
+      { id: 'redo', label: 'Redo Tree Change', section: 'Edit', hint: '⌘⇧Z', run: () => proj.redoMutation() },
       // Views
       { id: 'view-editor', label: 'View: Editor', section: 'View', hint: '⌘1', run: () => proj.setView('editor') },
       { id: 'view-corkboard', label: 'View: Corkboard', section: 'View', hint: '⌘2', run: () => proj.setView('corkboard') },

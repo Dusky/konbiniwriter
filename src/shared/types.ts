@@ -143,6 +143,7 @@ export type NodeOp =
   | { type: 'updateMeta'; id: ID; patch: Partial<DocMeta> }
   | { type: 'setExpanded'; id: ID; expanded: boolean }
   | { type: 'setProjectTitle'; title: string }
+  | { type: 'setTree'; rootIds: ID[]; nodes: Record<ID, KNode> }  // undo/redo restore
 
 // ── Proposal / Changeset (Phase 2 spine — defined here so the seam is clear) ─
 

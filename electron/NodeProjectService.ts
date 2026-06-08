@@ -202,6 +202,11 @@ export class NodeProjectService {
       case 'setExpanded':
         if (proj.nodes[op.id]) proj.nodes[op.id].expanded = op.expanded
         break
+      case 'setTree':
+        // Undo/redo: replace the whole tree; docs are left untouched.
+        proj.rootIds = op.rootIds
+        proj.nodes = op.nodes
+        break
     }
   }
 

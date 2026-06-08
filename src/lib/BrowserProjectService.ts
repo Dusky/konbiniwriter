@@ -323,6 +323,12 @@ export class BrowserProjectService {
       case 'setExpanded':
         if (p.nodes[op.id]) p.nodes[op.id].expanded = op.expanded
         break
+      case 'setTree':
+        // Undo/redo: replace the whole tree. Docs are untouched (content edits
+        // are preserved); orphaned doc files from a prior delete aren't revived.
+        p.rootIds = op.rootIds
+        p.nodes = op.nodes
+        break
     }
   }
 

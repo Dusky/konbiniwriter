@@ -20,6 +20,7 @@ export default function App(): React.ReactElement {
   const unloadProject = useProjectStore((s) => s.unloadProject)
   const applyMutation = useProjectStore((s) => s.applyMutation)
   const undoMutation = useProjectStore((s) => s.undoMutation)
+  const redoMutation = useProjectStore((s) => s.redoMutation)
   const selectNode = useProjectStore((s) => s.selectNode)
   const setRenamingId = useProjectStore((s) => s.setRenamingId)
   const project = useProjectStore((s) => s.project)
@@ -49,13 +50,15 @@ export default function App(): React.ReactElement {
     const alt = e.altKey
     if (!mod) return
 
-    // Structural undo (node ops) — only when editor is NOT focused (CM6 handles its own undo)
-    if (!shift && !alt && e.key === 'z') {
-      const tag = (document.activeElement as HTMLElement)?.tagName
-      const isCM = document.activeElement?.closest('.cm-editor')
-      if (!isCM && tag !== 'INPUT' && tag !== 'TEXTAREA') {
-        if (undoMutation()) e.preventDefault()
-      }
+    // Structural undo/redo (node ops) — only when editor is NOT focused (CM6
+    // handles its own text undo/redo).
+    const tag = (document.activeElement as HTMLElement)?.tagName
+    const inField = !!document.activeElement?.closest('.cm-editor') || tag === 'INPUT' || tag === 'TEXTAREA'
+    if (!inField && !alt && e.key === 'z') {
+      if (shift ? redoMutation() : undoMutation()) e.preventDefault()
+    }
+    if (!inField && !alt && e.key === 'y') {
+      if (redoMutation()) e.preventDefault()
     }
 
     // Navigation & layout
@@ -116,7 +119,7 @@ export default function App(): React.ReactElement {
       setScreen('launch')
       window.api.project.recents().then(setRecents).catch(console.error)
     }
-  }, [theme, project, screen, createNode, undoMutation, toggleSplit])
+  }, [theme, project, screen, createNode, undoMutation, redoMutation, toggleSplit])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKey)
