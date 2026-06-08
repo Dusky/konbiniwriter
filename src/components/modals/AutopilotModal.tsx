@@ -36,6 +36,8 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
   const setAutopilotQueue = useProjectStore((s) => s.setAutopilotQueue)
   const setAutopilotRunning = useProjectStore((s) => s.setAutopilotRunning)
   const setAutopilotCurrent = useProjectStore((s) => s.setAutopilotCurrent)
+  const autopilotPreset = useProjectStore((s) => s.autopilotPreset)
+  const setAutopilotPreset = useProjectStore((s) => s.setAutopilotPreset)
 
   const [phase, setPhase] = useState<Phase>('config')
   const [checked, setChecked] = useState<Record<ID, boolean>>({})
@@ -62,10 +64,19 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
 
   useEffect(() => {
     if (!project) return
+    // Arriving from a Foundation scaffold? Pre-select only those chapters and
+    // default to a drafting prompt so the run is one click.
+    const presetSet = autopilotPreset.length > 0 ? new Set(autopilotPreset) : null
     const initial: Record<ID, boolean> = {}
-    for (const { id } of nodeList) initial[id] = true
+    for (const { id } of nodeList) initial[id] = presetSet ? presetSet.has(id) : true
     setChecked(initial)
-    if (allPrompts.length > 0) setPromptId(allPrompts[0].id)
+    if (allPrompts.length > 0) {
+      const draftPrompt = presetSet
+        ? (allPrompts.find((p) => /chapter-draft/.test(p.id)) ?? allPrompts.find((p) => gateEligibleFor(p)))
+        : undefined
+      setPromptId((draftPrompt ?? allPrompts[0]).id)
+    }
+    if (presetSet) setAutopilotPreset([]) // consume — a later open should select all
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-scroll stream box

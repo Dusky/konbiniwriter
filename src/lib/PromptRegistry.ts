@@ -534,6 +534,30 @@ Produce an improved chapter-by-chapter outline that addresses every editor note 
     modifiedAt: ISO(),
   },
   {
+    id: 'builtin:foundation:outline-parse',
+    name: 'Foundation · Parse Outline',
+    description: 'Convert an outline into a structured chapter list for scaffolding.',
+    feature: 'autopilot',
+    phase: 'foundation',
+    model: 'claude-sonnet-4-6',
+    temperature: 0.2,
+    maxTokens: 4000,
+    template: `You are converting a novel outline into a structured chapter list.
+
+<outline>
+{{outline}}
+</outline>
+
+Return a JSON array, one object per chapter, IN ORDER:
+[{ "title": "<chapter heading, e.g. 'Chapter 1 — The Cartographer'>", "synopsis": "<a 1–3 sentence brief a writer can draft this chapter from: what happens and what changes>" }]
+
+Preserve the outline's chapters exactly — do not invent, merge, or drop chapters. Return ONLY valid JSON.`,
+    variables: [{ name: 'outline', description: 'The outline markdown to parse' }],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
     id: 'builtin:foundation:codex',
     name: 'Foundation · Cast → Codex',
     description: 'Extract structured character records (for the Codex) from a cast description.',

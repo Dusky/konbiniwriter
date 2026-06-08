@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useProjectStore } from '../../store/projectStore'
+import { useShellStore } from '../../store/shellStore'
 import { useAIStore } from '../../store/aiStore'
 import { promptRegistry } from '../../lib/PromptRegistry'
 import { createProposal } from '../../lib/ProposalService'
@@ -29,6 +30,8 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
   const queueProposal = useProjectStore((s) => s.queueProposal)
   const upsertCodexEntry = useProjectStore((s) => s.upsertCodexEntry)
   const setVoiceFingerprint = useProjectStore((s) => s.setVoiceFingerprint)
+  const setAutopilotPreset = useProjectStore((s) => s.setAutopilotPreset)
+  const setModal = useShellStore((s) => s.setModal)
   const aiEnabled = useAIStore((s) => s.enabled)
 
   const [seed, setSeed] = useState('')
@@ -178,14 +181,49 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
 
   const saveVoice = () => { setVoiceFingerprint(voice.trim()); setVoiceSaved(true) }
 
-  // Reuse an existing root "Foundation" folder, else create one.
-  const ensureFolder = async (): Promise<ID> => {
+  // Reuse an existing root folder with this title, else create one.
+  const ensureFolder = async (title: string): Promise<ID> => {
     const p = useProjectStore.getState().project!
-    const existing = p.rootIds.map((id) => p.nodes[id]).find((n) => n?.type === 'folder' && n.title === 'Foundation')
+    const existing = p.rootIds.map((id) => p.nodes[id]).find((n) => n?.type === 'folder' && n.title === title)
     if (existing) return existing.id
-    const r = await window.api.node.mutate(p.id, { type: 'create', parentId: null, nodeType: 'folder', title: 'Foundation' })
+    const r = await window.api.node.mutate(p.id, { type: 'create', parentId: null, nodeType: 'folder', title })
     applyMutation(r)
     return Object.values(r.nodes).find((n) => n.ext['_newId'])!.id
+  }
+
+  // Parse the outline into chapters, scaffold a doc per chapter (title +
+  // synopsis) under a "Manuscript" folder, then hand the new nodes to the
+  // Autopilot runner pre-selected for gated drafting.
+  const scaffoldAndDraft = async () => {
+    if (running || sending || !text.outline.trim()) return
+    setSending(true); setError(null)
+    try {
+      const raw = await gen('builtin:foundation:outline-parse', { outline: text.outline }, () => {})
+      let chapters: Array<{ title?: string; synopsis?: string }> = []
+      try { chapters = JSON.parse(raw.match(/\[[\s\S]*\]/)?.[0] ?? '[]') } catch { chapters = [] }
+      chapters = chapters.filter((c) => c.title?.trim())
+      if (chapters.length === 0) { setError('Could not parse any chapters from the outline.'); setSending(false); return }
+
+      const folderId = await ensureFolder('Manuscript')
+      const ids: ID[] = []
+      for (const ch of chapters) {
+        const pid = useProjectStore.getState().project!.id
+        const r = await window.api.node.mutate(pid, { type: 'create', parentId: folderId, nodeType: 'document', title: ch.title!.trim() })
+        applyMutation(r)
+        const id = Object.values(r.nodes).find((n) => n.ext['_newId'])!.id
+        if (ch.synopsis?.trim()) {
+          applyMutation(await window.api.node.mutate(pid, { type: 'updateMeta', id, patch: { synopsis: ch.synopsis.trim() } }))
+        }
+        ids.push(id)
+      }
+
+      setAutopilotPreset(ids)
+      onClose()
+      setModal('autopilot')
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') setError(`Scaffold failed: ${(e as Error).message}`)
+      setSending(false)
+    }
   }
 
   const createDocProposal = async (folderId: ID, title: string, content: string) => {
@@ -233,7 +271,7 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
     setSending(true)
     setError(null)
     try {
-      const folderId = await ensureFolder()
+      const folderId = await ensureFolder('Foundation')
       for (const step of STEPS) {
         if (text[step.id].trim()) await createDocProposal(folderId, step.docTitle, text[step.id])
       }
@@ -326,6 +364,15 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
                 </label>
                 <button className="btn sm" disabled={!!running || sending || !text.outline.trim()} onClick={runGate}>
                   {running === 'gate' ? 'Scoring…' : 'Score outline'}
+                </button>
+                <button
+                  className="btn sm"
+                  disabled={!!running || sending || !text.outline.trim()}
+                  onClick={scaffoldAndDraft}
+                  title="Create a document per chapter and open the Autopilot drafter on them"
+                  style={{ background: 'var(--accent)', color: 'var(--accent-fg)', borderColor: 'transparent' }}
+                >
+                  {sending ? 'Scaffolding…' : 'Scaffold → draft'}
                 </button>
               </div>
               {gate && (gate.rounds > 0 || gate.issues.length > 0 || gate.suggestions.length > 0) && (

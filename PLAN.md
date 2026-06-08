@@ -477,6 +477,11 @@ These are structural guarantees, not conventions. Violating any of them breaks a
   indicator, falls back to the ungated draft on gate error. This is the produce → gate → advance
   pipeline: Foundation lays down outline/voice/canon, the runner drafts each scene against them and
   won't surface a draft for review until it clears the bar. Toggle in the runner config.
+- Outline → scaffold → draft handoff ✅ — "Scaffold → draft" in `FoundationModal` parses the gated
+  outline (`builtin:foundation:outline-parse`) into chapters, creates a document per chapter
+  (title + synopsis metadata) under a **Manuscript** folder, then opens the Autopilot runner
+  pre-selected on those nodes with the chapter drafter chosen (via `autopilotPreset`). One path from
+  seed → foundation → a folder of gated chapter drafts. Chapter prose still arrives as proposals.
 - Foundation (v1) ✅ — `FoundationModal`: seed → concept → world bible → cast, chained in-memory
   (each step feeds the next), editable previews, registry prompts `builtin:foundation:*`. "Send to
   project" creates a **Foundation** folder + a doc per part and queues each as a proposal

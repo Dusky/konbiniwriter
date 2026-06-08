@@ -93,9 +93,11 @@ interface ProjectState {
   autopilotQueue: string[]
   autopilotRunning: boolean
   autopilotCurrent: string | null
+  autopilotPreset: string[]        // node IDs to pre-select in the runner (e.g. scaffolded chapters)
   setAutopilotQueue: (ids: string[]) => void
   setAutopilotRunning: (on: boolean) => void
   setAutopilotCurrent: (id: string | null) => void
+  setAutopilotPreset: (ids: string[]) => void
 }
 
 // ── tree utilities (renderer-local, no disk access) ──────────────────────────
@@ -165,6 +167,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   autopilotQueue: [],
   autopilotRunning: false,
   autopilotCurrent: null,
+  autopilotPreset: [],
   cursor: null,
   pendingReveal: null,
 
@@ -186,6 +189,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     autopilotQueue: [],
     autopilotRunning: false,
     autopilotCurrent: null,
+    autopilotPreset: [],
     focusMode: false,
     compositionMode: false,
     splitOpen: false,
@@ -193,7 +197,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     cursor: null,
     pendingReveal: null,
   }),
-  unloadProject: () => set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], debt: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], nodeFuture: [], judgeResults: new Map(), sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null }),
+  unloadProject: () => set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], debt: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], nodeFuture: [], judgeResults: new Map(), sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, autopilotPreset: [], focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null }),
 
   selectNode: (id) => set((s) => {
     if (!id || !s.project) return { selectedId: id, cursor: null }
@@ -378,6 +382,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   setAutopilotQueue: (autopilotQueue) => set({ autopilotQueue }),
   setAutopilotRunning: (autopilotRunning) => set({ autopilotRunning }),
   setAutopilotCurrent: (autopilotCurrent) => set({ autopilotCurrent }),
+  setAutopilotPreset: (autopilotPreset) => set({ autopilotPreset }),
 
   recordWordDelta: (delta) => set((s) => ({ sessionWordsAdded: Math.max(0, s.sessionWordsAdded + delta) })),
 
