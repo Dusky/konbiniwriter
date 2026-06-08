@@ -49,14 +49,11 @@ export const useShellStore = create<ShellState>((set) => ({
   density: 'balanced',
   editorFont: 'mono',
   editorSize: 17,
-  typewriterMode: (() => {
-    try { return localStorage.getItem('pref:typewriterMode') === 'true' } catch { return false }
-  })(),
-  autoVersion: (() => {
-    try { return localStorage.getItem('pref:autoVersion') !== 'false' } catch { return true }
-  })(),
+  typewriterMode: window.api.prefs.get('pref:typewriterMode') === 'true',
+  autoVersion: window.api.prefs.get('pref:autoVersion') !== 'false',
   historyRetentionDays: (() => {
-    try { const n = parseInt(localStorage.getItem('pref:historyRetentionDays') ?? '14', 10); return isNaN(n) ? 14 : n } catch { return 14 }
+    const n = parseInt(window.api.prefs.get('pref:historyRetentionDays') ?? '14', 10)
+    return isNaN(n) ? 14 : n
   })(),
   modal: null,
   recents: [],
@@ -81,15 +78,15 @@ export const useShellStore = create<ShellState>((set) => ({
     set({ editorSize })
   },
   setTypewriterMode: (typewriterMode) => {
-    try { localStorage.setItem('pref:typewriterMode', String(typewriterMode)) } catch { /* noop */ }
+    window.api.prefs.set('pref:typewriterMode', String(typewriterMode))
     set({ typewriterMode })
   },
   setAutoVersion: (autoVersion) => {
-    try { localStorage.setItem('pref:autoVersion', String(autoVersion)) } catch { /* noop */ }
+    window.api.prefs.set('pref:autoVersion', String(autoVersion))
     set({ autoVersion })
   },
   setHistoryRetentionDays: (historyRetentionDays) => {
-    try { localStorage.setItem('pref:historyRetentionDays', String(historyRetentionDays)) } catch { /* noop */ }
+    window.api.prefs.set('pref:historyRetentionDays', String(historyRetentionDays))
     set({ historyRetentionDays })
   },
   toggleBinder: () => set((s) => ({ layout: { ...s.layout, binder: !s.layout.binder } })),

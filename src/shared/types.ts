@@ -318,4 +318,10 @@ export interface KonbiniAPI {
     /** Subscribe to maximize/unmaximize from any source (button, OS, double-click). Returns an unsubscribe fn. */
     onMaximizeChange?(cb: (maximized: boolean) => void): () => void
   }
+  /** Global key-value preference store. Synchronous so stores can hydrate at construction time. */
+  prefs: {
+    get(key: string): string | null
+    set(key: string, value: string): void
+    remove(key: string): void
+  }
 }

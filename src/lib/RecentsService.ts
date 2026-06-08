@@ -1,5 +1,5 @@
-// RecentsService — localStorage-backed recents registry.
-// Electron migration: swap localStorage for a file in userData/.
+// RecentsService — prefs-seam-backed recents registry (browser runtime).
+// Electron replaces this entirely via the preload's file-based recents.
 
 import type { RecentEntry } from '@shared/types'
 
@@ -7,11 +7,11 @@ const KEY = 'konbini_recents_v1'
 const MAX = 10
 
 function load(): RecentEntry[] {
-  try { return JSON.parse(localStorage.getItem(KEY) ?? '[]') } catch { return [] }
+  try { return JSON.parse(window.api.prefs.get(KEY) ?? '[]') } catch { return [] }
 }
 
 function save(entries: RecentEntry[]): void {
-  localStorage.setItem(KEY, JSON.stringify(entries))
+  window.api.prefs.set(KEY, JSON.stringify(entries))
 }
 
 export const recentsService = {

@@ -39,12 +39,8 @@ interface AIState {
 }
 
 const SK = 'konbini:ai'
-function load(k: string, fallback = '') {
-  try { return localStorage.getItem(k) ?? fallback } catch { return fallback }
-}
-function save(k: string, v: string) {
-  try { localStorage.setItem(k, v) } catch { /* ignore */ }
-}
+function load(k: string, fallback = '') { return window.api.prefs.get(k) ?? fallback }
+function save(k: string, v: string) { window.api.prefs.set(k, v) }
 
 export const useAIStore = create<AIState>((set) => ({
   enabled: false,

@@ -143,6 +143,12 @@ const api: KonbiniAPI = {
     run: (pid, rid, ids, fmt) => svc.compile(pid, rid, ids, fmt),
   },
 
+  prefs: {
+    get: (key: string) => { try { return localStorage.getItem(key) } catch { return null } },
+    set: (key: string, value: string) => { try { localStorage.setItem(key, value) } catch { /* noop */ } },
+    remove: (key: string) => { try { localStorage.removeItem(key) } catch { /* noop */ } },
+  },
+
   shell: {
     platform: process.platform as 'darwin' | 'win32' | 'linux',
     minimize: () => { ipcRenderer.invoke('shell:minimize') },

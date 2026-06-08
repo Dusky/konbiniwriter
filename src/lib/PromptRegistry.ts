@@ -969,14 +969,14 @@ const STORAGE_KEY_AGENTS  = 'konbini:agentRegistry'
 
 function loadFrom<T extends { id: string }>(key: string): T[] {
   try {
-    return JSON.parse(localStorage.getItem(key) ?? '[]') as T[]
+    return JSON.parse(window.api.prefs.get(key) ?? '[]') as T[]
   } catch {
     return []
   }
 }
 
 function saveTo<T>(key: string, items: T[]): void {
-  localStorage.setItem(key, JSON.stringify(items))
+  window.api.prefs.set(key, JSON.stringify(items))
 }
 
 export class PromptRegistry {

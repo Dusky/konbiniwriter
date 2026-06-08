@@ -83,6 +83,11 @@ const api: KonbiniAPI = {
   compile: {
     run: (pid, rid, ids, fmt) => svc.compile(pid, rid, ids, fmt),
   },
+  prefs: {
+    get: (key) => { try { return localStorage.getItem(key) } catch { return null } },
+    set: (key, value) => { try { localStorage.setItem(key, value) } catch { /* noop */ } },
+    remove: (key) => { try { localStorage.removeItem(key) } catch { /* noop */ } },
+  },
   // Browser has no native window chrome — no-ops here.
   // Electron preload replaces them with real IPC calls.
   shell: {
