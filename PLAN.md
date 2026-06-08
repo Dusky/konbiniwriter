@@ -477,6 +477,12 @@ These are structural guarantees, not conventions. Violating any of them breaks a
   indicator, falls back to the ungated draft on gate error. This is the produce → gate → advance
   pipeline: Foundation lays down outline/voice/canon, the runner drafts each scene against them and
   won't surface a draft for review until it clears the bar. Toggle in the runner config.
+- Spend awareness ✅ — `AIClient` now captures real token usage from both stream formats (Anthropic
+  `message_start`/`message_delta`; OpenAI `stream_options.include_usage`) and records it centrally;
+  `lib/Pricing.ts` holds list prices (Opus 4.x $5/$25, Sonnet 4.6 $3/$15, Haiku 4.5 $1/$5 per 1M;
+  null for unknown/BYOK models); `aiStore` keeps a session tally (tokens, USD, calls, unpriced).
+  Surfaced as a "Session usage" panel in AI Settings (with reset) and, in the Autopilot runner, a
+  **pre-run cost estimate** (generation + gate loop) plus **live "spent this run"** during/after a run.
 - Outline → scaffold → draft handoff ✅ — "Scaffold → draft" in `FoundationModal` parses the gated
   outline (`builtin:foundation:outline-parse`) into chapters, creates a document per chapter
   (title + synopsis metadata) under a **Manuscript** folder, then opens the Autopilot runner

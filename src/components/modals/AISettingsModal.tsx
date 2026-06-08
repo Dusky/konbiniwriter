@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useAIStore, type AIProvider } from '../../store/aiStore'
+import { formatUSD } from '../../lib/Pricing'
 
 const ANTHROPIC_MODELS = [
   { id: 'claude-opus-4-8',           label: 'Claude Opus 4.8 (best quality)' },
@@ -70,6 +71,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
     anthropicKey, setAnthropicKey, anthropicModel, setAnthropicModel,
     anthropicKeyValidated, anthropicKeyError, setAnthropicKeyValidated,
     openaiBaseUrl, setOpenaiBaseUrl, openaiKey, setOpenaiKey, openaiModel, setOpenaiModel,
+    spendInputTokens, spendOutputTokens, spendUSD, spendCalls, spendUnpriced, resetSpend,
   } = useAIStore()
 
   const [anthropicDraft, setAnthropicDraft] = useState(anthropicKey)
@@ -218,6 +220,29 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
               </Row>
             </>
           )}
+
+          <Row label="Session usage">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', fontFamily: 'var(--mono)' }}>
+                  {formatUSD(spendUSD)}
+                </span>
+                <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                  {spendCalls} call{spendCalls === 1 ? '' : 's'} · {(spendInputTokens / 1000).toFixed(1)}k in / {(spendOutputTokens / 1000).toFixed(1)}k out
+                </span>
+                <span className="tb-spacer" />
+                <button className="btn" style={{ fontSize: 12, padding: '3px 10px' }} disabled={spendCalls === 0} onClick={resetSpend}>Reset</button>
+              </div>
+              {spendUnpriced > 0 && (
+                <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                  {spendUnpriced} call{spendUnpriced === 1 ? '' : 's'} on a model with no known price — excluded from the dollar total.
+                </div>
+              )}
+              <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                Estimated from this session's API usage (resets on reload). List prices; your actual billing may differ.
+              </div>
+            </div>
+          </Row>
 
         </div>
         <div className="modal-foot">

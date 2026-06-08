@@ -1,9 +1,12 @@
 import { useAIStore } from '../store/aiStore'
 
+export interface TokenUsage { inputTokens: number; outputTokens: number }
+
 export interface StreamCallbacks {
   onChunk: (text: string) => void
   onDone: (fullText: string) => void
   onError: (err: Error) => void
+  onUsage?: (usage: TokenUsage) => void
 }
 
 export interface AIMessage {
@@ -24,18 +27,26 @@ export async function streamCompletion(
 ): Promise<void> {
   const store = useAIStore.getState()
   const { provider } = store
+  const model = opts.model ?? (provider === 'anthropic' ? store.anthropicModel : store.openaiModel)
+
+  // Intercept usage to record session spend centrally, then forward to caller.
+  const wrapped: StreamCallbacks = {
+    ...callbacks,
+    onUsage: (u) => {
+      useAIStore.getState().recordSpend(model, u.inputTokens, u.outputTokens)
+      callbacks.onUsage?.(u)
+    },
+  }
 
   if (provider === 'anthropic') {
-    const model = opts.model ?? store.anthropicModel
     await streamAnthropic(
       { apiKey: store.anthropicKey, model, messages, maxTokens: opts.maxTokens ?? 2048, temperature: opts.temperature ?? 0.7, systemPrompt: opts.systemPrompt, signal: opts.signal },
-      callbacks,
+      wrapped,
     )
   } else {
-    const model = opts.model ?? store.openaiModel
     await streamOpenAI(
       { baseUrl: store.openaiBaseUrl, apiKey: store.openaiKey, model, messages, maxTokens: opts.maxTokens ?? 2048, temperature: opts.temperature ?? 0.7, systemPrompt: opts.systemPrompt, signal: opts.signal },
-      callbacks,
+      wrapped,
     )
   }
 }
@@ -84,6 +95,8 @@ async function streamAnthropic(
 
   const decoder = new TextDecoder()
   let full = ''
+  let inputTokens = 0
+  let outputTokens = 0
 
   try {
     while (true) {
@@ -99,10 +112,21 @@ async function streamAnthropic(
           if (ev.type === 'content_block_delta' && ev.delta?.type === 'text_delta') {
             full += ev.delta.text
             cb.onChunk(ev.delta.text)
+          } else if (ev.type === 'message_start') {
+            // Initial usage: input tokens (+ any cache tokens) and a partial output count.
+            const u = ev.message?.usage
+            if (u) {
+              inputTokens = (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0)
+              outputTokens = u.output_tokens ?? 0
+            }
+          } else if (ev.type === 'message_delta' && ev.usage) {
+            // Cumulative output tokens for the message.
+            outputTokens = ev.usage.output_tokens ?? outputTokens
           }
         } catch { /* ignore malformed SSE */ }
       }
     }
+    if (inputTokens || outputTokens) cb.onUsage?.({ inputTokens, outputTokens })
     cb.onDone(full)
   } catch (e) {
     if ((e as Error).name !== 'AbortError') cb.onError(e as Error)
@@ -138,6 +162,7 @@ async function streamOpenAI(
         max_tokens: opts.maxTokens,
         temperature: opts.temperature,
         stream: true,
+        stream_options: { include_usage: true },
       }),
       signal: opts.signal,
     })
@@ -157,6 +182,8 @@ async function streamOpenAI(
 
   const decoder = new TextDecoder()
   let full = ''
+  let inputTokens = 0
+  let outputTokens = 0
 
   try {
     while (true) {
@@ -171,9 +198,15 @@ async function streamOpenAI(
           const ev = JSON.parse(data)
           const text = ev.choices?.[0]?.delta?.content
           if (text) { full += text; cb.onChunk(text) }
+          // Final usage chunk (stream_options.include_usage); usually has empty choices.
+          if (ev.usage) {
+            inputTokens = ev.usage.prompt_tokens ?? inputTokens
+            outputTokens = ev.usage.completion_tokens ?? outputTokens
+          }
         } catch { /* ignore malformed SSE */ }
       }
     }
+    if (inputTokens || outputTokens) cb.onUsage?.({ inputTokens, outputTokens })
     cb.onDone(full)
   } catch (e) {
     if ((e as Error).name !== 'AbortError') cb.onError(e as Error)

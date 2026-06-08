@@ -1,10 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useMemo } from 'react'
 import { useProjectStore } from '../../store/projectStore'
+import { useAIStore } from '../../store/aiStore'
 import { promptRegistry } from '../../lib/PromptRegistry'
-import { buildContext, renderContext } from '../../lib/ContextBuilder'
+import { buildContext, renderContext, estimateTokens } from '../../lib/ContextBuilder'
 import { createProposal } from '../../lib/ProposalService'
 import { streamCompletion } from '../../lib/AIClient'
 import { runQualityGate } from '../../lib/QualityGate'
+import { costOf, formatUSD } from '../../lib/Pricing'
 import type { ID, PromptTemplate } from '@shared/types'
 
 // The gate scores prose craft, so it only makes sense for drafting prompts.
@@ -38,6 +40,8 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
   const setAutopilotCurrent = useProjectStore((s) => s.setAutopilotCurrent)
   const autopilotPreset = useProjectStore((s) => s.autopilotPreset)
   const setAutopilotPreset = useProjectStore((s) => s.setAutopilotPreset)
+  const aiModel = useAIStore((s) => (s.provider === 'anthropic' ? s.anthropicModel : s.openaiModel))
+  const spendUSD = useAIStore((s) => s.spendUSD)
 
   const [phase, setPhase] = useState<Phase>('config')
   const [checked, setChecked] = useState<Record<ID, boolean>>({})
@@ -52,6 +56,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
   const stopped = useRef(false)
   const abortRef = useRef<AbortController>(new AbortController())
   const streamBoxRef = useRef<HTMLPreElement>(null)
+  const runStartSpend = useRef(0)
 
   // Populate available prompts
   const allPrompts: PromptTemplate[] = (() => {
@@ -91,6 +96,33 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
   const checkedIds = nodeList.filter(({ id }) => checked[id]).map(({ id }) => id)
   const canRun = checkedIds.length > 0 && promptId !== ''
   const gateEligible = gateEligibleFor(allPrompts.find((p) => p.id === promptId))
+  const gateOn = useGate && gateEligible
+
+  // Rough pre-run cost estimate: generation per scene, plus the gate's
+  // score → revise → score loop (assume ~1 revision round). List prices.
+  const checkedKey = checkedIds.join(',')
+  const estimate = useMemo(() => {
+    if (!project || checkedIds.length === 0) return null
+    const tmpl = promptRegistry.get(promptId)
+    const outPer = tmpl?.maxTokens ?? 2000
+    const GATE_OUT = 1500
+    let inTok = 0
+    let outTok = 0
+    for (const id of checkedIds) {
+      const node = project.nodes[id]
+      const baseIn = estimateTokens(renderContext(buildContext(project, mentionIndex, id, 'autopilot')))
+        + estimateTokens(node?.meta.synopsis ?? '') + 300
+      inTok += baseIn; outTok += outPer
+      if (gateOn) {
+        // score + revise + score, each seeing the ~draft-sized document
+        const draft = outPer
+        inTok += 3 * (baseIn + draft)
+        outTok += 2 * GATE_OUT + draft
+      }
+    }
+    return { inTok, outTok, cost: costOf(aiModel, inTok, outTok) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkedKey, promptId, gateOn, aiModel, project])
 
   const runPipeline = async (nodeIds: ID[], selectedPromptId: string) => {
     setPhase('running')
@@ -208,6 +240,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
     stopped.current = false
     abortRef.current = new AbortController()
     setPipelineError(null)
+    runStartSpend.current = useAIStore.getState().spendUSD
     void runPipeline(checkedIds, promptId)
   }
 
@@ -288,7 +321,11 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
             </div>
 
             <div className="modal-foot">
-              <span style={{ fontSize: 11, color: 'var(--text-3)' }}>Results open in Changeset Review</span>
+              <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                {estimate
+                  ? <>Est. {estimate.cost != null ? `~${formatUSD(estimate.cost)}` : '— (unpriced model)'} · ~{Math.round((estimate.inTok + estimate.outTok) / 1000)}k tokens{gateOn ? ' incl. gate' : ''}</>
+                  : 'Results open in Changeset Review'}
+              </span>
               <span className="tb-spacer" />
               <button className="btn" onClick={onClose}>Cancel</button>
               <button
@@ -311,6 +348,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
                 Scene {currentIndex + 1} of {totalCount} — <strong>{currentNodeTitle}</strong>
               </div>
               {gateStatus && <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>{gateStatus}</div>}
+              <div style={{ fontSize: 11, color: 'var(--text-3)' }}>Spent this run: <strong style={{ fontFamily: 'var(--mono)' }}>{formatUSD(Math.max(0, spendUSD - runStartSpend.current))}</strong></div>
 
               {/* Progress bar */}
               <div style={{ height: 6, background: 'var(--bg-3)', borderRadius: 3, overflow: 'hidden' }}>
@@ -366,7 +404,8 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
           <>
             <div className="modal-body">
               <div style={{ fontSize: 14, color: 'var(--text)', textAlign: 'center', padding: '20px 0' }}>
-                All scenes processed.
+                All scenes processed.<br />
+                <span style={{ fontSize: 12, color: 'var(--text-3)' }}>Spent this run: {formatUSD(Math.max(0, spendUSD - runStartSpend.current))}</span>
               </div>
             </div>
             <div className="modal-foot">
