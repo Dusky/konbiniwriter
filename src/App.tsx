@@ -48,6 +48,19 @@ export default function App(): React.ReactElement {
     const mod = e.metaKey || e.ctrlKey
     const shift = e.shiftKey
     const alt = e.altKey
+
+    // Escape closes the open modal. Generative modals (which hold expensive,
+    // unsaved AI output) and the palette/search (own their Escape) are excluded
+    // so a stray Escape can't silently discard work.
+    if (e.key === 'Escape') {
+      const open = useShellStore.getState().modal
+      if (open && !['foundation', 'bestof', 'critic', 'command-palette', 'search'].includes(open)) {
+        e.preventDefault()
+        setModal(null)
+      }
+      return
+    }
+
     if (!mod) return
 
     // Structural undo/redo (node ops) — only when editor is NOT focused (CM6

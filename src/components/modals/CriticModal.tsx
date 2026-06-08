@@ -110,7 +110,8 @@ export default function CriticModal({ onClose }: Props): React.ReactElement {
   const selectedCount = notes.filter((n) => n.on).length
 
   return (
-    <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && !busy && onClose()}>
+    // Inert backdrop — critique notes are only dismissed via Close.
+    <div className="modal-bg">
       <div className="modal" style={{ maxWidth: 620, maxHeight: '88vh', display: 'flex', flexDirection: 'column' }} role="dialog" aria-modal="true" aria-label="Critic">
         <div className="modal-hd" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <h3>Critic</h3>

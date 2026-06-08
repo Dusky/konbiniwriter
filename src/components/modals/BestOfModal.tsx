@@ -114,7 +114,8 @@ export default function BestOfModal({ onClose }: Props): React.ReactElement {
   const stop = () => { abortRef.current?.abort(); setPhase('config') }
 
   return (
-    <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && phase !== 'generating' && phase !== 'ranking' && onClose()}>
+    // Inert backdrop — ranked variants are only dismissed via Close.
+    <div className="modal-bg">
       <div className="modal" style={{ maxWidth: 640, maxHeight: '88vh', display: 'flex', flexDirection: 'column' }} role="dialog" aria-modal="true" aria-label="Best of N">
         <div className="modal-hd" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <h3>Best of N</h3>

@@ -330,7 +330,8 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
   }
 
   return (
-    <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    // Inert backdrop — generated foundation content is only dismissed via Cancel.
+    <div className="modal-bg">
       <div className="modal" style={{ maxWidth: 640, maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} role="dialog" aria-modal="true" aria-label="Foundation">
         <div className="modal-hd" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <h3>Foundation</h3>

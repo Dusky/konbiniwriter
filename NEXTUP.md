@@ -50,6 +50,29 @@ from there the app is unquittable — only Alt+F4 (or ⌘Q) works.
   still render on mac — verify per-platform so controls don't double up.
 </details>
 
+### 2. UX-bug sweep (modal close/escape behavior) — ✅ FIXED
+Same "no way to close / lose work on a stray action" family as the window bug.
+- **ChangesetModal discarded the proposal on backdrop click** (`onClick … onDiscard`).
+  A stray click outside a review threw away the generated (often gated/expensive)
+  draft — and in an Autopilot run, advanced past that scene. Backdrop is now inert;
+  Apply/Discard must be explicit. (`ChangesetModal.tsx`)
+- **No Escape-to-close anywhere** — `App.tsx` `handleKey` bailed on `!mod` before
+  Escape was ever read; only CommandPalette/SearchModal handled it. Added a global
+  Escape → `setModal(null)`, excluding the generative modals (foundation/bestof/
+  critic — hold unsaved AI output) and palette/search (own their Escape).
+- **Generative modals lost content on a backdrop click** — Foundation / BestOf /
+  Critic now have inert backdrops (dismiss via their explicit Cancel/Close), so a
+  misclick can't wipe generated concept/variants/critique.
+
+**Remaining sweep notes (minor, not yet fixed):**
+- `WindowControls` maximize glyph can desync if the window is maximized via OS
+  double-click/shortcut (state only polled on mount). Cosmetic.
+- Launch `.win-bar` drag strip could clip the top ~32px of `.launch-win` on very
+  short windows (< ~620px tall); no interactive element sits there in the common
+  case. Low likelihood.
+- `ReaderModal` still closes on backdrop click (results are cheap/re-runnable —
+  left as-is for now).
+
 ---
 
 ## P1 — Depth / features flagged but not built
