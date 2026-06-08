@@ -460,8 +460,12 @@ These are structural guarantees, not conventions. Violating any of them breaks a
 - Debt auto-resolve on apply ✅ — a draft-fix proposal carries a `debtRef`; applying it
   (not drafting it) resolves the originating affected doc at the apply seam. Discarding leaves
   it open.
-- Remaining: LLM-judged canon-contradiction debt from prose edits, cross-layer debt
-  (voice drift), deeper structural undo
+- LLM-judged canon-contradiction debt ✅ — on-demand "Check current scene" in the debt inbox
+  (`DebtService.checkContinuity` + registry prompt `builtin:evaluation:continuity`) asks the
+  model which referenced Codex facts the prose contradicts; each flag becomes a canon-layer
+  DebtItem with a draft-fix that reconciles prose → canon. Opt-in (manual trigger) — no
+  per-apply API cost.
+- Remaining: cross-layer debt (voice drift), deeper structural undo
 
 ### Phase 4 — Autopilot 🔲 STARTED (basic runner shipped)
 - `AutopilotRunner`: sequential node processing through changeset review ✅

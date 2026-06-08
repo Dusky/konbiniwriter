@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useProjectStore } from '../../store/projectStore'
 import { useAIStore } from '../../store/aiStore'
 import { debtService } from '../../lib/DebtService'
@@ -19,8 +19,11 @@ export default function DebtInboxModal({ onClose }: Props): React.ReactElement {
   const debt = useProjectStore((s) => s.debt)
   const project = useProjectStore((s) => s.project)
   const mentionIndex = useProjectStore((s) => s.mentionIndex)
+  const codex = useProjectStore((s) => s.codex)
+  const selectedId = useProjectStore((s) => s.selectedId)
   const selectNode = useProjectStore((s) => s.selectNode)
   const queueProposal = useProjectStore((s) => s.queueProposal)
+  const raiseDebt = useProjectStore((s) => s.raiseDebt)
   const resolveDebtAffected = useProjectStore((s) => s.resolveDebtAffected)
   const dismissDebt = useProjectStore((s) => s.dismissDebt)
   const aiEnabled = useAIStore((s) => s.enabled)
@@ -28,6 +31,39 @@ export default function DebtInboxModal({ onClose }: Props): React.ReactElement {
   // docId currently drafting, keyed `${debtId}:${docId}`
   const [drafting, setDrafting] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [checking, setChecking] = useState(false)
+  const [checkResult, setCheckResult] = useState<string | null>(null)
+  const checkAbort = useRef<AbortController | null>(null)
+  useEffect(() => () => { checkAbort.current?.abort() }, [])
+
+  const selectedNode = selectedId && project ? project.nodes[selectedId] : null
+  const canCheck = aiEnabled && !!selectedNode && selectedNode.type !== 'folder'
+
+  const checkContinuity = async () => {
+    if (!project || !selectedId) return
+    setChecking(true)
+    setCheckResult(null)
+    setError(null)
+    const controller = new AbortController()
+    checkAbort.current = controller
+    try {
+      const { items, entitiesChecked } = await debtService.checkContinuity({
+        project, mentionIndex, codex, docId: selectedId, signal: controller.signal,
+      })
+      items.forEach((it) => raiseDebt(it))
+      setCheckResult(
+        entitiesChecked === 0
+          ? 'No Codex entities with facts are referenced in this scene.'
+          : items.length === 0
+            ? `No contradictions found (checked ${entitiesChecked} entit${entitiesChecked === 1 ? 'y' : 'ies'}).`
+            : `Flagged ${items.length} possible contradiction${items.length === 1 ? '' : 's'}.`
+      )
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') setError((e as Error).message)
+    } finally {
+      setChecking(false)
+    }
+  }
 
   const openDoc = (docId: ID) => { selectNode(docId); onClose() }
 
@@ -60,12 +96,28 @@ export default function DebtInboxModal({ onClose }: Props): React.ReactElement {
   return (
     <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" style={{ maxWidth: 680, maxHeight: '88vh', display: 'flex', flexDirection: 'column' }} role="dialog" aria-modal="true" aria-label="Propagation Debt">
-        <div className="modal-hd" style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+        <div className="modal-hd" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <h3>Propagation Debt</h3>
           <span className="sub">{openCount} open</span>
+          <span className="tb-spacer" />
+          {canCheck && (
+            <button
+              className="btn sm"
+              disabled={checking}
+              onClick={checkContinuity}
+              title={`Run an AI continuity check on “${selectedNode?.title}” against the Codex`}
+            >
+              {checking ? 'Checking…' : 'Check current scene'}
+            </button>
+          )}
         </div>
 
         <div className="modal-body" style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {checkResult && (
+            <div style={{ fontSize: 12, color: 'var(--text-2)', padding: '6px 10px', background: 'var(--bg-2)', borderRadius: 6 }}>
+              {checkResult}
+            </div>
+          )}
           {debt.length === 0 ? (
             <div style={{ color: 'var(--text-3)', textAlign: 'center', padding: '48px 0', fontSize: 13, lineHeight: 1.6 }}>
               No propagation debt.<br />

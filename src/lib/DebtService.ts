@@ -8,13 +8,14 @@
 import { diffWords } from 'diff'
 import type { Project, CodexEntry, DebtItem, DebtAffected, Proposal, ProposalCommand, ID } from '@shared/types'
 import { uid, wordCount } from '@shared/utils'
-import { backlinksFor, type MentionIndex } from './MentionIndex'
+import { backlinksFor, mentionsIn, type MentionIndex } from './MentionIndex'
 import { promptRegistry } from './PromptRegistry'
 import { createProposal } from './ProposalService'
 import { buildContext, renderContext } from './ContextBuilder'
 import { streamCompletion } from './AIClient'
 
 const REVISION_PROMPT_ID = 'builtin:revision:canon'
+const CONTINUITY_PROMPT_ID = 'builtin:evaluation:continuity'
 
 // Proposal commands whose original/proposed span the WHOLE document, so a
 // before/after at proposal scope reflects the document. (Co-write commands are
@@ -118,6 +119,77 @@ export const debtService = {
       affected,
       createdAt: new Date().toISOString(),
     }
+  },
+
+  /**
+   * On-demand LLM continuity check: ask the model whether a scene contradicts
+   * any Codex facts for the entities it references. Raises one canon-layer debt
+   * item per contradiction (with a draft-fix that reconciles prose → canon).
+   * Returns the new items plus how many entities had facts to check, so the
+   * caller can distinguish "nothing to check" from "no contradictions".
+   */
+  async checkContinuity(opts: {
+    project: Project
+    mentionIndex: MentionIndex
+    codex: CodexEntry[]
+    docId: ID
+    signal?: AbortSignal
+  }): Promise<{ items: DebtItem[]; entitiesChecked: number }> {
+    const { project, mentionIndex, codex, docId, signal } = opts
+    const template = promptRegistry.get(CONTINUITY_PROMPT_ID)
+    if (!template) throw new Error(`Missing prompt template: ${CONTINUITY_PROMPT_ID}`)
+
+    const document = project.docs[docId]?.content ?? ''
+    if (!document.trim()) return { items: [], entitiesChecked: 0 }
+
+    // Entities referenced in this scene that actually carry facts.
+    const aliasesInDoc = new Set(mentionsIn(mentionIndex, docId))
+    const entities = codex.filter((e) => {
+      const names = [e.name.toLowerCase(), ...e.aliases]
+      return names.some((n) => aliasesInDoc.has(n)) && e.facts.some((f) => f.value.trim())
+    })
+    if (entities.length === 0) return { items: [], entitiesChecked: 0 }
+
+    const facts = entities.map((e) => {
+      const lines = e.facts.filter((f) => f.value.trim()).map((f) => `- ${f.label || 'fact'}: ${f.value.trim()}`)
+      return `## ${e.name} (${e.category})\n${lines.join('\n')}`
+    }).join('\n\n')
+
+    const rendered = promptRegistry.render(CONTINUITY_PROMPT_ID, { facts, document })
+
+    const raw = await new Promise<string>((resolve, reject) => {
+      if (signal) signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
+      streamCompletion(
+        [{ role: 'user', content: rendered }],
+        { model: template.model, maxTokens: template.maxTokens, temperature: template.temperature, signal },
+        { onChunk: () => {}, onDone: resolve, onError: reject },
+      ).catch(reject)
+    })
+
+    let flags: Array<{ entity: string; fact: string; value: string; issue: string }> = []
+    try { flags = JSON.parse(raw.match(/\[[\s\S]*\]/)?.[0] ?? '[]') } catch { flags = [] }
+
+    const docTitle = project.nodes[docId]?.title ?? 'this scene'
+    const items: DebtItem[] = flags
+      .filter((f) => f.entity && f.issue)
+      .map((f) => ({
+        id: uid('debt'),
+        layer: 'canon' as const,
+        title: `${f.entity} · ${f.fact || 'fact'} contradiction`,
+        detail: f.issue,
+        // Unique per doc+entity+fact so re-checking updates rather than stacks.
+        source: `cont:${docId}:${f.entity}:${f.fact}`,
+        affected: [{ docId, note: `${docTitle} may contradict canon "${f.fact}: ${f.value}"`, resolved: false }],
+        createdAt: new Date().toISOString(),
+        revision: {
+          entityName: f.entity,
+          factLabel: f.fact || 'fact',
+          oldValue: 'the version implied by the current prose',
+          newValue: f.value,
+        },
+      }))
+
+    return { items, entitiesChecked: entities.length }
   },
 
   /** Generate a revision proposal reconciling one document with the new fact. */

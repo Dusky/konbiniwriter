@@ -291,6 +291,36 @@ Then a brief overall verdict (2 sentences max).`,
     modifiedAt: ISO(),
   },
   {
+    id: 'builtin:evaluation:continuity',
+    name: 'Continuity Check',
+    description: 'Find places where a scene contradicts established Codex facts.',
+    feature: 'evaluation',
+    model: 'claude-opus-4-8',
+    temperature: 0.2,
+    maxTokens: 2000,
+    template: `You are a continuity checker for a novel. Compare the scene against the established canon facts and find genuine CONTRADICTIONS — places where the prose states or strongly implies something that conflicts with a fact.
+
+<canon_facts>
+{{facts}}
+</canon_facts>
+
+<scene>
+{{document}}
+</scene>
+
+Return a JSON array. Each entry is a real contradiction (not a mere omission):
+[{ "entity": "<entity name>", "fact": "<fact label>", "value": "<the canon value>", "issue": "<what the scene says and why it conflicts, one sentence>" }]
+
+Only report clear conflicts. If the scene is consistent (or simply silent) on a fact, do not report it. Return ONLY valid JSON. If there are no contradictions, return [].`,
+    variables: [
+      { name: 'facts', description: 'Formatted canon facts for entities in the scene' },
+      { name: 'document', description: 'The scene prose to check' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
     id: 'builtin:revision:canon',
     name: 'Reconcile Canon Change',
     description: 'Revise a document so it stays consistent after a Codex fact changed (propagation debt).',
