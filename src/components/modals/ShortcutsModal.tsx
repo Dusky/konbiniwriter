@@ -6,7 +6,6 @@ const SHORTCUTS = [
   {
     heading: 'File',
     rows: [
-      ['New Project', 'mod+n'],
       ['Open Project', 'mod+o'],
       ['New Folder', 'mod+alt+n'],
       ['New Document', 'mod+shift+d'],
@@ -17,25 +16,46 @@ const SHORTCUTS = [
     ],
   },
   {
+    heading: 'Edit',
+    rows: [
+      ['Undo Text', 'mod+z'],
+      ['Undo Tree Change', 'mod+z'],
+      ['Find in Document', 'mod+f'],
+      ['Search Project', 'mod+shift+f'],
+    ],
+  },
+  {
     heading: 'View',
     rows: [
       ['Editor', 'mod+1'],
       ['Corkboard', 'mod+2'],
       ['Outliner', 'mod+3'],
+      ['Timeline', 'mod+4'],
       ['Toggle Binder', 'mod+alt+b'],
       ['Toggle Inspector', 'mod+alt+i'],
       ['Composition Mode', 'mod+alt+c'],
       ['Focus Mode', 'mod+alt+o'],
+      ['Split Editor', 'mod+\\'],
       ['Light / Dark', 'mod+alt+t'],
     ],
   },
   {
-    heading: 'AI (Phase 2)',
+    heading: 'Other',
     rows: [
-      ['AI Assistant', 'mod+shift+a'],
-      ['Changeset Review', 'mod+shift+r'],
+      ['Preferences', 'mod+,'],
+      ['Keyboard Shortcuts', 'mod+/'],
+    ],
+  },
+  {
+    heading: 'AI',
+    rows: [
+      ['AI Chat', 'mod+shift+a'],
+      ['AI Settings / Enable', ''],
       ['Codex', 'mod+shift+k'],
-      ['Slop Proof', 'mod+shift+p'],
+      ['Reader Panel', 'mod+shift+r'],
+      ['Batch Generator', 'mod+shift+g'],
+      ['Autopilot', 'mod+shift+p'],
+      ['Prompt Registry', ''],
     ],
   },
 ]
@@ -47,7 +67,7 @@ export default function ShortcutsModal({ onClose }: Props): React.ReactElement {
 
   return (
     <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ maxWidth: 780 }}>
+      <div className="modal" style={{ maxWidth: 780 }} role="dialog" aria-modal="true" aria-label="Keyboard Shortcuts">
         <div className="modal-hd"><h3>Keyboard Shortcuts</h3></div>
         <div className="modal-body">
           <div className="sc-grid">

@@ -4,8 +4,12 @@
 // Every component already calls window.api — nothing else changes.
 
 import type { KonbiniAPI } from '@shared/types'
-import { browserProjectService as svc } from './BrowserProjectService'
+import { isFileSystemAccessSupported, browserProjectService } from './BrowserProjectService'
+import { isOPFSSupported, opfsProjectService } from './OPFSProjectService'
 import { recentsService } from './RecentsService'
+
+// Use FSA (Chrome/Edge) if available, fall back to OPFS (Firefox/Safari)
+const svc = isFileSystemAccessSupported() ? browserProjectService : opfsProjectService
 import { wordCount } from '@shared/utils'
 
 const api: KonbiniAPI = {
@@ -51,6 +55,12 @@ const api: KonbiniAPI = {
     list: (pid, nid) => svc.listSnapshots(pid, nid),
     delete: (pid, nid, sid) => svc.deleteSnapshot(pid, nid, sid),
   },
+  codex: {
+    save: (pid, entries) => svc.saveCodex(pid, entries),
+  },
+  settings: {
+    save: (pid, patch) => svc.saveSettings(pid, patch),
+  },
   compile: {
     run: (pid, rid, ids, fmt) => svc.compile(pid, rid, ids, fmt),
   },
@@ -66,5 +76,10 @@ const api: KonbiniAPI = {
   },
 }
 
-// Expose globally so all components can call window.api unchanged
-;(window as unknown as { api: KonbiniAPI }).api = api
+// Expose globally so all components can call window.api unchanged.
+// Under Electron, the preload already installed a (read-only) window.api via
+// contextBridge — don't clobber it (assigning would throw). Only the browser
+// runtime needs this fallback.
+if (!(window as unknown as { api?: KonbiniAPI }).api) {
+  ;(window as unknown as { api: KonbiniAPI }).api = api
+}

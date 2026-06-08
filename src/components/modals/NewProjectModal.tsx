@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { isFileSystemAccessSupported } from '../../lib/BrowserProjectService'
 import { useShellStore } from '../../store/shellStore'
 import { useProjectStore } from '../../store/projectStore'
 import type { TemplateId } from '@shared/types'
@@ -15,40 +16,25 @@ interface Props { onClose: () => void }
 export default function NewProjectModal({ onClose }: Props): React.ReactElement {
   const [title, setTitle] = useState('Untitled Project')
   const [template, setTemplate] = useState<TemplateId>('novel')
-  // locationKey: opaque handle key from BrowserProjectService; locationDisplay: shown to user
-  const [locationKey, setLocationKey] = useState<string | null>(null)
-  const [locationDisplay, setLocationDisplay] = useState<string>('')
   const [creating, setCreating] = useState(false)
-  const [err, setErr] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const setScreen = useShellStore((s) => s.setScreen)
   const touchRecent = useShellStore((s) => s.touchRecent)
   const loadProject = useProjectStore((s) => s.loadProject)
 
-  const handleBrowse = async () => {
-    const result = await window.api.project.showSaveDialog(title)
-    if (!result) return
-    // result is "handleKey::dirName"
-    const [key, dirName] = result.split('::')
-    setLocationKey(result)
-    setLocationDisplay(dirName ?? result)
-    setErr(null)
-  }
-
   const handleCreate = async () => {
     if (!title.trim() || creating) return
-    if (!locationKey) {
-      // Auto-show the picker if they haven't browsed yet
-      await handleBrowse()
-      return
-    }
+    setError(null)
     setCreating(true)
-    setErr(null)
     try {
+      // Single-call flow: 'browser-pick' opens the folder picker synchronously
+      // within the user gesture (FSA), the native dialog (Electron), or is
+      // ignored entirely (OPFS / Firefox). One path for every backend.
       const project = await window.api.project.create({
         title: title.trim(),
         template,
-        location: locationKey,
+        location: 'browser-pick',
       })
       touchRecent({
         id: project.id,
@@ -62,17 +48,17 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
       loadProject(project)
       setScreen('studio')
       onClose()
-    } catch (e) {
-      setErr(String(e))
+    } catch (err) {
+      const isUserCancel = (err instanceof DOMException && (err as DOMException).name === 'AbortError')
+        || String(err).includes('No folder selected')
+      if (!isUserCancel) setError(String(err).replace(/^Error:\s*/, ''))
       setCreating(false)
     }
   }
 
-  const canCreate = !!title.trim() && !creating
-
   return (
     <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ maxWidth: 560 }}>
+      <div className="modal" style={{ maxWidth: 560 }} role="dialog" aria-modal="true" aria-label="New Project">
         <div className="modal-hd">
           <h3>New Project</h3>
           <span className="sub">Choose a template and name your project</span>
@@ -106,34 +92,30 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
             </div>
           </div>
 
-          <div className="np-field">
-            <label>Save inside folder</label>
-            <div className="loc-row">
-              <div className="loc-path" style={{ fontStyle: locationKey ? 'normal' : 'italic', opacity: locationKey ? 1 : 0.6 }}>
-                {locationKey
-                  ? <><b>{locationDisplay}</b> / {title || 'Untitled'}.konbini</>
-                  : 'Click Browse… to choose a folder'}
-              </div>
-              <button className="btn" onClick={handleBrowse}>Browse…</button>
+          <div className="np-field" style={{ marginBottom: 0 }}>
+            <label>Location</label>
+            <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4, lineHeight: 1.5 }}>
+              A folder picker will open first. Your project will be saved as a <code style={{ fontFamily: 'var(--mono)', background: 'var(--bg)', padding: '1px 4px', borderRadius: 3 }}>.konbini</code> bundle inside it.
             </div>
-            <p style={{ fontSize: 11, color: 'var(--text-3)', margin: '6px 0 0' }}>
-              The project will be created as <b>{title || 'Untitled'}.konbini</b> inside the folder you pick.
-              Requires a modern browser (Chrome/Edge) for filesystem access.
-            </p>
           </div>
-
-          {err && (
-            <div style={{ background: 'color-mix(in oklch, var(--st-idea) 15%, transparent)', border: '0.5px solid var(--st-idea)', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: 'var(--st-idea)', marginTop: 8 }}>
-              {err}
-            </div>
-          )}
         </div>
+
+        {!isFileSystemAccessSupported() && (
+          <div style={{ margin: '0 20px 12px', padding: '10px 12px', background: 'oklch(0.25 0.04 30)', border: '1px solid oklch(0.4 0.08 30)', borderRadius: 6, fontSize: 12, color: 'oklch(0.85 0.05 30)', lineHeight: 1.5 }}>
+            ⚠ This browser has no disk access — your project will be saved in browser storage (Firefox/Safari). For real files on disk, use Chrome/Edge or the desktop app.
+          </div>
+        )}
+        {error && (
+          <div style={{ margin: '0 20px 12px', padding: '10px 12px', background: 'oklch(0.22 0.05 20)', border: '1px solid var(--st-idea)', borderRadius: 6, fontSize: 12, color: 'var(--st-idea)', lineHeight: 1.5 }}>
+            {error}
+          </div>
+        )}
 
         <div className="modal-foot">
           <span className="tb-spacer" />
           <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn primary" onClick={handleCreate} disabled={!canCreate}>
-            {creating ? 'Creating…' : locationKey ? 'Create Project' : 'Choose Folder & Create'}
+          <button className="btn primary" onClick={handleCreate} disabled={creating || !title.trim()}>
+            {creating ? 'Creating…' : 'Create Project'}
           </button>
         </div>
       </div>

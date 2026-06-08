@@ -9,9 +9,9 @@ export type NodeType = 'folder' | 'document' | 'scene'
 export type StatusId = 'idea' | 'todo' | 'inprogress' | 'draft' | 'revised' | 'final'
 export type LabelId = 'none' | 'scene' | 'chapter' | 'note' | 'character' | 'idea'
 export type TemplateId = 'blank' | 'novel' | 'screenplay' | 'nonfiction'
-export type ViewMode = 'editor' | 'corkboard' | 'outliner'
+export type ViewMode = 'editor' | 'corkboard' | 'outliner' | 'timeline'
 export type SaveStatus = 'saved' | 'saving' | 'unsaved'
-export type CompileFormat = 'markdown' | 'docx'
+export type CompileFormat = 'markdown' | 'docx' | 'print'
 export type ModalId =
   | 'new-project'
   | 'open-project'
@@ -20,6 +20,15 @@ export type ModalId =
   | 'shortcuts'
   | 'about'
   | 'prefs'
+  | 'search'
+  | 'prompt-registry'
+  | 'codex'
+  | 'ai-settings'
+  | 'batch-generator'
+  | 'reader'
+  | 'chat'
+  | 'stats'
+  | 'autopilot'
   | null
 
 // ── Project ───────────────────────────────────────────────────────────────────
@@ -43,6 +52,8 @@ export interface ProjectSettings {
   accent?: string
   editorFont?: 'mono' | 'serif' | 'sans'
   editorSize?: number
+  wordTarget?: number        // project-level word-count goal
+  codex?: CodexEntry[]       // stored as JSON, typed at load time
   [k: string]: unknown
 }
 
@@ -106,7 +117,7 @@ export type NodeOp =
 // ── Proposal / Changeset (Phase 2 spine — defined here so the seam is clear) ─
 
 export type ProposalCommand =
-  | 'lineedit' | 'rewrite' | 'expand' | 'tighten' | 'describe'
+  | 'lineedit' | 'rewrite' | 'expand' | 'tighten' | 'describe' | 'brainstorm'
   | 'chat' | 'draft' | 'foundation' | 'revision' | 'batch'
 
 export type ProposalStatus = 'pending' | 'applied' | 'discarded'
@@ -181,6 +192,31 @@ export interface AgentTemplate {
   modifiedAt: ISO
 }
 
+// ── Codex ─────────────────────────────────────────────────────────────────────
+
+export type CodexCategory = 'character' | 'location' | 'item' | 'concept' | 'lore'
+
+export interface CodexFact {
+  id: ID
+  label: string
+  value: string
+  aiGenerated: boolean
+  confirmedAt: ISO | null
+}
+
+export interface CodexEntry {
+  id: ID
+  name: string
+  aliases: string[]         // all lowercased; used by MentionIndex
+  category: CodexCategory
+  summary: string           // AI-generated overview, editable
+  facts: CodexFact[]
+  imagePrompt?: string
+  createdAt: ISO
+  modifiedAt: ISO
+  aiGenerated: boolean
+}
+
 // ── Compile result ────────────────────────────────────────────────────────────
 
 export interface CompileResult {
@@ -213,6 +249,12 @@ export interface KonbiniAPI {
     restore(projectId: ID, nodeId: ID, snapshotId: ID): Promise<{ content: string; snapshot: Snapshot }>
     list(projectId: ID, nodeId: ID): Promise<Snapshot[]>
     delete(projectId: ID, nodeId: ID, snapshotId: ID): Promise<void>
+  }
+  codex: {
+    save(projectId: ID, entries: CodexEntry[]): Promise<void>
+  }
+  settings: {
+    save(projectId: ID, patch: Partial<ProjectSettings>): Promise<void>
   }
   compile: {
     run(projectId: ID, rootId: ID, includedIds: ID[], format: CompileFormat): Promise<CompileResult>

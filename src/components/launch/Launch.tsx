@@ -3,6 +3,8 @@ import { useShellStore } from '../../store/shellStore'
 import { useProjectStore } from '../../store/projectStore'
 import { relTime, fmtWords } from '@shared/utils'
 import NewProjectModal from '../modals/NewProjectModal'
+import { isFileSystemAccessSupported } from '../../lib/BrowserProjectService'
+import { isOPFSSupported } from '../../lib/OPFSProjectService'
 import type { RecentEntry } from '@shared/types'
 
 export default function Launch(): React.ReactElement {
@@ -15,18 +17,35 @@ export default function Launch(): React.ReactElement {
   const [openErr, setOpenErr] = useState<string | null>(null)
   const [opening, setOpening] = useState(false)
 
+  const finish = (project: Awaited<ReturnType<typeof window.api.project.open>>) => {
+    loadProject(project)
+    setScreen('studio')
+  }
+
+  // Open via folder picker (FSA / Electron native dialog).
   const doOpen = async () => {
     setOpenErr(null)
     setOpening(true)
     try {
       const handleKey = await window.api.project.showOpenDialog()
       if (!handleKey) { setOpening(false); return }
-      const project = await window.api.project.open(handleKey)
-      loadProject(project)
-      setScreen('studio')
+      finish(await window.api.project.open(handleKey))
     } catch (e) {
       setOpenErr(`Could not open project: ${e}`)
       setOpening(false)
+    }
+  }
+
+  // Open a recent. Try the stored location directly first; if that fails
+  // (stale FSA handle), fall back to the folder picker.
+  const openRecent = async (r: RecentEntry) => {
+    setOpenErr(null)
+    setOpening(true)
+    try {
+      finish(await window.api.project.open(r.location))
+    } catch {
+      setOpening(false)
+      await doOpen()
     }
   }
 
@@ -35,6 +54,10 @@ export default function Launch(): React.ReactElement {
     await window.api.project.removeRecent(id)
     removeRecent(id)
   }
+
+  // Only browser-FSA needs the "Chrome/Edge required" caveat. OPFS browsers
+  // and Electron both have working storage.
+  const showFsaCaveat = !isFileSystemAccessSupported() && !isOPFSSupported()
 
   return (
     <div className="launch-stage">
@@ -45,6 +68,11 @@ export default function Launch(): React.ReactElement {
             <div className="ll-mark">✦</div>
             <div className="ll-name">Konbini</div>
             <div className="ll-tag">Writing Studio</div>
+            {showFsaCaveat && (
+              <div style={{ marginBottom: 12, padding: '10px 12px', background: 'oklch(0.25 0.04 30)', border: '1px solid oklch(0.4 0.08 30)', borderRadius: 6, fontSize: 12, color: 'oklch(0.85 0.05 30)', lineHeight: 1.5 }}>
+                ⚠ This browser lacks file storage support. Use Chrome, Edge, Firefox, or the desktop app.
+              </div>
+            )}
             <div className="ll-actions">
               <button className="ll-btn primary" onClick={() => setModal('new-project')}>
                 <span className="llb-ic">✦</span>
@@ -61,7 +89,6 @@ export default function Launch(): React.ReactElement {
           )}
           <div className="ll-foot">
             <span>Konbini v0.1.0</span>
-            <span style={{ opacity: 0.5, fontSize: 10 }}>Chrome / Edge required for disk access</span>
           </div>
         </div>
 
@@ -78,8 +105,8 @@ export default function Launch(): React.ReactElement {
                 <div
                   key={r.id}
                   className="recent-row"
-                  onClick={doOpen}
-                  title={`${r.location} — click to re-open via folder picker`}
+                  onClick={() => openRecent(r)}
+                  title={r.location}
                 >
                   <div className="recent-spine" style={{ background: r.accent ?? 'var(--accent)' }} />
                   <div className="recent-main">

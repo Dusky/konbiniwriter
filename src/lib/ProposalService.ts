@@ -1,0 +1,112 @@
+import { diffLines } from 'diff'
+import type { Proposal, DiffSegment, ID } from '@shared/types'
+import { uid } from '@shared/utils'
+
+// ── Diff → segments ──────────────────────────────────────────────────────────
+
+export function buildSegments(original: string, proposed: string): DiffSegment[] {
+  const changes = diffLines(original, proposed)
+  const segments: DiffSegment[] = []
+  let hunkIdx = 0
+  let i = 0
+
+  while (i < changes.length) {
+    const change = changes[i]
+
+    if (!change.added && !change.removed) {
+      // Context block
+      const lines = (change.value ?? '').split('\n').filter((_: string, j: number, a: string[]) => j < a.length - 1 || a[a.length - 1] !== '')
+      segments.push({ type: 'ctx', lines })
+      i++
+      continue
+    }
+
+    // Collect contiguous del/add pair as one hunk
+    const del: string[] = []
+    const add: string[] = []
+
+    while (i < changes.length && (changes[i].removed || changes[i].added)) {
+      const c = changes[i]
+      const lines = (c.value ?? '').replace(/\n$/, '').split('\n')
+      if (c.removed) del.push(...lines)
+      else if (c.added) add.push(...lines)
+      i++
+    }
+
+    segments.push({ type: 'hunk', idx: hunkIdx++, del, add })
+  }
+
+  return segments
+}
+
+// ── Apply accepted hunks back to original ───────────────────────────────────
+
+export function applySegments(
+  original: string,
+  segments: DiffSegment[],
+  acceptedHunkIndices: number[],
+): string {
+  const accepted = new Set(acceptedHunkIndices)
+  const parts: string[] = []
+
+  for (const seg of segments) {
+    if (seg.type === 'ctx') {
+      parts.push(seg.lines.join('\n'))
+    } else {
+      if (accepted.has(seg.idx)) {
+        parts.push(seg.add.join('\n'))
+      } else {
+        parts.push(seg.del.join('\n'))
+      }
+    }
+  }
+
+  return parts.join('\n')
+}
+
+// ── Proposal factory ─────────────────────────────────────────────────────────
+
+export function createProposal(opts: {
+  docId: ID
+  docTitle: string
+  command: Proposal['command']
+  label: string
+  group: string
+  original: string
+  proposed: string
+  promptId?: string
+  agentId?: string
+  costEstimateCents?: number
+}): Proposal {
+  const segments = buildSegments(opts.original, opts.proposed)
+  const nHunks = segments.filter((s) => s.type === 'hunk').length
+
+  return {
+    id: uid(),
+    docId: opts.docId,
+    docTitle: opts.docTitle,
+    command: opts.command,
+    label: opts.label,
+    group: opts.group,
+    original: opts.original,
+    proposed: opts.proposed,
+    createdAt: new Date().toISOString(),
+    accepted: [],
+    nHunks,
+    status: 'pending',
+    seq: Date.now(),
+    promptId: opts.promptId,
+    agentId: opts.agentId,
+    costEstimateCents: opts.costEstimateCents,
+  }
+}
+
+// ── Apply a proposal (snapshot first — caller must guarantee this) ───────────
+
+export function resolveProposal(
+  proposal: Proposal,
+  acceptedHunkIndices: number[],
+): string {
+  const segments = buildSegments(proposal.original, proposal.proposed)
+  return applySegments(proposal.original, segments, acceptedHunkIndices)
+}

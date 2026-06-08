@@ -1,9 +1,32 @@
-import React, { useEffect, useRef, useCallback } from 'react'
-import { EditorView } from '@codemirror/view'
-import { EditorState } from '@codemirror/state'
-import { focusModeEffect, konbiniExtensions } from './extensions'
+import React, { useEffect, useRef, useCallback, useState } from 'react'
+import { EditorView, ViewPlugin } from '@codemirror/view'
+import { EditorState, Compartment } from '@codemirror/state'
+import { focusModeEffect, konbiniExtensions, setSlopSpansEffect, type SlopSpan } from './extensions'
 import { useProjectStore } from '../../store/projectStore'
+import { useShellStore } from '../../store/shellStore'
 import { useAutosave } from '../../hooks/useAutosave'
+import { useAIStore } from '../../store/aiStore'
+import CowriteBar from './CowriteBar'
+import { promptRegistry } from '../../lib/PromptRegistry'
+import { streamCompletion } from '../../lib/AIClient'
+
+function makeTypewriterPlugin() {
+  return ViewPlugin.fromClass(class {
+    update(update: import('@codemirror/view').ViewUpdate) {
+      if (!update.docChanged && !update.selectionSet) return
+      const view = update.view
+      const coords = view.coordsAtPos(view.state.selection.main.head)
+      if (!coords) return
+      const scrollEl = view.scrollDOM
+      const editorRect = scrollEl.getBoundingClientRect()
+      const relTop = coords.top - editorRect.top
+      if (relTop > editorRect.height * 0.4) {
+        const targetScrollTop = scrollEl.scrollTop + relTop - editorRect.height * 0.4
+        scrollEl.scrollTo({ top: targetScrollTop, behavior: 'smooth' })
+      }
+    }
+  })
+}
 
 interface Props {
   docId: string
@@ -12,13 +35,78 @@ interface Props {
 export default function Editor({ docId }: Props): React.ReactElement {
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
+  const typewriterCompartment = useRef(new Compartment())
 
   const project = useProjectStore((s) => s.project)
   const updateContent = useProjectStore((s) => s.updateContent)
   const setSaveStatus = useProjectStore((s) => s.setSaveStatus)
   const focusMode = useProjectStore((s) => s.focusMode)
+  const aiEnabled = useAIStore((s) => s.enabled)
+  const setSlopSpans = useProjectStore((s) => s.setSlopSpans)
+  const setSlopRunning = useProjectStore((s) => s.setSlopRunning)
+  const typewriterMode = useShellStore((s) => s.typewriterMode)
 
   const content = project?.docs[docId]?.content ?? ''
+
+  const [cowrite, setCowrite] = useState<{ selection: string; anchorRect: DOMRect } | null>(null)
+  const [wikilinkTip, setWikilinkTip] = useState<{ title: string; synopsis: string; preview: string; x: number; y: number } | null>(null)
+
+  // Find & Replace state
+  const [findReplaceOpen, setFindReplaceOpen] = useState(false)
+  const [findText, setFindText] = useState('')
+  const [replaceText, setReplaceText] = useState('')
+  const [matches, setMatches] = useState<number[]>([])
+  const [currentMatch, setCurrentMatch] = useState(0)
+  const findInputRef = useRef<HTMLInputElement>(null)
+
+  // Run slop proof on current doc — called from Toolbar
+  const runProof = useCallback(async () => {
+    const view = viewRef.current
+    if (!view || !aiEnabled) return
+    const text = view.state.doc.toString()
+    if (!text.trim()) return
+
+    setSlopRunning(true)
+    const template = promptRegistry.get('builtin:evaluation:slop')
+    if (!template) { setSlopRunning(false); return }
+    const rendered = promptRegistry.render('builtin:evaluation:slop', { content: text })
+
+    let full = ''
+    await streamCompletion(
+      [{ role: 'user', content: rendered }],
+      { model: template.model, maxTokens: template.maxTokens, temperature: template.temperature },
+      {
+        onChunk: (c) => { full += c },
+        onDone: (result) => {
+          try {
+            const raw = result.match(/\[[\s\S]*\]/)?.[0] ?? '[]'
+            const flags = JSON.parse(raw) as Array<{ excerpt: string; reason: string; severity: 'low' | 'medium' | 'high' }>
+            const spans: SlopSpan[] = []
+            for (const flag of flags) {
+              let idx = 0
+              while (idx < text.length) {
+                const pos = text.indexOf(flag.excerpt, idx)
+                if (pos === -1) break
+                spans.push({ from: pos, to: pos + flag.excerpt.length, reason: flag.reason, severity: flag.severity })
+                idx = pos + flag.excerpt.length
+              }
+            }
+            setSlopSpans(spans)
+            if (view) view.dispatch({ effects: setSlopSpansEffect.of(spans) })
+          } catch {
+            setSlopSpans([])
+          }
+        },
+        onError: () => setSlopRunning(false),
+      },
+    )
+  }, [aiEnabled, setSlopSpans, setSlopRunning])
+
+  // Expose runProof globally so Toolbar can call it without prop drilling
+  useEffect(() => {
+    (window as unknown as Record<string, unknown>).__konbiniRunProof = runProof
+    return () => { delete (window as unknown as Record<string, unknown>).__konbiniRunProof }
+  }, [runProof])
 
   // Autosave hook — fires 700ms after content changes
   useAutosave(docId)
@@ -31,13 +119,31 @@ export default function Editor({ docId }: Props): React.ReactElement {
     [docId, updateContent, setSaveStatus]
   )
 
+  // Show co-write bar on mouseup if there's a selection and AI is enabled
+  const handleMouseUp = useCallback(() => {
+    if (!aiEnabled) return
+    const view = viewRef.current
+    if (!view) return
+    const { from, to } = view.state.selection.main
+    if (from === to) { setCowrite(null); return }
+    const selection = view.state.doc.sliceString(from, to).trim()
+    if (selection.length < 3) { setCowrite(null); return }
+    // Get bounding rect of selection anchor
+    const coords = view.coordsAtPos(from)
+    if (!coords) { setCowrite(null); return }
+    setCowrite({ selection, anchorRect: new DOMRect(coords.left, coords.top, 0, coords.bottom - coords.top) })
+  }, [aiEnabled])
+
   // Mount / remount when docId changes
   useEffect(() => {
     if (!containerRef.current) return
 
     const state = EditorState.create({
       doc: content,
-      extensions: konbiniExtensions(handleChange),
+      extensions: [
+        ...konbiniExtensions(handleChange),
+        typewriterCompartment.current.of(typewriterMode ? makeTypewriterPlugin() : []),
+      ],
     })
 
     const view = new EditorView({ state, parent: containerRef.current })
@@ -69,6 +175,135 @@ export default function Editor({ docId }: Props): React.ReactElement {
     }
   }, [content, docId])
 
+  // Wikilink hover tooltip
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    const view = viewRef.current
+    if (!view || !project) { setWikilinkTip(null); return }
+    const pos = view.posAtCoords({ x: e.clientX, y: e.clientY })
+    if (pos === null) { setWikilinkTip(null); return }
+    const text = view.state.doc.toString()
+    const re = /\[\[([^\]]+)\]\]/g
+    let m: RegExpExecArray | null
+    let found: string | null = null
+    while ((m = re.exec(text)) !== null) {
+      if (m.index <= pos && pos <= m.index + m[0].length) { found = m[1]; break }
+    }
+    if (!found) { setWikilinkTip(null); return }
+    const target = Object.values(project.nodes).find(
+      (n) => n.title.toLowerCase() === found!.toLowerCase()
+    )
+    if (!target) { setWikilinkTip(null); return }
+    const preview = (project.docs[target.id]?.content ?? '').slice(0, 200).trim()
+    setWikilinkTip({ title: target.title, synopsis: target.meta.synopsis, preview, x: e.clientX, y: e.clientY })
+  }, [project])
+
+  // Find & Replace logic
+  const searchMatches = useCallback((text: string, doc: string): number[] => {
+    if (!text) return []
+    const results: number[] = []
+    let idx = 0
+    while (idx <= doc.length - text.length) {
+      const pos = doc.indexOf(text, idx)
+      if (pos === -1) break
+      results.push(pos)
+      idx = pos + 1
+    }
+    return results
+  }, [])
+
+  useEffect(() => {
+    if (!findReplaceOpen) return
+    const view = viewRef.current
+    if (!view) { setMatches([]); return }
+    const doc = view.state.doc.toString()
+    const found = searchMatches(findText, doc)
+    setMatches(found)
+    setCurrentMatch(0)
+    if (found.length > 0) {
+      const pos = found[0]
+      view.dispatch({
+        selection: { anchor: pos, head: pos + findText.length },
+        effects: EditorView.scrollIntoView(pos, { y: 'center' }),
+      })
+    }
+  }, [findText, findReplaceOpen, searchMatches])
+
+  const goToMatch = useCallback((idx: number) => {
+    const view = viewRef.current
+    if (!view || matches.length === 0) return
+    const pos = matches[idx]
+    view.dispatch({
+      selection: { anchor: pos, head: pos + findText.length },
+      effects: EditorView.scrollIntoView(pos, { y: 'center' }),
+    })
+    view.focus()
+  }, [matches, findText])
+
+  const goNext = useCallback(() => {
+    if (matches.length === 0) return
+    const next = (currentMatch + 1) % matches.length
+    setCurrentMatch(next)
+    goToMatch(next)
+  }, [currentMatch, matches, goToMatch])
+
+  const goPrev = useCallback(() => {
+    if (matches.length === 0) return
+    const prev = (currentMatch - 1 + matches.length) % matches.length
+    setCurrentMatch(prev)
+    goToMatch(prev)
+  }, [currentMatch, matches, goToMatch])
+
+  const doReplace = useCallback(() => {
+    const view = viewRef.current // eslint-disable-line @typescript-eslint/no-shadow
+    if (!view || matches.length === 0) return
+    const pos = matches[currentMatch]
+    const sel = view.state.selection.main
+    // Only replace if selection matches current match
+    if (sel.from === pos && sel.to === pos + findText.length) {
+      view.dispatch({ changes: { from: pos, to: pos + findText.length, insert: replaceText } })
+      // Re-search after change
+      const doc = view.state.doc.toString()
+      const found = searchMatches(findText, doc)
+      setMatches(found)
+      const next = Math.min(currentMatch, found.length - 1)
+      setCurrentMatch(next >= 0 ? next : 0)
+      if (found.length > 0 && next >= 0) goToMatch(next)
+    } else {
+      goToMatch(currentMatch)
+    }
+  }, [matches, currentMatch, findText, replaceText, searchMatches, goToMatch])
+
+  const doReplaceAll = useCallback(() => {
+    const view = viewRef.current
+    if (!view || matches.length === 0) return
+    // Replace from last to first so positions stay valid
+    const changes = [...matches].reverse().map((pos) => ({
+      from: pos, to: pos + findText.length, insert: replaceText,
+    }))
+    view.dispatch({ changes })
+    setMatches([])
+    setCurrentMatch(0)
+    view.focus()
+  }, [matches, findText, replaceText])
+
+  // Keyboard shortcut: Cmd/Ctrl+H or Cmd/Ctrl+Shift+H opens find & replace
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey
+      if (mod && e.key === 'h') {
+        e.preventDefault()
+        setFindReplaceOpen((open) => !open)
+        setTimeout(() => findInputRef.current?.focus(), 50)
+      }
+      if (e.key === 'Escape' && findReplaceOpen) {
+        setFindReplaceOpen(false)
+        viewRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [findReplaceOpen])
+
   // Sync focus mode into CM6 state field
   useEffect(() => {
     const view = viewRef.current
@@ -76,5 +311,114 @@ export default function Editor({ docId }: Props): React.ReactElement {
     view.dispatch({ effects: focusModeEffect.of(focusMode) })
   }, [focusMode])
 
-  return <div ref={containerRef} />
+  // Sync typewriter mode into CM6 compartment
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+    view.dispatch({
+      effects: typewriterCompartment.current.reconfigure(typewriterMode ? makeTypewriterPlugin() : []),
+    })
+  }, [typewriterMode])
+
+  return (
+    <div style={{ height: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }} onMouseUp={handleMouseUp} onMouseMove={handleMouseMove} onMouseLeave={() => setWikilinkTip(null)}>
+      {findReplaceOpen && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px',
+          background: 'var(--bg-2)', borderBottom: '1px solid var(--border)',
+          flexShrink: 0, flexWrap: 'wrap',
+        }}>
+          <input
+            ref={findInputRef}
+            value={findText}
+            onChange={(e) => setFindText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') goNext() }}
+            placeholder="Find"
+            style={{
+              padding: '3px 7px', borderRadius: 4, border: '1px solid var(--border)',
+              background: 'var(--bg-2)', color: 'var(--text)',
+              fontSize: 13, width: 160, outline: 'none',
+            }}
+          />
+          <input
+            value={replaceText}
+            onChange={(e) => setReplaceText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') doReplace() }}
+            placeholder="Replace with"
+            style={{
+              padding: '3px 7px', borderRadius: 4, border: '1px solid var(--border)',
+              background: 'var(--bg-2)', color: 'var(--text)',
+              fontSize: 13, width: 160, outline: 'none',
+            }}
+          />
+          <span style={{ fontSize: 12, color: 'var(--text-3)', minWidth: 60 }}>
+            {matches.length === 0 ? (findText ? '0 matches' : '') : `${currentMatch + 1} of ${matches.length}`}
+          </span>
+          {(['◀', '▶'] as const).map((label, i) => (
+            <button
+              key={label}
+              onClick={i === 0 ? goPrev : goNext}
+              disabled={matches.length === 0}
+              style={{
+                padding: '3px 8px', borderRadius: 4, border: '1px solid var(--border)',
+                background: 'var(--bg-2)', color: 'var(--text)',
+                cursor: matches.length === 0 ? 'not-allowed' : 'pointer', fontSize: 13,
+                opacity: matches.length === 0 ? 0.5 : 1,
+              }}
+            >{label}</button>
+          ))}
+          <button
+            onClick={doReplace}
+            disabled={matches.length === 0}
+            style={{
+              padding: '3px 8px', borderRadius: 4, border: '1px solid var(--border)',
+              background: 'var(--bg-2)', color: 'var(--text)',
+              cursor: matches.length === 0 ? 'not-allowed' : 'pointer', fontSize: 13,
+              opacity: matches.length === 0 ? 0.5 : 1,
+            }}
+          >Replace</button>
+          <button
+            onClick={doReplaceAll}
+            disabled={matches.length === 0}
+            style={{
+              padding: '3px 8px', borderRadius: 4, border: '1px solid var(--border)',
+              background: 'var(--bg-2)', color: 'var(--text)',
+              cursor: matches.length === 0 ? 'not-allowed' : 'pointer', fontSize: 13,
+              opacity: matches.length === 0 ? 0.5 : 1,
+            }}
+          >Replace All</button>
+          <button
+            onClick={() => { setFindReplaceOpen(false); viewRef.current?.focus() }}
+            style={{
+              marginLeft: 'auto', padding: '3px 8px', borderRadius: 4,
+              border: '1px solid var(--border)',
+              background: 'var(--bg-2)', color: 'var(--text)',
+              cursor: 'pointer', fontSize: 13,
+            }}
+          >✕</button>
+        </div>
+      )}
+      <div ref={containerRef} style={{ flex: 1, minHeight: 0 }} />
+      {wikilinkTip && (
+        <div style={{
+          position: 'fixed', left: wikilinkTip.x + 12, top: wikilinkTip.y + 12,
+          background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 6,
+          padding: '10px 12px', maxWidth: 280, zIndex: 9000, pointerEvents: 'none',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.18)', fontSize: 13, lineHeight: 1.5,
+        }}>
+          <div style={{ fontWeight: 600, marginBottom: 4, color: 'var(--accent)' }}>{wikilinkTip.title}</div>
+          {wikilinkTip.synopsis && <div style={{ color: 'var(--text-2)', marginBottom: 4, fontStyle: 'italic' }}>{wikilinkTip.synopsis}</div>}
+          {wikilinkTip.preview && <div style={{ color: 'var(--text-3)', fontSize: 12 }}>{wikilinkTip.preview}{wikilinkTip.preview.length >= 200 ? '…' : ''}</div>}
+        </div>
+      )}
+      {cowrite && (
+        <CowriteBar
+          docId={docId}
+          selection={cowrite.selection}
+          anchorRect={cowrite.anchorRect}
+          onClose={() => setCowrite(null)}
+        />
+      )}
+    </div>
+  )
 }

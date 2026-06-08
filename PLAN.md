@@ -426,6 +426,45 @@ These are structural guarantees, not conventions. Violating any of them breaks a
 
 ---
 
+## Progress tracker
+
+### Phase 1 — The Writing Studio (zero AI; stands alone) ✅ COMPLETE
+- Vertical slice: create → binder → write → debounced autosave to `.md` → reopen intact → composition mode ✅
+- Corkboard (editable synopses), Outliner, Inspector (label/status/synopsis/target/compile flag) ✅
+- Snapshots (take/list/restore + line-diff preview), Compile/export subtree → markdown/`.docx` ✅
+- In-document find (`Mod-F`), project-wide search (`Mod+Shift+F`) ✅
+- New Project modal, Open/recents, Preferences (`Mod+,`), full keyboard map ✅
+
+### Phase 2 — Proposal Spine + Registries + Co-write ✅ COMPLETE
+- `MentionIndex` (entity→docs, rebuilt on `updateContent`) ✅
+- `ContextBuilder` (tiered context, token budget) ✅
+- Changeset review (proposal model, diff engine, per-hunk + group accept/reject → `updateContent`) ✅
+- `PromptRegistry` + `AgentRegistry` (JSON-backed, app→user→project override stack, management UI) ✅
+- Codex (entities, editable facts, aliases, backlinks, category browser) ✅
+- AI settings (BYOK key + validation, multi-provider, global toggle) ✅
+- Co-write mode (Rewrite/Expand/Tighten/Describe/Brainstorm → proposal → review) ✅
+
+### Phase 3 — Assisted Mode 🔲 STARTED
+- Batch generators (cast, beat sheet, chapter draft, evaluate prose) ✅
+- Slop scorer (CM6 wavy underlines, Proof button) ✅
+- Reader panel, AI Chat, Autopilot runner, Writing Stats, Timeline drag, split editor, typewriter scroll ✅
+- Remaining: propagation-debt inbox (stale fact detection), deeper structural undo
+
+### Phase 4 — Autopilot 🔲 STARTED (basic runner shipped)
+- `AutopilotRunner`: sequential node processing through changeset review ✅
+- Remaining: phase-transition model (foundation→draft→eval→revise), spend cap + cost
+  estimate, resumable runs, Elo ranking, critic/professor loops, propagation-debt across
+  voice/world/characters/outline/prose layers
+
+### Electron packaging ✅ COMPLETE
+- `electron/main.ts` (BrowserWindow, IPC, native dialogs) ✅
+- `electron/preload.ts` (`contextBridge` exposing `KonbiniAPI`, recents in userData) ✅
+- `electron/NodeProjectService.ts` (`fs/promises`, real paths) ✅
+- Firefox/Safari fallback: `OPFSProjectService` (browser storage) ✅
+- Scripts: `electron:dev`, `electron:build`; `electron-builder` config in `package.json` ✅
+
+---
+
 ## Design tokens (quick ref)
 
 All in `src/styles/theme.css`. Colors are OKLCH throughout.

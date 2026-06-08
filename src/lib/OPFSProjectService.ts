@@ -1,23 +1,22 @@
-// BrowserProjectService — File System Access API implementation of the project layer.
+// OPFSProjectService — Origin Private File System implementation of the project layer.
 //
-// Electron migration path: replace FileSystemDirectoryHandle ops with fs/promises
-// equivalents in a NodeProjectService that satisfies the same interface.
+// Firefox 111+ supports OPFS via navigator.storage.getDirectory().
+// The FileSystemDirectoryHandle API is identical to File System Access API,
+// so all FS helpers and internal logic are the same as BrowserProjectService.
 //
-// "path" strings throughout are opaque keys into this.handles; components never
-// see real filesystem paths (same story in Electron where they'd be real paths).
+// Key differences from BrowserProjectService:
+//   - No showDirectoryPicker calls; root is navigator.storage.getDirectory()
+//   - Projects live in an 'konbini-projects/' subdir of the OPFS root
+//   - showOpenDialog() / showSaveDialog() return null (users reopen via Recents)
+//   - create() stores location as 'opfs:' + project.id
+//   - open(location) parses the 'opfs:' prefix to find the bundle dir
 
 import type { Project, KNode, DocBody, NodeOp, Snapshot, ID, CompileFormat, CompileResult } from '@shared/types'
 import { uid, wordCount } from '@shared/utils'
 import { buildProjectFromTemplate } from '@shared/templates'
 
-export function isFileSystemAccessSupported(): boolean {
-  return typeof window !== 'undefined' && typeof (window as unknown as { showDirectoryPicker?: unknown }).showDirectoryPicker === 'function'
-}
-
-function requireFSA(): void {
-  if (!isFileSystemAccessSupported()) {
-    throw new Error('File System Access API not supported. Please use Chrome or Edge 86+.')
-  }
+export function isOPFSSupported(): boolean {
+  return typeof navigator !== 'undefined' && 'storage' in navigator && typeof (navigator.storage as any).getDirectory === 'function'
 }
 
 // ── FS helpers ───────────────────────────────────────────────────────────────
@@ -58,52 +57,36 @@ async function removeFile(dir: FileSystemDirectoryHandle, ...parts: string[]): P
 
 // ── Service ──────────────────────────────────────────────────────────────────
 
-export class BrowserProjectService {
+export class OPFSProjectService {
   // Bundle handles for open projects (key = project.id)
   private handles = new Map<string, FileSystemDirectoryHandle>()
   // In-memory project state cache
   private projects = new Map<string, Project>()
-  // Temp handles from picker dialogs (key = opaque token returned to caller)
-  private tempHandles = new Map<string, FileSystemDirectoryHandle>()
 
-  // ── Dialog helpers (return opaque keys; components pass them back) ─────────
+  // Returns the konbini-projects/ subdir in OPFS, creating it if needed
+  private async getRoot(): Promise<FileSystemDirectoryHandle> {
+    const opfsRoot = await navigator.storage.getDirectory()
+    return opfsRoot.getDirectoryHandle('konbini-projects', { create: true })
+  }
+
+  // ── Dialog helpers ────────────────────────────────────────────────────────
+  // OPFS users navigate projects via the Recents list, not directory pickers.
 
   async showOpenDialog(): Promise<string | null> {
-    requireFSA()
-    try {
-      const handle = await window.showDirectoryPicker({ mode: 'readwrite' })
-      const key = uid('dh')
-      this.tempHandles.set(key, handle)
-      return key
-    } catch (e) {
-      if (e instanceof DOMException && e.name === 'AbortError') return null
-      throw e
-    }
+    return null
   }
 
-  async showSaveDialog(_defaultName: string): Promise<string | null> {
-    requireFSA()
-    try {
-      const handle = await window.showDirectoryPicker({ mode: 'readwrite' })
-      const key = uid('ph')
-      this.tempHandles.set(key, handle)
-      return `${key}::${handle.name}`
-    } catch (e) {
-      if (e instanceof DOMException && e.name === 'AbortError') return null
-      throw e
-    }
-  }
-
-  getHandleDisplayName(key: string): string {
-    const h = this.tempHandles.get(key.split('::')[0])
-    return h ? h.name : key
+  async showSaveDialog(_name: string): Promise<string | null> {
+    return null
   }
 
   // ── Open ─────────────────────────────────────────────────────────────────
 
-  async open(handleKey: string): Promise<Project> {
-    const bundleHandle = this.tempHandles.get(handleKey) ?? this.handles.get(handleKey)
-    if (!bundleHandle) throw new Error('No directory handle for key: ' + handleKey)
+  async open(location: string): Promise<Project> {
+    // location is 'opfs:' + projectId
+    const projectId = location.startsWith('opfs:') ? location.slice('opfs:'.length) : location
+    const root = await this.getRoot()
+    const bundleHandle = await root.getDirectoryHandle(`${projectId}.konbini`)
 
     const manifestText = await readText(bundleHandle, 'project.json')
     if (!manifestText) throw new Error('Not a Konbini project (no project.json)')
@@ -116,9 +99,7 @@ export class BrowserProjectService {
       project.docs[nodeId] = { content: content ?? '', snapshots: project.docs[nodeId]?.snapshots ?? [] }
     }
 
-    // Promote handle to a stable slot keyed by project.id
     this.handles.set(project.id, bundleHandle)
-    this.tempHandles.delete(handleKey)
     this.projects.set(project.id, project)
     return project
   }
@@ -126,28 +107,19 @@ export class BrowserProjectService {
   // ── Create ────────────────────────────────────────────────────────────────
 
   async create(opts: { title: string; template: 'blank' | 'novel' | 'screenplay' | 'nonfiction'; location: string }): Promise<Project> {
-    // location may be a pre-picked parent handle key OR we open the picker now
-    const [parentKey] = opts.location.split('::')
-    let parentHandle = this.tempHandles.get(parentKey)
+    const root = await this.getRoot()
 
-    if (!parentHandle) {
-      requireFSA()
-      try {
-        parentHandle = await window.showDirectoryPicker({ mode: 'readwrite' })
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') throw new Error('No folder selected.')
-        throw e
-      }
-    }
-
-    const bundleName = `${opts.title.replace(/[<>:"/\\|?*]/g, '_')}.konbini`
-    const bundleHandle = await parentHandle.getDirectoryHandle(bundleName, { create: true })
+    // Build the project first so we have an id, then use that as the bundle name
+    const project = buildProjectFromTemplate(opts.title, opts.template, '')
+    const bundleName = `${project.id}.konbini`
+    const bundleHandle = await root.getDirectoryHandle(bundleName, { create: true })
 
     // Ensure subdirs
     await bundleHandle.getDirectoryHandle('docs', { create: true })
     await bundleHandle.getDirectoryHandle('snapshots', { create: true })
 
-    const project = buildProjectFromTemplate(opts.title, opts.template, `${parentHandle.name}/${bundleName}`)
+    // Set OPFS location
+    project.settings.location = 'opfs:' + project.id
 
     // Write all doc .md files
     for (const [nodeId, body] of Object.entries(project.docs)) {
@@ -158,7 +130,6 @@ export class BrowserProjectService {
 
     await this.writeManifest(bundleHandle, project)
     this.handles.set(project.id, bundleHandle)
-    this.tempHandles.delete(parentKey)
     this.projects.set(project.id, project)
     return project
   }
@@ -312,7 +283,7 @@ export class BrowserProjectService {
     const h = this.getHandle(projectId)
     const content = await readText(h, 'snapshots', nodeId, `${snapshotId}.md`)
     if (content === null) throw new Error('Snapshot file not found')
-    const beforeSnap = await this.takeSnapshot(projectId, nodeId, 'before restore')
+    await this.takeSnapshot(projectId, nodeId, 'before restore')
     await this.writeDoc(projectId, nodeId, content)
     const p = this.getProject(projectId)
     const meta = p.docs[nodeId]?.snapshots.find(s => s.id === snapshotId)
@@ -422,4 +393,4 @@ export class BrowserProjectService {
   }
 }
 
-export const browserProjectService = new BrowserProjectService()
+export const opfsProjectService = new OPFSProjectService()

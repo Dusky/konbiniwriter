@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useRef } from 'react'
 import { useProjectStore } from '../../store/projectStore'
 import { STATUS_META, LABEL_META, wordCount } from '@shared/utils'
 
@@ -9,6 +9,7 @@ export default function Corkboard(): React.ReactElement {
   const setView = useProjectStore((s) => s.setView)
   const updateMeta = useProjectStore((s) => s.updateMeta)
   const applyMutation = useProjectStore((s) => s.applyMutation)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   if (!project) return <div className="main" />
 
@@ -16,10 +17,13 @@ export default function Corkboard(): React.ReactElement {
   const parentId = selectedId && project.nodes[selectedId]?.type === 'folder' ? selectedId : null
   const childIds = parentId ? project.nodes[parentId]?.childIds ?? [] : project.rootIds
 
-  const handleSynopsisChange = async (nodeId: string, synopsis: string) => {
+  const handleSynopsisChange = (nodeId: string, synopsis: string) => {
     updateMeta(nodeId, { synopsis })
-    const result = await window.api.node.mutate(project.id, { type: 'updateMeta', id: nodeId, patch: { synopsis } })
-    applyMutation(result)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(async () => {
+      const result = await window.api.node.mutate(project.id, { type: 'updateMeta', id: nodeId, patch: { synopsis } })
+      applyMutation(result)
+    }, 400)
   }
 
   return (
