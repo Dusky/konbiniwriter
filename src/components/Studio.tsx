@@ -43,6 +43,7 @@ export default function Studio(): React.ReactElement {
   const updateContent = useProjectStore((s) => s.updateContent)
   const addSnapshot = useProjectStore((s) => s.addSnapshot)
   const raiseDebt = useProjectStore((s) => s.raiseDebt)
+  const resolveDebtAffected = useProjectStore((s) => s.resolveDebtAffected)
   const project = useProjectStore((s) => s.project)
 
   const activeProposal = activeProposalId
@@ -108,6 +109,11 @@ export default function Studio(): React.ReactElement {
             addSnapshot(activeProposal.docId, snap)
             updateContent(activeProposal.docId, content)
             resolveProposal(activeProposal.id, 'applied')
+            // If this proposal was reconciling a debt item, applying it closes
+            // that affected document.
+            if (activeProposal.debtRef) {
+              resolveDebtAffected(activeProposal.debtRef.debtId, activeProposal.debtRef.docId)
+            }
             // Prose→outline debt: a substantial whole-doc revision may have
             // outdated the scene's synopsis.
             const debtItem = debtService.maybeRaiseFromProposal({ project, proposal: activeProposal, applied: content })

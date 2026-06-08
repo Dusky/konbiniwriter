@@ -43,11 +43,11 @@ export default function DebtInboxModal({ onClose }: Props): React.ReactElement {
         factLabel: item.revision.factLabel,
         oldValue: item.revision.oldValue,
         newValue: item.revision.newValue,
+        debtId: item.id,
       })
       queueProposal(proposal)
-      // The author reviews the proposal in changeset review; mark the affected
-      // doc handled here so the inbox reflects that a fix is in flight.
-      resolveDebtAffected(item.id, docId)
+      // Resolution happens when the author APPLIES the proposal (via debtRef in
+      // the apply seam) — not here. Discarding the proposal leaves it open.
     } catch (e) {
       if ((e as Error).name !== 'AbortError') setError((e as Error).message)
     } finally {

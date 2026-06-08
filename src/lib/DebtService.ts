@@ -129,9 +129,10 @@ export const debtService = {
     factLabel: string
     oldValue: string
     newValue: string
+    debtId?: ID
     signal?: AbortSignal
   }): Promise<Proposal> {
-    const { project, mentionIndex, docId, entityName, factLabel, oldValue, newValue, signal } = opts
+    const { project, mentionIndex, docId, entityName, factLabel, oldValue, newValue, debtId, signal } = opts
     const template = promptRegistry.get(REVISION_PROMPT_ID)
     if (!template) return Promise.reject(new Error(`Missing prompt template: ${REVISION_PROMPT_ID}`))
 
@@ -157,6 +158,7 @@ export const debtService = {
             original: document,
             proposed: full.trim(),
             promptId: REVISION_PROMPT_ID,
+            debtRef: debtId ? { debtId, docId } : undefined,
           })),
           onError: (err) => reject(err),
         },

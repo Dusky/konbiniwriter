@@ -169,6 +169,9 @@ export interface Proposal {
   costEstimateCents?: number
   promptId?: string
   agentId?: string
+  // If this proposal was generated to resolve a propagation-debt item, applying
+  // it auto-resolves that affected document.
+  debtRef?: { debtId: ID; docId: ID }
 }
 
 export type DiffSegment =

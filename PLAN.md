@@ -457,8 +457,11 @@ These are structural guarantees, not conventions. Violating any of them breaks a
 - Prose→outline debt (heuristic) ✅ — applying a whole-doc revision (`draft`/`revision`/`batch`)
   that changes prose substantially (≥40 words or ≥30%) raises an outline-layer "synopsis may be
   stale" item (Open / Mark OK, no AI) via `DebtService.maybeRaiseFromProposal` at the apply seam.
+- Debt auto-resolve on apply ✅ — a draft-fix proposal carries a `debtRef`; applying it
+  (not drafting it) resolves the originating affected doc at the apply seam. Discarding leaves
+  it open.
 - Remaining: LLM-judged canon-contradiction debt from prose edits, cross-layer debt
-  (voice drift), auto-resolve debt on proposal apply, deeper structural undo
+  (voice drift), deeper structural undo
 
 ### Phase 4 — Autopilot 🔲 STARTED (basic runner shipped)
 - `AutopilotRunner`: sequential node processing through changeset review ✅

@@ -77,6 +77,7 @@ export function createProposal(opts: {
   promptId?: string
   agentId?: string
   costEstimateCents?: number
+  debtRef?: Proposal['debtRef']
 }): Proposal {
   const segments = buildSegments(opts.original, opts.proposed)
   const nHunks = segments.filter((s) => s.type === 'hunk').length
@@ -98,6 +99,7 @@ export function createProposal(opts: {
     promptId: opts.promptId,
     agentId: opts.agentId,
     costEstimateCents: opts.costEstimateCents,
+    debtRef: opts.debtRef,
   }
 }
 
