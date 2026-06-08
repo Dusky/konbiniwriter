@@ -45,10 +45,10 @@
 - [x] Launch screen — brand panel, new/open/recents
 - [x] New Project modal — 4 templates, folder picker
 - [x] Open Project — FS handle picker
-- [ ] Recent projects: clicking re-opens picker (browser sessions lose FS handles without IndexedDB). Fix: store `FileSystemDirectoryHandle` objects in IndexedDB keyed by project ID. Resolved once per session with `handle.requestPermission({ mode: 'readwrite' })`.
+- [x] Recent projects reopen directly: FSA `FileSystemDirectoryHandle`s are persisted in IndexedDB (`HandleStore`) keyed by project ID and resolved via `requestPermission({ mode: 'readwrite' })` on the recent-row click; falls back to the picker if the handle is gone/denied. OPFS + Electron reopen by location.
 - [ ] Preferences modal — theme, editor font (mono/serif/sans), editor size (14–22px), density (compact/balanced/roomy)
 - [ ] Full keyboard map wired: ⌘⌥N (new folder), ⌘⇧D (new doc), ⌘⇧N (new scene), ⌘D (duplicate)
-- [ ] Binder: new-node inline rename flow needs polish — currently fires after create but focus timing is off in some cases
+- [x] Binder: new-node inline rename flow — single effect seeds the title and focuses+selects the input on the next frame, fixing the post-create focus races
 - [x] Status bar: show cursor position (line:col)
 - [x] Word count: project total in status bar excludes Trash subtree
 

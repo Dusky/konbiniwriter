@@ -111,6 +111,18 @@ const api = {
             });
             return project;
         },
+        // Electron reopens recents by real path — no handle persistence needed.
+        async openRecent(_id, location) {
+            const project = await NodeProjectService_1.nodeProjectService.open(location);
+            await touchRecent({
+                id: project.id, title: project.title,
+                location: project.settings.location,
+                words: Object.values(project.docs).reduce((a, d) => a + (0, utils_1.wordCount)(d.content), 0),
+                template: project.settings.template,
+                accent: project.settings.accent,
+            });
+            return project;
+        },
         recents: loadRecents,
         close: (id) => NodeProjectService_1.nodeProjectService.close(id),
         removeRecent: async (id) => removeRecent(id),

@@ -36,13 +36,15 @@ export default function Launch(): React.ReactElement {
     }
   }
 
-  // Open a recent. Try the stored location directly first; if that fails
-  // (stale FSA handle), fall back to the folder picker.
+  // Open a recent. On Chrome/Edge this resolves the persisted directory handle
+  // (re-prompting for permission if needed); on OPFS/Electron it opens by
+  // location. If the handle is gone or permission is denied, fall back to the
+  // folder picker.
   const openRecent = async (r: RecentEntry) => {
     setOpenErr(null)
     setOpening(true)
     try {
-      finish(await window.api.project.open(r.location))
+      finish(await window.api.project.openRecent(r.id, r.location))
     } catch {
       setOpening(false)
       await doOpen()

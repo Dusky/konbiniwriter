@@ -234,6 +234,7 @@ export interface KonbiniAPI {
   project: {
     create(opts: { title: string; template: TemplateId; location: string }): Promise<Project>
     open(path: string): Promise<Project>
+    openRecent(id: ID, location: string): Promise<Project>
     recents(): Promise<RecentEntry[]>
     close(id: ID): Promise<void>
     removeRecent(id: ID): Promise<void>
