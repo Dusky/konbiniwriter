@@ -158,6 +158,22 @@ const api = {
     compile: {
         run: (pid, rid, ids, fmt) => NodeProjectService_1.nodeProjectService.compile(pid, rid, ids, fmt),
     },
+    prefs: {
+        get: (key) => { try {
+            return localStorage.getItem(key);
+        }
+        catch {
+            return null;
+        } },
+        set: (key, value) => { try {
+            localStorage.setItem(key, value);
+        }
+        catch { /* noop */ } },
+        remove: (key) => { try {
+            localStorage.removeItem(key);
+        }
+        catch { /* noop */ } },
+    },
     shell: {
         platform: process.platform,
         minimize: () => { electron_1.ipcRenderer.invoke('shell:minimize'); },
