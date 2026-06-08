@@ -104,7 +104,7 @@ electron_1.ipcMain.handle('dialog:openDir', async (event) => {
     });
     return result.canceled ? null : result.filePaths[0];
 });
-electron_1.ipcMain.handle('dialog:saveDir', async (event, defaultName) => {
+electron_1.ipcMain.handle('dialog:saveDir', async (event, _defaultName) => {
     const w = electron_1.BrowserWindow.fromWebContents(event.sender) ?? win;
     if (!w)
         return null;

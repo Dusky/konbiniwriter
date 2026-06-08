@@ -3,7 +3,7 @@
 // Dev mode:  loads http://localhost:5173 (Vite dev server)
 // Prod mode: loads file://dist/index.html (built output)
 
-import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, shell, IpcMainInvokeEvent } from 'electron'
 import * as path from 'path'
 import * as fs from 'fs'
 
@@ -69,7 +69,7 @@ ipcMain.handle('shell:isMaximized', () => win?.isMaximized() ?? false)
 
 // ── IPC: native dialogs ───────────────────────────────────────────────────────
 
-ipcMain.handle('dialog:openDir', async (event) => {
+ipcMain.handle('dialog:openDir', async (event: IpcMainInvokeEvent) => {
   const w = BrowserWindow.fromWebContents(event.sender) ?? win
   if (!w) return null
   const result = await dialog.showOpenDialog(w, {
@@ -80,7 +80,7 @@ ipcMain.handle('dialog:openDir', async (event) => {
   return result.canceled ? null : result.filePaths[0]
 })
 
-ipcMain.handle('dialog:saveDir', async (event, defaultName: string) => {
+ipcMain.handle('dialog:saveDir', async (event: IpcMainInvokeEvent, _defaultName: string) => {
   const w = BrowserWindow.fromWebContents(event.sender) ?? win
   if (!w) return null
   const result = await dialog.showOpenDialog(w, {
@@ -94,6 +94,6 @@ ipcMain.handle('dialog:saveDir', async (event, defaultName: string) => {
 // For security, the preload runs with Node access in its own context.
 // These handlers allow main to do privileged ops if needed in future.
 
-ipcMain.handle('shell:openExternal', async (_e, url: string) => {
+ipcMain.handle('shell:openExternal', async (_e: IpcMainInvokeEvent, url: string) => {
   await shell.openExternal(url)
 })
