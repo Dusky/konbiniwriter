@@ -3,6 +3,9 @@ import { useShellStore } from '../../store/shellStore'
 import { useProjectStore } from '../../store/projectStore'
 import { relTime, fmtWords } from '@shared/utils'
 import NewProjectModal from '../modals/NewProjectModal'
+import CommandPalette from '../modals/CommandPalette'
+import ShortcutsModal from '../modals/ShortcutsModal'
+import AboutModal from '../modals/AboutModal'
 import { isFileSystemAccessSupported } from '../../lib/BrowserProjectService'
 import { isOPFSSupported } from '../../lib/OPFSProjectService'
 import type { RecentEntry } from '@shared/types'
@@ -134,6 +137,9 @@ export default function Launch(): React.ReactElement {
       {modal === 'new-project' && (
         <NewProjectModal onClose={() => setModal(null)} />
       )}
+      {modal === 'command-palette' && <CommandPalette onClose={() => setModal(null)} />}
+      {modal === 'shortcuts' && <ShortcutsModal onClose={() => setModal(null)} />}
+      {modal === 'about' && <AboutModal onClose={() => setModal(null)} />}
     </div>
   )
 }

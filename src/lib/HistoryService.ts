@@ -11,6 +11,7 @@
 
 import { wordCount } from '@shared/utils'
 import { useProjectStore } from '../store/projectStore'
+import { useShellStore } from '../store/shellStore'
 
 const WORD_DELTA = 30                 // words changed since last version to trigger
 const MIN_INTERVAL_MS = 3 * 60 * 1000 // never more than one auto-version / 3 min / doc
@@ -32,6 +33,8 @@ class HistoryService {
    * passed. No-ops otherwise (the common case).
    */
   async maybeCapture(projectId: string, nodeId: string, content: string): Promise<void> {
+    if (!useShellStore.getState().autoVersion) return
+
     const key = `${projectId}:${nodeId}`
     const words = wordCount(content)
     const t = this.track(key, words)
@@ -47,8 +50,28 @@ class HistoryService {
     try {
       const snap = await window.api.snapshot.take(projectId, nodeId, '', 'auto')
       useProjectStore.getState().addSnapshot(nodeId, snap)
+      await this.prune(projectId, nodeId)
     } catch (e) {
       console.error('Auto-version failed:', e)
+    }
+  }
+
+  /**
+   * Drop auto-versions older than the retention window for a document. Manual
+   * snapshots (and older bundles' kind-less snapshots) are never pruned.
+   */
+  private async prune(projectId: string, nodeId: string): Promise<void> {
+    const days = useShellStore.getState().historyRetentionDays
+    if (!days || days <= 0) return // 0 = keep forever
+    const cutoff = Date.now() - days * 86_400_000
+    const store = useProjectStore.getState()
+    const snaps = store.project?.docs[nodeId]?.snapshots ?? []
+    const stale = snaps.filter((s) => s.kind === 'auto' && new Date(s.takenAt).getTime() < cutoff)
+    for (const s of stale) {
+      try {
+        await window.api.snapshot.delete(projectId, nodeId, s.id)
+        store.removeSnapshot(nodeId, s.id)
+      } catch { /* best-effort */ }
     }
   }
 }

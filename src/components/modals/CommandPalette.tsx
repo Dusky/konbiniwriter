@@ -36,10 +36,41 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
+  const project = useProjectStore((s) => s.project)
+
   const commands = useMemo<Command[]>(() => {
     const shell = useShellStore.getState()
     const proj = useProjectStore.getState()
     const openModal = (m: ModalId) => () => shell.setModal(m)
+
+    // Launch screen (no project loaded): a small set focused on getting in.
+    if (!project) {
+      const finishOpen = (p: Parameters<typeof proj.loadProject>[0]) => { proj.loadProject(p); shell.setScreen('studio') }
+      const launch: Command[] = [
+        { id: 'new-project', label: 'New Project…', section: 'Start', run: () => shell.setModal('new-project') },
+        {
+          id: 'open-project', label: 'Open Project…', section: 'Start',
+          run: async () => {
+            const key = await window.api.project.showOpenDialog()
+            if (key) finishOpen(await window.api.project.open(key))
+          },
+        },
+        ...shell.recents.slice(0, 8).map((r) => ({
+          id: `recent-${r.id}`, label: r.title, section: 'Recent',
+          run: async () => {
+            try { finishOpen(await window.api.project.openRecent(r.id, r.location)) }
+            catch {
+              const key = await window.api.project.showOpenDialog()
+              if (key) finishOpen(await window.api.project.open(key))
+            }
+          },
+        })),
+        { id: 'theme', label: `Theme: switch to ${shell.theme === 'dark' ? 'Light' : 'Dark'}`, section: 'View', run: () => shell.setTheme(useShellStore.getState().theme === 'dark' ? 'light' : 'dark') },
+        { id: 'shortcuts', label: 'Keyboard Shortcuts…', section: 'Help', run: openModal('shortcuts') },
+        { id: 'about', label: 'About Konbini…', section: 'Help', run: openModal('about') },
+      ]
+      return launch
+    }
 
     const createNode = async (nodeType: NodeType) => {
       const p = proj.project
@@ -109,7 +140,7 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
       },
     )
     return cmds
-  }, [aiEnabled])
+  }, [aiEnabled, project])
 
   const filtered = useMemo(
     () => commands.filter((c) => fuzzy(query.trim(), c.label) || fuzzy(query.trim(), c.section)),

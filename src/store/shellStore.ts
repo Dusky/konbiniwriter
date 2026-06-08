@@ -14,6 +14,8 @@ interface ShellState {
   editorFont: EditorFont
   editorSize: number
   typewriterMode: boolean
+  autoVersion: boolean
+  historyRetentionDays: number   // 0 = keep forever
   modal: ModalId
   recents: RecentEntry[]
   layout: { binder: boolean; insp: boolean }
@@ -25,6 +27,8 @@ interface ShellState {
   setEditorFont: (f: EditorFont) => void
   setEditorSize: (n: number) => void
   setTypewriterMode: (v: boolean) => void
+  setAutoVersion: (v: boolean) => void
+  setHistoryRetentionDays: (n: number) => void
   toggleBinder: () => void
   toggleInsp: () => void
   setRecents: (r: RecentEntry[]) => void
@@ -47,6 +51,12 @@ export const useShellStore = create<ShellState>((set) => ({
   editorSize: 17,
   typewriterMode: (() => {
     try { return localStorage.getItem('pref:typewriterMode') === 'true' } catch { return false }
+  })(),
+  autoVersion: (() => {
+    try { return localStorage.getItem('pref:autoVersion') !== 'false' } catch { return true }
+  })(),
+  historyRetentionDays: (() => {
+    try { const n = parseInt(localStorage.getItem('pref:historyRetentionDays') ?? '14', 10); return isNaN(n) ? 14 : n } catch { return 14 }
   })(),
   modal: null,
   recents: [],
@@ -73,6 +83,14 @@ export const useShellStore = create<ShellState>((set) => ({
   setTypewriterMode: (typewriterMode) => {
     try { localStorage.setItem('pref:typewriterMode', String(typewriterMode)) } catch { /* noop */ }
     set({ typewriterMode })
+  },
+  setAutoVersion: (autoVersion) => {
+    try { localStorage.setItem('pref:autoVersion', String(autoVersion)) } catch { /* noop */ }
+    set({ autoVersion })
+  },
+  setHistoryRetentionDays: (historyRetentionDays) => {
+    try { localStorage.setItem('pref:historyRetentionDays', String(historyRetentionDays)) } catch { /* noop */ }
+    set({ historyRetentionDays })
   },
   toggleBinder: () => set((s) => ({ layout: { ...s.layout, binder: !s.layout.binder } })),
   toggleInsp: () => set((s) => ({ layout: { ...s.layout, insp: !s.layout.insp } })),
