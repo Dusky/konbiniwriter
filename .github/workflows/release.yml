@@ -1,0 +1,61 @@
+name: Release
+
+# Builds the Electron desktop app on all three platforms and publishes the
+# installers (Linux AppImage, macOS dmg, Windows nsis) to a GitHub Release.
+#
+# Trigger by pushing a version tag:
+#     git tag v0.1.0 && git push origin v0.1.0
+# or run manually from the Actions tab (workflow_dispatch) to do a dry build
+# (no publish) of all three platforms.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build web + compile Electron
+        run: |
+          npm run build
+          npm run electron:compile
+
+      # Publish only on a tag push; workflow_dispatch does a build-only dry run.
+      - name: Package (and publish on tag)
+        run: npx --no-install electron-builder --publish ${{ startsWith(github.ref, 'refs/tags/') && 'always' || 'never' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # No signing certs in CI — don't attempt macOS signing/notarization.
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: konbini-${{ matrix.os }}
+          path: |
+            release/*.AppImage
+            release/*.dmg
+            release/*.exe
+          if-no-files-found: ignore

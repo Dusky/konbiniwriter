@@ -488,6 +488,11 @@ These are structural guarantees, not conventions. Violating any of them breaks a
 - `electron/NodeProjectService.ts` (`fs/promises`, real paths) ✅
 - Firefox/Safari fallback: `OPFSProjectService` (browser storage) ✅
 - Scripts: `electron:dev`, `electron:build`; `electron-builder` config in `package.json` ✅
+- App icon (`build/icon.png`, brand ✦) wired per-platform ✅
+- CI release ✅ — `.github/workflows/release.yml`: 3-OS matrix (Linux AppImage / macOS dmg /
+  Windows nsis), `electron-builder --publish always` to a GitHub Release on a `v*` tag
+  (manual `workflow_dispatch` = build-only dry run). Binaries never live in git — they're
+  release assets. To cut a release: `git tag v0.1.0 && git push origin v0.1.0`.
 
 ---
 
