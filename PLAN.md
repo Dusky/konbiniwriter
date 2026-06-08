@@ -515,7 +515,11 @@ These are structural guarantees, not conventions. Violating any of them breaks a
     (prose craft + anti-slop) + `builtin:revision:draft`; scores & auto-revises the draft before it
     reaches changeset review, with a live phase indicator.
   This is the gate primitive Autopilot's phase transitions reuse — swap prompts, not machinery.
-- Remaining Foundation: canon database step; then drive the gate from the Autopilot runner.
+- Canon database ✅ — "Add world to Codex (canon)" (on by default) extracts the World Bible into
+  structured **non-character** Codex entries (locations, items, lore, concepts) via
+  `builtin:foundation:canon`, upserted into the same Codex the continuity checker, MentionIndex, and
+  propagation debt already key off. Foundation now seeds the full bible — cast *and* world canon.
+  Foundation generators are complete.
 - Remaining: phase-transition model (foundation→draft→eval→revise), canon DB + voice fingerprint
   steps + quality gate, spend cap + cost estimate, resumable runs, Elo ranking, critic/professor loops
 

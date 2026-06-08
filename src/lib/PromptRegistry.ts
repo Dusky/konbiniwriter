@@ -534,6 +534,37 @@ Produce an improved chapter-by-chapter outline that addresses every editor note 
     modifiedAt: ISO(),
   },
   {
+    id: 'builtin:foundation:canon',
+    name: 'Foundation · World → Canon',
+    description: 'Extract structured world canon (locations, items, lore, concepts) from the world bible.',
+    feature: 'autopilot',
+    phase: 'foundation',
+    model: 'claude-sonnet-4-6',
+    temperature: 0.3,
+    maxTokens: 3000,
+    template: `You are extracting structured world canon from a setting bible.
+
+<world>
+{{world}}
+</world>
+
+<concept>
+{{concept}}
+</concept>
+
+Return a JSON array — one object per notable world entity (places, organizations/factions, items/artifacts, and key concepts, rules, or systems). DO NOT include characters (people).
+[{ "category": "location" | "item" | "lore" | "concept", "name": "<name>", "aliases": ["<alt name>", ...], "summary": "<1-2 sentence overview>", "facts": [{ "label": "...", "value": "..." }] }]
+
+Categories: "location" for places, "item" for objects/artifacts, "lore" for history/myth/factions/organizations, "concept" for rules/systems/abstract ideas. Include 2–5 concrete facts each; "aliases" may be empty. Return ONLY valid JSON.`,
+    variables: [
+      { name: 'world', description: 'The world bible to structure' },
+      { name: 'concept', description: 'The story concept (for grounding)' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
     id: 'builtin:foundation:outline-parse',
     name: 'Foundation · Parse Outline',
     description: 'Convert an outline into a structured chapter list for scaffolding.',

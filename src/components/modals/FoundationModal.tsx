@@ -7,7 +7,7 @@ import { createProposal } from '../../lib/ProposalService'
 import { streamCompletion } from '../../lib/AIClient'
 import { runQualityGate } from '../../lib/QualityGate'
 import { uid } from '@shared/utils'
-import type { ID, CodexEntry, CodexFact } from '@shared/types'
+import type { ID, CodexEntry, CodexFact, CodexCategory } from '@shared/types'
 
 type StepId = 'concept' | 'world' | 'characters' | 'outline'
 
@@ -40,6 +40,7 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
   const [gate, setGate] = useState<GateResult | null>(null)
   const [autoGate, setAutoGate] = useState(true)
   const [addToCodex, setAddToCodex] = useState(true)
+  const [addCanon, setAddCanon] = useState(true)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [voice, setVoice] = useState(project?.settings.voiceFingerprint ?? '')
@@ -265,8 +266,38 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
     }
   }
 
+  // Parse the world bible into structured non-character Codex entries — the
+  // canon database (locations, items, lore, concepts). Same store the continuity
+  // checker, mention index, and propagation debt already key off.
+  const CANON_CATEGORIES: CodexCategory[] = ['location', 'item', 'concept', 'lore']
+  const extractCanon = async (world: string) => {
+    const raw = await gen('builtin:foundation:canon', { world, concept: text.concept }, () => {})
+    let parsed: Array<{ category?: string; name?: string; aliases?: string[]; summary?: string; facts?: Array<{ label?: string; value?: string }> }> = []
+    try { parsed = JSON.parse(raw.match(/\[[\s\S]*\]/)?.[0] ?? '[]') } catch { parsed = [] }
+    const now = new Date().toISOString()
+    for (const e of parsed) {
+      if (!e.name?.trim()) continue
+      const category: CodexCategory = CANON_CATEGORIES.includes((e.category ?? '') as CodexCategory)
+        ? (e.category as CodexCategory) : 'lore'
+      const facts: CodexFact[] = (e.facts ?? [])
+        .filter((f) => f.label?.trim() && f.value?.trim())
+        .map((f) => ({ id: uid(), label: f.label!.trim(), value: f.value!.trim(), aiGenerated: true, confirmedAt: null }))
+      upsertCodexEntry({
+        id: uid(),
+        name: e.name.trim(),
+        aliases: (e.aliases ?? []).map((a) => a.toLowerCase().trim()).filter(Boolean),
+        category,
+        summary: e.summary?.trim() ?? '',
+        facts,
+        createdAt: now,
+        modifiedAt: now,
+        aiGenerated: true,
+      })
+    }
+  }
+
   // Create the docs and queue each as a proposal for changeset review; optionally
-  // also seed the Codex from the cast.
+  // also seed the Codex from the cast and the world bible.
   const sendToProject = async () => {
     setSending(true)
     setError(null)
@@ -276,6 +307,7 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
         if (text[step.id].trim()) await createDocProposal(folderId, step.docTitle, text[step.id])
       }
       if (addToCodex && text.characters.trim()) await extractCodex(text.characters)
+      if (addCanon && text.world.trim()) await extractCanon(text.world)
       onClose()
     } catch (e) {
       if ((e as Error).name !== 'AbortError') setError(`Send failed: ${(e as Error).message}`)
@@ -410,10 +442,16 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
         </div>
 
         <div className="modal-foot">
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-2)', cursor: 'pointer' }}>
-            <input type="checkbox" checked={addToCodex} onChange={(e) => setAddToCodex(e.target.checked)} />
-            Add cast to Codex
-          </label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-2)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={addToCodex} onChange={(e) => setAddToCodex(e.target.checked)} />
+              Add cast to Codex
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-2)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={addCanon} onChange={(e) => setAddCanon(e.target.checked)} />
+              Add world to Codex (canon)
+            </label>
+          </div>
           <span className="tb-spacer" />
           <button className="btn" onClick={onClose} disabled={!!running || sending}>Cancel</button>
           <button
