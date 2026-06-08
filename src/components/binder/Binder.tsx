@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useProjectStore, flattenVisible, subtreeWordCount, isDescendant } from '../../store/projectStore'
 import { useShellStore } from '../../store/shellStore'
-import ContextMenu, { type MenuItem } from './ContextMenu'
+import ContextMenu, { type MenuItem } from '../common/ContextMenu'
 import { STATUS_META, fmtWords } from '@shared/utils'
 import type { ID, NodeType } from '@shared/types'
 

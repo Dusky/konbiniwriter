@@ -1,12 +1,16 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useProjectStore, flattenVisible } from '../../store/projectStore'
 import { STATUS_META, LABEL_META, wordCount } from '@shared/utils'
+import ContextMenu from '../common/ContextMenu'
+import { useNodeMenu } from '../common/useNodeMenu'
 
 export default function Outliner(): React.ReactElement {
   const project = useProjectStore((s) => s.project)
   const selectedId = useProjectStore((s) => s.selectedId)
   const selectNode = useProjectStore((s) => s.selectNode)
   const setView = useProjectStore((s) => s.setView)
+  const nodeMenu = useNodeMenu()
+  const [ctx, setCtx] = useState<{ x: number; y: number; id: string } | null>(null)
 
   if (!project) return <div className="main" />
 
@@ -39,6 +43,7 @@ export default function Outliner(): React.ReactElement {
                   className={selectedId === id ? 'sel' : ''}
                   onClick={() => selectNode(id)}
                   onDoubleClick={() => { selectNode(id); if (node.type !== 'folder') setView('editor') }}
+                  onContextMenu={(e) => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, id }) }}
                 >
                   <td>
                     <div className="o-title" style={{ paddingLeft: depth * 16 }}>
@@ -70,6 +75,9 @@ export default function Outliner(): React.ReactElement {
           </tbody>
         </table>
       </div>
+      {ctx && (
+        <ContextMenu x={ctx.x} y={ctx.y} items={nodeMenu(ctx.id)} onClose={() => setCtx(null)} />
+      )}
     </div>
   )
 }

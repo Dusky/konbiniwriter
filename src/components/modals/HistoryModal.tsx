@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import { useProjectStore } from '../../store/projectStore'
+import ContextMenu from '../common/ContextMenu'
 import type { Snapshot } from '@shared/types'
 
 function relTime(iso: string): string {
@@ -52,6 +53,7 @@ export default function HistoryModal({ onClose }: Props): React.ReactElement {
   const [selected, setSelected] = useState<Snapshot | null>(null)
   const [filter, setFilter] = useState<Filter>('all')
   const [restoring, setRestoring] = useState(false)
+  const [ctx, setCtx] = useState<{ x: number; y: number; snap: Snapshot } | null>(null)
 
   const nodeId = selectedId
   const node = nodeId && project ? project.nodes[nodeId] : null
@@ -161,6 +163,7 @@ export default function HistoryModal({ onClose }: Props): React.ReactElement {
                       key={snap.id}
                       className={`snap-item${selected?.id === snap.id ? ' sel' : ''}`}
                       onClick={() => setSelected(snap)}
+                      onContextMenu={(e) => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, snap }) }}
                     >
                       <div className="si-main">
                         <div className="si-t" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -208,6 +211,19 @@ export default function HistoryModal({ onClose }: Props): React.ReactElement {
           <button className="btn" onClick={onClose}>Close</button>
         </div>
       </div>
+      {ctx && (
+        <ContextMenu
+          x={ctx.x}
+          y={ctx.y}
+          items={[
+            { label: 'Compare with current', action: () => setSelected(ctx.snap) },
+            { label: 'Restore this version', action: () => handleRestore(ctx.snap) },
+            { label: '---', action: () => {} },
+            { label: 'Delete version', action: () => handleDelete(ctx.snap), danger: true },
+          ]}
+          onClose={() => setCtx(null)}
+        />
+      )}
     </div>
   )
 }

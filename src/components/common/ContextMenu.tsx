@@ -14,6 +14,9 @@ interface Props {
   onClose: () => void
 }
 
+// Shared right-click menu. Surfaces (binder, corkboard, outliner, version
+// lists) supply their own MenuItem[]; this handles positioning, outside-click
+// dismissal, separators ('---'), and disabled/danger styling.
 export default function ContextMenu({ x, y, items, onClose }: Props): React.ReactElement {
   const ref = useRef<HTMLDivElement>(null)
 
@@ -21,11 +24,16 @@ export default function ContextMenu({ x, y, items, onClose }: Props): React.Reac
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) onClose()
     }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', handler)
+      document.removeEventListener('keydown', onKey)
+    }
   }, [onClose])
 
-  // Adjust position so menu doesn't go off-screen
+  // Adjust position so the menu doesn't run off-screen.
   const style: React.CSSProperties = {
     left: Math.min(x, window.innerWidth - 200),
     top: Math.min(y, window.innerHeight - items.length * 34 - 20),
