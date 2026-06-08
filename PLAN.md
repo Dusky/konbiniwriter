@@ -483,6 +483,10 @@ These are structural guarantees, not conventions. Violating any of them breaks a
   null for unknown/BYOK models); `aiStore` keeps a session tally (tokens, USD, calls, unpriced).
   Surfaced as a "Session usage" panel in AI Settings (with reset) and, in the Autopilot runner, a
   **pre-run cost estimate** (generation + gate loop) plus **live "spent this run"** during/after a run.
+- Spend cap ✅ — a persisted USD ceiling (`aiStore.spendCapUSD`, 0 = none) set in the Autopilot
+  config; the runner halts before starting a new scene once the run's cost crosses it (in-flight
+  scene finishes), and the done screen reports the cap stop. Over-cap estimates are flagged before
+  the run starts. Turns spend *awareness* into an enforced guardrail for autonomous runs.
 - Outline → scaffold → draft handoff ✅ — "Scaffold → draft" in `FoundationModal` parses the gated
   outline (`builtin:foundation:outline-parse`) into chapters, creates a document per chapter
   (title + synopsis metadata) under a **Manuscript** folder, then opens the Autopilot runner

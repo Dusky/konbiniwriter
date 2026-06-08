@@ -42,6 +42,8 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
   const setAutopilotPreset = useProjectStore((s) => s.setAutopilotPreset)
   const aiModel = useAIStore((s) => (s.provider === 'anthropic' ? s.anthropicModel : s.openaiModel))
   const spendUSD = useAIStore((s) => s.spendUSD)
+  const spendCapUSD = useAIStore((s) => s.spendCapUSD)
+  const setSpendCap = useAIStore((s) => s.setSpendCap)
 
   const [phase, setPhase] = useState<Phase>('config')
   const [checked, setChecked] = useState<Record<ID, boolean>>({})
@@ -52,6 +54,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
   const [pipelineError, setPipelineError] = useState<string | null>(null)
   const [useGate, setUseGate] = useState(true)
   const [gateStatus, setGateStatus] = useState<string | null>(null)
+  const [capHit, setCapHit] = useState(false)
 
   const stopped = useRef(false)
   const abortRef = useRef<AbortController>(new AbortController())
@@ -135,6 +138,12 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
 
     for (let i = 0; i < nodeIds.length; i++) {
       if (stopped.current) break
+      // Spend cap: halt before starting a new scene once the run's cost crosses
+      // the ceiling (a scene already in flight is allowed to finish).
+      if (spendCapUSD > 0 && (useAIStore.getState().spendUSD - runStartSpend.current) >= spendCapUSD) {
+        setCapHit(true)
+        break
+      }
       const nodeId = nodeIds[i]
       setCurrentIndex(i)
       setAutopilotCurrent(nodeId)
@@ -240,6 +249,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
     stopped.current = false
     abortRef.current = new AbortController()
     setPipelineError(null)
+    setCapHit(false)
     runStartSpend.current = useAIStore.getState().spendUSD
     void runPipeline(checkedIds, promptId)
   }
@@ -281,6 +291,25 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
                   <input type="checkbox" checked={useGate} onChange={(e) => setUseGate(e.target.checked)} />
                   Quality gate — score &amp; auto-revise each draft before review
                 </label>
+              )}
+
+              {/* Spend cap */}
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-2)' }}>
+                Spend cap
+                <span style={{ color: 'var(--text-3)' }}>$</span>
+                <input
+                  type="number" min={0} step={0.5}
+                  value={spendCapUSD || ''}
+                  onChange={(e) => setSpendCap(Math.max(0, parseFloat(e.target.value) || 0))}
+                  placeholder="0 = none"
+                  style={{ width: 80, padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)' }}
+                />
+                <span style={{ color: 'var(--text-3)' }}>halts the run when crossed</span>
+              </label>
+              {spendCapUSD > 0 && estimate?.cost != null && estimate.cost > spendCapUSD && (
+                <div style={{ fontSize: 11, color: 'var(--st-idea)' }}>
+                  Estimated ~{formatUSD(estimate.cost)} exceeds the {formatUSD(spendCapUSD)} cap — the run will stop partway.
+                </div>
               )}
 
               {/* Node checklist */}
@@ -404,7 +433,10 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
           <>
             <div className="modal-body">
               <div style={{ fontSize: 14, color: 'var(--text)', textAlign: 'center', padding: '20px 0' }}>
-                All scenes processed.<br />
+                {capHit
+                  ? <>Stopped — spend cap of {formatUSD(spendCapUSD)} reached.</>
+                  : 'All scenes processed.'}
+                <br />
                 <span style={{ fontSize: 12, color: 'var(--text-3)' }}>Spent this run: {formatUSD(Math.max(0, spendUSD - runStartSpend.current))}</span>
               </div>
             </div>

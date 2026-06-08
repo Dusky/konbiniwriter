@@ -33,6 +33,9 @@ interface AIState {
   spendUnpriced: number     // calls whose model has no known price
   recordSpend: (model: string, inputTokens: number, outputTokens: number) => void
   resetSpend: () => void
+
+  spendCapUSD: number       // 0 = no cap; halts an autopilot run when the run's cost crosses it
+  setSpendCap: (usd: number) => void
 }
 
 const SK = 'konbini:ai'
@@ -79,4 +82,7 @@ export const useAIStore = create<AIState>((set) => ({
     }
   }),
   resetSpend: () => set({ spendInputTokens: 0, spendOutputTokens: 0, spendUSD: 0, spendCalls: 0, spendUnpriced: 0 }),
+
+  spendCapUSD: parseFloat(load(`${SK}:spendCap`, '0')) || 0,
+  setSpendCap: (spendCapUSD) => { save(`${SK}:spendCap`, String(spendCapUSD)); set({ spendCapUSD }) },
 }))
