@@ -470,8 +470,13 @@ These are structural guarantees, not conventions. Violating any of them breaks a
   `setTree` node op so store, service, and on-disk manifest stay in sync (docs/content untouched).
 - Remaining: cross-layer debt (voice drift)
 
-### Phase 4 — Autopilot 🔲 STARTED (basic runner shipped)
-- `AutopilotRunner`: sequential node processing through changeset review ✅
+### Phase 4 — Autopilot 🔲 STARTED (gated runner)
+- `AutopilotRunner` (`AutopilotModal`): sequential node processing through changeset review ✅
+- Gated runner ✅ — when a drafting prompt is selected, each generated draft runs through
+  `runQualityGate` (score → auto-revise) **before** its proposal is queued; live phase/score
+  indicator, falls back to the ungated draft on gate error. This is the produce → gate → advance
+  pipeline: Foundation lays down outline/voice/canon, the runner drafts each scene against them and
+  won't surface a draft for review until it clears the bar. Toggle in the runner config.
 - Foundation (v1) ✅ — `FoundationModal`: seed → concept → world bible → cast, chained in-memory
   (each step feeds the next), editable previews, registry prompts `builtin:foundation:*`. "Send to
   project" creates a **Foundation** folder + a doc per part and queues each as a proposal

@@ -4,7 +4,12 @@ import { promptRegistry } from '../../lib/PromptRegistry'
 import { buildContext, renderContext } from '../../lib/ContextBuilder'
 import { createProposal } from '../../lib/ProposalService'
 import { streamCompletion } from '../../lib/AIClient'
+import { runQualityGate } from '../../lib/QualityGate'
 import type { ID, PromptTemplate } from '@shared/types'
+
+// The gate scores prose craft, so it only makes sense for drafting prompts.
+const gateEligibleFor = (p?: PromptTemplate | null): boolean =>
+  !!p && /draft|chapter|scene|prose/i.test(`${p.id} ${p.name}`)
 
 type Phase = 'config' | 'running' | 'done'
 
@@ -39,6 +44,8 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [totalCount, setTotalCount] = useState(0)
   const [pipelineError, setPipelineError] = useState<string | null>(null)
+  const [useGate, setUseGate] = useState(true)
+  const [gateStatus, setGateStatus] = useState<string | null>(null)
 
   const stopped = useRef(false)
   const abortRef = useRef<AbortController>(new AbortController())
@@ -72,6 +79,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
 
   const checkedIds = nodeList.filter(({ id }) => checked[id]).map(({ id }) => id)
   const canRun = checkedIds.length > 0 && promptId !== ''
+  const gateEligible = gateEligibleFor(allPrompts.find((p) => p.id === promptId))
 
   const runPipeline = async (nodeIds: ID[], selectedPromptId: string) => {
     setPhase('running')
@@ -79,14 +87,19 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
     setAutopilotRunning(true)
     setAutopilotQueue(nodeIds)
 
+    const template = promptRegistry.get(selectedPromptId)
+    const gateOn = useGate && gateEligibleFor(template)
+
     for (let i = 0; i < nodeIds.length; i++) {
       if (stopped.current) break
       const nodeId = nodeIds[i]
       setCurrentIndex(i)
       setAutopilotCurrent(nodeId)
       setStreamText('')
+      setGateStatus(null)
 
       const node = project.nodes[nodeId]
+      const synopsis = node?.meta.synopsis ?? ''
       const content = project.docs[nodeId]?.content ?? ''
 
       // Build context
@@ -97,52 +110,80 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
       const rendered = promptRegistry.render(selectedPromptId, {
         content: content.slice(0, 8000),
         context: contextStr,
-        synopsis: node?.meta.synopsis ?? '',
+        synopsis,
         title: node?.title ?? '',
       })
-      const template = promptRegistry.get(selectedPromptId)
 
-      // Stream completion
+      // 1) Generate the candidate.
       let fullText = ''
-      await streamCompletion(
-        [{ role: 'user', content: rendered }],
-        {
-          systemPrompt: template?.template,
-          maxTokens: template?.maxTokens ?? 2000,
-          temperature: template?.temperature ?? 0.7,
-          signal: abortRef.current.signal,
-        },
-        {
-          onChunk: (chunk) => { fullText += chunk; setStreamText(fullText) },
-          onDone: async (full) => {
-            const targetNode = project.nodes[nodeId]
-            const original = project.docs[nodeId]?.content ?? ''
-            const proposal = createProposal({
-              docId: nodeId,
-              docTitle: targetNode?.title ?? 'Document',
-              command: 'batch',
-              label: `Autopilot: ${targetNode?.title ?? ''}`,
-              group: 'autopilot',
-              original,
-              proposed: full,
-              promptId: selectedPromptId,
-            })
-            queueProposal(proposal)
+      try {
+        fullText = await new Promise<string>((resolve, reject) => {
+          abortRef.current.signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
+          let acc = ''
+          streamCompletion(
+            [{ role: 'user', content: rendered }],
+            {
+              systemPrompt: template?.template,
+              maxTokens: template?.maxTokens ?? 2000,
+              temperature: template?.temperature ?? 0.7,
+              signal: abortRef.current.signal,
+            },
+            { onChunk: (c) => { acc += c; setStreamText(acc) }, onDone: resolve, onError: reject },
+          ).catch(reject)
+        })
+      } catch (e) {
+        if ((e as Error).name === 'AbortError') break
+        setPipelineError((e as Error).message)
+        continue
+      }
 
-            // Wait for the proposal to be resolved (applied or discarded)
-            await new Promise<void>((resolve) => {
-              const unsub = useProjectStore.subscribe((s) => {
-                const p = s.proposals.find((pr) => pr.id === proposal.id)
-                if (!p || p.status === 'applied' || p.status === 'discarded') {
-                  unsub()
-                  resolve()
-                }
-              })
-            })
-          },
-          onError: (err) => { setPipelineError(err.message) },
-        },
-      )
+      // 2) Gate it (score → auto-revise) when the prompt is a drafting prompt.
+      let proposed = fullText
+      if (gateOn) {
+        try {
+          const outcome = await runQualityGate(fullText, {
+            scorePromptId: 'builtin:evaluation:draft-gate',
+            revisePromptId: 'builtin:revision:draft',
+            scoreVars: (doc) => ({ synopsis, context: contextStr, document: doc }),
+            reviseVars: (doc, critique) => ({ synopsis, context: contextStr, document: doc, critique }),
+            signal: abortRef.current.signal,
+            onRevise: (s) => setStreamText(s),
+            onPhase: (phase, round) => setGateStatus(
+              phase === 'revising' ? `Revising (round ${round})…` : `Scoring${round ? ` after revision ${round}` : ''}…`
+            ),
+          })
+          proposed = outcome.text
+          setGateStatus(`Scored ${outcome.score.overall}/100${outcome.passed ? ' · pass' : ` · auto-revised ${outcome.rounds}×`}`)
+        } catch (e) {
+          if ((e as Error).name === 'AbortError') break
+          setPipelineError(`Quality gate failed: ${(e as Error).message} — using the ungated draft.`)
+        }
+      }
+
+      // 3) Queue for changeset review and wait for the author to resolve it.
+      const targetNode = project.nodes[nodeId]
+      const original = project.docs[nodeId]?.content ?? ''
+      const proposal = createProposal({
+        docId: nodeId,
+        docTitle: targetNode?.title ?? 'Document',
+        command: 'batch',
+        label: `Autopilot: ${targetNode?.title ?? ''}`,
+        group: 'autopilot',
+        original,
+        proposed,
+        promptId: selectedPromptId,
+      })
+      queueProposal(proposal)
+
+      await new Promise<void>((resolve) => {
+        const unsub = useProjectStore.subscribe((s) => {
+          const p = s.proposals.find((pr) => pr.id === proposal.id)
+          if (!p || p.status === 'applied' || p.status === 'discarded') {
+            unsub()
+            resolve()
+          }
+        })
+      })
     }
 
     setAutopilotRunning(false)
@@ -189,6 +230,14 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
                   ))}
                 </select>
               </div>
+
+              {/* Quality gate (drafting prompts only) */}
+              {gateEligible && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-2)', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={useGate} onChange={(e) => setUseGate(e.target.checked)} />
+                  Quality gate — score &amp; auto-revise each draft before review
+                </label>
+              )}
 
               {/* Node checklist */}
               <div>
@@ -250,6 +299,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
               <div style={{ fontSize: 13, color: 'var(--text-2)' }}>
                 Scene {currentIndex + 1} of {totalCount} — <strong>{currentNodeTitle}</strong>
               </div>
+              {gateStatus && <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>{gateStatus}</div>}
 
               {/* Progress bar */}
               <div style={{ height: 6, background: 'var(--bg-3)', borderRadius: 3, overflow: 'hidden' }}>
