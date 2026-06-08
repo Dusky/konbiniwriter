@@ -449,7 +449,13 @@ These are structural guarantees, not conventions. Violating any of them breaks a
 - Batch generators (cast, beat sheet, chapter draft, evaluate prose) ✅
 - Slop scorer (CM6 wavy underlines, Proof button) ✅
 - Reader panel, AI Chat, Autopilot runner, Writing Stats, Timeline drag, split editor, typewriter scroll ✅
-- Remaining: propagation-debt inbox (stale fact detection), deeper structural undo
+- Propagation-debt inbox (v1) ✅ — editing a Codex fact raises a `DebtItem` (via
+  `DebtService.fromFactChange` + `MentionIndex`) listing scenes that reference the
+  entity; the inbox (toolbar badge + `debt` modal) offers Open / Draft fix (registry
+  prompt `builtin:revision:canon` → proposal → changeset review) / Mark OK per doc.
+  Persisted in `project.settings.debt`.
+- Remaining: debt from AI prose edits (`ProposalService.apply` → `maybeRaiseFromProposal`),
+  cross-layer debt (voice/outline), deeper structural undo
 
 ### Phase 4 — Autopilot 🔲 STARTED (basic runner shipped)
 - `AutopilotRunner`: sequential node processing through changeset review ✅

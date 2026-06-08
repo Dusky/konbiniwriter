@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Project, KNode, DocBody, DocMeta, NodeType, ViewMode, SaveStatus, Snapshot, ID, Proposal, CodexEntry } from '@shared/types'
+import type { Project, KNode, DocBody, DocMeta, NodeType, ViewMode, SaveStatus, Snapshot, ID, Proposal, CodexEntry, DebtItem } from '@shared/types'
 import { uid, wordCount } from '@shared/utils'
 import { type MentionIndex, buildIndex, updateIndex } from '../lib/MentionIndex'
 import { statsService } from '../lib/StatsService'
@@ -19,6 +19,7 @@ interface ProjectState {
   proposals: Proposal[]
   activeProposalId: ID | null
   codex: CodexEntry[]
+  debt: DebtItem[]
   slopSpans: import('../components/editor/extensions').SlopSpan[]
   slopRunning: boolean
   nodeHistory: Array<{ rootIds: ID[]; nodes: Record<ID, KNode> }>
@@ -65,6 +66,11 @@ interface ProjectState {
   // — codex —
   upsertCodexEntry: (entry: CodexEntry) => void
   deleteCodexEntry: (id: ID) => void
+
+  // — propagation debt —
+  raiseDebt: (item: DebtItem) => void
+  resolveDebtAffected: (debtId: ID, docId: ID) => void
+  dismissDebt: (debtId: ID) => void
 
   // — slop scorer —
   setSlopSpans: (spans: import('../components/editor/extensions').SlopSpan[]) => void
@@ -146,6 +152,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   proposals: [],
   activeProposalId: null,
   codex: [],
+  debt: [],
   slopSpans: [],
   slopRunning: false,
   nodeHistory: [],
@@ -165,6 +172,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     renamingId: null,
     mentionIndex: buildIndex(project.docs),
     codex: (project.settings.codex as CodexEntry[] | undefined) ?? [],
+    debt: (project.settings.debt as DebtItem[] | undefined) ?? [],
     proposals: [],
     activeProposalId: null,
     nodeHistory: [],
@@ -180,7 +188,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     cursor: null,
     pendingReveal: null,
   }),
-  unloadProject: () => set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], judgeResults: new Map(), sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null }),
+  unloadProject: () => set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], debt: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], judgeResults: new Map(), sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null }),
 
   selectNode: (id) => set((s) => {
     if (!id || !s.project) return { selectedId: id, cursor: null }
@@ -308,6 +316,28 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const codex = s.codex.filter((e) => e.id !== id)
     if (s.project) window.api.codex.save(s.project.id, codex).catch(console.error)
     return { codex }
+  }),
+
+  raiseDebt: (item) => set((s) => {
+    // Supersede any existing unresolved item from the same source + title
+    // (re-editing the same fact updates the open item instead of stacking).
+    const debt = [item, ...s.debt.filter((d) => !(d.source === item.source && d.title === item.title))]
+    if (s.project) window.api.settings.save(s.project.id, { debt }).catch(console.error)
+    return { debt }
+  }),
+  resolveDebtAffected: (debtId, docId) => set((s) => {
+    const debt = s.debt.map((d) =>
+      d.id === debtId
+        ? { ...d, affected: d.affected.map((a) => a.docId === docId ? { ...a, resolved: true } : a) }
+        : d
+    )
+    if (s.project) window.api.settings.save(s.project.id, { debt }).catch(console.error)
+    return { debt }
+  }),
+  dismissDebt: (debtId) => set((s) => {
+    const debt = s.debt.filter((d) => d.id !== debtId)
+    if (s.project) window.api.settings.save(s.project.id, { debt }).catch(console.error)
+    return { debt }
   }),
 
   setSlopSpans: (slopSpans) => set({ slopSpans, slopRunning: false }),

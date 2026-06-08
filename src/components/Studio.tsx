@@ -26,6 +26,7 @@ import StatsModal from './modals/StatsModal'
 import AutopilotModal from './modals/AutopilotModal'
 import CommandPalette from './modals/CommandPalette'
 import HistoryModal from './modals/HistoryModal'
+import DebtInboxModal from './modals/DebtInboxModal'
 
 export default function Studio(): React.ReactElement {
   const layout = useShellStore((s) => s.layout)
@@ -93,6 +94,7 @@ export default function Studio(): React.ReactElement {
       {modal === 'chat'            && <ChatModal            onClose={() => setModal(null)} />}
       {modal === 'stats'           && <StatsModal           onClose={() => setModal(null)} />}
       {modal === 'autopilot'       && <AutopilotModal       onClose={() => setModal(null)} />}
+      {modal === 'debt'            && <DebtInboxModal       onClose={() => setModal(null)} />}
 
       {activeProposal && (
         <ChangesetModal

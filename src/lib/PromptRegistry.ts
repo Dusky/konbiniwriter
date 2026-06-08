@@ -290,6 +290,45 @@ Then a brief overall verdict (2 sentences max).`,
     createdAt: ISO(),
     modifiedAt: ISO(),
   },
+  {
+    id: 'builtin:revision:canon',
+    name: 'Reconcile Canon Change',
+    description: 'Revise a document so it stays consistent after a Codex fact changed (propagation debt).',
+    feature: 'autopilot',
+    phase: 'revise',
+    model: 'claude-opus-4-8',
+    temperature: 0.4,
+    maxTokens: 8000,
+    template: `You are a continuity editor revising a scene to match updated canon.
+
+<canon_change>
+Entity: {{entity}}
+Fact: {{fact}}
+Was: {{oldValue}}
+Now: {{newValue}}
+</canon_change>
+
+<context>
+{{context}}
+</context>
+
+<document>
+{{document}}
+</document>
+
+Revise the document so every reference to {{entity}} is consistent with the updated fact. Change ONLY what the canon update requires — preserve the voice, structure, tense, and all unrelated content. If nothing in the document actually depends on this fact, return the document unchanged. Return only the full revised document text, no commentary.`,
+    variables: [
+      { name: 'entity', description: 'The entity whose fact changed' },
+      { name: 'fact', description: 'The fact label that changed' },
+      { name: 'oldValue', description: 'Previous fact value' },
+      { name: 'newValue', description: 'Updated fact value' },
+      { name: 'context', description: 'Scene/codex context' },
+      { name: 'document', description: 'Full current document markdown' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
 ]
 
 export const DEFAULT_AGENTS: AgentTemplate[] = [

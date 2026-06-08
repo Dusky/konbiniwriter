@@ -24,6 +24,7 @@ export default function Toolbar(): React.ReactElement {
   const aiEnabled = useAIStore((s) => s.enabled)
   const slopRunning = useProjectStore((s) => s.slopRunning)
   const slopCount = useProjectStore((s) => s.slopSpans.length)
+  const debtOpen = useProjectStore((s) => s.debt.filter((d) => d.affected.some((a) => !a.resolved)).length)
 
   return (
     <div className="toolbar">
@@ -174,6 +175,16 @@ export default function Toolbar(): React.ReactElement {
                 <path d="M8 2l1.5 4h4l-3.2 2.4 1.2 4L8 10l-3.5 2.4 1.2-4L2.5 6h4z" />
               </svg>
               {slopRunning ? '…' : slopCount > 0 ? `${slopCount}` : 'Proof'}
+            </button>
+            <button
+              className={`tb-btn${debtOpen > 0 ? ' on' : ''}`}
+              title="Propagation Debt — scenes made stale by canon changes"
+              onClick={() => setModal('debt')}
+            >
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
+                <path d="M8 1.5l6 11H2z" /><path d="M8 6.5v3" strokeLinecap="round" /><circle cx="8" cy="11.4" r="0.5" fill="currentColor" stroke="none" />
+              </svg>
+              {debtOpen > 0 ? `Debt ${debtOpen}` : 'Debt'}
             </button>
           </div>
           <div className="tb-sep" />

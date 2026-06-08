@@ -31,6 +31,7 @@ export type ModalId =
   | 'chat'
   | 'stats'
   | 'autopilot'
+  | 'debt'
   | null
 
 // ── Project ───────────────────────────────────────────────────────────────────
@@ -56,7 +57,33 @@ export interface ProjectSettings {
   editorSize?: number
   wordTarget?: number        // project-level word-count goal
   codex?: CodexEntry[]       // stored as JSON, typed at load time
+  debt?: DebtItem[]          // propagation-debt inbox (persisted with project)
   [k: string]: unknown
+}
+
+// ── Propagation debt ──────────────────────────────────────────────────────────
+// A change in one layer (e.g. a Codex canon fact) leaves downstream documents
+// stale. Each DebtItem records the change and the documents it may have
+// invalidated, so the author can review/redraft them through the proposal pipe.
+
+export type DebtLayer = 'voice' | 'world' | 'character' | 'outline' | 'prose' | 'canon'
+
+export interface DebtAffected {
+  docId: ID
+  note: string          // why this doc is implicated, e.g. a matched snippet
+  resolved: boolean
+}
+
+export interface DebtItem {
+  id: ID
+  layer: DebtLayer
+  title: string         // e.g. "Mara · age changed"
+  detail: string        // what changed, e.g. '"29" → "31"'
+  source: string        // entity id (or doc id) that caused the change
+  affected: DebtAffected[]
+  createdAt: ISO
+  // Structured change context for AI-assisted reconciliation (canon debt).
+  revision?: { entityName: string; factLabel: string; oldValue: string; newValue: string }
 }
 
 export interface KNode {

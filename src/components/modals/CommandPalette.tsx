@@ -113,6 +113,7 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
     if (aiEnabled) {
       cmds.push(
         { id: 'ai-codex', label: 'Codex…', section: 'AI', hint: '⌘⇧K', run: openModal('codex') },
+        { id: 'ai-debt', label: 'Propagation Debt…', section: 'AI', run: openModal('debt') },
         { id: 'ai-chat', label: 'AI Chat…', section: 'AI', hint: '⌘⇧A', run: openModal('chat') },
         { id: 'ai-reader', label: 'Reader Panel…', section: 'AI', hint: '⌘⇧R', run: openModal('reader') },
         { id: 'ai-batch', label: 'Batch Generators…', section: 'AI', hint: '⌘⇧G', run: openModal('batch-generator') },

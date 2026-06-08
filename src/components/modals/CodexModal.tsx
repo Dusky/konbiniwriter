@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useRef } from 'react'
 import { useProjectStore } from '../../store/projectStore'
 import { backlinksFor } from '../../lib/MentionIndex'
+import { debtService } from '../../lib/DebtService'
 import { uid } from '@shared/utils'
 import type { CodexEntry, CodexCategory, CodexFact, ID } from '@shared/types'
 
@@ -35,10 +36,13 @@ export default function CodexModal({ onClose }: Props): React.ReactElement {
   const mentionIndex = useProjectStore((s) => s.mentionIndex)
   const project = useProjectStore((s) => s.project)
   const selectNode = useProjectStore((s) => s.selectNode)
+  const raiseDebt = useProjectStore((s) => s.raiseDebt)
 
   const [category, setCategory] = useState<CodexCategory>('character')
   const [selected, setSelected] = useState<CodexEntry | null>(null)
   const [aliasDraft, setAliasDraft] = useState('')
+  // Value of a fact when the user focused it, so a real change can raise debt.
+  const factEditRef = useRef<{ factId: ID; original: string } | null>(null)
 
   const filtered = useMemo(() =>
     codex.filter((e) => e.category === category).sort((a, b) => a.name.localeCompare(b.name)),
@@ -72,6 +76,21 @@ export default function CodexModal({ onClose }: Props): React.ReactElement {
   const handleDeleteFact = (factId: ID) => {
     if (!selected) return
     handleField('facts', selected.facts.filter((f) => f.id !== factId))
+  }
+
+  // When a fact value is changed (not first-filled), flag scenes that reference
+  // this entity as potentially stale — propagation debt.
+  const handleFactBlur = (fact: CodexFact) => {
+    const edit = factEditRef.current
+    factEditRef.current = null
+    if (!edit || edit.factId !== fact.id) return
+    const oldValue = edit.original
+    if (!oldValue.trim() || oldValue === fact.value || !selected || !project) return
+    const item = debtService.fromFactChange({
+      project, mentionIndex, entity: selected,
+      factLabel: fact.label, oldValue, newValue: fact.value,
+    })
+    if (item) raiseDebt(item)
   }
 
   const handleAddAlias = () => {
@@ -217,6 +236,8 @@ export default function CodexModal({ onClose }: Props): React.ReactElement {
                     <input
                       value={fact.value}
                       onChange={(e) => handleFactChange(fact.id, { value: e.target.value })}
+                      onFocus={() => { factEditRef.current = { factId: fact.id, original: fact.value } }}
+                      onBlur={() => handleFactBlur(fact)}
                       placeholder="Value"
                       style={{ flex: 1, padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 12 }}
                     />
