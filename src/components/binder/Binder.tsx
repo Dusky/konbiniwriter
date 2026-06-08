@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useProjectStore, flattenVisible, subtreeWordCount, isDescendant } from '../../store/projectStore'
 import { useShellStore } from '../../store/shellStore'
 import ContextMenu, { type MenuItem } from './ContextMenu'
@@ -25,6 +25,23 @@ export default function Binder(): React.ReactElement {
   const [ctx, setCtx] = useState<{ x: number; y: number; id: ID } | null>(null)
   const [drag, setDrag] = useState<DragState | null>(null)
   const [renameValue, setRenameValue] = useState('')
+  const renameInputRef = useRef<HTMLInputElement>(null)
+
+  // When rename mode opens for a node — from any trigger (create, context menu,
+  // keyboard) — seed the field with the node's current title and reliably move
+  // focus into the input on the next frame, selecting the text so typing
+  // replaces it. Doing this here (rather than relying on `autoFocus`) fixes the
+  // timing races that left the input blurred after create.
+  useEffect(() => {
+    if (!renamingId) return
+    const title = useProjectStore.getState().project?.nodes[renamingId]?.title ?? ''
+    setRenameValue(title)
+    const raf = requestAnimationFrame(() => {
+      const el = renameInputRef.current
+      if (el) { el.focus(); el.select() }
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [renamingId])
 
   if (!project) return <div className="binder" />
 
@@ -42,7 +59,7 @@ export default function Binder(): React.ReactElement {
     const result = await mutate({ type: 'create', parentId, nodeType })
     // The new node id is in result.nodes — find the node with _newId set
     const newId = Object.values(result.nodes).find((n) => n.ext['_newId'])?.id
-    if (newId) { selectNode(newId); setRenamingId(newId); setRenameValue('') }
+    if (newId) { selectNode(newId); setRenamingId(newId) }
   }
 
   const handleRenameCommit = async (id: ID, title: string) => {
@@ -160,7 +177,7 @@ export default function Binder(): React.ReactElement {
                 <span className="tw-label">
                   {renamingId === id ? (
                     <input
-                      autoFocus
+                      ref={renameInputRef}
                       value={renameValue}
                       onChange={(e) => setRenameValue(e.target.value)}
                       onBlur={() => handleRenameCommit(id, renameValue)}
