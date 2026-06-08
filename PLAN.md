@@ -479,6 +479,12 @@ These are structural guarantees, not conventions. Violating any of them breaks a
   "Add cast to Codex" (on by default) extracts structured character entries via
   `builtin:foundation:codex` and upserts them into the Codex (lighting up MentionIndex +
   continuity checks).
+- Foundation outline + voice fingerprint ✅ — added an **Outline** step (`builtin:foundation:outline`,
+  doc via proposal) and a **Voice Fingerprint** (`builtin:foundation:voice`) derived from existing
+  prose (or the concept if none yet), saved to `project.settings.voiceFingerprint` and injected by
+  `ContextBuilder` as a context tier so co-write/batch/autopilot prompts follow the voice.
+- Remaining Foundation: canon database step, quality gate (score outline → loop), and voice-drift
+  debt (now that a fingerprint exists to compare against).
 - Remaining: phase-transition model (foundation→draft→eval→revise), canon DB + voice fingerprint
   steps + quality gate, spend cap + cost estimate, resumable runs, Elo ranking, critic/professor loops
 

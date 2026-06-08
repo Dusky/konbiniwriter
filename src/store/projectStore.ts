@@ -83,6 +83,7 @@ interface ProjectState {
 
   // — project settings —
   setProjectWordTarget: (target: number | undefined) => void
+  setVoiceFingerprint: (text: string) => void
 
   // — judge scores (keyed by nodeId) —
   judgeResults: Map<ID, { scores: Array<{ dimension: string; score: number; note: string }>; verdict: string }>
@@ -386,5 +387,13 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const updated = { ...p, settings: { ...p.settings, wordTarget: target } }
     set({ project: updated })
     window.api.settings.save(p.id, { wordTarget: target })
+  },
+
+  setVoiceFingerprint: (text) => {
+    const p = get().project
+    if (!p) return
+    const updated = { ...p, settings: { ...p.settings, voiceFingerprint: text } }
+    set({ project: updated })
+    window.api.settings.save(p.id, { voiceFingerprint: text }).catch(console.error)
   },
 }))

@@ -7,12 +7,13 @@ import { streamCompletion } from '../../lib/AIClient'
 import { uid } from '@shared/utils'
 import type { ID, CodexEntry, CodexFact } from '@shared/types'
 
-type StepId = 'concept' | 'world' | 'characters'
+type StepId = 'concept' | 'world' | 'characters' | 'outline'
 
 const STEPS: { id: StepId; title: string; promptId: string; docTitle: string }[] = [
   { id: 'concept',    title: 'Concept',     promptId: 'builtin:foundation:concept',    docTitle: 'Concept' },
   { id: 'world',      title: 'World Bible',  promptId: 'builtin:foundation:world',      docTitle: 'World Bible' },
   { id: 'characters', title: 'Characters',   promptId: 'builtin:foundation:characters', docTitle: 'Characters' },
+  { id: 'outline',    title: 'Outline',      promptId: 'builtin:foundation:outline',    docTitle: 'Outline' },
 ]
 
 interface Props { onClose: () => void }
@@ -22,14 +23,17 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
   const applyMutation = useProjectStore((s) => s.applyMutation)
   const queueProposal = useProjectStore((s) => s.queueProposal)
   const upsertCodexEntry = useProjectStore((s) => s.upsertCodexEntry)
+  const setVoiceFingerprint = useProjectStore((s) => s.setVoiceFingerprint)
   const aiEnabled = useAIStore((s) => s.enabled)
 
   const [seed, setSeed] = useState('')
-  const [text, setText] = useState<Record<StepId, string>>({ concept: '', world: '', characters: '' })
-  const [running, setRunning] = useState<StepId | 'all' | null>(null)
+  const [text, setText] = useState<Record<StepId, string>>({ concept: '', world: '', characters: '', outline: '' })
+  const [running, setRunning] = useState<StepId | 'all' | 'voice' | null>(null)
   const [addToCodex, setAddToCodex] = useState(true)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [voice, setVoice] = useState(project?.settings.voiceFingerprint ?? '')
+  const [voiceSaved, setVoiceSaved] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => () => { abortRef.current?.abort() }, [])
@@ -59,7 +63,8 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
   const varsFor = (id: StepId, cur: Record<StepId, string>): Record<string, string> =>
     id === 'concept' ? { seed }
       : id === 'world' ? { concept: cur.concept }
-        : { concept: cur.concept, world: cur.world }
+        : id === 'characters' ? { concept: cur.concept, world: cur.world }
+          : { concept: cur.concept, world: cur.world, characters: cur.characters }
 
   const runStep = async (id: StepId) => {
     if (running || sending) return
@@ -91,6 +96,41 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
       setRunning(null)
     }
   }
+
+  // Voice fingerprint — derive from existing manuscript prose if any, else from
+  // the concept/world. Stored in project settings (engine context), not a doc.
+  const gatherSamples = (): string => {
+    const p = useProjectStore.getState().project
+    if (!p) return ''
+    let s = ''
+    for (const id of Object.keys(p.docs)) {
+      const node = p.nodes[id]
+      if (!node || node.type === 'folder' || !node.meta.includeInCompile) continue
+      const c = (p.docs[id]?.content ?? '').trim()
+      if (c) { s += c + '\n\n'; if (s.length > 6000) break }
+    }
+    s = s.slice(0, 6000)
+    if (s.trim()) return s
+    const desc = [text.concept, text.world].filter((x) => x.trim()).join('\n\n')
+    return desc ? `No prose samples yet. Intended work:\n\n${desc}` : ''
+  }
+
+  const runVoice = async () => {
+    if (running || sending) return
+    setRunning('voice'); setError(null); setVoiceSaved(false)
+    const samples = gatherSamples()
+    if (!samples.trim()) { setError('Generate a concept or write some prose first — nothing to derive a voice from yet.'); setRunning(null); return }
+    try {
+      const result = await gen('builtin:foundation:voice', { samples }, setVoice)
+      setVoice(result)
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') setError((e as Error).message)
+    } finally {
+      setRunning(null)
+    }
+  }
+
+  const saveVoice = () => { setVoiceFingerprint(voice.trim()); setVoiceSaved(true) }
 
   // Reuse an existing root "Foundation" folder, else create one.
   const ensureFolder = async (): Promise<ID> => {
@@ -219,6 +259,28 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
               </div>
             )
           })}
+
+          {/* Voice fingerprint — saved to project settings, used as AI context */}
+          <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Voice Fingerprint</span>
+              <span style={{ fontSize: 11, color: 'var(--text-3)' }}>style guide · injected into AI context</span>
+              <span className="tb-spacer" />
+              <button className="btn sm" disabled={!!running || sending} onClick={runVoice}>
+                {running === 'voice' ? 'Generating…' : voice.trim() ? 'Regenerate' : 'Generate'}
+              </button>
+              <button className="btn sm" disabled={!voice.trim() || !!running || sending} onClick={saveVoice}>
+                {voiceSaved ? 'Saved ✓' : 'Save'}
+              </button>
+            </div>
+            <textarea
+              value={voice}
+              onChange={(e) => { setVoice(e.target.value); setVoiceSaved(false) }}
+              rows={voice ? 8 : 2}
+              placeholder="Derived from your prose if any exists, else from the concept. Editable — click Save to store it on the project."
+              style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 12, lineHeight: 1.55, fontFamily: 'var(--mono)', resize: 'vertical' }}
+            />
+          </div>
           {error && <div style={{ fontSize: 12, color: 'var(--st-idea)' }}>{error}</div>}
         </div>
 

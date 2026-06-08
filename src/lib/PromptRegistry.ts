@@ -381,6 +381,74 @@ Avoid archetypes; make each specific to this story. Return only the markdown, no
     modifiedAt: ISO(),
   },
   {
+    id: 'builtin:foundation:outline',
+    name: 'Foundation · Outline',
+    description: 'Build a chapter-by-chapter outline from concept, world, and cast.',
+    feature: 'autopilot',
+    phase: 'foundation',
+    model: 'claude-opus-4-8',
+    temperature: 0.75,
+    maxTokens: 5000,
+    template: `You are a story structure consultant outlining a novel.
+
+<concept>
+{{concept}}
+</concept>
+
+<world>
+{{world}}
+</world>
+
+<characters>
+{{characters}}
+</characters>
+
+Produce a chapter-by-chapter outline (as many chapters as the story needs). For each chapter:
+- **Chapter N — Title**
+- A 2–3 sentence synopsis: what happens and what changes
+- Principal characters present
+
+Group into acts if it helps. Keep momentum and causality clear (each chapter should set up the next). Return only the markdown.`,
+    variables: [
+      { name: 'concept', description: 'The story concept' },
+      { name: 'world', description: 'The world bible' },
+      { name: 'characters', description: 'The cast' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:foundation:voice',
+    name: 'Foundation · Voice Fingerprint',
+    description: 'Derive a prose style guide from sample prose (or the concept if none exists yet).',
+    feature: 'autopilot',
+    phase: 'foundation',
+    model: 'claude-opus-4-8',
+    temperature: 0.4,
+    maxTokens: 2000,
+    template: `You are a prose-style analyst producing a VOICE FINGERPRINT — a concise, prescriptive style guide an author or AI co-writer can follow to keep one consistent voice.
+
+<samples>
+{{samples}}
+</samples>
+
+Describe the target prose voice as short markdown sections:
+- POV & tense
+- Sentence rhythm & length
+- Diction & register (word choice, formality)
+- Imagery & figurative language
+- Dialogue style
+- Pacing tendencies
+- Things to avoid
+
+Be specific and prescriptive (rules, not vibes). Return only the markdown.`,
+    variables: [{ name: 'samples', description: 'Prose samples, or a description of the intended work' }],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
     id: 'builtin:foundation:codex',
     name: 'Foundation · Cast → Codex',
     description: 'Extract structured character records (for the Codex) from a cast description.',

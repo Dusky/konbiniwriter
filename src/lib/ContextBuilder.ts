@@ -139,7 +139,10 @@ export function buildContext(
     addTier('Document path', `Location: ${path.join(' › ')}`)
   }
 
-  // Tier 5: codex entities mentioned in this scene
+  // Tier 5: project-level voice fingerprint (style guide for prose generation)
+  addTier('Voice fingerprint', (project.settings.voiceFingerprint as string | undefined) ?? '')
+
+  // Tier 6: codex entities mentioned in this scene
   addTier('Codex entities', getCodexContext(project, index, docId))
 
   const included = tiers.filter((t) => t.included)

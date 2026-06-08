@@ -59,6 +59,7 @@ export interface ProjectSettings {
   wordTarget?: number        // project-level word-count goal
   codex?: CodexEntry[]       // stored as JSON, typed at load time
   debt?: DebtItem[]          // propagation-debt inbox (persisted with project)
+  voiceFingerprint?: string  // foundation: prose style guide, injected as context
   [k: string]: unknown
 }
 
