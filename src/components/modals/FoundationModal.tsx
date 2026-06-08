@@ -18,6 +18,10 @@ const STEPS: { id: StepId; title: string; promptId: string; docTitle: string }[]
 
 interface Props { onClose: () => void }
 
+interface GateResult { overall: number; verdict: 'pass' | 'revise'; issues: string[]; suggestions: string[]; rounds: number }
+const GATE_THRESHOLD = 75
+const MAX_GATE_ROUNDS = 2
+
 export default function FoundationModal({ onClose }: Props): React.ReactElement {
   const project = useProjectStore((s) => s.project)
   const applyMutation = useProjectStore((s) => s.applyMutation)
@@ -28,7 +32,9 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
 
   const [seed, setSeed] = useState('')
   const [text, setText] = useState<Record<StepId, string>>({ concept: '', world: '', characters: '', outline: '' })
-  const [running, setRunning] = useState<StepId | 'all' | 'voice' | null>(null)
+  const [running, setRunning] = useState<StepId | 'all' | 'voice' | 'gate' | null>(null)
+  const [gate, setGate] = useState<GateResult | null>(null)
+  const [autoGate, setAutoGate] = useState(true)
   const [addToCodex, setAddToCodex] = useState(true)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -66,6 +72,58 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
         : id === 'characters' ? { concept: cur.concept, world: cur.world }
           : { concept: cur.concept, world: cur.world, characters: cur.characters }
 
+  // — Outline quality gate (eval → revise loop) —
+  const scoreOutline = async (outline: string): Promise<GateResult> => {
+    const raw = await gen('builtin:evaluation:outline-gate',
+      { concept: text.concept, world: text.world, characters: text.characters, outline }, () => {})
+    try {
+      const o = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] ?? '{}')
+      const overall = Math.max(0, Math.min(100, Number(o.overall) || 0))
+      return {
+        overall,
+        verdict: overall >= GATE_THRESHOLD ? 'pass' : 'revise',
+        issues: Array.isArray(o.issues) ? o.issues.map(String) : [],
+        suggestions: Array.isArray(o.suggestions) ? o.suggestions.map(String) : [],
+        rounds: 0,
+      }
+    } catch {
+      return { overall: 0, verdict: 'revise', issues: ['Could not parse gate output.'], suggestions: [], rounds: 0 }
+    }
+  }
+
+  const reviseOutline = (outline: string, critique: string): Promise<string> =>
+    gen('builtin:foundation:outline-revise',
+      { concept: text.concept, world: text.world, characters: text.characters, outline, critique },
+      (s) => setStep('outline', s))
+
+  // Score, then auto-revise the outline until it passes or rounds run out.
+  const gateLoop = async (initial: string) => {
+    setGate(null)
+    let current = initial
+    let res = await scoreOutline(current)
+    let round = 0
+    while (res.verdict === 'revise' && round < MAX_GATE_ROUNDS) {
+      round++
+      const critique = [...res.issues, ...res.suggestions].filter(Boolean).join('\n')
+      current = (await reviseOutline(current, critique)).trim()
+      setStep('outline', current)
+      res = await scoreOutline(current)
+    }
+    setGate({ ...res, rounds: round })
+  }
+
+  const runGate = async () => {
+    if (running || sending || !text.outline.trim()) return
+    setRunning('gate'); setError(null)
+    try {
+      await gateLoop(text.outline)
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') setError((e as Error).message)
+    } finally {
+      setRunning(null)
+    }
+  }
+
   const runStep = async (id: StepId) => {
     if (running || sending) return
     if (id === 'concept' && !seed.trim()) { setError('Enter a seed first.'); return }
@@ -73,6 +131,7 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
     try {
       const result = await gen(STEPS.find((s) => s.id === id)!.promptId, varsFor(id, text), (s) => setStep(id, s))
       setStep(id, result)
+      if (id === 'outline' && autoGate) await gateLoop(result)
     } catch (e) {
       if ((e as Error).name !== 'AbortError') setError((e as Error).message)
     } finally {
@@ -90,6 +149,7 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
         acc[step.id] = result
         setStep(step.id, result)
       }
+      if (autoGate && acc.outline.trim()) await gateLoop(acc.outline)
     } catch (e) {
       if ((e as Error).name !== 'AbortError') setError((e as Error).message)
     } finally {
@@ -259,6 +319,38 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
               </div>
             )
           })}
+
+          {/* Outline quality gate — score + auto-revise loop */}
+          {text.outline.trim() && (
+            <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: gate ? 6 : 0 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Outline Quality Gate</span>
+                {gate && (
+                  <span style={{
+                    fontSize: 11, fontWeight: 600, padding: '1px 8px', borderRadius: 10,
+                    background: gate.verdict === 'pass' ? 'var(--st-final)' : 'var(--st-idea)', color: 'var(--accent-fg)',
+                  }}>
+                    {gate.overall}/100 · {gate.verdict === 'pass' ? 'pass' : 'needs work'}
+                  </span>
+                )}
+                <span className="tb-spacer" />
+                <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text-3)', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={autoGate} onChange={(e) => setAutoGate(e.target.checked)} />
+                  Auto-revise
+                </label>
+                <button className="btn sm" disabled={!!running || sending || !text.outline.trim()} onClick={runGate}>
+                  {running === 'gate' ? 'Scoring…' : 'Score outline'}
+                </button>
+              </div>
+              {gate && (gate.rounds > 0 || gate.issues.length > 0 || gate.suggestions.length > 0) && (
+                <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.55, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {gate.rounds > 0 && <div style={{ color: 'var(--text-3)' }}>Auto-revised {gate.rounds}× to reach this score.</div>}
+                  {gate.issues.map((s, i) => <div key={`i${i}`}>⚠ {s}</div>)}
+                  {gate.suggestions.map((s, i) => <div key={`s${i}`} style={{ color: 'var(--text-3)' }}>→ {s}</div>)}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Voice fingerprint — saved to project settings, used as AI context */}
           <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px' }}>

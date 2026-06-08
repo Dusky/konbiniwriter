@@ -449,6 +449,91 @@ Be specific and prescriptive (rules, not vibes). Return only the markdown.`,
     modifiedAt: ISO(),
   },
   {
+    id: 'builtin:evaluation:outline-gate',
+    name: 'Outline Quality Gate',
+    description: 'Score a novel outline for structural quality and decide pass/revise.',
+    feature: 'evaluation',
+    model: 'claude-opus-4-8',
+    temperature: 0.2,
+    maxTokens: 1500,
+    template: `You are a tough but fair developmental editor scoring a novel OUTLINE for structural quality.
+
+<concept>
+{{concept}}
+</concept>
+
+<world>
+{{world}}
+</world>
+
+<characters>
+{{characters}}
+</characters>
+
+<outline>
+{{outline}}
+</outline>
+
+Score the outline 0–100 overall, judging: act/structure shape, causality (each chapter sets up the next), escalation of stakes, character-arc progression, pacing, and originality (avoids cliché beats).
+
+Return ONLY JSON:
+{ "overall": <0-100>, "issues": ["<concrete structural problem>", ...], "suggestions": ["<specific, actionable fix>", ...] }
+
+Be specific and concrete — every issue should name where in the outline it occurs. Return ONLY valid JSON.`,
+    variables: [
+      { name: 'concept', description: 'The story concept' },
+      { name: 'world', description: 'The world bible' },
+      { name: 'characters', description: 'The cast' },
+      { name: 'outline', description: 'The outline to score' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:foundation:outline-revise',
+    name: 'Foundation · Revise Outline',
+    description: 'Revise a novel outline to address editor critique (quality-gate loop).',
+    feature: 'autopilot',
+    phase: 'foundation',
+    model: 'claude-opus-4-8',
+    temperature: 0.75,
+    maxTokens: 5000,
+    template: `You are revising a novel outline to fix specific structural problems.
+
+<concept>
+{{concept}}
+</concept>
+
+<world>
+{{world}}
+</world>
+
+<characters>
+{{characters}}
+</characters>
+
+<current_outline>
+{{outline}}
+</current_outline>
+
+<editor_notes>
+{{critique}}
+</editor_notes>
+
+Produce an improved chapter-by-chapter outline that addresses every editor note while keeping what already works. Keep the same format: **Chapter N — Title**, a 2–3 sentence synopsis, and principal characters present. Return only the markdown outline.`,
+    variables: [
+      { name: 'concept', description: 'The story concept' },
+      { name: 'world', description: 'The world bible' },
+      { name: 'characters', description: 'The cast' },
+      { name: 'outline', description: 'The current outline' },
+      { name: 'critique', description: 'Editor notes to address' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
     id: 'builtin:foundation:codex',
     name: 'Foundation · Cast → Codex',
     description: 'Extract structured character records (for the Codex) from a cast description.',

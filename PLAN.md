@@ -488,7 +488,13 @@ These are structural guarantees, not conventions. Violating any of them breaks a
   (`builtin:revision:voice`) rewrites the scene to match the voice through changeset review.
   Surfaced in the Debt Inbox ("Check voice" + voice "Draft fix"). Completes the propagation-debt
   loop across canon / outline / voice.
-- Remaining Foundation: canon database step, quality gate (score outline → loop).
+- Outline quality gate ✅ — first **eval → revise control loop**. `builtin:evaluation:outline-gate`
+  scores the outline 0–100 (structure/causality/stakes/arcs/pacing/originality); below the
+  threshold (75) it auto-revises via `builtin:foundation:outline-revise` against the critique, up to
+  2 rounds, then reports the score + remaining notes. Surfaced in `FoundationModal` (auto-revise
+  toggle + manual "Score outline"). This is the reusable gate pattern Autopilot's phase transitions
+  will build on.
+- Remaining Foundation: canon database step; then generalize the gate to draft/eval phases.
 - Remaining: phase-transition model (foundation→draft→eval→revise), canon DB + voice fingerprint
   steps + quality gate, spend cap + cost estimate, resumable runs, Elo ranking, critic/professor loops
 
