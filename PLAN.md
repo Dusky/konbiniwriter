@@ -48,6 +48,7 @@
 - [x] Recent projects reopen directly: FSA `FileSystemDirectoryHandle`s are persisted in IndexedDB (`HandleStore`) keyed by project ID and resolved via `requestPermission({ mode: 'readwrite' })` on the recent-row click; falls back to the picker if the handle is gone/denied. OPFS + Electron reopen by location.
 - [ ] Preferences modal — theme, editor font (mono/serif/sans), editor size (14–22px), density (compact/balanced/roomy)
 - [ ] Full keyboard map wired: ⌘⌥N (new folder), ⌘⇧D (new doc), ⌘⇧N (new scene), ⌘D (duplicate)
+- [ ] Right-click context menus across surfaces (reuse `binder/ContextMenu`): editor (cut/copy/paste, co-write actions, Take Snapshot, Document History), corkboard cards, outliner rows, and History/Snapshot version items (Restore, Delete, Compare). Binder already has one — generalize the component and wire the rest.
 - [x] Binder: new-node inline rename flow — single effect seeds the title and focuses+selects the input on the next frame, fixing the post-create focus races
 - [x] Status bar: show cursor position (line:col)
 - [x] Word count: project total in status bar excludes Trash subtree
