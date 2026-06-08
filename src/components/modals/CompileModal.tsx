@@ -96,9 +96,11 @@ export default function CompileModal({ onClose }: Props): React.ReactElement {
     setCompiling(true)
     try {
       const result = await window.api.compile.run(project.id, rootId, [...included], format)
-      const blob = new Blob([new Uint8Array(result.blob)], {
-        type: format === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'text/markdown',
-      })
+      const mimeType =
+        format === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        : format === 'epub' ? 'application/epub+zip'
+        : 'text/markdown'
+      const blob = new Blob([new Uint8Array(result.blob)], { type: mimeType })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -154,6 +156,7 @@ export default function CompileModal({ onClose }: Props): React.ReactElement {
               <div className="seg" style={{ display: 'inline-flex' }}>
                 <button className={format === 'markdown' ? 'on' : ''} onClick={() => setFormat('markdown')}>Markdown</button>
                 <button className={format === 'docx' ? 'on' : ''} onClick={() => setFormat('docx')}>Word (.docx)</button>
+                <button className={format === 'epub' ? 'on' : ''} onClick={() => setFormat('epub')}>EPUB</button>
                 <button className={format === 'print' ? 'on' : ''} onClick={() => setFormat('print')}>Print / PDF</button>
               </div>
             </div>
@@ -167,7 +170,11 @@ export default function CompileModal({ onClose }: Props): React.ReactElement {
           <span className="tb-spacer" />
           <button className="btn ghost" onClick={onClose}>Cancel</button>
           <button className="btn primary" onClick={handleCompile} disabled={compiling || included.size === 0}>
-            {compiling ? 'Compiling…' : format === 'print' ? 'Print / PDF' : `Export ${format === 'docx' ? '.docx' : '.md'}`}
+            {compiling ? 'Compiling…'
+            : format === 'print' ? 'Print / PDF'
+            : format === 'epub' ? 'Export .epub'
+            : format === 'docx' ? 'Export .docx'
+            : 'Export .md'}
           </button>
         </div>
       </div>

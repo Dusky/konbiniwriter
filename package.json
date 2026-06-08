@@ -9,7 +9,7 @@
     "dev": "vite",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "preview": "vite preview",
-    "electron:compile": "tsc -p electron/tsconfig.json && node -e \"require('fs').writeFileSync('electron-dist/package.json','{\\\"type\\\":\\\"commonjs\\\"}')\""  ,
+    "electron:compile": "tsc -p electron/tsconfig.json && node -e \"require('fs').writeFileSync('electron-dist/package.json','{\\\"type\\\":\\\"commonjs\\\"}')\"",
     "electron:dev": "npm run electron:compile && cross-env ELECTRON_DEV=1 electron .",
     "electron:build": "npm run build && npm run electron:compile && electron-builder"
   },
@@ -37,15 +37,33 @@
     "@types/diff": "^7.0.2",
     "cross-env": "^7.0.3",
     "electron": "^33.0.0",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^25.1.8",
+    "jszip": "^3.10.1"
   },
   "build": {
     "appId": "com.konbini.writer",
     "productName": "Konbini",
-    "directories": { "output": "release", "buildResources": "build" },
-    "files": ["dist/**/*", "electron-dist/**/*"],
-    "linux": { "target": "AppImage", "category": "Office", "icon": "build/icon.png" },
-    "mac": { "target": "dmg", "category": "public.app-category.productivity", "icon": "build/icon.png" },
-    "win": { "target": "nsis", "icon": "build/icon.png" }
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "electron-dist/**/*"
+    ],
+    "linux": {
+      "target": "AppImage",
+      "category": "Office",
+      "icon": "build/icon.png"
+    },
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.png"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.png"
+    }
   }
 }

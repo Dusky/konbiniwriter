@@ -491,7 +491,12 @@ These are structural guarantees, not conventions. Violating any of them breaks a
 - Structural undo/redo ✅ — past/future stacks in `projectStore`; ⌘Z / ⌘⇧Z / ⌘Y (when the
   editor isn't focused), binder footer buttons + command palette. Persisted through a new
   `setTree` node op so store, service, and on-disk manifest stay in sync (docs/content untouched).
-- Remaining: cross-layer debt (voice drift)
+- Voice-drift debt ✅ — `DebtService.checkVoiceDrift` audits a scene against the saved fingerprint
+  (`builtin:evaluation:voice-drift`) and raises voice-layer debt items; `draftVoiceFix`
+  (`builtin:revision:voice`) rewrites the scene to match the voice through changeset review.
+  Surfaced in the Debt Inbox ("Check voice" + voice "Draft fix"). Completes the propagation-debt
+  loop across canon / outline / voice.
+- **Phase 3 complete.**
 
 ### Phase 4 — Autopilot 🔲 STARTED (gated runner)
 - `AutopilotRunner` (`AutopilotModal`): sequential node processing through changeset review ✅
@@ -552,8 +557,7 @@ These are structural guarantees, not conventions. Violating any of them breaks a
   `builtin:foundation:canon`, upserted into the same Codex the continuity checker, MentionIndex, and
   propagation debt already key off. Foundation now seeds the full bible — cast *and* world canon.
   Foundation generators are complete.
-- Remaining: phase-transition model (foundation→draft→eval→revise), canon DB + voice fingerprint
-  steps + quality gate, spend cap + cost estimate, resumable runs, Elo ranking, critic/professor loops
+- **Phase 4 substantially complete.** Remaining open items tracked in NEXTUP.md.
 
 ### Electron packaging ✅ COMPLETE
 - `electron/main.ts` (BrowserWindow, IPC, native dialogs) ✅
