@@ -643,6 +643,41 @@ Only report clear conflicts. If the scene is consistent (or simply silent) on a 
     modifiedAt: ISO(),
   },
   {
+    id: 'builtin:evaluation:professor',
+    name: 'Professor Critique',
+    description: 'A developmental, margin-notes critique of a scene — the few highest-impact fixes.',
+    feature: 'evaluation',
+    model: 'claude-opus-4-8',
+    temperature: 0.4,
+    maxTokens: 2000,
+    template: `You are a writing professor giving a developmental critique of a single scene. Be incisive and specific — name the few changes that would most improve it, not a laundry list. Reward what works; don't manufacture problems.
+
+<synopsis>
+{{synopsis}}
+</synopsis>
+
+<context>
+{{context}}
+</context>
+
+<scene>
+{{document}}
+</scene>
+
+Return ONLY JSON:
+{ "assessment": "<2-3 sentences: an honest overall read — what works and what holds it back>", "notes": [{ "issue": "<a specific craft problem (structure, characterization, prose, momentum, theme); name where it occurs>", "suggestion": "<a concrete, actionable direction to fix it>" }] }
+
+Give 2–5 notes, ordered by importance. Return ONLY valid JSON.`,
+    variables: [
+      { name: 'synopsis', description: 'What this scene is meant to do' },
+      { name: 'context', description: 'Scene/codex/voice context' },
+      { name: 'document', description: 'The scene prose to critique' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
     id: 'builtin:evaluation:compare',
     name: 'Pairwise Compare',
     description: 'Judge which of two versions of the same scene is the stronger prose.',

@@ -29,6 +29,7 @@ export type ModalId =
   | 'batch-generator'
   | 'reader'
   | 'bestof'
+  | 'critic'
   | 'chat'
   | 'stats'
   | 'autopilot'

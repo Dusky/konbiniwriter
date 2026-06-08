@@ -454,6 +454,13 @@ These are structural guarantees, not conventions. Violating any of them breaks a
   comparative counterpart to QualityGate's absolute scoring. `BestOfModal` generates N variants
   (2–4) of the selected scene at elevated temperature, ranks them, shows the leaderboard (Elo +
   W/L/T), and sends the chosen winner through changeset review. Toolbar (🏆) + command palette.
+- Critic / professor loop ✅ — `builtin:evaluation:professor` gives a developmental, margin-notes
+  critique of a scene (overall assessment + 2–5 ranked issue/suggestion notes, JSON). `CriticModal`
+  shows it; the author **selects which notes** to act on, then "Draft revision" runs
+  `builtin:revision:draft` against just those notes → changeset review (re-critique after applying).
+  Explainable, author-steered critique — distinct from the gate's automated pass/fail. Toolbar (🎓)
+  + command palette. Evaluation toolkit now spans absolute (gate), comparative (Elo), qualitative
+  (reader panel), and developmental (critic).
 - Propagation-debt inbox (v1) ✅ — editing a Codex fact raises a `DebtItem` (via
   `DebtService.fromFactChange` + `MentionIndex`) listing scenes that reference the
   entity; the inbox (toolbar badge + `debt` modal) offers Open / Draft fix (registry
