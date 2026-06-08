@@ -31,6 +31,7 @@ export type ModalId =
   | 'chat'
   | 'stats'
   | 'autopilot'
+  | 'foundation'
   | 'debt'
   | null
 

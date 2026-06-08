@@ -188,6 +188,9 @@ export default function Toolbar(): React.ReactElement {
             </button>
           </div>
           <div className="tb-sep" />
+          <button className="tb-btn" title="Foundation — seed → concept → world → cast" onClick={() => setModal('foundation')}>
+            <span style={{ fontSize: 13 }}>❖</span> Foundation
+          </button>
           <button className="tb-btn" title="Batch Generators — cast, beat sheet, chapter draft" onClick={() => setModal('batch-generator')}>
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
               <path d="M2 3h5v4H2zM9 3h5v4H9zM2 9h5v4H2zM9 9h5v4H9z" />

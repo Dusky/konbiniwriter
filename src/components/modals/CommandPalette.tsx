@@ -119,6 +119,7 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
         { id: 'ai-debt', label: 'Propagation Debt…', section: 'AI', run: openModal('debt') },
         { id: 'ai-chat', label: 'AI Chat…', section: 'AI', hint: '⌘⇧A', run: openModal('chat') },
         { id: 'ai-reader', label: 'Reader Panel…', section: 'AI', hint: '⌘⇧R', run: openModal('reader') },
+        { id: 'ai-foundation', label: 'Foundation (seed → world → cast)…', section: 'AI', run: openModal('foundation') },
         { id: 'ai-batch', label: 'Batch Generators…', section: 'AI', hint: '⌘⇧G', run: openModal('batch-generator') },
         { id: 'ai-autopilot', label: 'Autopilot…', section: 'AI', hint: '⌘⇧P', run: openModal('autopilot') },
         { id: 'ai-prompts', label: 'Prompt Registry…', section: 'AI', run: openModal('prompt-registry') },

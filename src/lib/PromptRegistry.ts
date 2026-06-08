@@ -291,6 +291,96 @@ Then a brief overall verdict (2 sentences max).`,
     modifiedAt: ISO(),
   },
   {
+    id: 'builtin:foundation:concept',
+    name: 'Foundation · Concept',
+    description: 'Expand a one-line seed into a story concept.',
+    feature: 'autopilot',
+    phase: 'foundation',
+    model: 'claude-opus-4-8',
+    temperature: 0.8,
+    maxTokens: 2000,
+    template: `You are a developmental editor shaping a story concept from a one-line seed.
+
+<seed>
+{{seed}}
+</seed>
+
+Expand this into a story concept. Cover, as short markdown sections:
+- Genre & tone
+- Logline (one sharp sentence)
+- The central dramatic question
+- Primary conflict and stakes
+- Core themes
+- What makes it distinct
+
+Be concrete and specific — no generic placeholders. Return only the markdown, no preamble.`,
+    variables: [{ name: 'seed', description: 'The one-line premise' }],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:foundation:world',
+    name: 'Foundation · World Bible',
+    description: 'Derive a setting bible from the story concept.',
+    feature: 'autopilot',
+    phase: 'foundation',
+    model: 'claude-opus-4-8',
+    temperature: 0.8,
+    maxTokens: 3000,
+    template: `You are a worldbuilder establishing the setting bible for a novel.
+
+<concept>
+{{concept}}
+</concept>
+
+Write a concise world bible as short markdown sections:
+- Setting & time period
+- Rules that govern this world (social, physical, or magical)
+- Atmosphere & sensory texture
+- Key locations (3–6, each one line)
+
+Ground every choice in the concept. Return only the markdown, no preamble.`,
+    variables: [{ name: 'concept', description: 'The story concept' }],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:foundation:characters',
+    name: 'Foundation · Characters',
+    description: 'Build the principal cast from concept and world.',
+    feature: 'autopilot',
+    phase: 'foundation',
+    model: 'claude-opus-4-8',
+    temperature: 0.85,
+    maxTokens: 3000,
+    template: `You are a developmental editor building the principal cast for a novel.
+
+<concept>
+{{concept}}
+</concept>
+
+<world>
+{{world}}
+</world>
+
+Create the principal cast (4–7 characters). For each, a short markdown section with:
+- **Name** — role (protagonist / antagonist / supporting)
+- Core description (one line)
+- A defining contradiction or wound
+- Their relationship to the central conflict
+
+Avoid archetypes; make each specific to this story. Return only the markdown, no preamble.`,
+    variables: [
+      { name: 'concept', description: 'The story concept' },
+      { name: 'world', description: 'The world bible' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
     id: 'builtin:evaluation:continuity',
     name: 'Continuity Check',
     description: 'Find places where a scene contradicts established Codex facts.',

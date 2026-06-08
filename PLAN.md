@@ -472,9 +472,12 @@ These are structural guarantees, not conventions. Violating any of them breaks a
 
 ### Phase 4 — Autopilot 🔲 STARTED (basic runner shipped)
 - `AutopilotRunner`: sequential node processing through changeset review ✅
-- Remaining: phase-transition model (foundation→draft→eval→revise), spend cap + cost
-  estimate, resumable runs, Elo ranking, critic/professor loops, propagation-debt across
-  voice/world/characters/outline/prose layers
+- Foundation (v1) ✅ — `FoundationModal`: seed → concept → world bible → cast, chained in-memory
+  (each step feeds the next), editable previews, registry prompts `builtin:foundation:*`. "Send to
+  project" creates a **Foundation** folder + a doc per part and queues each as a proposal
+  (`original: ''`) through changeset review. Toolbar (❖ Foundation) + command palette.
+- Remaining: phase-transition model (foundation→draft→eval→revise), canon DB + voice fingerprint
+  steps + quality gate, spend cap + cost estimate, resumable runs, Elo ranking, critic/professor loops
 
 ### Electron packaging ✅ COMPLETE
 - `electron/main.ts` (BrowserWindow, IPC, native dialogs) ✅

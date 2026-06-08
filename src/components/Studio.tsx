@@ -27,6 +27,7 @@ import AutopilotModal from './modals/AutopilotModal'
 import CommandPalette from './modals/CommandPalette'
 import HistoryModal from './modals/HistoryModal'
 import DebtInboxModal from './modals/DebtInboxModal'
+import FoundationModal from './modals/FoundationModal'
 import { debtService } from '../lib/DebtService'
 
 export default function Studio(): React.ReactElement {
@@ -98,6 +99,7 @@ export default function Studio(): React.ReactElement {
       {modal === 'stats'           && <StatsModal           onClose={() => setModal(null)} />}
       {modal === 'autopilot'       && <AutopilotModal       onClose={() => setModal(null)} />}
       {modal === 'debt'            && <DebtInboxModal       onClose={() => setModal(null)} />}
+      {modal === 'foundation'      && <FoundationModal      onClose={() => setModal(null)} />}
 
       {activeProposal && (
         <ChangesetModal
