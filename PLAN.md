@@ -449,6 +449,12 @@ These are structural guarantees, not conventions. Violating any of them breaks a
 - Batch generators (cast, beat sheet, chapter draft, evaluate prose) ✅
 - Slop scorer (CM6 wavy underlines, Proof button) ✅
 - Reader panel, AI Chat, Autopilot runner, Writing Stats, Timeline drag, split editor, typewriter scroll ✅
+- Reader panel → registry ✅ — personas were hardcoded in `ReaderModal` (invariant #3 debt); now each
+  is a registry **`reader` agent** (`builtin:agent:reader:*`) tying a model/temperature to an editable
+  persona **system prompt** (`builtin:reader:*`, feature `evaluation`). Instructions are editable in the
+  Prompt Registry; agent `model: ''` falls back to the active provider's default so the panel works on
+  any backend. `AgentRegistry` now surfaces user-added agents and has `byCategory`/`delete`/`duplicate`.
+  Sane defaults (the original 4 personas) ship built-in. (Follow-up: an agent-config UI for model/temp.)
 - Best of N / Elo ranking ✅ — `lib/Ranking.ts` (`rankVariants`): round-robin pairwise LLM judging
   (`builtin:evaluation:compare`, A/B side alternated to blunt position bias) with Elo scoring — the
   comparative counterpart to QualityGate's absolute scoring. `BestOfModal` generates N variants

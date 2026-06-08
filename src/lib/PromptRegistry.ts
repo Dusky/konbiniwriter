@@ -1,4 +1,4 @@
-import type { PromptTemplate, AgentTemplate, PromptFeature } from '@shared/types'
+import type { PromptTemplate, AgentTemplate, AgentCategory, PromptFeature } from '@shared/types'
 import { uid } from '@shared/utils'
 
 // ── Default built-in prompts ─────────────────────────────────────────────────
@@ -886,25 +886,80 @@ Rewrite the document so its prose conforms to the voice fingerprint, addressing 
     createdAt: ISO(),
     modifiedAt: ISO(),
   },
-]
 
-export const DEFAULT_AGENTS: AgentTemplate[] = [
+  // ── Reader-panel personas (editable system prompts behind the reader agents) ──
   {
-    id: 'builtin:agent:reader:general',
-    name: 'General Reader',
-    description: 'A thoughtful general fiction reader with broad tastes.',
-    category: 'reader',
-    systemPromptId: 'builtin:inline:rewrite',
+    id: 'builtin:reader:adventurous',
+    name: 'Reader · Adventurous',
+    description: 'Reader persona: reads for excitement, pace, and surprise.',
+    feature: 'evaluation',
     model: 'claude-sonnet-4-6',
-    temperature: 0.7,
-    parameters: {
-      persona: 'general reader',
-      focusAreas: ['pacing', 'clarity', 'engagement'],
-    },
+    temperature: 0.8,
+    maxTokens: 500,
+    template: `You are an adventurous fiction reader who loves fast-paced stories, unexpected twists, and compelling hooks. You prioritize excitement, momentum, and whether you'd keep reading. Be direct and specific. 200 words max.`,
+    variables: [],
     isBuiltin: true,
     createdAt: ISO(),
     modifiedAt: ISO(),
   },
+  {
+    id: 'builtin:reader:literary',
+    name: 'Reader · Literary',
+    description: 'Reader persona: reads for prose, voice, and depth.',
+    feature: 'evaluation',
+    model: 'claude-sonnet-4-6',
+    temperature: 0.8,
+    maxTokens: 500,
+    template: `You are a literary fiction reader who prizes distinctive prose, thematic depth, and authentic voice. You're sensitive to rhythm, imagery, and subtext. Be specific about what works and what doesn't. 200 words max.`,
+    variables: [],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:reader:commercial',
+    name: 'Reader · Commercial',
+    description: 'Reader persona: reads for marketability and audience appeal.',
+    feature: 'evaluation',
+    model: 'claude-sonnet-4-6',
+    temperature: 0.8,
+    maxTokens: 500,
+    template: `You are a commercial fiction editor who thinks about market positioning, reader expectations, and genre conventions. You evaluate clarity, hooks, and broad appeal. Be practical and specific. 200 words max.`,
+    variables: [],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:reader:skeptic',
+    name: 'Reader · Skeptic',
+    description: 'Reader persona: hunts for plot holes, inconsistencies, and weak spots.',
+    feature: 'evaluation',
+    model: 'claude-sonnet-4-6',
+    temperature: 0.8,
+    maxTokens: 500,
+    template: `You are a skeptical reader who actively looks for plot holes, weak character motivation, logical inconsistencies, and prose problems. Be critical and specific — your job is to find what's broken. 200 words max.`,
+    variables: [],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+]
+
+// Reader agents tie a persona prompt to a model/temperature. `model: ''` means
+// "use the active provider's default model" so the panel works on any backend.
+const readerAgent = (id: string, name: string, emoji: string, description: string, promptId: string): AgentTemplate => ({
+  id, name, description, category: 'reader',
+  systemPromptId: promptId, model: '', temperature: 0.8,
+  parameters: { emoji, maxTokens: 500 },
+  isBuiltin: true, createdAt: ISO(), modifiedAt: ISO(),
+})
+
+export const DEFAULT_AGENTS: AgentTemplate[] = [
+  readerAgent('builtin:agent:reader:adventurous', 'Adventurous', '🗺', 'Reads for excitement, pace, and surprise', 'builtin:reader:adventurous'),
+  readerAgent('builtin:agent:reader:literary', 'Literary', '📚', 'Reads for prose, voice, and depth', 'builtin:reader:literary'),
+  readerAgent('builtin:agent:reader:commercial', 'Commercial', '📈', 'Reads for marketability and audience appeal', 'builtin:reader:commercial'),
+  readerAgent('builtin:agent:reader:skeptic', 'Skeptic', '🔍', 'Hunts for plot holes and weak spots', 'builtin:reader:skeptic'),
 ]
 
 // ── Registry ─────────────────────────────────────────────────────────────────
@@ -990,7 +1045,14 @@ export class AgentRegistry {
   }
 
   all(): AgentTemplate[] {
-    return DEFAULT_AGENTS.map((a) => this.overrides.get(a.id) ?? a)
+    const defaults = DEFAULT_AGENTS.map((a) => this.overrides.get(a.id) ?? a)
+    const defaultIds = new Set(DEFAULT_AGENTS.map((a) => a.id))
+    const userAgents = [...this.overrides.values()].filter((a) => !defaultIds.has(a.id))
+    return [...defaults, ...userAgents]
+  }
+
+  byCategory(category: AgentCategory): AgentTemplate[] {
+    return this.all().filter((a) => a.category === category)
   }
 
   get(id: string): AgentTemplate | null {
@@ -1005,6 +1067,28 @@ export class AgentRegistry {
   reset(id: string): void {
     this.overrides.delete(id)
     saveTo(STORAGE_KEY_AGENTS, [...this.overrides.values()])
+  }
+
+  delete(id: string): void {
+    if (DEFAULT_AGENTS.some((a) => a.id === id)) return // can't delete builtins (use reset)
+    this.overrides.delete(id)
+    saveTo(STORAGE_KEY_AGENTS, [...this.overrides.values()])
+  }
+
+  duplicate(id: string): AgentTemplate | null {
+    const source = this.get(id)
+    if (!source) return null
+    const copy: AgentTemplate = {
+      ...source,
+      id: `user:${uid()}`,
+      name: `${source.name} (copy)`,
+      isBuiltin: false,
+      parentId: source.id,
+      createdAt: new Date().toISOString(),
+      modifiedAt: new Date().toISOString(),
+    }
+    this.save(copy)
+    return copy
   }
 }
 

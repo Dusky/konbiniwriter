@@ -1,45 +1,33 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useMemo } from 'react'
 import { useProjectStore } from '../../store/projectStore'
 import { streamCompletion } from '../../lib/AIClient'
+import { agentRegistry, promptRegistry } from '../../lib/PromptRegistry'
 
+// A persona is derived from a registry 'reader' agent + its system-prompt — both
+// editable (Prompt Registry for the instructions; the agent for model/temp).
 interface Persona {
   id: string
   name: string
   emoji: string
   description: string
   systemPrompt: string
+  model?: string
+  temperature: number
+  maxTokens: number
 }
 
-const PERSONAS: Persona[] = [
-  {
-    id: 'adventurous',
-    name: 'Adventurous',
-    emoji: '🗺',
-    description: 'Reads for excitement, pace, and surprise',
-    systemPrompt: `You are an adventurous fiction reader who loves fast-paced stories, unexpected twists, and compelling hooks. You prioritize excitement, momentum, and whether you'd keep reading. Be direct and specific. 200 words max.`,
-  },
-  {
-    id: 'literary',
-    name: 'Literary',
-    emoji: '📚',
-    description: 'Reads for prose, voice, and depth',
-    systemPrompt: `You are a literary fiction reader who prizes distinctive prose, thematic depth, and authentic voice. You're sensitive to rhythm, imagery, and subtext. Be specific about what works and what doesn't. 200 words max.`,
-  },
-  {
-    id: 'commercial',
-    name: 'Commercial',
-    emoji: '📈',
-    description: 'Reads for marketability and audience appeal',
-    systemPrompt: `You are a commercial fiction editor who thinks about market positioning, reader expectations, and genre conventions. You evaluate clarity, hooks, and broad appeal. Be practical and specific. 200 words max.`,
-  },
-  {
-    id: 'skeptic',
-    name: 'Skeptic',
-    emoji: '🔍',
-    description: 'Reads for plot holes, inconsistencies, and weak spots',
-    systemPrompt: `You are a skeptical reader who actively looks for plot holes, weak character motivation, logical inconsistencies, and prose problems. Be critical and specific — your job is to find what's broken. 200 words max.`,
-  },
-]
+function readerPersonas(): Persona[] {
+  return agentRegistry.byCategory('reader').map((a) => ({
+    id: a.id,
+    name: a.name,
+    emoji: (a.parameters.emoji as string) ?? '🙂',
+    description: a.description,
+    systemPrompt: promptRegistry.get(a.systemPromptId)?.template ?? '',
+    model: a.model || undefined, // '' → use the provider's default model
+    temperature: a.temperature,
+    maxTokens: (a.parameters.maxTokens as number) ?? 500,
+  }))
+}
 
 interface PersonaResult {
   text: string
@@ -55,9 +43,12 @@ export default function ReaderModal({ onClose }: Props): React.ReactElement {
   const project = useProjectStore((s) => s.project)
   const selectedId = useProjectStore((s) => s.selectedId)
 
+  // Snapshot the configured reader agents for this session.
+  const personas = useMemo(() => readerPersonas(), [])
+
   const [results, setResults] = useState<Record<string, PersonaResult>>({})
   const [running, setRunning] = useState(false)
-  const [activeTab, setActiveTab] = useState(PERSONAS[0].id)
+  const [activeTab, setActiveTab] = useState(personas[0]?.id ?? '')
   const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => () => { abortRef.current?.abort() }, [])
@@ -79,12 +70,12 @@ export default function ReaderModal({ onClose }: Props): React.ReactElement {
 
     const userMessage = `Please give your honest reaction to this excerpt:\n\n---\n${docContent.slice(0, 6000)}\n---`
 
-    await Promise.all(PERSONAS.map(async (p) => {
+    await Promise.all(personas.map(async (p) => {
       setPersonaResult(p.id, { status: 'streaming', text: '' })
       try {
         await streamCompletion(
           [{ role: 'user', content: userMessage }],
-          { systemPrompt: p.systemPrompt, maxTokens: 400, temperature: 0.8, signal: abortRef.current!.signal },
+          { systemPrompt: p.systemPrompt, model: p.model, maxTokens: p.maxTokens, temperature: p.temperature, signal: abortRef.current!.signal },
           {
             onChunk: (chunk) => setResults((r) => ({ ...r, [p.id]: { ...(r[p.id] ?? { text: '', status: 'streaming' as const }), text: (r[p.id]?.text ?? '') + chunk, status: 'streaming' as const } })),
             onDone: (full) => setPersonaResult(p.id, { text: full, status: 'done' }),
@@ -104,9 +95,9 @@ export default function ReaderModal({ onClose }: Props): React.ReactElement {
     setRunning(false)
   }
 
-  const activePersona = PERSONAS.find((p) => p.id === activeTab)!
+  const activePersona = personas.find((p) => p.id === activeTab) ?? personas[0]
   const activeResult = results[activeTab]
-  const anyDone = PERSONAS.some((p) => results[p.id]?.status === 'done')
+  const anyDone = personas.some((p) => results[p.id]?.status === 'done')
 
   return (
     <div className="modal-bg" onClick={onClose}>
@@ -128,7 +119,7 @@ export default function ReaderModal({ onClose }: Props): React.ReactElement {
 
         {/* Persona tabs */}
         <div style={{ display: 'flex', borderBottom: '0.5px solid var(--border)', padding: '0 20px' }}>
-          {PERSONAS.map((p) => {
+          {personas.map((p) => {
             const res = results[p.id]
             return (
               <button
@@ -157,7 +148,7 @@ export default function ReaderModal({ onClose }: Props): React.ReactElement {
           {!anyDone && !running && (
             <div style={{ color: 'var(--text-3)', fontSize: 13, textAlign: 'center', paddingTop: 40 }}>
               {docContent.trim()
-                ? <><p style={{ marginBottom: 12 }}>{activePersona.emoji} <b>{activePersona.name}</b> — {activePersona.description}</p><p>Click "Run readers" to get feedback from all four personas simultaneously.</p></>
+                ? <><p style={{ marginBottom: 12 }}>{activePersona?.emoji} <b>{activePersona?.name}</b> — {activePersona?.description}</p><p>Click "Run readers" to get feedback from all {personas.length} reader personas at once.</p></>
                 : <p>Select a document in the binder to evaluate.</p>
               }
             </div>
