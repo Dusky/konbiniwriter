@@ -10,6 +10,16 @@ import type { Project, KNode, DocBody, NodeOp, Snapshot, ID, CompileFormat, Comp
 import { uid, wordCount } from '@shared/utils'
 import { buildProjectFromTemplate } from '@shared/templates'
 
+export function isFileSystemAccessSupported(): boolean {
+  return typeof window !== 'undefined' && typeof (window as unknown as { showDirectoryPicker?: unknown }).showDirectoryPicker === 'function'
+}
+
+function requireFSA(): void {
+  if (!isFileSystemAccessSupported()) {
+    throw new Error('File System Access API not supported. Please use Chrome or Edge 86+.')
+  }
+}
+
 // ── FS helpers ───────────────────────────────────────────────────────────────
 
 async function readText(dir: FileSystemDirectoryHandle, ...parts: string[]): Promise<string | null> {
@@ -59,25 +69,28 @@ export class BrowserProjectService {
   // ── Dialog helpers (return opaque keys; components pass them back) ─────────
 
   async showOpenDialog(): Promise<string | null> {
+    requireFSA()
     try {
       const handle = await window.showDirectoryPicker({ mode: 'readwrite' })
       const key = uid('dh')
       this.tempHandles.set(key, handle)
       return key
-    } catch {
-      return null // user cancelled
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return null
+      throw e
     }
   }
 
   async showSaveDialog(_defaultName: string): Promise<string | null> {
-    // In the browser we pick the PARENT directory; the bundle dir is created inside it.
+    requireFSA()
     try {
       const handle = await window.showDirectoryPicker({ mode: 'readwrite' })
       const key = uid('ph')
       this.tempHandles.set(key, handle)
       return `${key}::${handle.name}`
-    } catch {
-      return null
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return null
+      throw e
     }
   }
 
@@ -118,11 +131,12 @@ export class BrowserProjectService {
     let parentHandle = this.tempHandles.get(parentKey)
 
     if (!parentHandle) {
-      // No pre-picked handle — open directory picker inline
+      requireFSA()
       try {
         parentHandle = await window.showDirectoryPicker({ mode: 'readwrite' })
-      } catch {
-        throw new Error('No folder selected.')
+      } catch (e) {
+        if (e instanceof DOMException && e.name === 'AbortError') throw new Error('No folder selected.')
+        throw e
       }
     }
 

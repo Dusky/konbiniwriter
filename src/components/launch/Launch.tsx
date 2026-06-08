@@ -3,6 +3,7 @@ import { useShellStore } from '../../store/shellStore'
 import { useProjectStore } from '../../store/projectStore'
 import { relTime, fmtWords } from '@shared/utils'
 import NewProjectModal from '../modals/NewProjectModal'
+import { isFileSystemAccessSupported } from '../../lib/BrowserProjectService'
 import type { RecentEntry } from '@shared/types'
 
 export default function Launch(): React.ReactElement {
@@ -50,6 +51,11 @@ export default function Launch(): React.ReactElement {
             <div className="ll-mark">✦</div>
             <div className="ll-name">Konbini</div>
             <div className="ll-tag">Writing Studio</div>
+            {!isFileSystemAccessSupported() && (
+              <div style={{ marginBottom: 12, padding: '10px 12px', background: 'oklch(0.25 0.04 30)', border: '1px solid oklch(0.4 0.08 30)', borderRadius: 6, fontSize: 12, color: 'oklch(0.85 0.05 30)', lineHeight: 1.5 }}>
+                ⚠ Konbini requires Chrome or Edge 86+. File access is not supported in this browser.
+              </div>
+            )}
             <div className="ll-actions">
               <button className="ll-btn primary" onClick={() => setModal('new-project')}>
                 <span className="llb-ic">✦</span>

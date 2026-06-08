@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { isFileSystemAccessSupported } from '../../lib/BrowserProjectService'
 import { useShellStore } from '../../store/shellStore'
 import { useProjectStore } from '../../store/projectStore'
 import type { TemplateId } from '@shared/types'
@@ -16,6 +17,7 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
   const [title, setTitle] = useState('Untitled Project')
   const [template, setTemplate] = useState<TemplateId>('novel')
   const [creating, setCreating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const setScreen = useShellStore((s) => s.setScreen)
   const touchRecent = useShellStore((s) => s.touchRecent)
@@ -23,6 +25,7 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
 
   const handleCreate = async () => {
     if (!title.trim() || creating) return
+    setError(null)
     setCreating(true)
     try {
       const project = await window.api.project.create({
@@ -43,10 +46,9 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
       setScreen('studio')
       onClose()
     } catch (err) {
-      const msg = String(err)
-      if (!msg.includes('No folder selected') && !msg.includes('AbortError') && !msg.includes('The user aborted')) {
-        alert(`Could not create project: ${err}`)
-      }
+      const isUserCancel = err instanceof DOMException && (err as DOMException).name === 'AbortError'
+        || String(err).includes('No folder selected')
+      if (!isUserCancel) setError(String(err).replace(/^Error:\s*/, ''))
       setCreating(false)
     }
   }
@@ -92,10 +94,20 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
             </div>
           </div>
         </div>
+        {!isFileSystemAccessSupported() && (
+          <div style={{ margin: '0 20px 12px', padding: '10px 12px', background: 'oklch(0.25 0.04 30)', border: '1px solid oklch(0.4 0.08 30)', borderRadius: 6, fontSize: 12, color: 'oklch(0.85 0.05 30)', lineHeight: 1.5 }}>
+            ⚠ Konbini requires Chrome or Edge 86+ for file access. Your current browser does not support the File System Access API.
+          </div>
+        )}
+        {error && (
+          <div style={{ margin: '0 20px 12px', padding: '10px 12px', background: 'oklch(0.22 0.05 20)', border: '1px solid var(--st-idea)', borderRadius: 6, fontSize: 12, color: 'var(--st-idea)', lineHeight: 1.5 }}>
+            {error}
+          </div>
+        )}
         <div className="modal-foot">
           <span className="tb-spacer" />
           <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn primary" onClick={handleCreate} disabled={creating || !title.trim()}>
+          <button className="btn primary" onClick={handleCreate} disabled={creating || !title.trim() || !isFileSystemAccessSupported()}>
             {creating ? 'Opening folder picker…' : 'Create Project'}
           </button>
         </div>
