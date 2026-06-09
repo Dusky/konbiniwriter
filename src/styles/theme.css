@@ -147,6 +147,7 @@ button { font-family: inherit; cursor: default; }
 .body.no-binder { grid-template-columns: 0 1fr var(--insp-w, 286px); }
 .body.no-insp { grid-template-columns: var(--binder-w, 264px) 1fr 0; }
 .body.no-binder.no-insp { grid-template-columns: 0 1fr 0; }
+.body.focus-mode { grid-template-columns: 0 1fr 0; }
 
 /* ── binder ──────────────────────────────────────────────────────────────── */
 .binder { background: var(--sidebar); border-right: 0.5px solid var(--border);

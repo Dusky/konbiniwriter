@@ -37,6 +37,7 @@ export default function Studio(): React.ReactElement {
   const modal = useShellStore((s) => s.modal)
   const setModal = useShellStore((s) => s.setModal)
   const compositionMode = useProjectStore((s) => s.compositionMode)
+  const focusMode = useProjectStore((s) => s.focusMode)
   const splitOpen = useProjectStore((s) => s.splitOpen)
   const splitId = useProjectStore((s) => s.splitId)
 
@@ -53,10 +54,14 @@ export default function Studio(): React.ReactElement {
     ? proposals.find((p) => p.id === activeProposalId) ?? null
     : null
 
+  const showBinder = layout.binder && !focusMode
+  const showInsp = layout.insp && !focusMode
+
   const bodyClass = [
     'body',
     !layout.binder ? 'no-binder' : '',
     !layout.insp ? 'no-insp' : '',
+    focusMode ? 'focus-mode' : '',
   ].filter(Boolean).join(' ')
 
   return (
@@ -64,7 +69,8 @@ export default function Studio(): React.ReactElement {
       <Titlebar />
       <Toolbar />
       <div className={bodyClass}>
-        {layout.binder && <Binder />}
+        {/* Always keep a grid child in slot 1 so the editor stays in column 2. */}
+        {showBinder ? <Binder /> : <div />}
         {splitOpen ? (
           <div style={{ display: 'flex', flex: 1, minWidth: 0, overflow: 'hidden' }}>
             <div style={{ flex: 1, minWidth: 0, borderRight: '1px solid var(--border)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
@@ -77,7 +83,8 @@ export default function Studio(): React.ReactElement {
         ) : (
           <EditorPane splitOpen={false} pane="left" />
         )}
-        {layout.insp && <Inspector />}
+        {/* Always keep a grid child in slot 3 so the editor stays in column 2. */}
+        {showInsp ? <Inspector /> : <div />}
       </div>
       <StatusBar />
 
