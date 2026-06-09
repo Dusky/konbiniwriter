@@ -41,8 +41,9 @@ export function streamBrainstorm(opts: {
   selection: string
   signal?: AbortSignal
   onChunk?: (partial: string) => void
+  temperatureOverride?: number
 }): Promise<string> {
-  const { project, mentionIndex, docId, selection, signal, onChunk } = opts
+  const { project, mentionIndex, docId, selection, signal, onChunk, temperatureOverride } = opts
   const template = promptRegistry.get(BRAINSTORM_PROMPT_ID)
   if (!template) return Promise.reject(new Error(`Missing prompt template: ${BRAINSTORM_PROMPT_ID}`))
 
@@ -55,7 +56,7 @@ export function streamBrainstorm(opts: {
     if (signal) signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
     streamCompletion(
       [{ role: 'user', content: rendered }],
-      { model: template.model, maxTokens: template.maxTokens, temperature: template.temperature, signal },
+      { model: template.model, maxTokens: template.maxTokens, temperature: temperatureOverride ?? template.temperature, signal },
       {
         onChunk: (c) => { partial += c; onChunk?.(partial) },
         onDone: resolve,
@@ -72,8 +73,9 @@ export function runCowrite(opts: {
   docId: string
   selection: string
   signal?: AbortSignal
+  temperatureOverride?: number
 }): Promise<Proposal> {
-  const { command, project, mentionIndex, docId, selection, signal } = opts
+  const { command, project, mentionIndex, docId, selection, signal, temperatureOverride } = opts
   const spec = COWRITE_COMMANDS.find((c) => c.id === command)
   if (!spec) return Promise.reject(new Error(`Unknown co-write command: ${command}`))
   const template = promptRegistry.get(spec.promptId)
@@ -90,7 +92,7 @@ export function runCowrite(opts: {
 
     streamCompletion(
       [{ role: 'user', content: rendered }],
-      { model: template.model, maxTokens: template.maxTokens, temperature: template.temperature, signal },
+      { model: template.model, maxTokens: template.maxTokens, temperature: temperatureOverride ?? template.temperature, signal },
       {
         onChunk: () => {},
         onDone: (full) => resolve(createProposal({

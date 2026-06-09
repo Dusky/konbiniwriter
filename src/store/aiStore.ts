@@ -46,6 +46,9 @@ interface AIState {
 
   spendCapUSD: number       // 0 = no cap; halts an autopilot run when the run's cost crosses it
   setSpendCap: (usd: number) => void
+
+  slopAutoRun: boolean
+  setSlopAutoRun: (on: boolean) => void
 }
 
 const SK = 'konbini:ai'
@@ -103,4 +106,7 @@ export const useAIStore = create<AIState>((set) => ({
 
   spendCapUSD: parseFloat(load(`${SK}:spendCap`, '0')) || 0,
   setSpendCap: (spendCapUSD) => { save(`${SK}:spendCap`, String(spendCapUSD)); set({ spendCapUSD }) },
+
+  slopAutoRun: load(`${SK}:slopAutoRun`, 'false') === 'true',
+  setSlopAutoRun: (slopAutoRun) => { save(`${SK}:slopAutoRun`, slopAutoRun ? 'true' : 'false'); set({ slopAutoRun }) },
 }))

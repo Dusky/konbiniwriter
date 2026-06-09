@@ -1,5 +1,8 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useAIStore, type AIProvider } from '../../store/aiStore'
+import { useProjectStore } from '../../store/projectStore'
+import { promptRegistry } from '../../lib/PromptRegistry'
+import { streamCompletion } from '../../lib/AIClient'
 import { formatUSD } from '../../lib/Pricing'
 
 const ANTHROPIC_MODELS = [
@@ -74,7 +77,47 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
     chatMaxTokens, setChatMaxTokens, chatContextMessages, setChatContextMessages,
     contextBudgets, setContextBudget,
     spendInputTokens, spendOutputTokens, spendUSD, spendCalls, spendUnpriced, resetSpend,
+    slopAutoRun, setSlopAutoRun,
   } = useAIStore()
+
+  const project = useProjectStore((s) => s.project)
+  const setVoiceFingerprint = useProjectStore((s) => s.setVoiceFingerprint)
+  const voiceFingerprint = (project?.settings.voiceFingerprint as string | undefined) ?? ''
+
+  const [voiceRefreshing, setVoiceRefreshing] = useState(false)
+  const [voiceRefreshed, setVoiceRefreshed] = useState(false)
+  const [voiceError, setVoiceError] = useState<string | null>(null)
+  const voiceAbortRef = useRef<AbortController | null>(null)
+  useEffect(() => () => { voiceAbortRef.current?.abort() }, [])
+
+  const handleRefreshVoice = async () => {
+    if (!project || voiceRefreshing) return
+    let samples = ''
+    for (const id of Object.keys(project.docs)) {
+      const node = project.nodes[id]
+      if (!node || node.type === 'folder' || !node.meta.includeInCompile) continue
+      const c = (project.docs[id]?.content ?? '').trim()
+      if (c) { samples += c + '\n\n'; if (samples.length > 6000) break }
+    }
+    samples = samples.slice(0, 6000)
+    if (!samples.trim()) { setVoiceError('No compiled prose found — write some chapters first.'); return }
+    const template = promptRegistry.get('builtin:foundation:voice')
+    if (!template) { setVoiceError('Missing voice prompt.'); return }
+    const rendered = promptRegistry.render('builtin:foundation:voice', { samples })
+    setVoiceRefreshing(true); setVoiceError(null); setVoiceRefreshed(false)
+    const controller = new AbortController()
+    voiceAbortRef.current = controller
+    let full = ''
+    await streamCompletion(
+      [{ role: 'user', content: rendered }],
+      { model: template.model, maxTokens: template.maxTokens, temperature: template.temperature, signal: controller.signal },
+      {
+        onChunk: (c) => { full += c },
+        onDone: (result) => { setVoiceFingerprint(result.trim()); setVoiceRefreshing(false); setVoiceRefreshed(true) },
+        onError: (err) => { if ((err as Error).name !== 'AbortError') setVoiceError((err as Error).message); setVoiceRefreshing(false) },
+      },
+    ).catch((err) => { if ((err as Error).name !== 'AbortError') setVoiceError((err as Error).message); setVoiceRefreshing(false) })
+  }
 
   const [maxTokensDraft, setMaxTokensDraft] = useState(String(chatMaxTokens))
   const [contextMsgsDraft, setContextMsgsDraft] = useState(String(chatContextMessages))
@@ -304,6 +347,33 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                 Tokens of manuscript context sent per AI call, by feature. Raise for large-context models (128k+). Defaults: inline 6k · chat 8k · batch 12k · autopilot 16k.
               </div>
             </div>
+          </Row>
+
+          <Row label="Voice fingerprint">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {voiceFingerprint ? (
+                <div style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-2)', fontSize: 11, color: 'var(--text-2)', fontFamily: 'var(--mono)', lineHeight: 1.5, maxHeight: 72, overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
+                  {voiceFingerprint.slice(0, 300)}{voiceFingerprint.length > 300 ? '…' : ''}
+                </div>
+              ) : (
+                <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Not set — generate it in Foundation, or refresh from manuscript below.</div>
+              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button className="btn" style={{ fontSize: 12, padding: '4px 12px' }} disabled={!project || voiceRefreshing} onClick={handleRefreshVoice}>
+                  {voiceRefreshing ? 'Refreshing…' : voiceRefreshed ? 'Refreshed ✓' : 'Refresh from manuscript'}
+                </button>
+                {voiceError && <span style={{ fontSize: 11, color: 'oklch(0.65 0.15 20)' }}>{voiceError}</span>}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-3)' }}>Gathers prose from compiled documents and re-derives the style guide. Saved automatically.</div>
+            </div>
+          </Row>
+
+          <Row label="Slop Proof">
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <input type="checkbox" checked={slopAutoRun} onChange={(e) => setSlopAutoRun(e.target.checked)} style={{ accentColor: 'var(--accent)', width: 15, height: 15 }} />
+              <span style={{ fontSize: 13 }}>Auto-run after 30s idle</span>
+            </label>
+            <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-3)' }}>Automatically flag clichés and weak prose 30 seconds after you stop typing. Keyboard shortcut: ⌥P.</div>
           </Row>
 
           <Row label="Session usage">

@@ -50,6 +50,7 @@ export default function Editor({ docId }: Props): React.ReactElement {
   const setSaveStatus = useProjectStore((s) => s.setSaveStatus)
   const focusMode = useProjectStore((s) => s.focusMode)
   const aiEnabled = useAIStore((s) => s.enabled)
+  const slopAutoRun = useAIStore((s) => s.slopAutoRun)
   const setSlopSpans = useProjectStore((s) => s.setSlopSpans)
   const setSlopRunning = useProjectStore((s) => s.setSlopRunning)
   const setCursor = useProjectStore((s) => s.setCursor)
@@ -121,6 +122,24 @@ export default function Editor({ docId }: Props): React.ReactElement {
     return () => { delete (window as unknown as Record<string, unknown>).__konbiniRunProof }
   }, [runProof])
 
+  // Alt+P keyboard shortcut for slop proof
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.altKey && e.key === 'p' && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault()
+        runProof()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [runProof])
+
+  // Auto-run slop proof 30s after idle when slopAutoRun is enabled
+  const slopAutoRunTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => {
+    if (slopAutoRunTimerRef.current) clearTimeout(slopAutoRunTimerRef.current)
+  }, [])
+
   // Autosave hook — fires 700ms after content changes
   useAutosave(docId)
 
@@ -128,8 +147,14 @@ export default function Editor({ docId }: Props): React.ReactElement {
     (newContent: string) => {
       setSaveStatus('saving')
       updateContent(docId, newContent)
+      if (slopAutoRun && aiEnabled) {
+        if (slopAutoRunTimerRef.current) clearTimeout(slopAutoRunTimerRef.current)
+        slopAutoRunTimerRef.current = setTimeout(() => {
+          if (!useProjectStore.getState().slopRunning) runProof()
+        }, 30_000)
+      }
     },
-    [docId, updateContent, setSaveStatus]
+    [docId, updateContent, setSaveStatus, slopAutoRun, aiEnabled, runProof]
   )
 
   const handleCursor = useCallback(

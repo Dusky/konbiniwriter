@@ -26,6 +26,8 @@ export default function CowriteBar({ docId, selection, anchorRect, onClose, auto
   const [running, setRunning] = useState<CowriteCommand | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [picker, setPicker] = useState<PickerState>(null)
+  const [tempOverride, setTempOverride] = useState<number | null>(null)
+  const [showTemp, setShowTemp] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => () => { abortRef.current?.abort() }, [])
@@ -44,6 +46,7 @@ export default function CowriteBar({ docId, selection, anchorRect, onClose, auto
           project, mentionIndex, docId, selection,
           signal: controller.signal,
           onChunk: (partial) => setPicker({ phase: 'streaming', partial }),
+          temperatureOverride: tempOverride ?? undefined,
         })
         const alternatives = parseBrainstormAlternatives(raw)
         if (alternatives.length >= 2) {
@@ -73,7 +76,7 @@ export default function CowriteBar({ docId, selection, anchorRect, onClose, auto
     }
 
     try {
-      const proposal = await runCowrite({ command: cmd, project, mentionIndex, docId, selection, signal: controller.signal })
+      const proposal = await runCowrite({ command: cmd, project, mentionIndex, docId, selection, signal: controller.signal, temperatureOverride: tempOverride ?? undefined })
       queueProposal(proposal)
       setRunning(null)
       onClose()
@@ -112,6 +115,8 @@ export default function CowriteBar({ docId, selection, anchorRect, onClose, auto
     if (autoRun && !autoRanRef.current) { autoRanRef.current = true; handleCommand(autoRun) }
   }, [autoRun, handleCommand])
 
+  const hasPanel = showTemp || picker !== null
+
   // Position: just above the selection anchor, clamped to viewport
   const top = Math.max(8, anchorRect.top - 44)
   const left = Math.max(8, Math.min(anchorRect.left, window.innerWidth - 340))
@@ -128,7 +133,7 @@ export default function CowriteBar({ docId, selection, anchorRect, onClose, auto
           gap: 4,
           background: 'var(--bg)',
           border: '1px solid var(--border-2)',
-          borderRadius: picker ? '8px 8px 0 0' : 8,
+          borderRadius: hasPanel ? '8px 8px 0 0' : 8,
           padding: '4px 6px',
           boxShadow: 'var(--shadow)',
         }}
@@ -160,8 +165,52 @@ export default function CowriteBar({ docId, selection, anchorRect, onClose, auto
             {error}
           </span>
         )}
+        <button
+          onClick={() => setShowTemp(!showTemp)}
+          title="Temperature override"
+          style={{ padding: '3px 7px', borderRadius: 5, border: '1px solid var(--border)', background: showTemp ? 'var(--bg-2)' : 'transparent', color: tempOverride !== null ? 'var(--accent)' : 'var(--text-3)', fontSize: 11, cursor: 'pointer' }}
+        >
+          T{tempOverride !== null ? `:${tempOverride.toFixed(2)}` : ''}
+        </button>
         <button onClick={() => { setPicker(null); onClose() }} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 14, padding: '0 2px' }}>×</button>
       </div>
+
+      {/* Temperature slider panel */}
+      {showTemp && (
+        <div
+          style={{
+            width: 340,
+            background: 'var(--bg)',
+            border: '1px solid var(--border-2)',
+            borderTop: 'none',
+            borderRadius: picker ? 0 : '0 0 8px 8px',
+            padding: '8px 12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+          }}
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          <span style={{ fontSize: 11, color: 'var(--text-3)', flexShrink: 0, width: 80 }}>
+            {tempOverride !== null ? `T = ${tempOverride.toFixed(2)}` : 'T = prompt default'}
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={tempOverride ?? 0.7}
+            onChange={(e) => setTempOverride(parseFloat(e.target.value))}
+            style={{ flex: 1, accentColor: 'var(--accent)', cursor: 'pointer' }}
+          />
+          <button
+            onClick={() => setTempOverride(null)}
+            style={{ fontSize: 11, color: 'var(--text-3)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px' }}
+          >
+            reset
+          </button>
+        </div>
+      )}
 
       {/* Brainstorm picker panel */}
       {picker && (

@@ -172,7 +172,7 @@ export default function Toolbar(): React.ReactElement {
             </button>
             <button
               className={`tb-btn${slopCount > 0 ? ' on' : ''}`}
-              title="Slop Proof — flag clichés and weak prose"
+              title="Slop Proof — flag clichés and weak prose (⌥P)"
               disabled={slopRunning}
               onClick={() => (window as unknown as Record<string, () => void>).__konbiniRunProof?.()}
               style={{ position: 'relative' }}
