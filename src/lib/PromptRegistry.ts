@@ -291,6 +291,25 @@ Then a brief overall verdict (2 sentences max).`,
     modifiedAt: ISO(),
   },
   {
+    id: 'builtin:foundation:seeds',
+    name: 'Foundation · Seeds',
+    description: 'Generate 5 distinct premise seeds to kick off a novel.',
+    feature: 'autopilot',
+    phase: 'foundation',
+    model: 'claude-opus-4-8',
+    temperature: 0.9,
+    maxTokens: 800,
+    template: `Generate 5 distinct and compelling premise seeds for a novel. Each seed should be 1–2 sentences: a specific situation, a character with something at stake, and a hint of the central conflict. Make them vivid and specific — not generic.
+
+{{hints}}
+
+Return exactly 5 seeds, numbered 1–5, one per line. No preamble, no explanation — just the seeds.`,
+    variables: [{ name: 'hints', description: 'Optional genre/tone/length hints' }],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
     id: 'builtin:foundation:concept',
     name: 'Foundation · Concept',
     description: 'Expand a one-line seed into a story concept.',
