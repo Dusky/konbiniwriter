@@ -1,6 +1,7 @@
 import type { Project, ID } from '@shared/types'
 import type { MentionIndex } from './MentionIndex'
 import { mentionsIn } from './MentionIndex'
+import { useAIStore } from '../store/aiStore'
 
 // Rough token estimate: 1 token ≈ 4 chars for English prose.
 export function estimateTokens(text: string): number {
@@ -104,7 +105,8 @@ export function buildContext(
   feature: ContextFeature,
   budgetOverride?: number,
 ): ContextPacket {
-  const budget = budgetOverride ?? BUDGETS[feature]
+  const stored = useAIStore.getState().contextBudgets[feature] ?? 0
+  const budget = budgetOverride ?? (stored > 0 ? stored : BUDGETS[feature])
   const node = project.nodes[docId]
   const body = project.docs[docId]
 

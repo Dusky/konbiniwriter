@@ -31,6 +31,10 @@ interface AIState {
   setChatMaxTokens: (n: number) => void
   setChatContextMessages: (n: number) => void
 
+  // — context budgets (tokens per feature; 0 = use built-in default) —
+  contextBudgets: Record<string, number>
+  setContextBudget: (feature: string, tokens: number) => void
+
   // — session spend tally (in-memory; resets on reload) —
   spendInputTokens: number
   spendOutputTokens: number
@@ -72,6 +76,13 @@ export const useAIStore = create<AIState>((set) => ({
   chatContextMessages: parseInt(load(`${SK}:chatContextMessages`, '30'), 10),
   setChatMaxTokens: (chatMaxTokens) => { save(`${SK}:chatMaxTokens`, String(chatMaxTokens)); set({ chatMaxTokens }) },
   setChatContextMessages: (chatContextMessages) => { save(`${SK}:chatContextMessages`, String(chatContextMessages)); set({ chatContextMessages }) },
+
+  contextBudgets: (() => { try { return JSON.parse(load(`${SK}:contextBudgets`, '{}')) } catch { return {} } })(),
+  setContextBudget: (feature, tokens) => set((s) => {
+    const contextBudgets = { ...s.contextBudgets, [feature]: tokens }
+    save(`${SK}:contextBudgets`, JSON.stringify(contextBudgets))
+    return { contextBudgets }
+  }),
 
   spendInputTokens: 0,
   spendOutputTokens: 0,

@@ -72,11 +72,30 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
     anthropicKeyValidated, anthropicKeyError, setAnthropicKeyValidated,
     openaiBaseUrl, setOpenaiBaseUrl, openaiKey, setOpenaiKey, openaiModel, setOpenaiModel,
     chatMaxTokens, setChatMaxTokens, chatContextMessages, setChatContextMessages,
+    contextBudgets, setContextBudget,
     spendInputTokens, spendOutputTokens, spendUSD, spendCalls, spendUnpriced, resetSpend,
   } = useAIStore()
 
   const [maxTokensDraft, setMaxTokensDraft] = useState(String(chatMaxTokens))
   const [contextMsgsDraft, setContextMsgsDraft] = useState(String(chatContextMessages))
+
+  const BUDGET_FEATURES: { id: string; label: string; default: number }[] = [
+    { id: 'inline',     label: 'Inline rewrite',  default: 6_000 },
+    { id: 'chat',       label: 'Chat',             default: 8_000 },
+    { id: 'batch',      label: 'Batch / generate', default: 12_000 },
+    { id: 'evaluation', label: 'Evaluation',       default: 8_000 },
+    { id: 'autopilot',  label: 'Autopilot',        default: 16_000 },
+    { id: 'codex',      label: 'Codex',            default: 4_000 },
+  ]
+  const [budgetDrafts, setBudgetDrafts] = useState<Record<string, string>>(
+    () => Object.fromEntries(BUDGET_FEATURES.map(({ id, default: d }) => [id, String(contextBudgets[id] || d)]))
+  )
+  function commitBudget(id: string, val: string, defaultVal: number) {
+    const n = parseInt(val.replace(/[^0-9]/g, ''), 10)
+    const resolved = isNaN(n) || n <= 0 ? defaultVal : n
+    setContextBudget(id, resolved === defaultVal ? 0 : resolved)
+    setBudgetDrafts((prev) => ({ ...prev, [id]: String(resolved) }))
+  }
 
   const [anthropicDraft, setAnthropicDraft] = useState(anthropicKey)
   const [validating, setValidating] = useState(false)
@@ -259,6 +278,30 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                   style={{ width: 90, padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)' }}
                 />
                 <span style={{ fontSize: 11, color: 'var(--text-3)' }}>recent messages sent per turn — 0 = send full history</span>
+              </div>
+            </div>
+          </Row>
+
+          <Row label="Context budgets">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px' }}>
+                {BUDGET_FEATURES.map(({ id, label, default: defaultVal }) => (
+                  <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <label style={{ fontSize: 12, color: 'var(--text-2)', flex: '0 0 100px' }}>{label}</label>
+                    <input
+                      type="number"
+                      min={1000}
+                      value={budgetDrafts[id] ?? String(defaultVal)}
+                      onChange={(e) => setBudgetDrafts((prev) => ({ ...prev, [id]: e.target.value }))}
+                      onBlur={() => commitBudget(id, budgetDrafts[id] ?? '', defaultVal)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') commitBudget(id, budgetDrafts[id] ?? '', defaultVal) }}
+                      style={{ width: 80, padding: '4px 7px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)' }}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                Tokens of manuscript context sent per AI call, by feature. Raise for large-context models (128k+). Defaults: inline 6k · chat 8k · batch 12k · autopilot 16k.
               </div>
             </div>
           </Row>

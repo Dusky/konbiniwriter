@@ -106,6 +106,7 @@ export default function ChatModal({ onClose }: Props): React.ReactElement {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
+  const [showContext, setShowContext] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
@@ -262,6 +263,15 @@ export default function ChatModal({ onClose }: Props): React.ReactElement {
                 {hasContext ? `reading "${contextLabel}"` : 'no document context'}
               </span>
             )}
+            {contextPacket && (
+              <button
+                onClick={() => setShowContext((v) => !v)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: showContext ? 'var(--accent)' : 'var(--text-3)', padding: '0 2px' }}
+                title="Show context tiers"
+              >
+                {showContext ? '▾ context' : '▸ context'}
+              </button>
+            )}
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {messages.length > 0 && (
@@ -270,6 +280,27 @@ export default function ChatModal({ onClose }: Props): React.ReactElement {
             <button className="btn" onClick={onClose}>Close</button>
           </div>
         </div>
+
+        {/* Context inspector */}
+        {showContext && contextPacket && (
+          <div style={{ borderBottom: '0.5px solid var(--border)', padding: '8px 20px', background: 'var(--bg-2)', fontSize: 11 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {contextPacket.tiers.filter((t) => t.content.trim()).map((tier) => (
+                <div key={tier.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ color: tier.included ? 'var(--st-prog)' : 'var(--st-idea)', flexShrink: 0, width: 10 }}>
+                    {tier.included ? '✓' : '✗'}
+                  </span>
+                  <span style={{ flex: 1, color: tier.included ? 'var(--text-2)' : 'var(--text-3)' }}>{tier.label}</span>
+                  <span style={{ color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>{tier.tokens.toLocaleString()} tok</span>
+                </div>
+              ))}
+              <div style={{ marginTop: 4, paddingTop: 4, borderTop: '0.5px solid var(--border)', display: 'flex', justifyContent: 'space-between', color: 'var(--text-3)' }}>
+                <span>{contextPacket.truncated ? '⚠ some tiers dropped — raise context budget in AI Settings' : 'all tiers included'}</span>
+                <span style={{ fontFamily: 'var(--mono)' }}>{contextPacket.totalTokens.toLocaleString()} / {contextPacket.budgetTokens.toLocaleString()} tok</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Message list */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
