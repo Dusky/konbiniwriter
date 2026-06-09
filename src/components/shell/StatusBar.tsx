@@ -111,8 +111,15 @@ export default function StatusBar(): React.ReactElement {
             />
           </span>
         )}
-        <span style={{ color: saveStatus === 'saving' ? 'var(--st-prog)' : 'var(--text-3)' }}>
-          {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved' : ''}
+        <span style={{
+          color: saveStatus === 'saving' ? 'var(--st-prog)'
+            : saveStatus === 'error' ? 'var(--st-idea)'
+            : 'var(--text-3)',
+        }}>
+          {saveStatus === 'saving' ? 'Saving…'
+            : saveStatus === 'saved' ? 'Saved'
+            : saveStatus === 'error' ? 'Save failed'
+            : ''}
         </span>
       </div>
     </div>

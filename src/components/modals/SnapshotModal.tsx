@@ -49,6 +49,8 @@ export default function SnapshotModal({ onClose }: Props): React.ReactElement {
   const [newTitle, setNewTitle] = useState('')
   const [taking, setTaking] = useState(false)
   const [restoring, setRestoring] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [confirming, setConfirming] = useState<{ type: 'restore' | 'delete'; snap: Snapshot } | null>(null)
   const [ctx, setCtx] = useState<{ x: number; y: number; snap: Snapshot } | null>(null)
 
   const nodeId = selectedId
@@ -56,7 +58,7 @@ export default function SnapshotModal({ onClose }: Props): React.ReactElement {
 
   useEffect(() => {
     if (!project || !nodeId || node?.type === 'folder') return
-    window.api.snapshot.list(project.id, nodeId).then(setSnapshots).catch(console.error)
+    window.api.snapshot.list(project.id, nodeId).then(setSnapshots).catch((e: Error) => setError(e.message))
   }, [nodeId, project?.id])
 
   if (!project || !nodeId || !node || node.type === 'folder') {
@@ -85,28 +87,36 @@ export default function SnapshotModal({ onClose }: Props): React.ReactElement {
     }
   }
 
-  const handleRestore = async (snap: Snapshot) => {
-    if (!confirm(`Restore to snapshot "${snap.title || snap.takenAt}"? Current content will be auto-snapshotted first.`)) return
-    setRestoring(true)
-    try {
-      const { content, snapshot } = await window.api.snapshot.restore(project.id, nodeId, snap.id)
-      restoreContent(nodeId, content)
-      addSnapshot(nodeId, snapshot)
-      setSnapshots((prev) => [snapshot, ...prev])
-      onClose()
-    } catch (e) {
-      alert('Restore failed: ' + (e as Error).message)
-    } finally {
-      setRestoring(false)
-    }
-  }
+  const handleRestore = (snap: Snapshot) => setConfirming({ type: 'restore', snap })
+  const handleDelete = (snap: Snapshot) => setConfirming({ type: 'delete', snap })
 
-  const handleDelete = async (snap: Snapshot) => {
-    if (!confirm('Delete this snapshot permanently?')) return
-    await window.api.snapshot.delete(project.id, nodeId, snap.id)
-    removeSnapshot(nodeId, snap.id)
-    setSnapshots((prev) => prev.filter((s) => s.id !== snap.id))
-    if (selectedSnap?.id === snap.id) setSelectedSnap(null)
+  const handleConfirm = async () => {
+    if (!confirming) return
+    const { type, snap } = confirming
+    setConfirming(null)
+    if (type === 'restore') {
+      setRestoring(true)
+      try {
+        const { content, snapshot } = await window.api.snapshot.restore(project.id, nodeId, snap.id)
+        restoreContent(nodeId, content)
+        addSnapshot(nodeId, snapshot)
+        setSnapshots((prev) => [snapshot, ...prev])
+        onClose()
+      } catch (e) {
+        setError('Restore failed: ' + (e as Error).message)
+      } finally {
+        setRestoring(false)
+      }
+    } else {
+      try {
+        await window.api.snapshot.delete(project.id, nodeId, snap.id)
+        removeSnapshot(nodeId, snap.id)
+        setSnapshots((prev) => prev.filter((s) => s.id !== snap.id))
+        if (selectedSnap?.id === snap.id) setSelectedSnap(null)
+      } catch (e) {
+        setError('Delete failed: ' + (e as Error).message)
+      }
+    }
   }
 
   const diff = selectedSnap ? lineDiff(selectedSnap.content, currentContent) : []
@@ -121,6 +131,24 @@ export default function SnapshotModal({ onClose }: Props): React.ReactElement {
         <div className="modal-body" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, minHeight: 320 }}>
           {/* Left: list */}
           <div>
+            {error && (
+              <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-3)', border: '1px solid var(--st-idea)', borderRadius: 6, padding: '8px 12px', marginBottom: 10, fontSize: 12 }}>
+                <span style={{ color: 'var(--st-idea)' }}>⚠</span>
+                <span style={{ flex: 1, color: 'var(--text)' }}>{error}</span>
+                <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 0 }}>✕</button>
+              </div>
+            )}
+            {confirming && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-3)', borderRadius: 6, padding: '8px 12px', marginBottom: 10, fontSize: 12 }}>
+                <span style={{ flex: 1, color: 'var(--text-2)' }}>
+                  {confirming.type === 'restore'
+                    ? `Restore to "${confirming.snap.title || 'this snapshot'}"? Current text will be auto-snapshotted.`
+                    : 'Delete this snapshot? This cannot be undone.'}
+                </span>
+                <button className="btn sm" onClick={handleConfirm}>{confirming.type === 'restore' ? 'Restore' : 'Delete'}</button>
+                <button className="btn sm ghost" onClick={() => setConfirming(null)}>Cancel</button>
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
               <input
                 className="inp"

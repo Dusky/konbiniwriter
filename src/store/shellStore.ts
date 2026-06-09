@@ -6,6 +6,8 @@ export type Theme = 'dark' | 'light'
 export type Density = 'compact' | 'balanced' | 'roomy'
 export type EditorFont = 'mono' | 'serif' | 'sans'
 
+export interface Toast { message: string; type: 'error' | 'info' | 'success'; id: number }
+
 interface ShellState {
   screen: Screen
   platform: 'darwin' | 'win32' | 'linux'
@@ -16,7 +18,9 @@ interface ShellState {
   typewriterMode: boolean
   autoVersion: boolean
   historyRetentionDays: number   // 0 = keep forever
+  accent: string
   modal: ModalId
+  toast: Toast | null
   recents: RecentEntry[]
   layout: { binder: boolean; insp: boolean }
   // actions
@@ -29,6 +33,9 @@ interface ShellState {
   setTypewriterMode: (v: boolean) => void
   setAutoVersion: (v: boolean) => void
   setHistoryRetentionDays: (n: number) => void
+  setAccent: (color: string) => void
+  setToast: (message: string, type?: Toast['type']) => void
+  clearToast: () => void
   toggleBinder: () => void
   toggleInsp: () => void
   setRecents: (r: RecentEntry[]) => void
@@ -55,7 +62,14 @@ export const useShellStore = create<ShellState>((set) => ({
     const n = parseInt(window.api.prefs.get('pref:historyRetentionDays') ?? '14', 10)
     return isNaN(n) ? 14 : n
   })(),
+  accent: (() => {
+    const saved = window.api.prefs.get('pref:accent')
+    const color = saved || 'oklch(0.64 0.11 300)'
+    if (saved) document.documentElement.style.setProperty('--accent', color)
+    return color
+  })(),
   modal: null,
+  toast: null,
   recents: [],
   layout: { binder: true, insp: true },
 
@@ -89,6 +103,13 @@ export const useShellStore = create<ShellState>((set) => ({
     window.api.prefs.set('pref:historyRetentionDays', String(historyRetentionDays))
     set({ historyRetentionDays })
   },
+  setAccent: (accent) => {
+    window.api.prefs.set('pref:accent', accent)
+    document.documentElement.style.setProperty('--accent', accent)
+    set({ accent })
+  },
+  setToast: (message, type = 'error') => set({ toast: { message, type, id: Date.now() } }),
+  clearToast: () => set({ toast: null }),
   toggleBinder: () => set((s) => ({ layout: { ...s.layout, binder: !s.layout.binder } })),
   toggleInsp: () => set((s) => ({ layout: { ...s.layout, insp: !s.layout.insp } })),
   setRecents: (recents) => set({ recents }),

@@ -25,7 +25,7 @@ export function useAutosave(docId: string | null): void {
         historyService.maybeCapture(project.id, docId, content)
       } catch (err) {
         console.error('Autosave failed:', err)
-        setSaveStatus('unsaved')
+        setSaveStatus('error')
       }
     }, DEBOUNCE_MS)
 

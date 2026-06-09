@@ -10,7 +10,7 @@ export type StatusId = 'idea' | 'todo' | 'inprogress' | 'draft' | 'revised' | 'f
 export type LabelId = 'none' | 'scene' | 'chapter' | 'note' | 'character' | 'idea'
 export type TemplateId = 'blank' | 'novel' | 'screenplay' | 'nonfiction'
 export type ViewMode = 'editor' | 'corkboard' | 'outliner' | 'timeline'
-export type SaveStatus = 'saved' | 'saving' | 'unsaved'
+export type SaveStatus = 'saved' | 'saving' | 'unsaved' | 'error'
 export type CompileFormat = 'markdown' | 'docx' | 'print' | 'epub'
 export type ModalId =
   | 'new-project'

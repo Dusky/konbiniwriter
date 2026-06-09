@@ -14,6 +14,7 @@ export default function CompileModal({ onClose }: Props): React.ReactElement {
   const [format, setFormat] = useState<CompileFormat>('markdown')
   const [preview, setPreview] = useState('')
   const [compiling, setCompiling] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // Default root = selected folder or project root
   useEffect(() => {
@@ -81,7 +82,7 @@ export default function CompileModal({ onClose }: Props): React.ReactElement {
     }
     const htmlBody = `<p>${mdToHtml(preview)}</p>`
     const newWin = window.open('', '_blank')
-    if (!newWin) { alert('Pop-up blocked. Please allow pop-ups to print.'); return }
+    if (!newWin) { setError('Pop-ups are blocked. Allow pop-ups for this site, then try again.'); return }
     newWin.document.write(`<html><head><title>${title}</title>
 <style>body { font-family: Georgia, serif; max-width: 600px; margin: 40px auto; line-height: 1.8; } h1,h2,h3 { margin-top: 2em; }</style>
 </head><body>${htmlBody}</body></html>`)
@@ -109,7 +110,7 @@ export default function CompileModal({ onClose }: Props): React.ReactElement {
       URL.revokeObjectURL(url)
       onClose()
     } catch (err) {
-      alert(`Compile failed: ${err}`)
+      setError(`Compile failed: ${String(err)}`)
     } finally {
       setCompiling(false)
     }
@@ -124,6 +125,13 @@ export default function CompileModal({ onClose }: Props): React.ReactElement {
           <h3>Compile</h3>
           <span className="sub">{included.size} documents · {totalWords.toLocaleString()} words</span>
         </div>
+        {error && (
+          <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-3)', border: '1px solid var(--st-idea)', borderRadius: 6, padding: '8px 14px', margin: '0 0 2px', fontSize: 12 }}>
+            <span style={{ color: 'var(--st-idea)' }}>⚠</span>
+            <span style={{ flex: 1, color: 'var(--text)' }}>{error}</span>
+            <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 0 }}>✕</button>
+          </div>
+        )}
         <div className="modal-body" style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 16, minHeight: 340 }}>
           {/* Left: document tree picker */}
           <div style={{ overflowY: 'auto' }}>

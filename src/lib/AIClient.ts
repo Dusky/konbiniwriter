@@ -85,8 +85,14 @@ async function streamAnthropic(
   }
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    cb.onError(new Error(err?.error?.message ?? `HTTP ${res.status}`))
+    const body = await res.json().catch(() => ({}))
+    const apiMsg = (body?.error?.message ?? '') as string
+    let msg: string
+    if (res.status === 401) msg = 'Authentication failed — check your API key in AI Settings'
+    else if (res.status === 429) msg = 'Rate limit reached — wait a moment and try again'
+    else if (res.status >= 500) msg = `API service error (${res.status}) — try again shortly`
+    else msg = apiMsg || `Request failed (${res.status})`
+    cb.onError(new Error(msg))
     return
   }
 
@@ -172,8 +178,14 @@ async function streamOpenAI(
   }
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    cb.onError(new Error(err?.error?.message ?? `HTTP ${res.status}`))
+    const body = await res.json().catch(() => ({}))
+    const apiMsg = (body?.error?.message ?? '') as string
+    let msg: string
+    if (res.status === 401) msg = 'Authentication failed — check your API key in AI Settings'
+    else if (res.status === 429) msg = 'Rate limit reached — wait a moment and try again'
+    else if (res.status >= 500) msg = `API service error (${res.status}) — try again shortly`
+    else msg = apiMsg || `Request failed (${res.status})`
+    cb.onError(new Error(msg))
     return
   }
 

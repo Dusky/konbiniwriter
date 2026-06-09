@@ -123,6 +123,7 @@ button { font-family: inherit; cursor: default; }
 .save-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--st-final); }
 .save-pill.saving .save-dot { background: var(--st-prog); animation: pulse 1s infinite; }
 @keyframes pulse { 50% { opacity: .3; } }
+@keyframes toast-in { from { opacity: 0; transform: translateX(-50%) translateY(8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 
 /* toolbar */
 .toolbar { height: 42px; flex: none; display: flex; align-items: center; gap: 6px;
