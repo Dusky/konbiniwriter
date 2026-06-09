@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useProjectStore } from '../../store/projectStore'
+import { useAIStore } from '../../store/aiStore'
 import { streamCompletion } from '../../lib/AIClient'
 
 interface Message {
@@ -15,10 +16,6 @@ interface Props {
 function chatKey(projectId: string, nodeId: string | null): string {
   return `chat:${projectId}:${nodeId ?? '__project__'}`
 }
-
-// Messages sent to API per turn (controls cost + context window usage).
-// Stored history is unlimited.
-const API_CONTEXT_LIMIT = 30
 
 // ── Markdown renderer ────────────────────────────────────────────────────────
 
@@ -101,6 +98,8 @@ function CopyButton({ text }: { text: string }): React.ReactElement {
 export default function ChatModal({ onClose }: Props): React.ReactElement {
   const project = useProjectStore((s) => s.project)
   const selectedId = useProjectStore((s) => s.selectedId)
+  const chatMaxTokens = useAIStore((s) => s.chatMaxTokens)
+  const chatContextMessages = useAIStore((s) => s.chatContextMessages)
 
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -165,10 +164,9 @@ export default function ChatModal({ onClose }: Props): React.ReactElement {
 
     setMessages((prev) => [...prev, { role: 'assistant', content: '' }])
 
-    // Strip errors + limit context sent to API
-    const apiMessages = newMessages
-      .filter((m) => !m.isError)
-      .slice(-API_CONTEXT_LIMIT)
+    // Strip errors + limit context sent to API (0 = send all)
+    const filtered = newMessages.filter((m) => !m.isError)
+    const apiMessages = (chatContextMessages > 0 ? filtered.slice(-chatContextMessages) : filtered)
       .map(({ role, content }) => ({ role, content }))
 
     abortRef.current = new AbortController()
@@ -177,7 +175,7 @@ export default function ChatModal({ onClose }: Props): React.ReactElement {
       apiMessages,
       {
         systemPrompt: buildSystemPrompt(),
-        maxTokens: 2048,
+        maxTokens: chatMaxTokens,
         temperature: 0.7,
         signal: abortRef.current.signal,
       },

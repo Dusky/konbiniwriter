@@ -25,6 +25,12 @@ interface AIState {
   setOpenaiKey: (key: string) => void
   setOpenaiModel: (model: string) => void
 
+  // — chat generation params —
+  chatMaxTokens: number
+  chatContextMessages: number   // messages sent to API per turn; 0 = all
+  setChatMaxTokens: (n: number) => void
+  setChatContextMessages: (n: number) => void
+
   // — session spend tally (in-memory; resets on reload) —
   spendInputTokens: number
   spendOutputTokens: number
@@ -61,6 +67,11 @@ export const useAIStore = create<AIState>((set) => ({
   setOpenaiBaseUrl: (openaiBaseUrl) => { save(`${SK}:openaiBaseUrl`, openaiBaseUrl); set({ openaiBaseUrl }) },
   setOpenaiKey: (openaiKey) => { save(`${SK}:openaiKey`, openaiKey); set({ openaiKey }) },
   setOpenaiModel: (openaiModel) => { save(`${SK}:openaiModel`, openaiModel); set({ openaiModel }) },
+
+  chatMaxTokens: parseInt(load(`${SK}:chatMaxTokens`, '2048'), 10) || 2048,
+  chatContextMessages: parseInt(load(`${SK}:chatContextMessages`, '30'), 10),
+  setChatMaxTokens: (chatMaxTokens) => { save(`${SK}:chatMaxTokens`, String(chatMaxTokens)); set({ chatMaxTokens }) },
+  setChatContextMessages: (chatContextMessages) => { save(`${SK}:chatContextMessages`, String(chatContextMessages)); set({ chatContextMessages }) },
 
   spendInputTokens: 0,
   spendOutputTokens: 0,

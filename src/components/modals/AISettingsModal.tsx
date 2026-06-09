@@ -71,8 +71,12 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
     anthropicKey, setAnthropicKey, anthropicModel, setAnthropicModel,
     anthropicKeyValidated, anthropicKeyError, setAnthropicKeyValidated,
     openaiBaseUrl, setOpenaiBaseUrl, openaiKey, setOpenaiKey, openaiModel, setOpenaiModel,
+    chatMaxTokens, setChatMaxTokens, chatContextMessages, setChatContextMessages,
     spendInputTokens, spendOutputTokens, spendUSD, spendCalls, spendUnpriced, resetSpend,
   } = useAIStore()
+
+  const [maxTokensDraft, setMaxTokensDraft] = useState(String(chatMaxTokens))
+  const [contextMsgsDraft, setContextMsgsDraft] = useState(String(chatContextMessages))
 
   const [anthropicDraft, setAnthropicDraft] = useState(anthropicKey)
   const [validating, setValidating] = useState(false)
@@ -220,6 +224,44 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
               </Row>
             </>
           )}
+
+          <Row label="Chat">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <label style={{ fontSize: 12, color: 'var(--text-2)', flex: '0 0 110px' }}>Max output tokens</label>
+                <input
+                  type="number"
+                  min={256}
+                  max={200000}
+                  value={maxTokensDraft}
+                  onChange={(e) => setMaxTokensDraft(e.target.value)}
+                  onBlur={() => {
+                    const n = parseInt(maxTokensDraft, 10)
+                    if (!isNaN(n) && n >= 256) { setChatMaxTokens(n); setMaxTokensDraft(String(n)) }
+                    else setMaxTokensDraft(String(chatMaxTokens))
+                  }}
+                  style={{ width: 90, padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)' }}
+                />
+                <span style={{ fontSize: 11, color: 'var(--text-3)' }}>per response — bump for long-form answers, lower for speed</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <label style={{ fontSize: 12, color: 'var(--text-2)', flex: '0 0 110px' }}>Context messages</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={contextMsgsDraft}
+                  onChange={(e) => setContextMsgsDraft(e.target.value)}
+                  onBlur={() => {
+                    const n = parseInt(contextMsgsDraft, 10)
+                    if (!isNaN(n) && n >= 0) { setChatContextMessages(n); setContextMsgsDraft(String(n)) }
+                    else setContextMsgsDraft(String(chatContextMessages))
+                  }}
+                  style={{ width: 90, padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)' }}
+                />
+                <span style={{ fontSize: 11, color: 'var(--text-3)' }}>recent messages sent per turn — 0 = send full history</span>
+              </div>
+            </div>
+          </Row>
 
           <Row label="Session usage">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
