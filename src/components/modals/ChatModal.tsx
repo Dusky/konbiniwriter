@@ -5,6 +5,7 @@ import { streamCompletion } from '../../lib/AIClient'
 interface Message {
   role: 'user' | 'assistant'
   content: string
+  isError?: boolean
 }
 
 interface Props {
@@ -92,7 +93,7 @@ export default function ChatModal({ onClose }: Props): React.ReactElement {
             const updated = [...prev]
             const last = updated[updated.length - 1]
             if (last.role === 'assistant') {
-              updated[updated.length - 1] = { ...last, content: `Error: ${err.message}` }
+              updated[updated.length - 1] = { ...last, content: err.message, isError: true }
             }
             return updated
           })
@@ -157,25 +158,45 @@ export default function ChatModal({ onClose }: Props): React.ReactElement {
                 justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
               }}
             >
-              <div
-                style={{
-                  background: msg.role === 'user' ? 'var(--accent)' : 'var(--bg-2)',
-                  color: msg.role === 'user' ? 'var(--accent-fg)' : 'var(--text)',
-                  borderRadius: 12,
-                  maxWidth: msg.role === 'user' ? '75%' : '85%',
-                  padding: '8px 12px',
-                  fontSize: 14,
-                  lineHeight: 1.6,
-                  whiteSpace: 'pre-wrap',
-                }}
-              >
-                {isThinking && i === messages.length - 1
-                  ? <span style={{ color: 'var(--text-3)', fontStyle: 'italic' }}>AI is thinking…</span>
-                  : msg.content}
-                {streaming && i === messages.length - 1 && msg.role === 'assistant' && !isThinking && (
-                  <span style={{ opacity: 0.7, animation: 'pulse 1s infinite' }}>▌</span>
-                )}
-              </div>
+              {msg.isError ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 8,
+                    background: 'var(--bg-3)',
+                    border: '1px solid var(--st-idea)',
+                    borderRadius: 10,
+                    maxWidth: '85%',
+                    padding: '8px 12px',
+                    fontSize: 13,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  <span style={{ color: 'var(--st-idea)', flexShrink: 0, marginTop: 1 }}>⚠</span>
+                  <span style={{ color: 'var(--text-2)' }}>{msg.content}</span>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    background: msg.role === 'user' ? 'var(--accent)' : 'var(--bg-2)',
+                    color: msg.role === 'user' ? 'var(--accent-fg)' : 'var(--text)',
+                    borderRadius: 12,
+                    maxWidth: msg.role === 'user' ? '75%' : '85%',
+                    padding: '8px 12px',
+                    fontSize: 14,
+                    lineHeight: 1.6,
+                    whiteSpace: 'pre-wrap',
+                  }}
+                >
+                  {isThinking && i === messages.length - 1
+                    ? <span style={{ color: 'var(--text-3)', fontStyle: 'italic' }}>AI is thinking…</span>
+                    : msg.content}
+                  {streaming && i === messages.length - 1 && msg.role === 'assistant' && !isThinking && (
+                    <span style={{ opacity: 0.7, animation: 'pulse 1s infinite' }}>▌</span>
+                  )}
+                </div>
+              )}
             </div>
           ))}
           <div ref={messagesEndRef} />

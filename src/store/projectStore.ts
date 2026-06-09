@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { useShellStore } from './shellStore'
 import type { Project, KNode, DocBody, DocMeta, NodeType, ViewMode, SaveStatus, Snapshot, ID, Proposal, CodexEntry, DebtItem } from '@shared/types'
 import { uid, wordCount } from '@shared/utils'
 import { type MentionIndex, buildIndex, updateIndex } from '../lib/MentionIndex'
@@ -266,7 +267,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       nodeHistory: s.nodeHistory.slice(0, -1),
       nodeFuture: [...s.nodeFuture, current],
     })
-    window.api.node.mutate(s.project.id, { type: 'setTree', rootIds: prev.rootIds, nodes: prev.nodes }).catch(console.error)
+    window.api.node.mutate(s.project.id, { type: 'setTree', rootIds: prev.rootIds, nodes: prev.nodes }).catch((e: Error) => {
+      useShellStore.getState().setToast('Undo could not be saved: ' + e.message)
+    })
     return true
   },
   redoMutation: () => {
@@ -279,7 +282,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       nodeFuture: s.nodeFuture.slice(0, -1),
       nodeHistory: [...s.nodeHistory, current].slice(-50),
     })
-    window.api.node.mutate(s.project.id, { type: 'setTree', rootIds: next.rootIds, nodes: next.nodes }).catch(console.error)
+    window.api.node.mutate(s.project.id, { type: 'setTree', rootIds: next.rootIds, nodes: next.nodes }).catch((e: Error) => {
+      useShellStore.getState().setToast('Redo could not be saved: ' + e.message)
+    })
     return true
   },
 
@@ -340,12 +345,16 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const codex = existing >= 0
       ? s.codex.map((e) => e.id === entry.id ? entry : e)
       : [...s.codex, entry]
-    if (s.project) window.api.codex.save(s.project.id, codex).catch(console.error)
+    if (s.project) window.api.codex.save(s.project.id, codex).catch((e: Error) => {
+      useShellStore.getState().setToast('Codex could not be saved: ' + e.message)
+    })
     return { codex }
   }),
   deleteCodexEntry: (id) => set((s) => {
     const codex = s.codex.filter((e) => e.id !== id)
-    if (s.project) window.api.codex.save(s.project.id, codex).catch(console.error)
+    if (s.project) window.api.codex.save(s.project.id, codex).catch((e: Error) => {
+      useShellStore.getState().setToast('Codex could not be saved: ' + e.message)
+    })
     return { codex }
   }),
 
