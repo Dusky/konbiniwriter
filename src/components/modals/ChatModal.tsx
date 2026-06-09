@@ -12,6 +12,12 @@ interface Props {
   onClose: () => void
 }
 
+function chatKey(projectId: string, nodeId: string | null): string {
+  return `chat:${projectId}:${nodeId ?? '__project__'}`
+}
+
+const MAX_STORED = 60
+
 export default function ChatModal({ onClose }: Props): React.ReactElement {
   const project = useProjectStore((s) => s.project)
   const selectedId = useProjectStore((s) => s.selectedId)
@@ -27,6 +33,17 @@ export default function ChatModal({ onClose }: Props): React.ReactElement {
     ? (project.docs[selectedId]?.content ?? '')
     : ''
 
+  // Load persisted conversation whenever context switches
+  useEffect(() => {
+    if (!project) return
+    const raw = window.api.prefs.get(chatKey(project.id, selectedId))
+    if (raw) {
+      try { setMessages(JSON.parse(raw)) } catch { setMessages([]) }
+    } else {
+      setMessages([])
+    }
+  }, [project?.id, selectedId])
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
@@ -34,6 +51,12 @@ export default function ChatModal({ onClose }: Props): React.ReactElement {
   useEffect(() => {
     inputRef.current?.focus()
   }, [])
+
+  function persistMessages(msgs: Message[]) {
+    if (!project) return
+    const toStore = msgs.filter((m) => !m.isError).slice(-MAX_STORED)
+    window.api.prefs.set(chatKey(project.id, selectedId), JSON.stringify(toStore))
+  }
 
   function buildSystemPrompt(): string {
     let sys = 'You are a creative writing assistant. Help the author with story questions, character development, plot, prose, and craft. Be specific and direct. The author\'s current document is provided for context.'
@@ -84,6 +107,7 @@ export default function ChatModal({ onClose }: Props): React.ReactElement {
             if (last.role === 'assistant') {
               updated[updated.length - 1] = { ...last, content: full }
             }
+            persistMessages(updated)
             return updated
           })
           setStreaming(false)
@@ -95,6 +119,8 @@ export default function ChatModal({ onClose }: Props): React.ReactElement {
             if (last.role === 'assistant') {
               updated[updated.length - 1] = { ...last, content: err.message, isError: true }
             }
+            // Persist without the error message so the conversation is intact on reload
+            persistMessages(updated)
             return updated
           })
           setStreaming(false)
@@ -111,6 +137,7 @@ export default function ChatModal({ onClose }: Props): React.ReactElement {
   function clearChat() {
     stop()
     setMessages([])
+    if (project) window.api.prefs.remove(chatKey(project.id, selectedId))
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
