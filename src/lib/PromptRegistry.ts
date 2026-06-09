@@ -613,6 +613,41 @@ Include 2–5 concrete facts per character (role, age, occupation, defining trai
     modifiedAt: ISO(),
   },
   {
+    id: 'builtin:codex:scan',
+    name: 'Codex · Scan Prose for New Entries',
+    description: 'Scan manuscript prose and suggest new codex entries for significant entities not already tracked.',
+    feature: 'codex',
+    model: 'claude-sonnet-4-6',
+    temperature: 0.2,
+    maxTokens: 2000,
+    template: `You are a codex editor for a novel. Read the following prose excerpt and identify significant named entities that should have codex entries.
+
+<already_in_codex>
+{{existing}}
+</already_in_codex>
+
+<prose>
+{{content}}
+</prose>
+
+Identify characters, locations, items, concepts, and lore that:
+- Are named and clearly significant (not background extras or throwaway mentions)
+- Are NOT already listed in the already_in_codex section above (skip exact and close matches)
+- Would genuinely benefit from a reference entry
+
+Return a JSON array. If nothing warrants a new entry, return []:
+[{ "name": "<name>", "category": "character|location|item|concept|lore", "aliases": [], "summary": "<1–2 sentence description based on what the prose reveals>", "facts": [{ "label": "<type>", "value": "<value>" }] }]
+
+Return ONLY valid JSON.`,
+    variables: [
+      { name: 'content', description: 'The prose excerpt to scan' },
+      { name: 'existing', description: 'Comma-separated list of existing codex entry names' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
     id: 'builtin:evaluation:continuity',
     name: 'Continuity Check',
     description: 'Find places where a scene contradicts established Codex facts.',
