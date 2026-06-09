@@ -23,6 +23,48 @@ export const COWRITE_COMMANDS: { id: CowriteCommand; label: string; promptId: st
   { id: 'brainstorm', label: 'Brainstorm', promptId: 'builtin:inline:brainstorm' },
 ]
 
+const BRAINSTORM_PROMPT_ID = 'builtin:inline:brainstorm'
+
+export function parseBrainstormAlternatives(raw: string): string[] {
+  const parts = raw
+    .split(/\n+(?=\d+\.\s)/)
+    .map((s) => s.replace(/^\d+\.\s*/, '').trim())
+    .filter(Boolean)
+    .slice(0, 5)
+  return parts.length >= 2 ? parts : []
+}
+
+export function streamBrainstorm(opts: {
+  project: Project
+  mentionIndex: MentionIndex
+  docId: string
+  selection: string
+  signal?: AbortSignal
+  onChunk?: (partial: string) => void
+}): Promise<string> {
+  const { project, mentionIndex, docId, selection, signal, onChunk } = opts
+  const template = promptRegistry.get(BRAINSTORM_PROMPT_ID)
+  if (!template) return Promise.reject(new Error(`Missing prompt template: ${BRAINSTORM_PROMPT_ID}`))
+
+  const ctxPacket = buildContext(project, mentionIndex, docId, 'inline')
+  const contextStr = renderContext(ctxPacket)
+  const rendered = promptRegistry.render(BRAINSTORM_PROMPT_ID, { context: contextStr, selection, content: selection })
+
+  let partial = ''
+  return new Promise<string>((resolve, reject) => {
+    if (signal) signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
+    streamCompletion(
+      [{ role: 'user', content: rendered }],
+      { model: template.model, maxTokens: template.maxTokens, temperature: template.temperature, signal },
+      {
+        onChunk: (c) => { partial += c; onChunk?.(partial) },
+        onDone: resolve,
+        onError: reject,
+      },
+    ).catch(reject)
+  })
+}
+
 export function runCowrite(opts: {
   command: CowriteCommand
   project: Project

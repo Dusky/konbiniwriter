@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { useProjectStore } from '../../store/projectStore'
 import { useAIStore } from '../../store/aiStore'
 import { streamCompletion } from '../../lib/AIClient'
+import { buildContext, renderContext } from '../../lib/ContextBuilder'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -98,6 +99,7 @@ function CopyButton({ text }: { text: string }): React.ReactElement {
 export default function ChatModal({ onClose }: Props): React.ReactElement {
   const project = useProjectStore((s) => s.project)
   const selectedId = useProjectStore((s) => s.selectedId)
+  const mentionIndex = useProjectStore((s) => s.mentionIndex)
   const chatMaxTokens = useAIStore((s) => s.chatMaxTokens)
   const chatContextMessages = useAIStore((s) => s.chatContextMessages)
 
@@ -109,12 +111,15 @@ export default function ChatModal({ onClose }: Props): React.ReactElement {
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
 
   const node = selectedId && project ? project.nodes[selectedId] : null
-  const docContent = selectedId && project
-    ? (project.docs[selectedId]?.content ?? '')
-    : ''
   const contextLabel = node?.type !== 'folder' && node?.title
     ? node.title
     : project?.title ?? ''
+
+  // Build context packet — used both for the system prompt and the empty-state hint
+  const contextPacket = project && selectedId && node?.type !== 'folder'
+    ? buildContext(project, mentionIndex, selectedId, 'chat')
+    : null
+  const hasContext = (contextPacket?.totalTokens ?? 0) > 0
 
   // Load persisted conversation whenever context switches
   useEffect(() => {
@@ -145,11 +150,10 @@ export default function ChatModal({ onClose }: Props): React.ReactElement {
   }
 
   function buildSystemPrompt(): string {
-    let sys = 'You are a creative writing assistant. Help the author with story questions, character development, plot, prose, and craft. Be specific and direct.'
-    if (docContent.trim()) {
-      sys += `\n\nThe author's current document ("${contextLabel}") is provided for context:\n---\n${docContent.slice(0, 6000)}\n---`
-    }
-    return sys
+    const base = 'You are a creative writing assistant. Help the author with story questions, character development, plot, prose, and craft. Be specific and direct.'
+    if (!contextPacket) return base
+    const ctx = renderContext(contextPacket)
+    return ctx ? `${base}\n\n${ctx}` : base
   }
 
   async function send() {
@@ -255,7 +259,7 @@ export default function ChatModal({ onClose }: Props): React.ReactElement {
             <h3 style={{ margin: 0 }}>AI Chat</h3>
             {contextLabel && (
               <span className="sub" style={{ fontSize: 12 }}>
-                {docContent.trim() ? `reading "${contextLabel}"` : 'no document context'}
+                {hasContext ? `reading "${contextLabel}"` : 'no document context'}
               </span>
             )}
           </div>
@@ -271,7 +275,7 @@ export default function ChatModal({ onClose }: Props): React.ReactElement {
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           {messages.length === 0 && (
             <div style={{ color: 'var(--text-3)', fontSize: 13, textAlign: 'center', paddingTop: 40, lineHeight: 1.7 }}>
-              {docContent.trim()
+              {hasContext
                 ? <>Ask anything about <em>{contextLabel}</em> — plot, characters, prose, craft.</>
                 : 'Select a document in the binder to give the AI context, or just ask a question.'}
             </div>
