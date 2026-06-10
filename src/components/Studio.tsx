@@ -1,6 +1,7 @@
 import React from 'react'
 import { useShellStore } from '../store/shellStore'
 import { useProjectStore } from '../store/projectStore'
+import { spliceSelection } from '../lib/ProposalService'
 import Titlebar from './shell/Titlebar'
 import Toolbar from './shell/Toolbar'
 import StatusBar from './shell/StatusBar'
@@ -117,10 +118,22 @@ export default function Studio(): React.ReactElement {
           proposal={activeProposal}
           onApply={async (content, accepted) => {
             if (!project) return
+
+            let resolvedContent = content
+            if (activeProposal.scope === 'selection') {
+              const docContent = project.docs[activeProposal.docId]?.content ?? ''
+              const result = spliceSelection(docContent, activeProposal, content)
+              if ('error' in result) {
+                useShellStore.getState().setToast('Selection changed since this proposal was made — discard and re-run.')
+                return
+              }
+              resolvedContent = result.content
+            }
+
             // Snapshot first (invariant: pre-AI snapshot is mandatory)
             const snap = await window.api.snapshot.take(project.id, activeProposal.docId, `Before ${activeProposal.label}`)
             addSnapshot(activeProposal.docId, snap)
-            updateContent(activeProposal.docId, content)
+            updateContent(activeProposal.docId, resolvedContent)
             resolveProposal(activeProposal.id, 'applied')
             // If this proposal was reconciling a debt item, applying it closes
             // that affected document.
@@ -129,7 +142,7 @@ export default function Studio(): React.ReactElement {
             }
             // Prose→outline debt: a substantial whole-doc revision may have
             // outdated the scene's synopsis.
-            const debtItem = debtService.maybeRaiseFromProposal({ project, proposal: activeProposal, applied: content })
+            const debtItem = debtService.maybeRaiseFromProposal({ project, proposal: activeProposal, applied: resolvedContent })
             if (debtItem) raiseDebt(debtItem)
           }}
           onDiscard={() => resolveProposal(activeProposal.id, 'discarded')}

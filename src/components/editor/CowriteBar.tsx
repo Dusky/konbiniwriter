@@ -12,12 +12,13 @@ type PickerState =
 interface Props {
   docId: string
   selection: string
+  selRange?: { from: number; to: number }
   anchorRect: DOMRect
   onClose: () => void
   autoRun?: CowriteCommand
 }
 
-export default function CowriteBar({ docId, selection, anchorRect, onClose, autoRun }: Props): React.ReactElement {
+export default function CowriteBar({ docId, selection, selRange, anchorRect, onClose, autoRun }: Props): React.ReactElement {
   const project = useProjectStore((s) => s.project)
   const mentionIndex = useProjectStore((s) => s.mentionIndex)
   const queueProposal = useProjectStore((s) => s.queueProposal)
@@ -63,6 +64,8 @@ export default function CowriteBar({ docId, selection, anchorRect, onClose, auto
             original: selection,
             proposed: raw.trim(),
             promptId: 'builtin:inline:brainstorm',
+            scope: 'selection',
+            selRange,
           }))
           onClose()
         }
@@ -76,7 +79,7 @@ export default function CowriteBar({ docId, selection, anchorRect, onClose, auto
     }
 
     try {
-      const proposal = await runCowrite({ command: cmd, project, mentionIndex, docId, selection, signal: controller.signal, temperatureOverride: tempOverride ?? undefined })
+      const proposal = await runCowrite({ command: cmd, project, mentionIndex, docId, selection, selRange, signal: controller.signal, temperatureOverride: tempOverride ?? undefined })
       queueProposal(proposal)
       setRunning(null)
       onClose()
@@ -85,7 +88,7 @@ export default function CowriteBar({ docId, selection, anchorRect, onClose, auto
       setError((err as Error).message)
       setRunning(null)
     }
-  }, [project, mentionIndex, docId, selection, running, queueProposal, onClose])
+  }, [project, mentionIndex, docId, selection, selRange, running, queueProposal, onClose])
 
   const handlePick = (chosen: string) => {
     if (!project) return
@@ -98,6 +101,8 @@ export default function CowriteBar({ docId, selection, anchorRect, onClose, auto
       original: selection,
       proposed: chosen,
       promptId: 'builtin:inline:brainstorm',
+      scope: 'selection',
+      selRange,
     }))
     setPicker(null)
     onClose()

@@ -72,10 +72,11 @@ export function runCowrite(opts: {
   mentionIndex: MentionIndex
   docId: string
   selection: string
+  selRange?: { from: number; to: number }
   signal?: AbortSignal
   temperatureOverride?: number
 }): Promise<Proposal> {
-  const { command, project, mentionIndex, docId, selection, signal, temperatureOverride } = opts
+  const { command, project, mentionIndex, docId, selection, selRange, signal, temperatureOverride } = opts
   const spec = COWRITE_COMMANDS.find((c) => c.id === command)
   if (!spec) return Promise.reject(new Error(`Unknown co-write command: ${command}`))
   const template = promptRegistry.get(spec.promptId)
@@ -104,6 +105,8 @@ export function runCowrite(opts: {
           original: selection,
           proposed: full.trim(),
           promptId: spec.promptId,
+          scope: 'selection',
+          selRange,
         })),
         onError: (err) => reject(err),
       },

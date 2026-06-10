@@ -9,6 +9,7 @@
     "dev": "vite",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "preview": "vite preview",
+    "test": "vitest run",
     "electron:compile": "tsc -p electron/tsconfig.json && node -e \"require('fs').writeFileSync('electron-dist/package.json','{\\\"type\\\":\\\"commonjs\\\"}')\"",
     "electron:dev": "npm run electron:compile && cross-env ELECTRON_DEV=1 electron .",
     "electron:build": "npm run build && npm run electron:compile && electron-builder"
@@ -30,6 +31,7 @@
     "react-dom": "^18.3.1",
     "typescript": "^5.7.2",
     "vite": "^5.4.11",
+    "vitest": "^4.1.8",
     "zustand": "^5.0.2"
   },
   "dependencies": {

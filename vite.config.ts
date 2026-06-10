@@ -13,4 +13,8 @@ export default defineConfig({
   // Keep Electron migration easy: the build output can be loaded by
   // an Electron BrowserWindow with file:// — just set base: './'
   base: './',
+  test: {
+    environment: 'node',
+    setupFiles: ['src/test/setup.ts'],
+  },
 })

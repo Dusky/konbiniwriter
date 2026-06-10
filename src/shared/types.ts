@@ -188,6 +188,12 @@ export interface Proposal {
   // If this proposal was generated to resolve a propagation-debt item, applying
   // it auto-resolves that affected document.
   debtRef?: { debtId: ID; docId: ID }
+  // 'selection' proposals carry `original`/`proposed` for just the selected
+  // text; applying them splices the resolved text back into the document at
+  // `selRange` (or by locating `original` if the range has shifted). Absent
+  // or 'document' means `original`/`proposed` are the whole document.
+  scope?: 'selection' | 'document'
+  selRange?: { from: number; to: number }
 }
 
 export type DiffSegment =
