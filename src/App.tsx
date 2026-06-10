@@ -46,6 +46,12 @@ export default function App(): React.ReactElement {
     window.api.project.recents().then(setRecents).catch(console.error)
   }, [])
 
+  useEffect(() => {
+    const handler = () => setToast('Preferences could not be saved (storage full?)')
+    window.addEventListener('konbini:prefs-error', handler)
+    return () => window.removeEventListener('konbini:prefs-error', handler)
+  }, [setToast])
+
   const handleKey = useCallback((e: KeyboardEvent) => {
     const mod = e.metaKey || e.ctrlKey
     const shift = e.shiftKey

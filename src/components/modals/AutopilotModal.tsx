@@ -4,7 +4,7 @@ import { useAIStore } from '../../store/aiStore'
 import { promptRegistry } from '../../lib/PromptRegistry'
 import { buildContext, renderContext, estimateTokens } from '../../lib/ContextBuilder'
 import { createProposal } from '../../lib/ProposalService'
-import { streamCompletion } from '../../lib/AIClient'
+import { streamCompletion, streamToString } from '../../lib/AIClient'
 import { runQualityGate } from '../../lib/QualityGate'
 import { agentRegistry } from '../../lib/PromptRegistry'
 import { costOf, formatUSD } from '../../lib/Pricing'
@@ -211,7 +211,6 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
           streamCompletion(
             [{ role: 'user', content: rendered }],
             {
-              systemPrompt: template?.template,
               maxTokens: template?.maxTokens ?? 2000,
               temperature: template?.temperature ?? 0.7,
               signal: abortRef.current.signal,
@@ -260,35 +259,41 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
           }))
           const excerpt = proposed.slice(0, 6000)
           const userMsg = `${excerpt}\n\n---\nEnd your response with a single line: VERDICT: <0-100> | keep or drop`
-          const results = await Promise.all(personas.map(async (p) => {
-            let full = ''
-            await streamCompletion(
+          const settled = await Promise.allSettled(personas.map((p) =>
+            streamToString(
               [{ role: 'user', content: userMsg }],
               { systemPrompt: p.systemPrompt, model: p.model, maxTokens: p.maxTokens, temperature: p.temperature, signal: abortRef.current.signal },
-              { onChunk: (c) => { full += c }, onDone: () => {}, onError: () => {} },
             )
-            return parseReaderVerdict(full)
-          }))
+          ))
+          if (settled.some((r) => r.status === 'rejected' && (r.reason as Error)?.name === 'AbortError')) break
+
+          const failedCount = settled.filter((r) => r.status === 'rejected').length
+          const responding = personas.length - failedCount
+          const failedNote = failedCount > 0 ? ` · ${failedCount} reader${failedCount > 1 ? 's' : ''} failed` : ''
+          if (responding === 0) throw new Error('all readers failed to respond')
+
+          const results = settled
+            .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
+            .map((r) => parseReaderVerdict(r.value))
           const valid = results.filter((r) => r.score !== null)
           const avgScore = valid.length ? Math.round(valid.reduce((s, r) => s + (r.score ?? 0), 0) / valid.length) : 0
           const keepCount = results.filter((r) => r.keep === true).length
-          const passed = avgScore >= 65 && keepCount >= Math.ceil(personas.length / 2)
+          const passed = avgScore >= 65 && keepCount >= Math.ceil(responding / 2)
           if (!passed) {
-            setReaderGateStatus(`Readers: ${avgScore}/100 · ${keepCount}/${personas.length} keep — revising…`)
+            setReaderGateStatus(`Readers: ${avgScore}/100 · ${keepCount}/${responding} keep${failedNote} — revising…`)
             const revTemplate = promptRegistry.get('builtin:revision:draft')
             if (revTemplate) {
-              const critique = `Reader panel score: ${avgScore}/100. ${keepCount} of ${personas.length} readers would keep reading. Revise to improve engagement — hook the reader earlier, raise stakes, sharpen character voice.`
+              const critique = `Reader panel score: ${avgScore}/100. ${keepCount} of ${responding} readers would keep reading. Revise to improve engagement — hook the reader earlier, raise stakes, sharpen character voice.`
               const revRendered = promptRegistry.render('builtin:revision:draft', { synopsis, context: contextStr, document: proposed, critique })
-              let revised = ''
-              await streamCompletion(
+              const revised = await streamToString(
                 [{ role: 'user', content: revRendered }],
                 { maxTokens: revTemplate.maxTokens, temperature: revTemplate.temperature, signal: abortRef.current.signal },
-                { onChunk: (c) => { revised += c; setStreamText(revised) }, onDone: () => {}, onError: () => {} },
+                (s) => setStreamText(s),
               )
               if (revised.trim()) proposed = revised.trim()
             }
           }
-          setReaderGateStatus(`Readers: ${avgScore}/100 · ${keepCount}/${personas.length} keep${!passed ? ` · revised` : ' · pass'}`)
+          setReaderGateStatus(`Readers: ${avgScore}/100 · ${keepCount}/${responding} keep${failedNote}${!passed ? ` · revised` : ' · pass'}`)
         } catch (e) {
           if ((e as Error).name === 'AbortError') break
           setReaderGateStatus(`Reader gate failed: ${(e as Error).message}`)

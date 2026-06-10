@@ -85,7 +85,14 @@ const api: KonbiniAPI = {
   },
   prefs: {
     get: (key) => { try { return localStorage.getItem(key) } catch { return null } },
-    set: (key, value) => { try { localStorage.setItem(key, value) } catch { /* noop */ } },
+    set: (key, value) => {
+      try {
+        localStorage.setItem(key, value)
+      } catch (e) {
+        console.error('prefs.set failed', key, e)
+        window.dispatchEvent(new CustomEvent('konbini:prefs-error'))
+      }
+    },
     remove: (key) => { try { localStorage.removeItem(key) } catch { /* noop */ } },
   },
   // Browser has no native window chrome — no-ops here.
