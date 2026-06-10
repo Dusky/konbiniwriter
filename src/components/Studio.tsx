@@ -119,9 +119,9 @@ export default function Studio(): React.ReactElement {
           onApply={async (content, accepted) => {
             if (!project) return
 
+            const docContent = project.docs[activeProposal.docId]?.content ?? ''
             let resolvedContent = content
             if (activeProposal.scope === 'selection') {
-              const docContent = project.docs[activeProposal.docId]?.content ?? ''
               const result = spliceSelection(docContent, activeProposal, content)
               if ('error' in result) {
                 useShellStore.getState().setToast('Selection changed since this proposal was made — discard and re-run.')
@@ -130,6 +130,10 @@ export default function Studio(): React.ReactElement {
               resolvedContent = result.content
             }
 
+            // Flush the current editor content to disk first — the snapshot
+            // service reads its own cached copy, which only updates on write
+            // and can otherwise be up to one autosave cycle stale.
+            await window.api.doc.write(project.id, activeProposal.docId, docContent)
             // Snapshot first (invariant: pre-AI snapshot is mandatory)
             const snap = await window.api.snapshot.take(project.id, activeProposal.docId, `Before ${activeProposal.label}`)
             addSnapshot(activeProposal.docId, snap)

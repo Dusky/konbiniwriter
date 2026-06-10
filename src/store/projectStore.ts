@@ -269,6 +269,15 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     })
     window.api.node.mutate(s.project.id, { type: 'setTree', rootIds: prev.rootIds, nodes: prev.nodes }).catch((e: Error) => {
       useShellStore.getState().setToast('Undo could not be saved: ' + e.message)
+      // Revert the optimistic store change so the UI matches what's actually
+      // on disk. The project service's in-memory tree was already mutated by
+      // applyOp before the failed write, but `setTree` always replaces the
+      // whole tree wholesale, so the next successful undo/redo self-heals it.
+      set((s2) => s2.project ? {
+        project: { ...s2.project, rootIds: current.rootIds, nodes: current.nodes },
+        nodeHistory: [...s2.nodeHistory, prev],
+        nodeFuture: s2.nodeFuture.slice(0, -1),
+      } : {})
     })
     return true
   },
@@ -284,6 +293,13 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     })
     window.api.node.mutate(s.project.id, { type: 'setTree', rootIds: next.rootIds, nodes: next.nodes }).catch((e: Error) => {
       useShellStore.getState().setToast('Redo could not be saved: ' + e.message)
+      // See undoMutation: revert the optimistic change; setTree self-heals
+      // the project service's cache on the next successful call.
+      set((s2) => s2.project ? {
+        project: { ...s2.project, rootIds: current.rootIds, nodes: current.nodes },
+        nodeFuture: [...s2.nodeFuture, next],
+        nodeHistory: s2.nodeHistory.slice(0, -1),
+      } : {})
     })
     return true
   },
