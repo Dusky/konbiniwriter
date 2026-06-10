@@ -156,6 +156,12 @@ const api: KonbiniAPI = {
     remove: (key: string) => { try { localStorage.removeItem(key) } catch { /* noop */ } },
   },
 
+  aux: {
+    read: (pid: string, name: string) => svc.readAux(pid, name),
+    write: (pid: string, name: string, content: string) => svc.writeAux(pid, name, content),
+    remove: (pid: string, name: string) => svc.removeAux(pid, name),
+  },
+
   shell: {
     platform: process.platform as 'darwin' | 'win32' | 'linux',
     minimize: () => { ipcRenderer.invoke('shell:minimize') },

@@ -363,6 +363,25 @@ class NodeProjectService {
         proj.modified = new Date().toISOString();
         await this.writeManifest(dir, proj);
     }
+    // ── Aux files ─────────────────────────────────────────────────────────────
+    async readAux(projectId, name) {
+        if (!(0, utils_1.isValidAuxName)(name))
+            throw new Error(`Invalid aux file name: ${name}`);
+        const dir = this.getPath(projectId);
+        return readText(dir, 'aux', name);
+    }
+    async writeAux(projectId, name, content) {
+        if (!(0, utils_1.isValidAuxName)(name))
+            throw new Error(`Invalid aux file name: ${name}`);
+        const dir = this.getPath(projectId);
+        await writeText(dir, content, 'aux', name);
+    }
+    async removeAux(projectId, name) {
+        if (!(0, utils_1.isValidAuxName)(name))
+            throw new Error(`Invalid aux file name: ${name}`);
+        const dir = this.getPath(projectId);
+        await removeFile(dir, 'aux', name);
+    }
     // ── Helpers ──────────────────────────────────────────────────────────────────
     getPath(projectId) {
         const p = this.paths.get(projectId);

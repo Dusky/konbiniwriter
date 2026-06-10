@@ -330,4 +330,10 @@ export interface KonbiniAPI {
     set(key: string, value: string): void
     remove(key: string): void
   }
+  /** Per-project auxiliary files (e.g. chat history) stored under <bundle>/aux/<name>. */
+  aux: {
+    read(projectId: ID, name: string): Promise<string | null>
+    write(projectId: ID, name: string, content: string): Promise<void>
+    remove(projectId: ID, name: string): Promise<void>
+  }
 }

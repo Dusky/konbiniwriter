@@ -179,6 +179,11 @@ const api = {
         }
         catch { /* noop */ } },
     },
+    aux: {
+        read: (pid, name) => NodeProjectService_1.nodeProjectService.readAux(pid, name),
+        write: (pid, name, content) => NodeProjectService_1.nodeProjectService.writeAux(pid, name, content),
+        remove: (pid, name) => NodeProjectService_1.nodeProjectService.removeAux(pid, name),
+    },
     shell: {
         platform: process.platform,
         minimize: () => { electron_1.ipcRenderer.invoke('shell:minimize'); },

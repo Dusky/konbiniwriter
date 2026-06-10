@@ -7,7 +7,7 @@
 // see real filesystem paths (same story in Electron where they'd be real paths).
 
 import type { Project, KNode, DocBody, NodeOp, Snapshot, ID, CompileFormat, CompileResult } from '@shared/types'
-import { uid, wordCount } from '@shared/utils'
+import { uid, wordCount, isValidAuxName } from '@shared/utils'
 import { buildProjectFromTemplate } from '@shared/templates'
 import { handleStore } from './HandleStore'
 
@@ -455,6 +455,26 @@ export class BrowserProjectService {
     p.settings.codex = entries
     p.modified = new Date().toISOString()
     await this.writeManifest(h, p)
+  }
+
+  // ── Aux files ─────────────────────────────────────────────────────────────
+
+  async readAux(projectId: string, name: string): Promise<string | null> {
+    if (!isValidAuxName(name)) throw new Error(`Invalid aux file name: ${name}`)
+    const h = this.getHandle(projectId)
+    return readText(h, 'aux', name)
+  }
+
+  async writeAux(projectId: string, name: string, content: string): Promise<void> {
+    if (!isValidAuxName(name)) throw new Error(`Invalid aux file name: ${name}`)
+    const h = this.getHandle(projectId)
+    await writeText(h, content, 'aux', name)
+  }
+
+  async removeAux(projectId: string, name: string): Promise<void> {
+    if (!isValidAuxName(name)) throw new Error(`Invalid aux file name: ${name}`)
+    const h = this.getHandle(projectId)
+    await removeFile(h, 'aux', name)
   }
 
   private async writeManifest(h: FileSystemDirectoryHandle, project: Project): Promise<void> {

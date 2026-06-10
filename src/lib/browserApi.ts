@@ -95,6 +95,11 @@ const api: KonbiniAPI = {
     },
     remove: (key) => { try { localStorage.removeItem(key) } catch { /* noop */ } },
   },
+  aux: {
+    read: (pid, name) => svc.readAux(pid, name),
+    write: (pid, name, content) => svc.writeAux(pid, name, content),
+    remove: (pid, name) => svc.removeAux(pid, name),
+  },
   // Browser has no native window chrome — no-ops here.
   // Electron preload replaces them with real IPC calls.
   shell: {

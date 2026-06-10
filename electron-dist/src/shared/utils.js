@@ -6,6 +6,7 @@ exports.uid = uid;
 exports.stripMd = stripMd;
 exports.wordCount = wordCount;
 exports.charCount = charCount;
+exports.isValidAuxName = isValidAuxName;
 exports.relTime = relTime;
 exports.fmtWords = fmtWords;
 exports.fmtKey = fmtKey;
@@ -29,6 +30,12 @@ function wordCount(s) {
 }
 function charCount(s) {
     return (s || '').length;
+}
+// Validates names for window.api.aux.* (project "aux" files, e.g. chat.json).
+// Guards against path traversal — no slashes, dots-only, or leading dot.
+const AUX_NAME_RE = /^[\w][\w.-]*$/;
+function isValidAuxName(name) {
+    return AUX_NAME_RE.test(name) && !name.includes('..');
 }
 function relTime(ms) {
     const d = (Date.now() - ms) / 1000;

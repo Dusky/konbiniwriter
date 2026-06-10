@@ -5,7 +5,7 @@ import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
 import * as path from 'path'
 
-import { uid, wordCount } from '../src/shared/utils'
+import { uid, wordCount, isValidAuxName } from '../src/shared/utils'
 import { buildProjectFromTemplate } from '../src/shared/templates'
 import type {
   Project, KNode, DocBody, NodeOp, Snapshot, ID,
@@ -316,6 +316,26 @@ export class NodeProjectService {
     proj.settings.codex = entries
     proj.modified = new Date().toISOString()
     await this.writeManifest(dir, proj)
+  }
+
+  // ── Aux files ─────────────────────────────────────────────────────────────
+
+  async readAux(projectId: string, name: string): Promise<string | null> {
+    if (!isValidAuxName(name)) throw new Error(`Invalid aux file name: ${name}`)
+    const dir = this.getPath(projectId)
+    return readText(dir, 'aux', name)
+  }
+
+  async writeAux(projectId: string, name: string, content: string): Promise<void> {
+    if (!isValidAuxName(name)) throw new Error(`Invalid aux file name: ${name}`)
+    const dir = this.getPath(projectId)
+    await writeText(dir, content, 'aux', name)
+  }
+
+  async removeAux(projectId: string, name: string): Promise<void> {
+    if (!isValidAuxName(name)) throw new Error(`Invalid aux file name: ${name}`)
+    const dir = this.getPath(projectId)
+    await removeFile(dir, 'aux', name)
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────────

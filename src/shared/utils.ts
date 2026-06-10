@@ -25,6 +25,13 @@ export function charCount(s: string): number {
   return (s || '').length
 }
 
+// Validates names for window.api.aux.* (project "aux" files, e.g. chat.json).
+// Guards against path traversal — no slashes, dots-only, or leading dot.
+const AUX_NAME_RE = /^[\w][\w.-]*$/
+export function isValidAuxName(name: string): boolean {
+  return AUX_NAME_RE.test(name) && !name.includes('..')
+}
+
 export function relTime(ms: number): string {
   const d = (Date.now() - ms) / 1000
   if (d < 60) return 'just now'
