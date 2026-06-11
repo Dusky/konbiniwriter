@@ -23,9 +23,12 @@ interface ShellState {
   toast: Toast | null
   recents: RecentEntry[]
   layout: { binder: boolean; insp: boolean }
+  assistantOpen: boolean
   // actions
   setScreen: (s: Screen) => void
   setModal: (m: ModalId) => void
+  toggleAssistant: () => void
+  setAssistantOpen: (open: boolean) => void
   setTheme: (t: Theme) => void
   setDensity: (d: Density) => void
   setEditorFont: (f: EditorFont) => void
@@ -72,9 +75,12 @@ export const useShellStore = create<ShellState>((set) => ({
   toast: null,
   recents: [],
   layout: { binder: true, insp: true },
+  assistantOpen: false,
 
   setScreen: (screen) => set({ screen }),
   setModal: (modal) => set({ modal }),
+  toggleAssistant: () => set((s) => ({ assistantOpen: !s.assistantOpen })),
+  setAssistantOpen: (assistantOpen) => set({ assistantOpen }),
   setTheme: (theme) => {
     document.documentElement.dataset.theme = theme
     set({ theme })

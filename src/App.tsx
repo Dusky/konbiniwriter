@@ -1,6 +1,7 @@
 import React, { useEffect, useCallback } from 'react'
 import { useShellStore } from './store/shellStore'
 import { useProjectStore } from './store/projectStore'
+import { useAIStore } from './store/aiStore'
 import Launch from './components/launch/Launch'
 import Studio from './components/Studio'
 import Toast from './components/common/Toast'
@@ -106,7 +107,10 @@ export default function App(): React.ReactElement {
     if (!shift && !alt && e.key === ',') { e.preventDefault(); setModal('prefs') }
     if (shift && e.key === 'F') { e.preventDefault(); setModal('search') }
     if (shift && e.key === 'K') { e.preventDefault(); setModal('codex') }
-    if (shift && e.key === 'A') { e.preventDefault(); setModal('chat') }
+    if (shift && e.key === 'A') {
+      e.preventDefault()
+      if (useAIStore.getState().enabled) useShellStore.getState().toggleAssistant()
+    }
     if (shift && e.key === 'R') { e.preventDefault(); setModal('reader') }
     if (shift && e.key === 'G') { e.preventDefault(); setModal('batch-generator') }
     if (shift && e.key === 'P') { e.preventDefault(); setModal('autopilot') }

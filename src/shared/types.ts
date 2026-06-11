@@ -30,7 +30,6 @@ export type ModalId =
   | 'reader'
   | 'bestof'
   | 'critic'
-  | 'chat'
   | 'stats'
   | 'autopilot'
   | 'foundation'

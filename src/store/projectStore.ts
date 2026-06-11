@@ -173,33 +173,39 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   cursor: null,
   pendingReveal: null,
 
-  loadProject: (project) => set({
-    project,
-    selectedId: null,
-    view: 'editor',
-    saveStatus: 'saved',
-    renamingId: null,
-    mentionIndex: buildIndex(project.docs),
-    codex: (project.settings.codex as CodexEntry[] | undefined) ?? [],
-    debt: (project.settings.debt as DebtItem[] | undefined) ?? [],
-    proposals: [],
-    activeProposalId: null,
-    nodeHistory: [],
-    nodeFuture: [],
-    judgeResults: new Map(),
-    sessionWordsAdded: 0,
-    autopilotQueue: [],
-    autopilotRunning: false,
-    autopilotCurrent: null,
-    autopilotPreset: [],
-    focusMode: false,
-    compositionMode: false,
-    splitOpen: false,
-    splitId: null,
-    cursor: null,
-    pendingReveal: null,
-  }),
-  unloadProject: () => set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], debt: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], nodeFuture: [], judgeResults: new Map(), sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, autopilotPreset: [], focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null }),
+  loadProject: (project) => {
+    useShellStore.getState().setAssistantOpen(false)
+    set({
+      project,
+      selectedId: null,
+      view: 'editor',
+      saveStatus: 'saved',
+      renamingId: null,
+      mentionIndex: buildIndex(project.docs),
+      codex: (project.settings.codex as CodexEntry[] | undefined) ?? [],
+      debt: (project.settings.debt as DebtItem[] | undefined) ?? [],
+      proposals: [],
+      activeProposalId: null,
+      nodeHistory: [],
+      nodeFuture: [],
+      judgeResults: new Map(),
+      sessionWordsAdded: 0,
+      autopilotQueue: [],
+      autopilotRunning: false,
+      autopilotCurrent: null,
+      autopilotPreset: [],
+      focusMode: false,
+      compositionMode: false,
+      splitOpen: false,
+      splitId: null,
+      cursor: null,
+      pendingReveal: null,
+    })
+  },
+  unloadProject: () => {
+    useShellStore.getState().setAssistantOpen(false)
+    set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], debt: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], nodeFuture: [], judgeResults: new Map(), sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, autopilotPreset: [], focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null })
+  },
 
   selectNode: (id) => set((s) => {
     if (!id || !s.project) return { selectedId: id, cursor: null }

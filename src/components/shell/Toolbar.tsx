@@ -8,6 +8,8 @@ export default function Toolbar(): React.ReactElement {
   const toggleBinder = useShellStore((s) => s.toggleBinder)
   const toggleInsp = useShellStore((s) => s.toggleInsp)
   const setModal = useShellStore((s) => s.setModal)
+  const assistantOpen = useShellStore((s) => s.assistantOpen)
+  const toggleAssistant = useShellStore((s) => s.toggleAssistant)
 
   const view = useProjectStore((s) => s.view)
   const setView = useProjectStore((s) => s.setView)
@@ -205,6 +207,9 @@ export default function Toolbar(): React.ReactElement {
           </button>
           <button className="tb-btn" title="Autopilot (⌘⇧P)" onClick={() => setModal('autopilot')}>▶▶</button>
           <div className="tb-sep" />
+          <button className={`tb-btn${assistantOpen ? ' on' : ''}`} title="AI Chat (⌘⇧A)" onClick={toggleAssistant}>
+            <span className="ai-spark">✦</span> Chat
+          </button>
           <button className="tb-btn" title="AI Settings" onClick={() => setModal('ai-settings')} style={{ color: 'var(--accent)' }}>
             <span style={{ fontSize: 14 }}>✦</span> AI
           </button>

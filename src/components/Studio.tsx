@@ -1,6 +1,7 @@
 import React from 'react'
 import { useShellStore } from '../store/shellStore'
 import { useProjectStore } from '../store/projectStore'
+import { useAIStore } from '../store/aiStore'
 import { spliceSelection } from '../lib/ProposalService'
 import Titlebar from './shell/Titlebar'
 import Toolbar from './shell/Toolbar'
@@ -22,7 +23,7 @@ import CodexModal from './modals/CodexModal'
 import AISettingsModal from './modals/AISettingsModal'
 import BatchGeneratorModal from './modals/BatchGeneratorModal'
 import ReaderModal from './modals/ReaderModal'
-import ChatModal from './modals/ChatModal'
+import AssistantPanel from './assistant/AssistantPanel'
 import StatsModal from './modals/StatsModal'
 import AutopilotModal from './modals/AutopilotModal'
 import CommandPalette from './modals/CommandPalette'
@@ -37,6 +38,9 @@ export default function Studio(): React.ReactElement {
   const layout = useShellStore((s) => s.layout)
   const modal = useShellStore((s) => s.modal)
   const setModal = useShellStore((s) => s.setModal)
+  const assistantOpen = useShellStore((s) => s.assistantOpen)
+  const setAssistantOpen = useShellStore((s) => s.setAssistantOpen)
+  const aiEnabled = useAIStore((s) => s.enabled)
   const compositionMode = useProjectStore((s) => s.compositionMode)
   const focusMode = useProjectStore((s) => s.focusMode)
   const splitOpen = useProjectStore((s) => s.splitOpen)
@@ -57,12 +61,18 @@ export default function Studio(): React.ReactElement {
 
   const showBinder = layout.binder && !focusMode
   const showInsp = layout.insp && !focusMode
+  const showAssistant = assistantOpen && aiEnabled && !focusMode
+
+  React.useEffect(() => {
+    if (!aiEnabled && assistantOpen) setAssistantOpen(false)
+  }, [aiEnabled, assistantOpen, setAssistantOpen])
 
   const bodyClass = [
     'body',
     !layout.binder ? 'no-binder' : '',
     !layout.insp ? 'no-insp' : '',
     focusMode ? 'focus-mode' : '',
+    showAssistant ? 'asst-open' : '',
   ].filter(Boolean).join(' ')
 
   return (
@@ -85,7 +95,7 @@ export default function Studio(): React.ReactElement {
           <EditorPane splitOpen={false} pane="left" />
         )}
         {/* Always keep a grid child in slot 3 so the editor stays in column 2. */}
-        {showInsp ? <Inspector /> : <div />}
+        {showAssistant ? <AssistantPanel /> : showInsp ? <Inspector /> : <div />}
       </div>
       <StatusBar />
 
@@ -105,7 +115,6 @@ export default function Studio(): React.ReactElement {
       {modal === 'ai-settings'     && <AISettingsModal      onClose={() => setModal(null)} />}
       {modal === 'batch-generator' && <BatchGeneratorModal  onClose={() => setModal(null)} />}
       {modal === 'reader'          && <ReaderModal          onClose={() => setModal(null)} />}
-      {modal === 'chat'            && <ChatModal            onClose={() => setModal(null)} />}
       {modal === 'stats'           && <StatsModal           onClose={() => setModal(null)} />}
       {modal === 'autopilot'       && <AutopilotModal       onClose={() => setModal(null)} />}
       {modal === 'debt'            && <DebtInboxModal       onClose={() => setModal(null)} />}

@@ -90,6 +90,7 @@
 .asst-empty .sugg button:hover { border-color: var(--accent); color: var(--text); }
 .msg { display: flex; gap: 9px; font-size: 13px; line-height: 1.55; }
 .msg.user { flex-direction: row-reverse; }
+.msg-body { display: flex; flex-direction: column; min-width: 0; }
 .msg.user .msg-body { background: var(--accent-soft); border: 0.5px solid color-mix(in oklch, var(--accent) 35%, transparent);
   border-radius: 12px 12px 4px 12px; padding: 8px 12px; max-width: 80%; }
 .msg.ai .msg-body { max-width: 100%; }
