@@ -559,6 +559,36 @@ These are structural guarantees, not conventions. Violating any of them breaks a
   Foundation generators are complete.
 - **Phase 4 substantially complete.** Remaining open items tracked in NEXTUP.md.
 
+### Konbini 1.0 Hardening ✅ COMPLETE
+- Selection-scoped proposal apply — `Proposal.scope`/`selRange` + `ProposalService.spliceSelection`
+  fixes a data-loss bug where applying an inline (selection) cowrite proposal overwrote the whole
+  document.
+- Provider-aware model resolution in `AIClient.streamCompletion` — templates carrying a
+  hardcoded/foreign model id now fall back to the active provider's configured model.
+- `AIClient` hygiene — `onAbort` callback on `StreamCallbacks`, shared `handleStreamError`, and a
+  `streamToString` wrapper used by QualityGate/Autopilot/CowriteBar.
+- Silent-failure fixes — `QualityGate.parseGateScore` returns `null` (not a fabricated 0) on
+  unparseable/missing scores and `runQualityGate` throws; Autopilot's reader gate uses
+  `Promise.allSettled` and surfaces partial-failure; removed the raw-template `systemPrompt`
+  pollution in Autopilot drafting; `prefs.set` failures dispatch a toast.
+- `ContextBuilder` scene-content truncation — oversized scenes keep the tail (paragraph-aligned,
+  prefixed `[…earlier scene content truncated…]`) instead of being dropped outright.
+- Autosave flush on doc switch/unmount (`useAutosave`); `Studio` flushes current content to disk
+  before taking the pre-AI snapshot; `projectStore` undo/redo revert the optimistic state on IPC
+  failure.
+- `window.api.aux` — per-project files under `<bundle>/aux/<name>` (path-traversal guarded via
+  `isValidAuxName`), implemented across all three backends.
+- AI Chat is now a persistent **side panel** (`AssistantPanel`, replaces Inspector when open;
+  `assistantOpen` in `shellStore`, toggle via Toolbar/⌘⇧A/command palette), built on the
+  previously-unused `.assistant`/`.asst-*` styles in `ai.css`. Threads persist to
+  `aux/chat.json` (one read per project mount, debounced writes), migrating any legacy
+  per-document `chat:<projectId>:<nodeId>` localStorage threads on first load. `ChatModal` removed.
+- Test infrastructure — `vitest` (node environment, `src/test/setup.ts` stubs `window.api`/
+  `localStorage`/`navigator`); unit tests for `ProposalService`, `ContextBuilder`,
+  `QualityGate.parseGateScore`, and `lib/parsers` (`parseReaderVerdict`/`parseBrainstormAlternatives`,
+  extracted from `AutopilotModal`/`cowrite`).
+- `electron`/`electron-builder`/`cross-env`/`@types/diff` moved to `devDependencies`.
+
 ### Electron packaging ✅ COMPLETE
 - `electron/main.ts` (BrowserWindow, IPC, native dialogs) ✅
 - `electron/preload.ts` (`contextBridge` exposing `KonbiniAPI`, recents in userData) ✅

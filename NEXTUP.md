@@ -30,7 +30,10 @@ in the Studio titlebar and on a draggable Launch-screen strip (`.win-bar`).
 - **localStorage → prefs seam** — ✅ done. `aiStore`, `shellStore`, `StatsService`,
   `RecentsService`, `PromptRegistry` all use `window.api.prefs` now.
 - **Reader-panel aggregate verdict** — ✅ done.
-- **Chat persistence** — ✅ done. Per-document threads in prefs, unlimited history.
+- **Chat persistence** — ✅ done. Per-document threads in `aux/chat.json`, unlimited
+  history, migrated from the earlier per-document prefs keys.
+- **AI Chat as a side panel** — ✅ done. `AssistantPanel` replaces the modal, lives in
+  the inspector grid slot (Toolbar/⌘⇧A/command palette toggle).
 - **Chat ContextBuilder** — ✅ done. Chat now uses the full 6-tier context
   (voice fingerprint, codex, siblings) instead of a raw docContent slice.
 - **Brainstorm picker** — ✅ done. 5 alternatives in an inline picker panel;

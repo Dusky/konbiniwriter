@@ -1,7 +1,8 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { useProjectStore } from '../../store/projectStore'
 import { useAIStore } from '../../store/aiStore'
-import { COWRITE_COMMANDS, runCowrite, streamBrainstorm, parseBrainstormAlternatives, type CowriteCommand } from '../../lib/cowrite'
+import { COWRITE_COMMANDS, runCowrite, streamBrainstorm, type CowriteCommand } from '../../lib/cowrite'
+import { parseBrainstormAlternatives } from '../../lib/parsers'
 import { createProposal } from '../../lib/ProposalService'
 
 type PickerState =

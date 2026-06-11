@@ -8,13 +8,8 @@ import { streamCompletion, streamToString } from '../../lib/AIClient'
 import { runQualityGate } from '../../lib/QualityGate'
 import { agentRegistry } from '../../lib/PromptRegistry'
 import { costOf, formatUSD } from '../../lib/Pricing'
+import { parseReaderVerdict } from '../../lib/parsers'
 import type { ID, PromptTemplate, AutopilotRunState } from '@shared/types'
-
-function parseReaderVerdict(text: string): { score: number | null; keep: boolean | null } {
-  const m = text.match(/VERDICT:\s*(\d{1,3})\s*\|\s*(keep|drop|yes|no)/i)
-  if (!m) return { score: null, keep: null }
-  return { score: Math.min(100, Math.max(0, parseInt(m[1], 10))), keep: /keep|yes/i.test(m[2]) }
-}
 
 // The gate scores prose craft, so it only makes sense for drafting prompts.
 const gateEligibleFor = (p?: PromptTemplate | null): boolean =>

@@ -75,6 +75,7 @@ export function parseGateScore(raw: string): GateScore | null {
   } catch {
     return null
   }
+  if (o.overall === null || o.overall === undefined) return null
   const overall = Number(o.overall)
   if (!Number.isFinite(overall)) return null
   return {

@@ -25,15 +25,6 @@ export const COWRITE_COMMANDS: { id: CowriteCommand; label: string; promptId: st
 
 const BRAINSTORM_PROMPT_ID = 'builtin:inline:brainstorm'
 
-export function parseBrainstormAlternatives(raw: string): string[] {
-  const parts = raw
-    .split(/\n+(?=\d+\.\s)/)
-    .map((s) => s.replace(/^\d+\.\s*/, '').trim())
-    .filter(Boolean)
-    .slice(0, 5)
-  return parts.length >= 2 ? parts : []
-}
-
 export function streamBrainstorm(opts: {
   project: Project
   mentionIndex: MentionIndex
