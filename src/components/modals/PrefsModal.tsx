@@ -42,12 +42,16 @@ export default function PrefsModal({ onClose }: Props): React.ReactElement {
   const setEditorFont = useShellStore((s) => s.setEditorFont)
   const editorSize = useShellStore((s) => s.editorSize)
   const setEditorSize = useShellStore((s) => s.setEditorSize)
+  const editorColWidth = useShellStore((s) => s.editorColWidth)
+  const setEditorColWidth = useShellStore((s) => s.setEditorColWidth)
   const typewriterMode = useShellStore((s) => s.typewriterMode)
   const setTypewriterMode = useShellStore((s) => s.setTypewriterMode)
   const autoVersion = useShellStore((s) => s.autoVersion)
   const setAutoVersion = useShellStore((s) => s.setAutoVersion)
   const historyRetentionDays = useShellStore((s) => s.historyRetentionDays)
   const setHistoryRetentionDays = useShellStore((s) => s.setHistoryRetentionDays)
+  const accent = useShellStore((s) => s.accent)
+  const setAccent = useShellStore((s) => s.setAccent)
 
   const project = useProjectStore((s) => s.project)
   const setProjectWordTarget = useProjectStore((s) => s.setProjectWordTarget)
@@ -111,6 +115,21 @@ export default function PrefsModal({ onClose }: Props): React.ReactElement {
             </span>
           </Row>
 
+          <Row label="Editor Width">
+            <input
+              type="range"
+              min={560}
+              max={960}
+              step={40}
+              value={editorColWidth}
+              onChange={(e) => setEditorColWidth(Number(e.target.value))}
+              style={{ flex: 1 }}
+            />
+            <span style={{ width: 42, textAlign: 'right', fontSize: 12, color: 'var(--text-2)', fontFamily: 'var(--mono)' }}>
+              {editorColWidth}px
+            </span>
+          </Row>
+
           <Row label="Accent">
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {[
@@ -121,14 +140,18 @@ export default function PrefsModal({ onClose }: Props): React.ReactElement {
                 { label: 'Red',    hue: 20 },
               ].map(({ label, hue }) => {
                 const color = `oklch(0.64 0.11 ${hue})`
+                const active = accent === color
                 return (
                   <button
                     key={hue}
                     title={label}
-                    onClick={() => document.documentElement.style.setProperty('--accent', color)}
+                    onClick={() => setAccent(color)}
                     style={{
                       width: 24, height: 24, borderRadius: '50%',
-                      background: color, border: '2px solid transparent',
+                      background: color,
+                      border: active ? '2px solid var(--text)' : '2px solid transparent',
+                      outline: active ? '2px solid var(--bg)' : 'none',
+                      outlineOffset: -4,
                       cursor: 'pointer', padding: 0,
                     }}
                   />

@@ -50,6 +50,7 @@ export default function Editor({ docId }: Props): React.ReactElement {
   const setSaveStatus = useProjectStore((s) => s.setSaveStatus)
   const focusMode = useProjectStore((s) => s.focusMode)
   const aiEnabled = useAIStore((s) => s.enabled)
+  const slopAutoRun = useAIStore((s) => s.slopAutoRun)
   const setSlopSpans = useProjectStore((s) => s.setSlopSpans)
   const setSlopRunning = useProjectStore((s) => s.setSlopRunning)
   const setCursor = useProjectStore((s) => s.setCursor)
@@ -60,7 +61,7 @@ export default function Editor({ docId }: Props): React.ReactElement {
 
   const content = project?.docs[docId]?.content ?? ''
 
-  const [cowrite, setCowrite] = useState<{ selection: string; anchorRect: DOMRect; autoRun?: CowriteCommand } | null>(null)
+  const [cowrite, setCowrite] = useState<{ selection: string; selRange: { from: number; to: number }; anchorRect: DOMRect; autoRun?: CowriteCommand } | null>(null)
   const [editorMenu, setEditorMenu] = useState<{ x: number; y: number; hasSelection: boolean } | null>(null)
   const [wikilinkTip, setWikilinkTip] = useState<{ title: string; synopsis: string; preview: string; x: number; y: number } | null>(null)
 
@@ -121,6 +122,24 @@ export default function Editor({ docId }: Props): React.ReactElement {
     return () => { delete (window as unknown as Record<string, unknown>).__konbiniRunProof }
   }, [runProof])
 
+  // Alt+P keyboard shortcut for slop proof
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.altKey && e.key === 'p' && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault()
+        runProof()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [runProof])
+
+  // Auto-run slop proof 30s after idle when slopAutoRun is enabled
+  const slopAutoRunTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => {
+    if (slopAutoRunTimerRef.current) clearTimeout(slopAutoRunTimerRef.current)
+  }, [])
+
   // Autosave hook — fires 700ms after content changes
   useAutosave(docId)
 
@@ -128,8 +147,14 @@ export default function Editor({ docId }: Props): React.ReactElement {
     (newContent: string) => {
       setSaveStatus('saving')
       updateContent(docId, newContent)
+      if (slopAutoRun && aiEnabled) {
+        if (slopAutoRunTimerRef.current) clearTimeout(slopAutoRunTimerRef.current)
+        slopAutoRunTimerRef.current = setTimeout(() => {
+          if (!useProjectStore.getState().slopRunning) runProof()
+        }, 30_000)
+      }
     },
-    [docId, updateContent, setSaveStatus]
+    [docId, updateContent, setSaveStatus, slopAutoRun, aiEnabled, runProof]
   )
 
   const handleCursor = useCallback(
@@ -144,12 +169,15 @@ export default function Editor({ docId }: Props): React.ReactElement {
     if (!view) return
     const { from, to } = view.state.selection.main
     if (from === to) { setCowrite(null); return }
-    const selection = view.state.doc.sliceString(from, to).trim()
+    const raw = view.state.doc.sliceString(from, to)
+    const selection = raw.trim()
     if (selection.length < 3) { setCowrite(null); return }
+    const selFrom = from + (raw.length - raw.trimStart().length)
+    const selTo = to - (raw.length - raw.trimEnd().length)
     // Get bounding rect of selection anchor
     const coords = view.coordsAtPos(from)
     if (!coords) { setCowrite(null); return }
-    setCowrite({ selection, anchorRect: new DOMRect(coords.left, coords.top, 0, coords.bottom - coords.top) })
+    setCowrite({ selection, selRange: { from: selFrom, to: selTo }, anchorRect: new DOMRect(coords.left, coords.top, 0, coords.bottom - coords.top) })
   }, [aiEnabled])
 
   // ── Right-click context menu ───────────────────────────────────────────────
@@ -195,13 +223,16 @@ export default function Editor({ docId }: Props): React.ReactElement {
     const view = viewRef.current
     if (!view) return
     const { from, to } = view.state.selection.main
-    const selection = view.state.doc.sliceString(from, to).trim()
+    const raw = view.state.doc.sliceString(from, to)
+    const selection = raw.trim()
     if (selection.length < 1) return
+    const selFrom = from + (raw.length - raw.trimStart().length)
+    const selTo = to - (raw.length - raw.trimEnd().length)
     const coords = view.coordsAtPos(from)
     const rect = coords
       ? new DOMRect(coords.left, coords.top, 0, coords.bottom - coords.top)
       : new DOMRect(100, 100, 0, 16)
-    setCowrite({ selection, anchorRect: rect, autoRun: cmd })
+    setCowrite({ selection, selRange: { from: selFrom, to: selTo }, anchorRect: rect, autoRun: cmd })
   }, [])
 
   const editorMenuItems = useCallback((hasSelection: boolean): MenuItem[] => {
@@ -533,6 +564,7 @@ export default function Editor({ docId }: Props): React.ReactElement {
         <CowriteBar
           docId={docId}
           selection={cowrite.selection}
+          selRange={cowrite.selRange}
           anchorRect={cowrite.anchorRect}
           autoRun={cowrite.autoRun}
           onClose={() => setCowrite(null)}

@@ -143,6 +143,25 @@ const api: KonbiniAPI = {
     run: (pid, rid, ids, fmt) => svc.compile(pid, rid, ids, fmt),
   },
 
+  prefs: {
+    get: (key: string) => { try { return localStorage.getItem(key) } catch { return null } },
+    set: (key: string, value: string) => {
+      try {
+        localStorage.setItem(key, value)
+      } catch (e) {
+        console.error('prefs.set failed', key, e)
+        window.dispatchEvent(new CustomEvent('konbini:prefs-error'))
+      }
+    },
+    remove: (key: string) => { try { localStorage.removeItem(key) } catch { /* noop */ } },
+  },
+
+  aux: {
+    read: (pid: string, name: string) => svc.readAux(pid, name),
+    write: (pid: string, name: string, content: string) => svc.writeAux(pid, name, content),
+    remove: (pid: string, name: string) => svc.removeAux(pid, name),
+  },
+
   shell: {
     platform: process.platform as 'darwin' | 'win32' | 'linux',
     minimize: () => { ipcRenderer.invoke('shell:minimize') },

@@ -1,14 +1,17 @@
 import React, { useEffect, useCallback } from 'react'
 import { useShellStore } from './store/shellStore'
 import { useProjectStore } from './store/projectStore'
+import { useAIStore } from './store/aiStore'
 import Launch from './components/launch/Launch'
 import Studio from './components/Studio'
+import Toast from './components/common/Toast'
 import type { NodeType } from './shared/types'
 
 export default function App(): React.ReactElement {
   const screen = useShellStore((s) => s.screen)
   const theme = useShellStore((s) => s.theme)
   const setModal = useShellStore((s) => s.setModal)
+  const setToast = useShellStore((s) => s.setToast)
   const setRecents = useShellStore((s) => s.setRecents)
   const toggleBinder = useShellStore((s) => s.toggleBinder)
   const toggleInsp = useShellStore((s) => s.toggleInsp)
@@ -43,6 +46,12 @@ export default function App(): React.ReactElement {
   useEffect(() => {
     window.api.project.recents().then(setRecents).catch(console.error)
   }, [])
+
+  useEffect(() => {
+    const handler = () => setToast('Preferences could not be saved (storage full?)')
+    window.addEventListener('konbini:prefs-error', handler)
+    return () => window.removeEventListener('konbini:prefs-error', handler)
+  }, [setToast])
 
   const handleKey = useCallback((e: KeyboardEvent) => {
     const mod = e.metaKey || e.ctrlKey
@@ -98,7 +107,10 @@ export default function App(): React.ReactElement {
     if (!shift && !alt && e.key === ',') { e.preventDefault(); setModal('prefs') }
     if (shift && e.key === 'F') { e.preventDefault(); setModal('search') }
     if (shift && e.key === 'K') { e.preventDefault(); setModal('codex') }
-    if (shift && e.key === 'A') { e.preventDefault(); setModal('chat') }
+    if (shift && e.key === 'A') {
+      e.preventDefault()
+      if (useAIStore.getState().enabled) useShellStore.getState().toggleAssistant()
+    }
     if (shift && e.key === 'R') { e.preventDefault(); setModal('reader') }
     if (shift && e.key === 'G') { e.preventDefault(); setModal('batch-generator') }
     if (shift && e.key === 'P') { e.preventDefault(); setModal('autopilot') }
@@ -114,7 +126,7 @@ export default function App(): React.ReactElement {
         setScreen('studio')
         const recents = await window.api.project.recents()
         setRecents(recents)
-      }).catch((e: Error) => alert('Could not open project: ' + e.message))
+      }).catch((e: Error) => setToast('Could not open project: ' + e.message))
     }
 
     // Node creation (studio only)
@@ -132,12 +144,17 @@ export default function App(): React.ReactElement {
       setScreen('launch')
       window.api.project.recents().then(setRecents).catch(console.error)
     }
-  }, [theme, project, screen, createNode, undoMutation, redoMutation, toggleSplit])
+  }, [theme, project, screen, setToast, createNode, undoMutation, redoMutation, toggleSplit])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
   }, [handleKey])
 
-  return screen === 'launch' ? <Launch /> : <Studio />
+  return (
+    <>
+      {screen === 'launch' ? <Launch /> : <Studio />}
+      <Toast />
+    </>
+  )
 }

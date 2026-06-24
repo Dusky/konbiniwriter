@@ -8,10 +8,10 @@ function today(): string {
 
 class StatsService {
   private load(): DailyRecord {
-    try { return JSON.parse(localStorage.getItem(KEY) ?? '{}') } catch { return {} }
+    try { return JSON.parse(window.api.prefs.get(KEY) ?? '{}') } catch { return {} }
   }
   private save(r: DailyRecord): void {
-    localStorage.setItem(KEY, JSON.stringify(r))
+    window.api.prefs.set(KEY, JSON.stringify(r))
   }
 
   recordDelta(delta: number): void {

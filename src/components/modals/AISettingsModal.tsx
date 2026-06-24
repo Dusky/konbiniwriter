@@ -1,5 +1,8 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useAIStore, type AIProvider } from '../../store/aiStore'
+import { useProjectStore } from '../../store/projectStore'
+import { promptRegistry } from '../../lib/PromptRegistry'
+import { streamCompletion } from '../../lib/AIClient'
 import { formatUSD } from '../../lib/Pricing'
 
 const ANTHROPIC_MODELS = [
@@ -71,8 +74,71 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
     anthropicKey, setAnthropicKey, anthropicModel, setAnthropicModel,
     anthropicKeyValidated, anthropicKeyError, setAnthropicKeyValidated,
     openaiBaseUrl, setOpenaiBaseUrl, openaiKey, setOpenaiKey, openaiModel, setOpenaiModel,
+    chatMaxTokens, setChatMaxTokens, chatContextMessages, setChatContextMessages,
+    contextBudgets, setContextBudget,
     spendInputTokens, spendOutputTokens, spendUSD, spendCalls, spendUnpriced, resetSpend,
+    slopAutoRun, setSlopAutoRun,
   } = useAIStore()
+
+  const project = useProjectStore((s) => s.project)
+  const setVoiceFingerprint = useProjectStore((s) => s.setVoiceFingerprint)
+  const voiceFingerprint = (project?.settings.voiceFingerprint as string | undefined) ?? ''
+
+  const [voiceRefreshing, setVoiceRefreshing] = useState(false)
+  const [voiceRefreshed, setVoiceRefreshed] = useState(false)
+  const [voiceError, setVoiceError] = useState<string | null>(null)
+  const voiceAbortRef = useRef<AbortController | null>(null)
+  useEffect(() => () => { voiceAbortRef.current?.abort() }, [])
+
+  const handleRefreshVoice = async () => {
+    if (!project || voiceRefreshing) return
+    let samples = ''
+    for (const id of Object.keys(project.docs)) {
+      const node = project.nodes[id]
+      if (!node || node.type === 'folder' || !node.meta.includeInCompile) continue
+      const c = (project.docs[id]?.content ?? '').trim()
+      if (c) { samples += c + '\n\n'; if (samples.length > 6000) break }
+    }
+    samples = samples.slice(0, 6000)
+    if (!samples.trim()) { setVoiceError('No compiled prose found — write some chapters first.'); return }
+    const template = promptRegistry.get('builtin:foundation:voice')
+    if (!template) { setVoiceError('Missing voice prompt.'); return }
+    const rendered = promptRegistry.render('builtin:foundation:voice', { samples })
+    setVoiceRefreshing(true); setVoiceError(null); setVoiceRefreshed(false)
+    const controller = new AbortController()
+    voiceAbortRef.current = controller
+    let full = ''
+    await streamCompletion(
+      [{ role: 'user', content: rendered }],
+      { model: template.model, maxTokens: template.maxTokens, temperature: template.temperature, signal: controller.signal },
+      {
+        onChunk: (c) => { full += c },
+        onDone: (result) => { setVoiceFingerprint(result.trim()); setVoiceRefreshing(false); setVoiceRefreshed(true) },
+        onError: (err) => { if ((err as Error).name !== 'AbortError') setVoiceError((err as Error).message); setVoiceRefreshing(false) },
+      },
+    ).catch((err) => { if ((err as Error).name !== 'AbortError') setVoiceError((err as Error).message); setVoiceRefreshing(false) })
+  }
+
+  const [maxTokensDraft, setMaxTokensDraft] = useState(String(chatMaxTokens))
+  const [contextMsgsDraft, setContextMsgsDraft] = useState(String(chatContextMessages))
+
+  const BUDGET_FEATURES: { id: string; label: string; default: number }[] = [
+    { id: 'inline',     label: 'Inline rewrite',  default: 6_000 },
+    { id: 'chat',       label: 'Chat',             default: 8_000 },
+    { id: 'batch',      label: 'Batch / generate', default: 12_000 },
+    { id: 'evaluation', label: 'Evaluation',       default: 8_000 },
+    { id: 'autopilot',  label: 'Autopilot',        default: 16_000 },
+    { id: 'codex',      label: 'Codex',            default: 4_000 },
+  ]
+  const [budgetDrafts, setBudgetDrafts] = useState<Record<string, string>>(
+    () => Object.fromEntries(BUDGET_FEATURES.map(({ id, default: d }) => [id, String(contextBudgets[id] || d)]))
+  )
+  function commitBudget(id: string, val: string, defaultVal: number) {
+    const n = parseInt(val.replace(/[^0-9]/g, ''), 10)
+    const resolved = isNaN(n) || n <= 0 ? defaultVal : n
+    setContextBudget(id, resolved === defaultVal ? 0 : resolved)
+    setBudgetDrafts((prev) => ({ ...prev, [id]: String(resolved) }))
+  }
 
   const [anthropicDraft, setAnthropicDraft] = useState(anthropicKey)
   const [validating, setValidating] = useState(false)
@@ -220,6 +286,95 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
               </Row>
             </>
           )}
+
+          <Row label="Chat">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <label style={{ fontSize: 12, color: 'var(--text-2)', flex: '0 0 110px' }}>Max output tokens</label>
+                <input
+                  type="number"
+                  min={256}
+                  max={200000}
+                  value={maxTokensDraft}
+                  onChange={(e) => setMaxTokensDraft(e.target.value)}
+                  onBlur={() => {
+                    const n = parseInt(maxTokensDraft, 10)
+                    if (!isNaN(n) && n >= 256) { setChatMaxTokens(n); setMaxTokensDraft(String(n)) }
+                    else setMaxTokensDraft(String(chatMaxTokens))
+                  }}
+                  style={{ width: 90, padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)' }}
+                />
+                <span style={{ fontSize: 11, color: 'var(--text-3)' }}>per response — bump for long-form answers, lower for speed</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <label style={{ fontSize: 12, color: 'var(--text-2)', flex: '0 0 110px' }}>Context messages</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={contextMsgsDraft}
+                  onChange={(e) => setContextMsgsDraft(e.target.value)}
+                  onBlur={() => {
+                    const n = parseInt(contextMsgsDraft, 10)
+                    if (!isNaN(n) && n >= 0) { setChatContextMessages(n); setContextMsgsDraft(String(n)) }
+                    else setContextMsgsDraft(String(chatContextMessages))
+                  }}
+                  style={{ width: 90, padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)' }}
+                />
+                <span style={{ fontSize: 11, color: 'var(--text-3)' }}>recent messages sent per turn — 0 = send full history</span>
+              </div>
+            </div>
+          </Row>
+
+          <Row label="Context budgets">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px' }}>
+                {BUDGET_FEATURES.map(({ id, label, default: defaultVal }) => (
+                  <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <label style={{ fontSize: 12, color: 'var(--text-2)', flex: '0 0 100px' }}>{label}</label>
+                    <input
+                      type="number"
+                      min={1000}
+                      value={budgetDrafts[id] ?? String(defaultVal)}
+                      onChange={(e) => setBudgetDrafts((prev) => ({ ...prev, [id]: e.target.value }))}
+                      onBlur={() => commitBudget(id, budgetDrafts[id] ?? '', defaultVal)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') commitBudget(id, budgetDrafts[id] ?? '', defaultVal) }}
+                      style={{ width: 80, padding: '4px 7px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)' }}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                Tokens of manuscript context sent per AI call, by feature. Raise for large-context models (128k+). Defaults: inline 6k · chat 8k · batch 12k · autopilot 16k.
+              </div>
+            </div>
+          </Row>
+
+          <Row label="Voice fingerprint">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {voiceFingerprint ? (
+                <div style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-2)', fontSize: 11, color: 'var(--text-2)', fontFamily: 'var(--mono)', lineHeight: 1.5, maxHeight: 72, overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
+                  {voiceFingerprint.slice(0, 300)}{voiceFingerprint.length > 300 ? '…' : ''}
+                </div>
+              ) : (
+                <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Not set — generate it in Foundation, or refresh from manuscript below.</div>
+              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button className="btn" style={{ fontSize: 12, padding: '4px 12px' }} disabled={!project || voiceRefreshing} onClick={handleRefreshVoice}>
+                  {voiceRefreshing ? 'Refreshing…' : voiceRefreshed ? 'Refreshed ✓' : 'Refresh from manuscript'}
+                </button>
+                {voiceError && <span style={{ fontSize: 11, color: 'oklch(0.65 0.15 20)' }}>{voiceError}</span>}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-3)' }}>Gathers prose from compiled documents and re-derives the style guide. Saved automatically.</div>
+            </div>
+          </Row>
+
+          <Row label="Slop Proof">
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <input type="checkbox" checked={slopAutoRun} onChange={(e) => setSlopAutoRun(e.target.checked)} style={{ accentColor: 'var(--accent)', width: 15, height: 15 }} />
+              <span style={{ fontSize: 13 }}>Auto-run after 30s idle</span>
+            </label>
+            <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-3)' }}>Automatically flag clichés and weak prose 30 seconds after you stop typing. Keyboard shortcut: ⌥P.</div>
+          </Row>
 
           <Row label="Session usage">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>

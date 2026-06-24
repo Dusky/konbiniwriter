@@ -78,6 +78,8 @@ export function createProposal(opts: {
   agentId?: string
   costEstimateCents?: number
   debtRef?: Proposal['debtRef']
+  scope?: Proposal['scope']
+  selRange?: Proposal['selRange']
 }): Proposal {
   const segments = buildSegments(opts.original, opts.proposed)
   const nHunks = segments.filter((s) => s.type === 'hunk').length
@@ -100,6 +102,8 @@ export function createProposal(opts: {
     agentId: opts.agentId,
     costEstimateCents: opts.costEstimateCents,
     debtRef: opts.debtRef,
+    scope: opts.scope,
+    selRange: opts.selRange,
   }
 }
 
@@ -111,4 +115,35 @@ export function resolveProposal(
 ): string {
   const segments = buildSegments(proposal.original, proposal.proposed)
   return applySegments(proposal.original, segments, acceptedHunkIndices)
+}
+
+// ── Splice a resolved selection back into the current document ──────────────
+//
+// Selection-scoped proposals carry `original`/`proposed` for just the
+// selected text (Studio.tsx must not pass `resolved` straight to
+// `updateContent`, which would overwrite the whole document). This locates
+// the selection in the *current* document content and replaces it with the
+// resolved text.
+//
+// Match strategy: prefer `proposal.selRange` if the document still contains
+// `proposal.original` at exactly that range (cheap, position-stable). Fall
+// back to the first `indexOf(proposal.original)` match. If neither finds the
+// original text, the document has changed underneath the proposal — surface
+// an error rather than risk corrupting/duplicating content.
+
+export function spliceSelection(
+  docContent: string,
+  proposal: Proposal,
+  resolved: string,
+): { content: string } | { error: 'selection-not-found' } {
+  const { original, selRange } = proposal
+
+  if (selRange && docContent.slice(selRange.from, selRange.to) === original) {
+    return { content: docContent.slice(0, selRange.from) + resolved + docContent.slice(selRange.to) }
+  }
+
+  const idx = docContent.indexOf(original)
+  if (idx === -1) return { error: 'selection-not-found' }
+
+  return { content: docContent.slice(0, idx) + resolved + docContent.slice(idx + original.length) }
 }

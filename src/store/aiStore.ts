@@ -25,6 +25,16 @@ interface AIState {
   setOpenaiKey: (key: string) => void
   setOpenaiModel: (model: string) => void
 
+  // — chat generation params —
+  chatMaxTokens: number
+  chatContextMessages: number   // messages sent to API per turn; 0 = all
+  setChatMaxTokens: (n: number) => void
+  setChatContextMessages: (n: number) => void
+
+  // — context budgets (tokens per feature; 0 = use built-in default) —
+  contextBudgets: Record<string, number>
+  setContextBudget: (feature: string, tokens: number) => void
+
   // — session spend tally (in-memory; resets on reload) —
   spendInputTokens: number
   spendOutputTokens: number
@@ -36,15 +46,14 @@ interface AIState {
 
   spendCapUSD: number       // 0 = no cap; halts an autopilot run when the run's cost crosses it
   setSpendCap: (usd: number) => void
+
+  slopAutoRun: boolean
+  setSlopAutoRun: (on: boolean) => void
 }
 
 const SK = 'konbini:ai'
-function load(k: string, fallback = '') {
-  try { return localStorage.getItem(k) ?? fallback } catch { return fallback }
-}
-function save(k: string, v: string) {
-  try { localStorage.setItem(k, v) } catch { /* ignore */ }
-}
+function load(k: string, fallback = '') { return window.api.prefs.get(k) ?? fallback }
+function save(k: string, v: string) { window.api.prefs.set(k, v) }
 
 export const useAIStore = create<AIState>((set) => ({
   enabled: false,
@@ -66,6 +75,18 @@ export const useAIStore = create<AIState>((set) => ({
   setOpenaiKey: (openaiKey) => { save(`${SK}:openaiKey`, openaiKey); set({ openaiKey }) },
   setOpenaiModel: (openaiModel) => { save(`${SK}:openaiModel`, openaiModel); set({ openaiModel }) },
 
+  chatMaxTokens: parseInt(load(`${SK}:chatMaxTokens`, '2048'), 10) || 2048,
+  chatContextMessages: parseInt(load(`${SK}:chatContextMessages`, '30'), 10),
+  setChatMaxTokens: (chatMaxTokens) => { save(`${SK}:chatMaxTokens`, String(chatMaxTokens)); set({ chatMaxTokens }) },
+  setChatContextMessages: (chatContextMessages) => { save(`${SK}:chatContextMessages`, String(chatContextMessages)); set({ chatContextMessages }) },
+
+  contextBudgets: (() => { try { return JSON.parse(load(`${SK}:contextBudgets`, '{}')) } catch { return {} } })(),
+  setContextBudget: (feature, tokens) => set((s) => {
+    const contextBudgets = { ...s.contextBudgets, [feature]: tokens }
+    save(`${SK}:contextBudgets`, JSON.stringify(contextBudgets))
+    return { contextBudgets }
+  }),
+
   spendInputTokens: 0,
   spendOutputTokens: 0,
   spendUSD: 0,
@@ -85,4 +106,7 @@ export const useAIStore = create<AIState>((set) => ({
 
   spendCapUSD: parseFloat(load(`${SK}:spendCap`, '0')) || 0,
   setSpendCap: (spendCapUSD) => { save(`${SK}:spendCap`, String(spendCapUSD)); set({ spendCapUSD }) },
+
+  slopAutoRun: load(`${SK}:slopAutoRun`, 'false') === 'true',
+  setSlopAutoRun: (slopAutoRun) => { save(`${SK}:slopAutoRun`, slopAutoRun ? 'true' : 'false'); set({ slopAutoRun }) },
 }))

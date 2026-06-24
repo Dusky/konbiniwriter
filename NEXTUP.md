@@ -12,96 +12,57 @@ is the "rough edges + what to build next" list.)
 Shared `WindowControls` (`src/components/shell/WindowControls.tsx`) renders
 minimize / maximize-restore / close-window wired to `window.api.shell.*`, shown
 in the Studio titlebar and on a draggable Launch-screen strip (`.win-bar`).
-Electron-only, hidden on macOS (native traffic lights remain). The old "✕ Close"
-is relabeled **"✕ Close project"**. Original report below for reference.
-
-<details><summary>Original diagnosis</summary>
-**Symptom:** clicking "✕ Close" returns you to the project-selection screen, and
-from there the app is unquittable — only Alt+F4 (or ⌘Q) works.
-
-**Root cause (fully diagnosed):**
-- The Electron window is frameless — `frame: false`, `titleBarStyle: 'hidden'`
-  (`electron/main.ts:20-21`) — so there are **no OS window controls**.
-- The custom `Titlebar` (`src/components/shell/Titlebar.tsx`) renders a single
-  **"✕ Close"** button whose handler is `handleClose` → `unloadProject()` +
-  `setScreen('launch')` (`Titlebar.tsx:12-17`). That's "close *project*," not
-  "close *window*."
-- The `Titlebar` only mounts inside `Studio`. `App` routes
-  `screen === 'launch' ? <Launch/> : <Studio/>` (`src/App.tsx:129`), and
-  **`Launch` renders no titlebar at all** — so on the launch screen there's no
-  drag region and no controls whatsoever.
-- `window.api.shell.{minimize,maximize,close}` + the IPC handlers
-  (`shell:minimize/maximize/close`, `electron/main.ts:62-67`;
-  `electron/preload.ts:148-151`) **exist but are never called by any renderer
-  component** (verified: zero `api.shell` usages in `src/`).
-
-**Fix sketch:**
-- Add a real window-controls cluster (minimize / maximize-restore / close-window)
-  wired to `window.api.shell.*`, rendered on **both** Launch and Studio (a shared
-  frameless titlebar, or render `Titlebar` on the launch screen too).
-- Separate the two actions: keep **"✕ Close project"** (back to launch) only when
-  a project is open; always show the **close-window** control.
-- Only show the min/max/close cluster under Electron — the browser `shell` stub
-  min/max are no-ops (`src/lib/browserApi.ts:88-95`); browser `close()` already
-  calls `window.close()`. Gate on an Electron check.
-- The launch titlebar also needs `-webkit-app-region: drag`
-  (`src/styles/theme.css:392`) so the frameless window is movable from launch.
-- Consider macOS: with `titleBarStyle: 'hidden'` the native traffic lights may
-  still render on mac — verify per-platform so controls don't double up.
-</details>
 
 ### 2. UX-bug sweep (modal close/escape behavior) — ✅ FIXED
-Same "no way to close / lose work on a stray action" family as the window bug.
-- **ChangesetModal discarded the proposal on backdrop click** (`onClick … onDiscard`).
-  A stray click outside a review threw away the generated (often gated/expensive)
-  draft — and in an Autopilot run, advanced past that scene. Backdrop is now inert;
-  Apply/Discard must be explicit. (`ChangesetModal.tsx`)
-- **No Escape-to-close anywhere** — `App.tsx` `handleKey` bailed on `!mod` before
-  Escape was ever read; only CommandPalette/SearchModal handled it. Added a global
-  Escape → `setModal(null)`, excluding the generative modals (foundation/bestof/
-  critic — hold unsaved AI output) and palette/search (own their Escape).
-- **Generative modals lost content on a backdrop click** — Foundation / BestOf /
-  Critic now have inert backdrops (dismiss via their explicit Cancel/Close), so a
-  misclick can't wipe generated concept/variants/critique.
-
-**Remaining sweep notes:**
-- `WindowControls` maximize-glyph desync — ✅ FIXED: main now emits
-  `maximize`/`unmaximize` events (`shell.onMaximizeChange`); the glyph stays in
-  sync regardless of how the window was (un)maximized.
-- Launch `.win-bar` drag-strip clip on short windows — ✅ FIXED: min window
-  height bumped to 640 so the centered 560px launch card clears the 32px strip.
-- `ReaderModal` still closes on backdrop click (results are cheap/re-runnable —
-  left as-is by choice).
+- ChangesetModal backdrop now inert (Apply/Discard must be explicit).
+- Global Escape → `setModal(null)`, excluding generative modals.
+- Foundation / BestOf / Critic backdrops inert.
+- WindowControls maximize-glyph desync — ✅ FIXED.
+- Launch `.win-bar` drag-strip clip — ✅ FIXED (min height 640).
+- `ReaderModal` closes on backdrop click by choice (results cheap/re-runnable).
 
 ---
 
-## P1 — Depth / features flagged but not built
+## P1 — Features shipped this session
 
-- **Reader-panel aggregate verdict** — ✅ done. Each reader ends with a
-  `VERDICT: <0-100> | keep/drop` line (parsed, stripped from the prose); the
-  header shows panel avg score + keep tally, each tab shows its own verdict chip.
-- **Critic/judge agents into the Autopilot eval phase** — the runner already gates
-  drafts with `QualityGate` (effectively a judge), so this is optional and partly
-  overlaps. If pursued: seed default `critic`/`judge` agents and offer a deeper
-  per-scene eval pass distinct from the numeric gate. Lower priority.
-- **Export — EPUB only** — Compile already does **Markdown, Word (.docx), and
-  Print/PDF** (`CompileModal.tsx`; docx wired in `BrowserProjectService.ts` /
-  `OPFSProjectService.ts` / `NodeProjectService`). Remaining gap: **EPUB**, which
-  needs a zip dep (JSZip) + OPF/container/XHTML scaffolding. Deferred — real chunk,
-  low marginal value over PDF/DOCX.
+- **EPUB export** — ✅ done. `buildEpub()` in `src/shared/epubBuilder.ts`;
+  all three backends wire it via dynamic import. CompileModal has the format button.
+- **localStorage → prefs seam** — ✅ done. `aiStore`, `shellStore`, `StatsService`,
+  `RecentsService`, `PromptRegistry` all use `window.api.prefs` now.
+- **Reader-panel aggregate verdict** — ✅ done.
+- **Chat persistence** — ✅ done. Per-document threads in `aux/chat.json`, unlimited
+  history, migrated from the earlier per-document prefs keys.
+- **AI Chat as a side panel** — ✅ done. `AssistantPanel` replaces the modal, lives in
+  the inspector grid slot (Toolbar/⌘⇧A/command palette toggle).
+- **Chat ContextBuilder** — ✅ done. Chat now uses the full 6-tier context
+  (voice fingerprint, codex, siblings) instead of a raw docContent slice.
+- **Brainstorm picker** — ✅ done. 5 alternatives in an inline picker panel;
+  "Use" on one creates the proposal.
+- **Configurable context budgets** — ✅ done. Per-feature token overrides in
+  AI Settings; ContextBuilder reads them automatically.
+- **Context inspector in Chat** — ✅ done. Collapsible tier breakdown showing
+  token counts and truncation warnings.
 
-## P2 — Known debt (don't expand; migrate when convenient)
+---
 
-- **Direct `localStorage`** instead of the `window.api` seam, in: `aiStore`,
-  `shellStore`, `StatsService`, `RecentsService`, `PromptRegistry`,
-  `AISettingsModal`. Documented debt in `CLAUDE.md`; route new prefs through the
-  seam and migrate these opportunistically.
+## P2 — Good next bets
+
+- **Voice fingerprint refresh** — generated once at Foundation time, never
+  updated. A "Refresh from selection" button in the voice fingerprint UI would
+  let authors keep it current as prose evolves.
+- **Reader panel in Autopilot gate** — panel is isolated from the Autopilot
+  quality gate. No way to require "reader panel passes" before a proposal queues.
+- **Slop auto-run** — currently manual toolbar button. Debounced auto-run
+  (e.g. 30s idle) + keyboard shortcut would make it feel ambient.
+- **Codex: scan chapter for new entries** — no way to say "I've written 5
+  chapters, what new entities/facts should be in the codex?"
+- **Temperature per-invocation** — editing the registry is the only way to
+  change temperature. A slider on the CowriteBar for power users.
 
 ---
 
 ## Notes
-- Both builds (`npm run build`, `npm run electron:compile`) are green as of the
-  last session. CI release workflow + app icon are in place
-  (`.github/workflows/release.yml`).
-- The window bug is best verified in the actual Electron app
-  (`npm run dev` + `npm run electron:dev`), not the browser build.
+- Both builds (`npm run build`, `npm run electron:compile`) are green.
+- CI release workflow + app icon in place (`.github/workflows/release.yml`).
+- Electron-specific features (window controls, file paths) best verified via
+  `npm run dev` + `npm run electron:dev`.

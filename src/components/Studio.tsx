@@ -1,6 +1,8 @@
 import React from 'react'
 import { useShellStore } from '../store/shellStore'
 import { useProjectStore } from '../store/projectStore'
+import { useAIStore } from '../store/aiStore'
+import { spliceSelection } from '../lib/ProposalService'
 import Titlebar from './shell/Titlebar'
 import Toolbar from './shell/Toolbar'
 import StatusBar from './shell/StatusBar'
@@ -21,7 +23,7 @@ import CodexModal from './modals/CodexModal'
 import AISettingsModal from './modals/AISettingsModal'
 import BatchGeneratorModal from './modals/BatchGeneratorModal'
 import ReaderModal from './modals/ReaderModal'
-import ChatModal from './modals/ChatModal'
+import AssistantPanel from './assistant/AssistantPanel'
 import StatsModal from './modals/StatsModal'
 import AutopilotModal from './modals/AutopilotModal'
 import CommandPalette from './modals/CommandPalette'
@@ -36,7 +38,11 @@ export default function Studio(): React.ReactElement {
   const layout = useShellStore((s) => s.layout)
   const modal = useShellStore((s) => s.modal)
   const setModal = useShellStore((s) => s.setModal)
+  const assistantOpen = useShellStore((s) => s.assistantOpen)
+  const setAssistantOpen = useShellStore((s) => s.setAssistantOpen)
+  const aiEnabled = useAIStore((s) => s.enabled)
   const compositionMode = useProjectStore((s) => s.compositionMode)
+  const focusMode = useProjectStore((s) => s.focusMode)
   const splitOpen = useProjectStore((s) => s.splitOpen)
   const splitId = useProjectStore((s) => s.splitId)
 
@@ -53,10 +59,20 @@ export default function Studio(): React.ReactElement {
     ? proposals.find((p) => p.id === activeProposalId) ?? null
     : null
 
+  const showBinder = layout.binder && !focusMode
+  const showInsp = layout.insp && !focusMode
+  const showAssistant = assistantOpen && aiEnabled && !focusMode
+
+  React.useEffect(() => {
+    if (!aiEnabled && assistantOpen) setAssistantOpen(false)
+  }, [aiEnabled, assistantOpen, setAssistantOpen])
+
   const bodyClass = [
     'body',
     !layout.binder ? 'no-binder' : '',
     !layout.insp ? 'no-insp' : '',
+    focusMode ? 'focus-mode' : '',
+    showAssistant ? 'asst-open' : '',
   ].filter(Boolean).join(' ')
 
   return (
@@ -64,7 +80,8 @@ export default function Studio(): React.ReactElement {
       <Titlebar />
       <Toolbar />
       <div className={bodyClass}>
-        {layout.binder && <Binder />}
+        {/* Always keep a grid child in slot 1 so the editor stays in column 2. */}
+        {showBinder ? <Binder /> : <div />}
         {splitOpen ? (
           <div style={{ display: 'flex', flex: 1, minWidth: 0, overflow: 'hidden' }}>
             <div style={{ flex: 1, minWidth: 0, borderRight: '1px solid var(--border)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
@@ -77,7 +94,8 @@ export default function Studio(): React.ReactElement {
         ) : (
           <EditorPane splitOpen={false} pane="left" />
         )}
-        {layout.insp && <Inspector />}
+        {/* Always keep a grid child in slot 3 so the editor stays in column 2. */}
+        {showAssistant ? <AssistantPanel /> : showInsp ? <Inspector /> : <div />}
       </div>
       <StatusBar />
 
@@ -97,7 +115,6 @@ export default function Studio(): React.ReactElement {
       {modal === 'ai-settings'     && <AISettingsModal      onClose={() => setModal(null)} />}
       {modal === 'batch-generator' && <BatchGeneratorModal  onClose={() => setModal(null)} />}
       {modal === 'reader'          && <ReaderModal          onClose={() => setModal(null)} />}
-      {modal === 'chat'            && <ChatModal            onClose={() => setModal(null)} />}
       {modal === 'stats'           && <StatsModal           onClose={() => setModal(null)} />}
       {modal === 'autopilot'       && <AutopilotModal       onClose={() => setModal(null)} />}
       {modal === 'debt'            && <DebtInboxModal       onClose={() => setModal(null)} />}
@@ -110,10 +127,26 @@ export default function Studio(): React.ReactElement {
           proposal={activeProposal}
           onApply={async (content, accepted) => {
             if (!project) return
+
+            const docContent = project.docs[activeProposal.docId]?.content ?? ''
+            let resolvedContent = content
+            if (activeProposal.scope === 'selection') {
+              const result = spliceSelection(docContent, activeProposal, content)
+              if ('error' in result) {
+                useShellStore.getState().setToast('Selection changed since this proposal was made — discard and re-run.')
+                return
+              }
+              resolvedContent = result.content
+            }
+
+            // Flush the current editor content to disk first — the snapshot
+            // service reads its own cached copy, which only updates on write
+            // and can otherwise be up to one autosave cycle stale.
+            await window.api.doc.write(project.id, activeProposal.docId, docContent)
             // Snapshot first (invariant: pre-AI snapshot is mandatory)
             const snap = await window.api.snapshot.take(project.id, activeProposal.docId, `Before ${activeProposal.label}`)
             addSnapshot(activeProposal.docId, snap)
-            updateContent(activeProposal.docId, content)
+            updateContent(activeProposal.docId, resolvedContent)
             resolveProposal(activeProposal.id, 'applied')
             // If this proposal was reconciling a debt item, applying it closes
             // that affected document.
@@ -122,7 +155,7 @@ export default function Studio(): React.ReactElement {
             }
             // Prose→outline debt: a substantial whole-doc revision may have
             // outdated the scene's synopsis.
-            const debtItem = debtService.maybeRaiseFromProposal({ project, proposal: activeProposal, applied: content })
+            const debtItem = debtService.maybeRaiseFromProposal({ project, proposal: activeProposal, applied: resolvedContent })
             if (debtItem) raiseDebt(debtItem)
           }}
           onDiscard={() => resolveProposal(activeProposal.id, 'discarded')}

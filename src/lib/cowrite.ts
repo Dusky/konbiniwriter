@@ -23,15 +23,51 @@ export const COWRITE_COMMANDS: { id: CowriteCommand; label: string; promptId: st
   { id: 'brainstorm', label: 'Brainstorm', promptId: 'builtin:inline:brainstorm' },
 ]
 
+const BRAINSTORM_PROMPT_ID = 'builtin:inline:brainstorm'
+
+export function streamBrainstorm(opts: {
+  project: Project
+  mentionIndex: MentionIndex
+  docId: string
+  selection: string
+  signal?: AbortSignal
+  onChunk?: (partial: string) => void
+  temperatureOverride?: number
+}): Promise<string> {
+  const { project, mentionIndex, docId, selection, signal, onChunk, temperatureOverride } = opts
+  const template = promptRegistry.get(BRAINSTORM_PROMPT_ID)
+  if (!template) return Promise.reject(new Error(`Missing prompt template: ${BRAINSTORM_PROMPT_ID}`))
+
+  const ctxPacket = buildContext(project, mentionIndex, docId, 'inline')
+  const contextStr = renderContext(ctxPacket)
+  const rendered = promptRegistry.render(BRAINSTORM_PROMPT_ID, { context: contextStr, selection, content: selection })
+
+  let partial = ''
+  return new Promise<string>((resolve, reject) => {
+    if (signal) signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
+    streamCompletion(
+      [{ role: 'user', content: rendered }],
+      { model: template.model, maxTokens: template.maxTokens, temperature: temperatureOverride ?? template.temperature, signal },
+      {
+        onChunk: (c) => { partial += c; onChunk?.(partial) },
+        onDone: resolve,
+        onError: reject,
+      },
+    ).catch(reject)
+  })
+}
+
 export function runCowrite(opts: {
   command: CowriteCommand
   project: Project
   mentionIndex: MentionIndex
   docId: string
   selection: string
+  selRange?: { from: number; to: number }
   signal?: AbortSignal
+  temperatureOverride?: number
 }): Promise<Proposal> {
-  const { command, project, mentionIndex, docId, selection, signal } = opts
+  const { command, project, mentionIndex, docId, selection, selRange, signal, temperatureOverride } = opts
   const spec = COWRITE_COMMANDS.find((c) => c.id === command)
   if (!spec) return Promise.reject(new Error(`Unknown co-write command: ${command}`))
   const template = promptRegistry.get(spec.promptId)
@@ -48,7 +84,7 @@ export function runCowrite(opts: {
 
     streamCompletion(
       [{ role: 'user', content: rendered }],
-      { model: template.model, maxTokens: template.maxTokens, temperature: template.temperature, signal },
+      { model: template.model, maxTokens: template.maxTokens, temperature: temperatureOverride ?? template.temperature, signal },
       {
         onChunk: () => {},
         onDone: (full) => resolve(createProposal({
@@ -60,6 +96,8 @@ export function runCowrite(opts: {
           original: selection,
           proposed: full.trim(),
           promptId: spec.promptId,
+          scope: 'selection',
+          selRange,
         })),
         onError: (err) => reject(err),
       },

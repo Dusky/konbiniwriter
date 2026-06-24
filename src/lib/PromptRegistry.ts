@@ -291,6 +291,25 @@ Then a brief overall verdict (2 sentences max).`,
     modifiedAt: ISO(),
   },
   {
+    id: 'builtin:foundation:seeds',
+    name: 'Foundation · Seeds',
+    description: 'Generate 5 distinct premise seeds to kick off a novel.',
+    feature: 'autopilot',
+    phase: 'foundation',
+    model: 'claude-opus-4-8',
+    temperature: 0.9,
+    maxTokens: 800,
+    template: `Generate 5 distinct and compelling premise seeds for a novel. Each seed should be 1–2 sentences: a specific situation, a character with something at stake, and a hint of the central conflict. Make them vivid and specific — not generic.
+
+{{hints}}
+
+Return exactly 5 seeds, numbered 1–5, one per line. No preamble, no explanation — just the seeds.`,
+    variables: [{ name: 'hints', description: 'Optional genre/tone/length hints' }],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
     id: 'builtin:foundation:concept',
     name: 'Foundation · Concept',
     description: 'Expand a one-line seed into a story concept.',
@@ -608,6 +627,41 @@ Return a JSON array — one object per character:
 
 Include 2–5 concrete facts per character (role, age, occupation, defining trait, key relationship — only what the text supports). "aliases" may be empty. Return ONLY valid JSON.`,
     variables: [{ name: 'characters', description: 'The cast markdown to structure' }],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:codex:scan',
+    name: 'Codex · Scan Prose for New Entries',
+    description: 'Scan manuscript prose and suggest new codex entries for significant entities not already tracked.',
+    feature: 'codex',
+    model: 'claude-sonnet-4-6',
+    temperature: 0.2,
+    maxTokens: 2000,
+    template: `You are a codex editor for a novel. Read the following prose excerpt and identify significant named entities that should have codex entries.
+
+<already_in_codex>
+{{existing}}
+</already_in_codex>
+
+<prose>
+{{content}}
+</prose>
+
+Identify characters, locations, items, concepts, and lore that:
+- Are named and clearly significant (not background extras or throwaway mentions)
+- Are NOT already listed in the already_in_codex section above (skip exact and close matches)
+- Would genuinely benefit from a reference entry
+
+Return a JSON array. If nothing warrants a new entry, return []:
+[{ "name": "<name>", "category": "character|location|item|concept|lore", "aliases": [], "summary": "<1–2 sentence description based on what the prose reveals>", "facts": [{ "label": "<type>", "value": "<value>" }] }]
+
+Return ONLY valid JSON.`,
+    variables: [
+      { name: 'content', description: 'The prose excerpt to scan' },
+      { name: 'existing', description: 'Comma-separated list of existing codex entry names' },
+    ],
     isBuiltin: true,
     createdAt: ISO(),
     modifiedAt: ISO(),
@@ -969,14 +1023,14 @@ const STORAGE_KEY_AGENTS  = 'konbini:agentRegistry'
 
 function loadFrom<T extends { id: string }>(key: string): T[] {
   try {
-    return JSON.parse(localStorage.getItem(key) ?? '[]') as T[]
+    return JSON.parse(window.api.prefs.get(key) ?? '[]') as T[]
   } catch {
     return []
   }
 }
 
 function saveTo<T>(key: string, items: T[]): void {
-  localStorage.setItem(key, JSON.stringify(items))
+  window.api.prefs.set(key, JSON.stringify(items))
 }
 
 export class PromptRegistry {

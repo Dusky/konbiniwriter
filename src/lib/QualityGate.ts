@@ -62,16 +62,26 @@ function streamOnce(
   })
 }
 
-export function parseGateScore(raw: string): GateScore {
+/**
+ * Parses a gate scorer's raw output. Returns null — rather than a fabricated
+ * zero score — when the output isn't valid JSON or `overall` isn't a finite
+ * number, so callers can distinguish "the model gave a low score" from
+ * "the model's output couldn't be read".
+ */
+export function parseGateScore(raw: string): GateScore | null {
+  let o: any
   try {
-    const o = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] ?? '{}')
-    return {
-      overall: Math.max(0, Math.min(100, Number(o.overall) || 0)),
-      issues: Array.isArray(o.issues) ? o.issues.map(String) : [],
-      suggestions: Array.isArray(o.suggestions) ? o.suggestions.map(String) : [],
-    }
+    o = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] ?? '{}')
   } catch {
-    return { overall: 0, issues: ['Could not parse gate output.'], suggestions: [] }
+    return null
+  }
+  if (o.overall === null || o.overall === undefined) return null
+  const overall = Number(o.overall)
+  if (!Number.isFinite(overall)) return null
+  return {
+    overall: Math.max(0, Math.min(100, overall)),
+    issues: Array.isArray(o.issues) ? o.issues.map(String) : [],
+    suggestions: Array.isArray(o.suggestions) ? o.suggestions.map(String) : [],
   }
 }
 
@@ -82,6 +92,7 @@ export async function runQualityGate(initial: string, cfg: GateConfig): Promise<
   let current = initial
   cfg.onPhase?.('scoring', 0)
   let score = parseGateScore(await streamOnce(cfg.scorePromptId, cfg.scoreVars(current), cfg.signal))
+  if (!score) throw new Error('Quality gate could not parse a score from the model output.')
 
   let round = 0
   while (score.overall < threshold && round < maxRounds) {
@@ -91,6 +102,7 @@ export async function runQualityGate(initial: string, cfg: GateConfig): Promise<
     current = (await streamOnce(cfg.revisePromptId, cfg.reviseVars(current, critique), cfg.signal, cfg.onRevise)).trim()
     cfg.onPhase?.('scoring', round)
     score = parseGateScore(await streamOnce(cfg.scorePromptId, cfg.scoreVars(current), cfg.signal))
+    if (!score) throw new Error('Quality gate could not parse a score from the model output.')
   }
 
   return { text: current, score, rounds: round, passed: score.overall >= threshold }

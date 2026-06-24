@@ -3,13 +3,16 @@
   "version": "0.1.0",
   "description": "Local-first writing studio for long-form fiction",
   "private": true,
+  "repository": "github:dusky/konbiniwriter",
+  "author": "Dusky",
   "type": "module",
   "main": "electron-dist/electron/main.js",
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "preview": "vite preview",
-    "electron:compile": "tsc -p electron/tsconfig.json && node -e \"require('fs').writeFileSync('electron-dist/package.json','{\\\"type\\\":\\\"commonjs\\\"}')\""  ,
+    "test": "vitest run",
+    "electron:compile": "tsc -p electron/tsconfig.json && node -e \"require('fs').writeFileSync('electron-dist/package.json','{\\\"type\\\":\\\"commonjs\\\"}')\"",
     "electron:dev": "npm run electron:compile && cross-env ELECTRON_DEV=1 electron .",
     "electron:build": "npm run build && npm run electron:compile && electron-builder"
   },
@@ -21,31 +24,49 @@
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.36.7",
     "@lezer/highlight": "^1.2.1",
+    "@types/diff": "^7.0.2",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "cross-env": "^7.0.3",
     "diff": "^5.2.0",
     "docx": "^8.5.0",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "typescript": "^5.7.2",
     "vite": "^5.4.11",
+    "vitest": "^4.1.8",
     "zustand": "^5.0.2"
   },
   "dependencies": {
-    "@codemirror/search": "^6.7.0",
-    "@types/diff": "^7.0.2",
-    "cross-env": "^7.0.3",
-    "electron": "^33.0.0",
-    "electron-builder": "^25.1.8"
+    "jszip": "^3.10.1"
   },
   "build": {
     "appId": "com.konbini.writer",
     "productName": "Konbini",
-    "directories": { "output": "release", "buildResources": "build" },
-    "files": ["dist/**/*", "electron-dist/**/*"],
-    "linux": { "target": "AppImage", "category": "Office", "icon": "build/icon.png" },
-    "mac": { "target": "dmg", "category": "public.app-category.productivity", "icon": "build/icon.png" },
-    "win": { "target": "nsis", "icon": "build/icon.png" }
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "electron-dist/**/*"
+    ],
+    "linux": {
+      "target": "AppImage",
+      "category": "Office",
+      "icon": "build/icon.png"
+    },
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.png"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.png"
+    }
   }
 }

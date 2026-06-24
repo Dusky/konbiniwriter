@@ -158,6 +158,32 @@ const api = {
     compile: {
         run: (pid, rid, ids, fmt) => NodeProjectService_1.nodeProjectService.compile(pid, rid, ids, fmt),
     },
+    prefs: {
+        get: (key) => { try {
+            return localStorage.getItem(key);
+        }
+        catch {
+            return null;
+        } },
+        set: (key, value) => {
+            try {
+                localStorage.setItem(key, value);
+            }
+            catch (e) {
+                console.error('prefs.set failed', key, e);
+                window.dispatchEvent(new CustomEvent('konbini:prefs-error'));
+            }
+        },
+        remove: (key) => { try {
+            localStorage.removeItem(key);
+        }
+        catch { /* noop */ } },
+    },
+    aux: {
+        read: (pid, name) => NodeProjectService_1.nodeProjectService.readAux(pid, name),
+        write: (pid, name, content) => NodeProjectService_1.nodeProjectService.writeAux(pid, name, content),
+        remove: (pid, name) => NodeProjectService_1.nodeProjectService.removeAux(pid, name),
+    },
     shell: {
         platform: process.platform,
         minimize: () => { electron_1.ipcRenderer.invoke('shell:minimize'); },

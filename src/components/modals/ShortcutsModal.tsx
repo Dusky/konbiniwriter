@@ -45,6 +45,7 @@ const SHORTCUTS = [
     rows: [
       ['Command Palette', 'mod+k'],
       ['Document History', ''],
+      ['Writing Stats', ''],
       ['Preferences', 'mod+,'],
       ['Keyboard Shortcuts', 'mod+/'],
     ],
@@ -59,6 +60,10 @@ const SHORTCUTS = [
       ['Batch Generator', 'mod+shift+g'],
       ['Autopilot', 'mod+shift+p'],
       ['Prompt Registry', ''],
+      ['Propagation Debt', ''],
+      ['Foundation', ''],
+      ['Best of N', ''],
+      ['Critic', ''],
     ],
   },
 ]

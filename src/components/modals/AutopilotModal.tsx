@@ -4,9 +4,11 @@ import { useAIStore } from '../../store/aiStore'
 import { promptRegistry } from '../../lib/PromptRegistry'
 import { buildContext, renderContext, estimateTokens } from '../../lib/ContextBuilder'
 import { createProposal } from '../../lib/ProposalService'
-import { streamCompletion } from '../../lib/AIClient'
+import { streamCompletion, streamToString } from '../../lib/AIClient'
 import { runQualityGate } from '../../lib/QualityGate'
+import { agentRegistry } from '../../lib/PromptRegistry'
 import { costOf, formatUSD } from '../../lib/Pricing'
+import { parseReaderVerdict } from '../../lib/parsers'
 import type { ID, PromptTemplate, AutopilotRunState } from '@shared/types'
 
 // The gate scores prose craft, so it only makes sense for drafting prompts.
@@ -54,7 +56,9 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
   const [totalCount, setTotalCount] = useState(0)
   const [pipelineError, setPipelineError] = useState<string | null>(null)
   const [useGate, setUseGate] = useState(true)
+  const [useReaderGate, setUseReaderGate] = useState(false)
   const [gateStatus, setGateStatus] = useState<string | null>(null)
+  const [readerGateStatus, setReaderGateStatus] = useState<string | null>(null)
   const [capHit, setCapHit] = useState(false)
   const [currentTitle, setCurrentTitle] = useState('')
 
@@ -102,6 +106,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
   const canRun = checkedIds.length > 0 && promptId !== ''
   const gateEligible = gateEligibleFor(allPrompts.find((p) => p.id === promptId))
   const gateOn = useGate && gateEligible
+  const readerGateOn = useReaderGate && gateEligible
 
   // A persisted run is resumable if it still has unresolved, existing nodes.
   const storedRun = (project.settings.autopilotRun as AutopilotRunState | null | undefined) ?? null
@@ -132,10 +137,17 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
         inTok += 3 * (baseIn + draft)
         outTok += 2 * GATE_OUT + draft
       }
+      if (readerGateOn) {
+        // N readers in parallel (each ~500 out), optional revision
+        const numReaders = agentRegistry.byCategory('reader').length || 4
+        const draft = outPer
+        inTok += numReaders * (baseIn + draft)
+        outTok += numReaders * 500 + draft // assume one revision round
+      }
     }
     return { inTok, outTok, cost: costOf(aiModel, inTok, outTok) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [checkedKey, promptId, gateOn, aiModel, project])
+  }, [checkedKey, promptId, gateOn, readerGateOn, aiModel, project])
 
   const runPipeline = async (nodeIds: ID[], selectedPromptId: string, gateChoice: boolean, doneIds: ID[], startedAt: string) => {
     setPhase('running')
@@ -145,6 +157,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
 
     const template = promptRegistry.get(selectedPromptId)
     const gateOn = gateChoice && gateEligibleFor(template)
+    const readerGateOn = useReaderGate && gateEligibleFor(template)
 
     // Persist run state so an interruption (stop / close / refresh) is resumable.
     const done = new Set(doneIds)
@@ -165,6 +178,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
       setAutopilotCurrent(nodeId)
       setStreamText('')
       setGateStatus(null)
+      setReaderGateStatus(null)
 
       const node = project.nodes[nodeId]
       setCurrentTitle(node?.title ?? '')
@@ -192,7 +206,6 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
           streamCompletion(
             [{ role: 'user', content: rendered }],
             {
-              systemPrompt: template?.template,
               maxTokens: template?.maxTokens ?? 2000,
               temperature: template?.temperature ?? 0.7,
               signal: abortRef.current.signal,
@@ -226,6 +239,59 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
         } catch (e) {
           if ((e as Error).name === 'AbortError') break
           setPipelineError(`Quality gate failed: ${(e as Error).message} — using the ungated draft.`)
+        }
+      }
+
+      // 2b) Reader gate — run all personas in parallel, revise once if below threshold.
+      if (readerGateOn) {
+        try {
+          setReaderGateStatus('Readers evaluating…')
+          const personas = agentRegistry.byCategory('reader').map((a) => ({
+            systemPrompt: promptRegistry.get(a.systemPromptId)?.template ?? '',
+            model: a.model || undefined,
+            temperature: a.temperature,
+            maxTokens: (a.parameters.maxTokens as number) ?? 500,
+          }))
+          const excerpt = proposed.slice(0, 6000)
+          const userMsg = `${excerpt}\n\n---\nEnd your response with a single line: VERDICT: <0-100> | keep or drop`
+          const settled = await Promise.allSettled(personas.map((p) =>
+            streamToString(
+              [{ role: 'user', content: userMsg }],
+              { systemPrompt: p.systemPrompt, model: p.model, maxTokens: p.maxTokens, temperature: p.temperature, signal: abortRef.current.signal },
+            )
+          ))
+          if (settled.some((r) => r.status === 'rejected' && (r.reason as Error)?.name === 'AbortError')) break
+
+          const failedCount = settled.filter((r) => r.status === 'rejected').length
+          const responding = personas.length - failedCount
+          const failedNote = failedCount > 0 ? ` · ${failedCount} reader${failedCount > 1 ? 's' : ''} failed` : ''
+          if (responding === 0) throw new Error('all readers failed to respond')
+
+          const results = settled
+            .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
+            .map((r) => parseReaderVerdict(r.value))
+          const valid = results.filter((r) => r.score !== null)
+          const avgScore = valid.length ? Math.round(valid.reduce((s, r) => s + (r.score ?? 0), 0) / valid.length) : 0
+          const keepCount = results.filter((r) => r.keep === true).length
+          const passed = avgScore >= 65 && keepCount >= Math.ceil(responding / 2)
+          if (!passed) {
+            setReaderGateStatus(`Readers: ${avgScore}/100 · ${keepCount}/${responding} keep${failedNote} — revising…`)
+            const revTemplate = promptRegistry.get('builtin:revision:draft')
+            if (revTemplate) {
+              const critique = `Reader panel score: ${avgScore}/100. ${keepCount} of ${responding} readers would keep reading. Revise to improve engagement — hook the reader earlier, raise stakes, sharpen character voice.`
+              const revRendered = promptRegistry.render('builtin:revision:draft', { synopsis, context: contextStr, document: proposed, critique })
+              const revised = await streamToString(
+                [{ role: 'user', content: revRendered }],
+                { maxTokens: revTemplate.maxTokens, temperature: revTemplate.temperature, signal: abortRef.current.signal },
+                (s) => setStreamText(s),
+              )
+              if (revised.trim()) proposed = revised.trim()
+            }
+          }
+          setReaderGateStatus(`Readers: ${avgScore}/100 · ${keepCount}/${responding} keep${failedNote}${!passed ? ` · revised` : ' · pass'}`)
+        } catch (e) {
+          if ((e as Error).name === 'AbortError') break
+          setReaderGateStatus(`Reader gate failed: ${(e as Error).message}`)
         }
       }
 
@@ -334,12 +400,18 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
                 </select>
               </div>
 
-              {/* Quality gate (drafting prompts only) */}
+              {/* Quality gate + reader gate (drafting prompts only) */}
               {gateEligible && (
-                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-2)', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={useGate} onChange={(e) => setUseGate(e.target.checked)} />
-                  Quality gate — score &amp; auto-revise each draft before review
-                </label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-2)', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={useGate} onChange={(e) => setUseGate(e.target.checked)} />
+                    Quality gate — score &amp; auto-revise each draft before review
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-2)', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={useReaderGate} onChange={(e) => setUseReaderGate(e.target.checked)} />
+                    Reader gate — run reader panel, revise if engagement score &lt; 65
+                  </label>
+                </div>
               )}
 
               {/* Spend cap */}
@@ -401,7 +473,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
             <div className="modal-foot">
               <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
                 {estimate
-                  ? <>Est. {estimate.cost != null ? `~${formatUSD(estimate.cost)}` : '— (unpriced model)'} · ~{Math.round((estimate.inTok + estimate.outTok) / 1000)}k tokens{gateOn ? ' incl. gate' : ''}</>
+                  ? <>Est. {estimate.cost != null ? `~${formatUSD(estimate.cost)}` : '— (unpriced model)'} · ~{Math.round((estimate.inTok + estimate.outTok) / 1000)}k tokens{(gateOn || readerGateOn) ? ` incl.${gateOn ? ' quality' : ''}${gateOn && readerGateOn ? ' +' : ''}${readerGateOn ? ' reader' : ''} gate` : ''}</>
                   : 'Results open in Changeset Review'}
               </span>
               <span className="tb-spacer" />
@@ -426,6 +498,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
                 Scene {currentIndex + 1} of {totalCount} — <strong>{currentNodeTitle}</strong>
               </div>
               {gateStatus && <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>{gateStatus}</div>}
+              {readerGateStatus && <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>{readerGateStatus}</div>}
               <div style={{ fontSize: 11, color: 'var(--text-3)' }}>Spent this run: <strong style={{ fontFamily: 'var(--mono)' }}>{formatUSD(Math.max(0, spendUSD - runStartSpend.current))}</strong></div>
 
               {/* Progress bar */}

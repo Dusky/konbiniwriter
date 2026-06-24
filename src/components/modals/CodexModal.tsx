@@ -1,9 +1,22 @@
-import React, { useState, useMemo, useRef } from 'react'
+import React, { useState, useMemo, useRef, useEffect } from 'react'
 import { useProjectStore } from '../../store/projectStore'
+import { useAIStore } from '../../store/aiStore'
 import { backlinksFor } from '../../lib/MentionIndex'
 import { debtService } from '../../lib/DebtService'
+import { promptRegistry } from '../../lib/PromptRegistry'
+import { streamCompletion } from '../../lib/AIClient'
 import { uid } from '@shared/utils'
 import type { CodexEntry, CodexCategory, CodexFact, ID } from '@shared/types'
+
+interface ScanEntry {
+  id: string
+  name: string
+  category: CodexCategory
+  aliases: string[]
+  summary: string
+  facts: Array<{ label: string; value: string }>
+  added: boolean
+}
 
 const CATEGORIES: { id: CodexCategory; label: string; icon: string }[] = [
   { id: 'character', label: 'Characters', icon: '◉' },
@@ -37,12 +50,89 @@ export default function CodexModal({ onClose }: Props): React.ReactElement {
   const project = useProjectStore((s) => s.project)
   const selectNode = useProjectStore((s) => s.selectNode)
   const raiseDebt = useProjectStore((s) => s.raiseDebt)
+  const aiEnabled = useAIStore((s) => s.enabled)
 
   const [category, setCategory] = useState<CodexCategory>('character')
   const [selected, setSelected] = useState<CodexEntry | null>(null)
   const [aliasDraft, setAliasDraft] = useState('')
   // Value of a fact when the user focused it, so a real change can raise debt.
   const factEditRef = useRef<{ factId: ID; original: string } | null>(null)
+
+  const [scanning, setScanning] = useState(false)
+  const [scanResults, setScanResults] = useState<ScanEntry[]>([])
+  const [scanDone, setScanDone] = useState(false)
+  const [scanError, setScanError] = useState<string | null>(null)
+  const [showScan, setShowScan] = useState(false)
+  const [selectedScan, setSelectedScan] = useState<ScanEntry | null>(null)
+  const scanAbortRef = useRef<AbortController | null>(null)
+  useEffect(() => () => { scanAbortRef.current?.abort() }, [])
+
+  const handleScan = async () => {
+    if (!project || scanning) return
+    setScanning(true); setScanError(null); setScanResults([]); setScanDone(false)
+    let samples = ''
+    for (const id of Object.keys(project.docs)) {
+      const node = project.nodes[id]
+      if (!node || node.type === 'folder' || !node.meta.includeInCompile) continue
+      const c = (project.docs[id]?.content ?? '').trim()
+      if (c) { samples += c + '\n\n'; if (samples.length > 8000) break }
+    }
+    samples = samples.slice(0, 8000)
+    if (!samples.trim()) { setScanError('No compiled prose found — write some chapters first.'); setScanning(false); return }
+
+    const existing = codex.map((e) => e.name).join(', ') || 'none'
+    const template = promptRegistry.get('builtin:codex:scan')
+    if (!template) { setScanError('Scan prompt not found.'); setScanning(false); return }
+    const rendered = promptRegistry.render('builtin:codex:scan', { content: samples, existing })
+    const controller = new AbortController()
+    scanAbortRef.current = controller
+    let full = ''
+    await streamCompletion(
+      [{ role: 'user', content: rendered }],
+      { model: template.model, maxTokens: template.maxTokens, temperature: template.temperature, signal: controller.signal },
+      {
+        onChunk: (c) => { full += c },
+        onDone: (result) => {
+          try {
+            const raw = result.match(/\[[\s\S]*\]/)?.[0] ?? '[]'
+            const parsed = JSON.parse(raw) as Array<{ name?: string; category?: string; aliases?: string[]; summary?: string; facts?: Array<{ label?: string; value?: string }> }>
+            const validCategories = new Set(['character', 'location', 'item', 'concept', 'lore'])
+            const existingNames = new Set(codex.map((e) => e.name.toLowerCase()))
+            const entries: ScanEntry[] = parsed
+              .filter((e) => e.name?.trim() && !existingNames.has((e.name ?? '').toLowerCase()))
+              .map((e) => ({
+                id: uid(),
+                name: e.name!.trim(),
+                category: (validCategories.has(e.category ?? '') ? e.category : 'character') as CodexCategory,
+                aliases: (e.aliases ?? []).filter((a): a is string => typeof a === 'string'),
+                summary: e.summary ?? '',
+                facts: (e.facts ?? []).filter((f) => f.label?.trim() && f.value?.trim()).map((f) => ({ label: f.label!, value: f.value! })),
+                added: false,
+              }))
+            setScanResults(entries)
+            if (entries.length > 0) { setShowScan(true); setSelectedScan(entries[0]) }
+          } catch { setScanError('Could not parse scan results.') }
+          setScanning(false); setScanDone(true)
+        },
+        onError: (err) => { if ((err as Error).name !== 'AbortError') setScanError((err as Error).message); setScanning(false) },
+      },
+    ).catch((err) => { if ((err as Error).name !== 'AbortError') setScanError((err as Error).message); setScanning(false) })
+  }
+
+  const handleAddScanEntry = (entry: ScanEntry) => {
+    const now = new Date().toISOString()
+    upsertCodexEntry({
+      id: uid(), name: entry.name, aliases: entry.aliases,
+      category: entry.category, summary: entry.summary,
+      facts: entry.facts.map((f) => ({ id: uid(), label: f.label, value: f.value, aiGenerated: true, confirmedAt: null })),
+      createdAt: now, modifiedAt: now, aiGenerated: true,
+    })
+    setScanResults((prev) => prev.map((e) => e.id === entry.id ? { ...e, added: true } : e))
+    if (selectedScan?.id === entry.id) {
+      const next = scanResults.find((e) => e.id !== entry.id && !e.added)
+      setSelectedScan(next ?? null)
+    }
+  }
 
   const filtered = useMemo(() =>
     codex.filter((e) => e.category === category).sort((a, b) => a.name.localeCompare(b.name)),
@@ -125,14 +215,96 @@ export default function CodexModal({ onClose }: Props): React.ReactElement {
           <span className="tb-spacer" />
           <div className="seg" style={{ gap: 2 }}>
             {CATEGORIES.map((c) => (
-              <button key={c.id} className={category === c.id ? 'on' : ''} onClick={() => setCategory(c.id)}>
+              <button key={c.id} className={!showScan && category === c.id ? 'on' : ''} onClick={() => { setShowScan(false); setCategory(c.id) }}>
                 {c.icon} {c.label}
               </button>
             ))}
+            {scanDone && scanResults.length > 0 && (
+              <button className={showScan ? 'on' : ''} onClick={() => { setShowScan(true); if (!selectedScan && scanResults.length > 0) setSelectedScan(scanResults[0]) }}>
+                ✦ Scan ({scanResults.filter((e) => !e.added).length})
+              </button>
+            )}
           </div>
+          {aiEnabled && (
+            <button
+              className="btn sm"
+              style={{ marginLeft: 10 }}
+              disabled={scanning || !project}
+              onClick={handleScan}
+              title="Scan manuscript prose for new codex entries"
+            >
+              {scanning ? 'Scanning…' : 'Scan manuscript'}
+            </button>
+          )}
         </div>
 
         <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '220px 1fr', overflow: 'hidden' }}>
+          {showScan ? (
+            /* Scan results view */
+            <>
+              <div style={{ borderRight: '0.5px solid var(--border)', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
+                  {scanResults.length === 0 && (
+                    <div style={{ color: 'var(--text-3)', fontSize: 12, textAlign: 'center', padding: '32px 16px' }}>No new entries found.</div>
+                  )}
+                  {scanResults.map((e) => (
+                    <button
+                      key={e.id}
+                      onClick={() => setSelectedScan(e)}
+                      style={{ display: 'block', width: '100%', textAlign: 'left', border: 'none', padding: '8px 14px', cursor: 'pointer', background: selectedScan?.id === e.id ? 'var(--sel-bg)' : 'transparent', borderLeft: selectedScan?.id === e.id ? '2px solid var(--accent)' : '2px solid transparent', opacity: e.added ? 0.4 : 1 }}
+                    >
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
+                        {e.added ? '✓ ' : ''}{e.name}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{e.category}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div style={{ overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {selectedScan ? (
+                  <>
+                    <div>
+                      <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>
+                        {selectedScan.category} {selectedScan.aliases.length > 0 && `· aka ${selectedScan.aliases.join(', ')}`}
+                      </div>
+                      <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>{selectedScan.name}</div>
+                      <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.55 }}>{selectedScan.summary}</div>
+                    </div>
+                    {selectedScan.facts.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {selectedScan.facts.map((f, i) => (
+                          <div key={i} style={{ fontSize: 12, color: 'var(--text-2)' }}>
+                            <span style={{ color: 'var(--text-3)' }}>{f.label}:</span> {f.value}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', gap: 10, marginTop: 'auto', paddingTop: 8 }}>
+                      {selectedScan.added ? (
+                        <span style={{ fontSize: 12, color: 'oklch(0.68 0.14 150)' }}>Added to codex ✓</span>
+                      ) : (
+                        <>
+                          <button className="btn" style={{ background: 'var(--accent)', color: 'var(--accent-fg)', borderColor: 'transparent' }} onClick={() => handleAddScanEntry(selectedScan)}>
+                            Add to Codex
+                          </button>
+                          <button className="btn" style={{ fontSize: 12 }} onClick={() => setScanResults((prev) => prev.filter((e) => e.id !== selectedScan.id))}>
+                            Skip
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-3)', fontSize: 13 }}>
+                    Select an entry to review
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+          /* Normal codex view */
+          <>
           {/* List */}
           <div style={{ borderRight: '0.5px solid var(--border)', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
             <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
@@ -277,9 +449,12 @@ export default function CodexModal({ onClose }: Props): React.ReactElement {
               Select or create an entry
             </div>
           )}
+          </>
+          )}
         </div>
 
         <div className="modal-foot">
+          {scanError && <span style={{ fontSize: 11, color: 'oklch(0.65 0.15 20)' }}>{scanError}</span>}
           <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{codex.length} entr{codex.length !== 1 ? 'ies' : 'y'}</span>
           <span className="tb-spacer" />
           <button className="btn" onClick={onClose}>Close</button>

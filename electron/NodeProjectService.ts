@@ -5,7 +5,7 @@ import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
 import * as path from 'path'
 
-import { uid, wordCount } from '../src/shared/utils'
+import { uid, wordCount, isValidAuxName } from '../src/shared/utils'
 import { buildProjectFromTemplate } from '../src/shared/templates'
 import type {
   Project, KNode, DocBody, NodeOp, Snapshot, ID,
@@ -259,23 +259,36 @@ export class NodeProjectService {
   async compile(projectId: string, rootId: string, includedIds: string[], format: CompileFormat): Promise<CompileResult> {
     const dir = this.getPath(projectId)
     const proj = this.getProject(projectId)
-    const chunks: string[] = []
+    const chapters: Array<{ title: string; content: string }> = []
     const gather = async (id: string) => {
       const node = proj.nodes[id]
       if (!node) return
       if (node.type !== 'folder' && includedIds.includes(id)) {
         const content = proj.docs[id]?.content ?? await readText(dir, 'docs', `${id}.md`) ?? ''
-        if (content.trim()) chunks.push(content.trim())
+        if (content.trim()) chapters.push({ title: node.title, content: content.trim() })
       }
       for (const cid of node.childIds) await gather(cid)
     }
     await gather(rootId)
-    const combined = chunks.join('\n\n---\n\n')
     const projectTitle = proj.title.replace(/[<>:"/\\|?*]/g, '_')
 
     if (format === 'markdown') {
+      const combined = chapters.map(c => c.content).join('\n\n---\n\n')
       return { blob: new TextEncoder().encode(combined), filename: `${projectTitle}.md`, format: 'markdown' }
     }
+    if (format === 'epub') {
+      const { buildEpub } = await import('../src/shared/epubBuilder')
+      const blob = await buildEpub({
+        title: proj.title,
+        chapters: chapters.map((c, i) => ({
+          id: `ch_${String(i + 1).padStart(4, '0')}`,
+          title: c.title,
+          markdown: c.content,
+        })),
+      })
+      return { blob, filename: `${projectTitle}.epub`, format: 'epub' }
+    }
+    const combined = chapters.map(c => c.content).join('\n\n---\n\n')
     const { Document, Paragraph, TextRun, Packer } = await import('docx')
     const paras = combined.split('\n').map(line => {
       const h = line.match(/^(#{1,3})\s+(.+)$/)
@@ -303,6 +316,26 @@ export class NodeProjectService {
     proj.settings.codex = entries
     proj.modified = new Date().toISOString()
     await this.writeManifest(dir, proj)
+  }
+
+  // ── Aux files ─────────────────────────────────────────────────────────────
+
+  async readAux(projectId: string, name: string): Promise<string | null> {
+    if (!isValidAuxName(name)) throw new Error(`Invalid aux file name: ${name}`)
+    const dir = this.getPath(projectId)
+    return readText(dir, 'aux', name)
+  }
+
+  async writeAux(projectId: string, name: string, content: string): Promise<void> {
+    if (!isValidAuxName(name)) throw new Error(`Invalid aux file name: ${name}`)
+    const dir = this.getPath(projectId)
+    await writeText(dir, content, 'aux', name)
+  }
+
+  async removeAux(projectId: string, name: string): Promise<void> {
+    if (!isValidAuxName(name)) throw new Error(`Invalid aux file name: ${name}`)
+    const dir = this.getPath(projectId)
+    await removeFile(dir, 'aux', name)
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────────

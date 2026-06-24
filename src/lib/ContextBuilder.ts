@@ -1,6 +1,7 @@
 import type { Project, ID } from '@shared/types'
 import type { MentionIndex } from './MentionIndex'
 import { mentionsIn } from './MentionIndex'
+import { useAIStore } from '../store/aiStore'
 
 // Rough token estimate: 1 token ≈ 4 chars for English prose.
 export function estimateTokens(text: string): number {
@@ -20,6 +21,8 @@ export interface ContextTier {
   content: string
   tokens: number
   included: boolean
+  /** True when `content` is a trimmed portion of the original (see Tier 1). */
+  truncated?: boolean
 }
 
 export interface ContextPacket {
@@ -30,6 +33,12 @@ export interface ContextPacket {
   budgetTokens: number
   truncated: boolean
 }
+
+// Below this remaining-budget threshold, truncating the scene isn't worth
+// it — drop the tier entirely instead of keeping a sliver of prose.
+const MIN_TRUNCATE_TOKENS = 500
+
+const TRUNCATION_PREFIX = '[…earlier scene content truncated…]\n\n'
 
 // Default budget per feature (generous for context quality; tighten per model)
 const BUDGETS: Record<ContextFeature, number> = {
@@ -104,24 +113,47 @@ export function buildContext(
   feature: ContextFeature,
   budgetOverride?: number,
 ): ContextPacket {
-  const budget = budgetOverride ?? BUDGETS[feature]
+  const stored = useAIStore.getState().contextBudgets[feature] ?? 0
+  const budget = budgetOverride ?? (stored > 0 ? stored : BUDGETS[feature])
   const node = project.nodes[docId]
   const body = project.docs[docId]
 
   const tiers: ContextTier[] = []
   let remaining = budget
 
-  const addTier = (label: string, content: string): boolean => {
+  const addTier = (label: string, content: string, opts?: { truncatable?: boolean }): boolean => {
     if (!content.trim()) return true
     const tokens = estimateTokens(content)
-    const included = tokens <= remaining
-    tiers.push({ label, content, tokens, included })
-    if (included) remaining -= tokens
-    return included
+    if (tokens <= remaining) {
+      tiers.push({ label, content, tokens, included: true })
+      remaining -= tokens
+      return true
+    }
+
+    // Tier doesn't fit whole. If truncatable and there's enough budget left
+    // to be worth it, keep the END of the content (most relevant for
+    // continuation — earlier context is covered by synopsis/sibling tiers),
+    // trimmed to the next paragraph break.
+    if (opts?.truncatable && remaining >= MIN_TRUNCATE_TOKENS) {
+      const targetChars = remaining * 4
+      let slice = content.slice(-targetChars)
+      const breakIdx = slice.indexOf('\n\n')
+      if (breakIdx !== -1 && breakIdx < slice.length - 2) {
+        slice = slice.slice(breakIdx + 2)
+      }
+      const truncatedContent = TRUNCATION_PREFIX + slice
+      const truncatedTokens = estimateTokens(truncatedContent)
+      tiers.push({ label, content: truncatedContent, tokens: truncatedTokens, included: true, truncated: true })
+      remaining -= truncatedTokens
+      return true
+    }
+
+    tiers.push({ label, content, tokens, included: false })
+    return false
   }
 
   // Tier 1 (always): scene content
-  addTier('Scene content', body?.content ?? '')
+  addTier('Scene content', body?.content ?? '', { truncatable: true })
 
   // Tier 2 (always): synopsis of direct parent
   const parentId = node?.parentId
@@ -147,7 +179,7 @@ export function buildContext(
 
   const included = tiers.filter((t) => t.included)
   const totalTokens = included.reduce((s, t) => s + t.tokens, 0)
-  const truncated = tiers.some((t) => !t.included)
+  const truncated = tiers.some((t) => !t.included || t.truncated)
 
   return { docId, feature, tiers, totalTokens, budgetTokens: budget, truncated }
 }
@@ -156,6 +188,6 @@ export function buildContext(
 export function renderContext(packet: ContextPacket): string {
   const parts = packet.tiers
     .filter((t) => t.included && t.content.trim())
-    .map((t) => `### ${t.label}\n${t.content}`)
+    .map((t) => `### ${t.label}${t.truncated ? ' (truncated)' : ''}\n${t.content}`)
   return parts.join('\n\n')
 }

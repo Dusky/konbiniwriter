@@ -51,6 +51,11 @@ export default function StatusBar(): React.ReactElement {
       {selectedNode?.type !== 'folder' && docWords > 0 && (
         <span><b>{docWords}</b> words · <b>{docChars}</b> chars</span>
       )}
+      {selectedNode?.type !== 'folder' && (selectedNode?.meta.target ?? 0) > 0 && (
+        <span style={{ color: Math.min(1, docWords / selectedNode!.meta.target) >= 1 ? 'var(--st-final)' : 'var(--text-3)' }}>
+          <b>{Math.round(Math.min(1, docWords / selectedNode!.meta.target) * 100)}%</b> of {selectedNode!.meta.target.toLocaleString()}
+        </span>
+      )}
       {view === 'editor' && selectedNode?.type !== 'folder' && cursor && (
         <span style={{ color: 'var(--text-3)' }}>
           Ln <b>{cursor.line}</b>, Col <b>{cursor.col}</b>
@@ -111,8 +116,15 @@ export default function StatusBar(): React.ReactElement {
             />
           </span>
         )}
-        <span style={{ color: saveStatus === 'saving' ? 'var(--st-prog)' : 'var(--text-3)' }}>
-          {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved' : ''}
+        <span style={{
+          color: saveStatus === 'saving' ? 'var(--st-prog)'
+            : saveStatus === 'error' ? 'var(--st-idea)'
+            : 'var(--text-3)',
+        }}>
+          {saveStatus === 'saving' ? 'Saving…'
+            : saveStatus === 'saved' ? 'Saved'
+            : saveStatus === 'error' ? 'Save failed'
+            : ''}
         </span>
       </div>
     </div>

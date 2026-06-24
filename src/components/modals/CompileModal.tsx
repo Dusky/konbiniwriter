@@ -14,6 +14,7 @@ export default function CompileModal({ onClose }: Props): React.ReactElement {
   const [format, setFormat] = useState<CompileFormat>('markdown')
   const [preview, setPreview] = useState('')
   const [compiling, setCompiling] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // Default root = selected folder or project root
   useEffect(() => {
@@ -81,7 +82,7 @@ export default function CompileModal({ onClose }: Props): React.ReactElement {
     }
     const htmlBody = `<p>${mdToHtml(preview)}</p>`
     const newWin = window.open('', '_blank')
-    if (!newWin) { alert('Pop-up blocked. Please allow pop-ups to print.'); return }
+    if (!newWin) { setError('Pop-ups are blocked. Allow pop-ups for this site, then try again.'); return }
     newWin.document.write(`<html><head><title>${title}</title>
 <style>body { font-family: Georgia, serif; max-width: 600px; margin: 40px auto; line-height: 1.8; } h1,h2,h3 { margin-top: 2em; }</style>
 </head><body>${htmlBody}</body></html>`)
@@ -96,9 +97,11 @@ export default function CompileModal({ onClose }: Props): React.ReactElement {
     setCompiling(true)
     try {
       const result = await window.api.compile.run(project.id, rootId, [...included], format)
-      const blob = new Blob([new Uint8Array(result.blob)], {
-        type: format === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'text/markdown',
-      })
+      const mimeType =
+        format === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        : format === 'epub' ? 'application/epub+zip'
+        : 'text/markdown'
+      const blob = new Blob([new Uint8Array(result.blob)], { type: mimeType })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -107,7 +110,7 @@ export default function CompileModal({ onClose }: Props): React.ReactElement {
       URL.revokeObjectURL(url)
       onClose()
     } catch (err) {
-      alert(`Compile failed: ${err}`)
+      setError(`Compile failed: ${String(err)}`)
     } finally {
       setCompiling(false)
     }
@@ -122,6 +125,13 @@ export default function CompileModal({ onClose }: Props): React.ReactElement {
           <h3>Compile</h3>
           <span className="sub">{included.size} documents · {totalWords.toLocaleString()} words</span>
         </div>
+        {error && (
+          <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-3)', border: '1px solid var(--st-idea)', borderRadius: 6, padding: '8px 14px', margin: '0 0 2px', fontSize: 12 }}>
+            <span style={{ color: 'var(--st-idea)' }}>⚠</span>
+            <span style={{ flex: 1, color: 'var(--text)' }}>{error}</span>
+            <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 0 }}>✕</button>
+          </div>
+        )}
         <div className="modal-body" style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 16, minHeight: 340 }}>
           {/* Left: document tree picker */}
           <div style={{ overflowY: 'auto' }}>
@@ -154,6 +164,7 @@ export default function CompileModal({ onClose }: Props): React.ReactElement {
               <div className="seg" style={{ display: 'inline-flex' }}>
                 <button className={format === 'markdown' ? 'on' : ''} onClick={() => setFormat('markdown')}>Markdown</button>
                 <button className={format === 'docx' ? 'on' : ''} onClick={() => setFormat('docx')}>Word (.docx)</button>
+                <button className={format === 'epub' ? 'on' : ''} onClick={() => setFormat('epub')}>EPUB</button>
                 <button className={format === 'print' ? 'on' : ''} onClick={() => setFormat('print')}>Print / PDF</button>
               </div>
             </div>
@@ -167,7 +178,11 @@ export default function CompileModal({ onClose }: Props): React.ReactElement {
           <span className="tb-spacer" />
           <button className="btn ghost" onClick={onClose}>Cancel</button>
           <button className="btn primary" onClick={handleCompile} disabled={compiling || included.size === 0}>
-            {compiling ? 'Compiling…' : format === 'print' ? 'Print / PDF' : `Export ${format === 'docx' ? '.docx' : '.md'}`}
+            {compiling ? 'Compiling…'
+            : format === 'print' ? 'Print / PDF'
+            : format === 'epub' ? 'Export .epub'
+            : format === 'docx' ? 'Export .docx'
+            : 'Export .md'}
           </button>
         </div>
       </div>

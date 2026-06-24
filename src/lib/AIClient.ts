@@ -7,11 +7,23 @@ export interface StreamCallbacks {
   onDone: (fullText: string) => void
   onError: (err: Error) => void
   onUsage?: (usage: TokenUsage) => void
+  /** Called instead of onError when the request was aborted via opts.signal. */
+  onAbort?: () => void
 }
 
 export interface AIMessage {
   role: 'user' | 'assistant'
   content: string
+}
+
+function handleStreamError(e: unknown, cb: StreamCallbacks): void {
+  const err = e as Error
+  if (err.name === 'AbortError') {
+    if (cb.onAbort) cb.onAbort()
+    else cb.onError(err)
+  } else {
+    cb.onError(err)
+  }
 }
 
 export async function streamCompletion(
@@ -27,7 +39,14 @@ export async function streamCompletion(
 ): Promise<void> {
   const store = useAIStore.getState()
   const { provider } = store
-  const model = opts.model ?? (provider === 'anthropic' ? store.anthropicModel : store.openaiModel)
+  const requested = opts.model || undefined
+  let model = requested ?? (provider === 'anthropic' ? store.anthropicModel : store.openaiModel)
+  // Prompt/agent templates often hardcode `claude-*` model IDs. If the active
+  // provider doesn't match what the requested model ID looks like, fall back
+  // to the provider's configured default rather than sending a model ID to
+  // the wrong API.
+  if (provider === 'openai' && /^claude-/.test(model)) model = store.openaiModel
+  if (provider === 'anthropic' && !/^claude-/.test(model)) model = store.anthropicModel
 
   // Intercept usage to record session spend centrally, then forward to caller.
   const wrapped: StreamCallbacks = {
@@ -80,13 +99,19 @@ async function streamAnthropic(
       signal: opts.signal,
     })
   } catch (e) {
-    cb.onError(e as Error)
+    handleStreamError(e, cb)
     return
   }
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    cb.onError(new Error(err?.error?.message ?? `HTTP ${res.status}`))
+    const body = await res.json().catch(() => ({}))
+    const apiMsg = (body?.error?.message ?? '') as string
+    let msg: string
+    if (res.status === 401) msg = 'Authentication failed — check your API key in AI Settings'
+    else if (res.status === 429) msg = 'Rate limit reached — wait a moment and try again'
+    else if (res.status >= 500) msg = `API service error (${res.status}) — try again shortly`
+    else msg = apiMsg || `Request failed (${res.status})`
+    cb.onError(new Error(msg))
     return
   }
 
@@ -129,7 +154,7 @@ async function streamAnthropic(
     if (inputTokens || outputTokens) cb.onUsage?.({ inputTokens, outputTokens })
     cb.onDone(full)
   } catch (e) {
-    if ((e as Error).name !== 'AbortError') cb.onError(e as Error)
+    handleStreamError(e, cb)
   } finally {
     reader.releaseLock()
   }
@@ -167,13 +192,19 @@ async function streamOpenAI(
       signal: opts.signal,
     })
   } catch (e) {
-    cb.onError(e as Error)
+    handleStreamError(e, cb)
     return
   }
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    cb.onError(new Error(err?.error?.message ?? `HTTP ${res.status}`))
+    const body = await res.json().catch(() => ({}))
+    const apiMsg = (body?.error?.message ?? '') as string
+    let msg: string
+    if (res.status === 401) msg = 'Authentication failed — check your API key in AI Settings'
+    else if (res.status === 429) msg = 'Rate limit reached — wait a moment and try again'
+    else if (res.status >= 500) msg = `API service error (${res.status}) — try again shortly`
+    else msg = apiMsg || `Request failed (${res.status})`
+    cb.onError(new Error(msg))
     return
   }
 
@@ -209,8 +240,31 @@ async function streamOpenAI(
     if (inputTokens || outputTokens) cb.onUsage?.({ inputTokens, outputTokens })
     cb.onDone(full)
   } catch (e) {
-    if ((e as Error).name !== 'AbortError') cb.onError(e as Error)
+    handleStreamError(e, cb)
   } finally {
     reader.releaseLock()
   }
+}
+
+// ── Convenience: stream into a single resolved string ───────────────────────
+//
+// Wraps streamCompletion in a Promise, resolving with the full text on
+// completion and rejecting with an AbortError if opts.signal aborts (mirrors
+// the abort-listener pattern previously duplicated across cowrite.ts,
+// QualityGate.ts, DebtService.ts, and AutopilotModal.tsx).
+
+export function streamToString(
+  messages: AIMessage[],
+  opts: Parameters<typeof streamCompletion>[1],
+  onChunk?: (partial: string) => void,
+): Promise<string> {
+  let partial = ''
+  return new Promise<string>((resolve, reject) => {
+    if (opts.signal) opts.signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
+    streamCompletion(messages, opts, {
+      onChunk: (c) => { partial += c; onChunk?.(partial) },
+      onDone: resolve,
+      onError: reject,
+    }).catch(reject)
+  })
 }

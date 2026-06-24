@@ -10,8 +10,8 @@ export type StatusId = 'idea' | 'todo' | 'inprogress' | 'draft' | 'revised' | 'f
 export type LabelId = 'none' | 'scene' | 'chapter' | 'note' | 'character' | 'idea'
 export type TemplateId = 'blank' | 'novel' | 'screenplay' | 'nonfiction'
 export type ViewMode = 'editor' | 'corkboard' | 'outliner' | 'timeline'
-export type SaveStatus = 'saved' | 'saving' | 'unsaved'
-export type CompileFormat = 'markdown' | 'docx' | 'print'
+export type SaveStatus = 'saved' | 'saving' | 'unsaved' | 'error'
+export type CompileFormat = 'markdown' | 'docx' | 'print' | 'epub'
 export type ModalId =
   | 'new-project'
   | 'open-project'
@@ -30,7 +30,6 @@ export type ModalId =
   | 'reader'
   | 'bestof'
   | 'critic'
-  | 'chat'
   | 'stats'
   | 'autopilot'
   | 'foundation'
@@ -188,6 +187,12 @@ export interface Proposal {
   // If this proposal was generated to resolve a propagation-debt item, applying
   // it auto-resolves that affected document.
   debtRef?: { debtId: ID; docId: ID }
+  // 'selection' proposals carry `original`/`proposed` for just the selected
+  // text; applying them splices the resolved text back into the document at
+  // `selRange` (or by locating `original` if the range has shifted). Absent
+  // or 'document' means `original`/`proposed` are the whole document.
+  scope?: 'selection' | 'document'
+  selRange?: { from: number; to: number }
 }
 
 export type DiffSegment =
@@ -317,5 +322,17 @@ export interface KonbiniAPI {
     isMaximized(): Promise<boolean>
     /** Subscribe to maximize/unmaximize from any source (button, OS, double-click). Returns an unsubscribe fn. */
     onMaximizeChange?(cb: (maximized: boolean) => void): () => void
+  }
+  /** Global key-value preference store. Synchronous so stores can hydrate at construction time. */
+  prefs: {
+    get(key: string): string | null
+    set(key: string, value: string): void
+    remove(key: string): void
+  }
+  /** Per-project auxiliary files (e.g. chat history) stored under <bundle>/aux/<name>. */
+  aux: {
+    read(projectId: ID, name: string): Promise<string | null>
+    write(projectId: ID, name: string, content: string): Promise<void>
+    remove(projectId: ID, name: string): Promise<void>
   }
 }

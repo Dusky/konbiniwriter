@@ -7,7 +7,7 @@
 // see real filesystem paths (same story in Electron where they'd be real paths).
 
 import type { Project, KNode, DocBody, NodeOp, Snapshot, ID, CompileFormat, CompileResult } from '@shared/types'
-import { uid, wordCount } from '@shared/utils'
+import { uid, wordCount, isValidAuxName } from '@shared/utils'
 import { buildProjectFromTemplate } from '@shared/templates'
 import { handleStore } from './HandleStore'
 
@@ -382,23 +382,36 @@ export class BrowserProjectService {
   async compile(projectId: string, rootId: string, includedIds: string[], format: CompileFormat): Promise<CompileResult> {
     const h = this.getHandle(projectId)
     const p = this.getProject(projectId)
-    const chunks: string[] = []
+    const chapters: Array<{ title: string; content: string }> = []
     const gather = async (id: string) => {
       const node = p.nodes[id]
       if (!node) return
       if (node.type !== 'folder' && includedIds.includes(id)) {
         const content = p.docs[id]?.content ?? await readText(h, 'docs', `${id}.md`) ?? ''
-        if (content.trim()) chunks.push(content.trim())
+        if (content.trim()) chapters.push({ title: node.title, content: content.trim() })
       }
       for (const cid of node.childIds) await gather(cid)
     }
     await gather(rootId)
-    const combined = chunks.join('\n\n---\n\n')
     const projectTitle = p.title.replace(/[<>:"/\\|?*]/g, '_')
 
     if (format === 'markdown') {
+      const combined = chapters.map(c => c.content).join('\n\n---\n\n')
       return { blob: new TextEncoder().encode(combined), filename: `${projectTitle}.md`, format: 'markdown' }
     }
+    if (format === 'epub') {
+      const { buildEpub } = await import('@shared/epubBuilder')
+      const blob = await buildEpub({
+        title: p.title,
+        chapters: chapters.map((c, i) => ({
+          id: `ch_${String(i + 1).padStart(4, '0')}`,
+          title: c.title,
+          markdown: c.content,
+        })),
+      })
+      return { blob, filename: `${projectTitle}.epub`, format: 'epub' }
+    }
+    const combined = chapters.map(c => c.content).join('\n\n---\n\n')
     const { Document, Paragraph, TextRun, Packer } = await import('docx')
     const paras = combined.split('\n').map(line => {
       const h = line.match(/^(#{1,3})\s+(.+)$/)
@@ -442,6 +455,26 @@ export class BrowserProjectService {
     p.settings.codex = entries
     p.modified = new Date().toISOString()
     await this.writeManifest(h, p)
+  }
+
+  // ── Aux files ─────────────────────────────────────────────────────────────
+
+  async readAux(projectId: string, name: string): Promise<string | null> {
+    if (!isValidAuxName(name)) throw new Error(`Invalid aux file name: ${name}`)
+    const h = this.getHandle(projectId)
+    return readText(h, 'aux', name)
+  }
+
+  async writeAux(projectId: string, name: string, content: string): Promise<void> {
+    if (!isValidAuxName(name)) throw new Error(`Invalid aux file name: ${name}`)
+    const h = this.getHandle(projectId)
+    await writeText(h, content, 'aux', name)
+  }
+
+  async removeAux(projectId: string, name: string): Promise<void> {
+    if (!isValidAuxName(name)) throw new Error(`Invalid aux file name: ${name}`)
+    const h = this.getHandle(projectId)
+    await removeFile(h, 'aux', name)
   }
 
   private async writeManifest(h: FileSystemDirectoryHandle, project: Project): Promise<void> {

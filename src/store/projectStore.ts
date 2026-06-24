@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { useShellStore } from './shellStore'
 import type { Project, KNode, DocBody, DocMeta, NodeType, ViewMode, SaveStatus, Snapshot, ID, Proposal, CodexEntry, DebtItem } from '@shared/types'
 import { uid, wordCount } from '@shared/utils'
 import { type MentionIndex, buildIndex, updateIndex } from '../lib/MentionIndex'
@@ -172,33 +173,39 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   cursor: null,
   pendingReveal: null,
 
-  loadProject: (project) => set({
-    project,
-    selectedId: null,
-    view: 'editor',
-    saveStatus: 'saved',
-    renamingId: null,
-    mentionIndex: buildIndex(project.docs),
-    codex: (project.settings.codex as CodexEntry[] | undefined) ?? [],
-    debt: (project.settings.debt as DebtItem[] | undefined) ?? [],
-    proposals: [],
-    activeProposalId: null,
-    nodeHistory: [],
-    nodeFuture: [],
-    judgeResults: new Map(),
-    sessionWordsAdded: 0,
-    autopilotQueue: [],
-    autopilotRunning: false,
-    autopilotCurrent: null,
-    autopilotPreset: [],
-    focusMode: false,
-    compositionMode: false,
-    splitOpen: false,
-    splitId: null,
-    cursor: null,
-    pendingReveal: null,
-  }),
-  unloadProject: () => set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], debt: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], nodeFuture: [], judgeResults: new Map(), sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, autopilotPreset: [], focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null }),
+  loadProject: (project) => {
+    useShellStore.getState().setAssistantOpen(false)
+    set({
+      project,
+      selectedId: null,
+      view: 'editor',
+      saveStatus: 'saved',
+      renamingId: null,
+      mentionIndex: buildIndex(project.docs),
+      codex: (project.settings.codex as CodexEntry[] | undefined) ?? [],
+      debt: (project.settings.debt as DebtItem[] | undefined) ?? [],
+      proposals: [],
+      activeProposalId: null,
+      nodeHistory: [],
+      nodeFuture: [],
+      judgeResults: new Map(),
+      sessionWordsAdded: 0,
+      autopilotQueue: [],
+      autopilotRunning: false,
+      autopilotCurrent: null,
+      autopilotPreset: [],
+      focusMode: false,
+      compositionMode: false,
+      splitOpen: false,
+      splitId: null,
+      cursor: null,
+      pendingReveal: null,
+    })
+  },
+  unloadProject: () => {
+    useShellStore.getState().setAssistantOpen(false)
+    set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], debt: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], nodeFuture: [], judgeResults: new Map(), sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, autopilotPreset: [], focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null })
+  },
 
   selectNode: (id) => set((s) => {
     if (!id || !s.project) return { selectedId: id, cursor: null }
@@ -266,7 +273,18 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       nodeHistory: s.nodeHistory.slice(0, -1),
       nodeFuture: [...s.nodeFuture, current],
     })
-    window.api.node.mutate(s.project.id, { type: 'setTree', rootIds: prev.rootIds, nodes: prev.nodes }).catch(console.error)
+    window.api.node.mutate(s.project.id, { type: 'setTree', rootIds: prev.rootIds, nodes: prev.nodes }).catch((e: Error) => {
+      useShellStore.getState().setToast('Undo could not be saved: ' + e.message)
+      // Revert the optimistic store change so the UI matches what's actually
+      // on disk. The project service's in-memory tree was already mutated by
+      // applyOp before the failed write, but `setTree` always replaces the
+      // whole tree wholesale, so the next successful undo/redo self-heals it.
+      set((s2) => s2.project ? {
+        project: { ...s2.project, rootIds: current.rootIds, nodes: current.nodes },
+        nodeHistory: [...s2.nodeHistory, prev],
+        nodeFuture: s2.nodeFuture.slice(0, -1),
+      } : {})
+    })
     return true
   },
   redoMutation: () => {
@@ -279,7 +297,16 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       nodeFuture: s.nodeFuture.slice(0, -1),
       nodeHistory: [...s.nodeHistory, current].slice(-50),
     })
-    window.api.node.mutate(s.project.id, { type: 'setTree', rootIds: next.rootIds, nodes: next.nodes }).catch(console.error)
+    window.api.node.mutate(s.project.id, { type: 'setTree', rootIds: next.rootIds, nodes: next.nodes }).catch((e: Error) => {
+      useShellStore.getState().setToast('Redo could not be saved: ' + e.message)
+      // See undoMutation: revert the optimistic change; setTree self-heals
+      // the project service's cache on the next successful call.
+      set((s2) => s2.project ? {
+        project: { ...s2.project, rootIds: current.rootIds, nodes: current.nodes },
+        nodeFuture: [...s2.nodeFuture, next],
+        nodeHistory: s2.nodeHistory.slice(0, -1),
+      } : {})
+    })
     return true
   },
 
@@ -340,12 +367,16 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const codex = existing >= 0
       ? s.codex.map((e) => e.id === entry.id ? entry : e)
       : [...s.codex, entry]
-    if (s.project) window.api.codex.save(s.project.id, codex).catch(console.error)
+    if (s.project) window.api.codex.save(s.project.id, codex).catch((e: Error) => {
+      useShellStore.getState().setToast('Codex could not be saved: ' + e.message)
+    })
     return { codex }
   }),
   deleteCodexEntry: (id) => set((s) => {
     const codex = s.codex.filter((e) => e.id !== id)
-    if (s.project) window.api.codex.save(s.project.id, codex).catch(console.error)
+    if (s.project) window.api.codex.save(s.project.id, codex).catch((e: Error) => {
+      useShellStore.getState().setToast('Codex could not be saved: ' + e.message)
+    })
     return { codex }
   }),
 

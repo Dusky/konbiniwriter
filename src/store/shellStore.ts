@@ -6,6 +6,8 @@ export type Theme = 'dark' | 'light'
 export type Density = 'compact' | 'balanced' | 'roomy'
 export type EditorFont = 'mono' | 'serif' | 'sans'
 
+export interface Toast { message: string; type: 'error' | 'info' | 'success'; id: number }
+
 interface ShellState {
   screen: Screen
   platform: 'darwin' | 'win32' | 'linux'
@@ -13,22 +15,32 @@ interface ShellState {
   density: Density
   editorFont: EditorFont
   editorSize: number
+  editorColWidth: number
   typewriterMode: boolean
   autoVersion: boolean
   historyRetentionDays: number   // 0 = keep forever
+  accent: string
   modal: ModalId
+  toast: Toast | null
   recents: RecentEntry[]
   layout: { binder: boolean; insp: boolean }
+  assistantOpen: boolean
   // actions
   setScreen: (s: Screen) => void
   setModal: (m: ModalId) => void
+  toggleAssistant: () => void
+  setAssistantOpen: (open: boolean) => void
   setTheme: (t: Theme) => void
   setDensity: (d: Density) => void
   setEditorFont: (f: EditorFont) => void
   setEditorSize: (n: number) => void
+  setEditorColWidth: (n: number) => void
   setTypewriterMode: (v: boolean) => void
   setAutoVersion: (v: boolean) => void
   setHistoryRetentionDays: (n: number) => void
+  setAccent: (color: string) => void
+  setToast: (message: string, type?: Toast['type']) => void
+  clearToast: () => void
   toggleBinder: () => void
   toggleInsp: () => void
   setRecents: (r: RecentEntry[]) => void
@@ -49,21 +61,34 @@ export const useShellStore = create<ShellState>((set) => ({
   density: 'balanced',
   editorFont: 'mono',
   editorSize: 17,
-  typewriterMode: (() => {
-    try { return localStorage.getItem('pref:typewriterMode') === 'true' } catch { return false }
+  editorColWidth: (() => {
+    const n = parseInt(window.api.prefs.get('pref:editorColWidth') ?? '720', 10)
+    const w = isNaN(n) ? 720 : n
+    if (w !== 720) document.documentElement.style.setProperty('--editor-col-w', w + 'px')
+    return w
   })(),
-  autoVersion: (() => {
-    try { return localStorage.getItem('pref:autoVersion') !== 'false' } catch { return true }
-  })(),
+  typewriterMode: window.api.prefs.get('pref:typewriterMode') === 'true',
+  autoVersion: window.api.prefs.get('pref:autoVersion') !== 'false',
   historyRetentionDays: (() => {
-    try { const n = parseInt(localStorage.getItem('pref:historyRetentionDays') ?? '14', 10); return isNaN(n) ? 14 : n } catch { return 14 }
+    const n = parseInt(window.api.prefs.get('pref:historyRetentionDays') ?? '14', 10)
+    return isNaN(n) ? 14 : n
+  })(),
+  accent: (() => {
+    const saved = window.api.prefs.get('pref:accent')
+    const color = saved || 'oklch(0.64 0.11 300)'
+    if (saved) document.documentElement.style.setProperty('--accent', color)
+    return color
   })(),
   modal: null,
+  toast: null,
   recents: [],
   layout: { binder: true, insp: true },
+  assistantOpen: false,
 
   setScreen: (screen) => set({ screen }),
   setModal: (modal) => set({ modal }),
+  toggleAssistant: () => set((s) => ({ assistantOpen: !s.assistantOpen })),
+  setAssistantOpen: (assistantOpen) => set({ assistantOpen }),
   setTheme: (theme) => {
     document.documentElement.dataset.theme = theme
     set({ theme })
@@ -80,18 +105,30 @@ export const useShellStore = create<ShellState>((set) => ({
     document.documentElement.style.setProperty('--editor-size', `${editorSize}px`)
     set({ editorSize })
   },
+  setEditorColWidth: (editorColWidth) => {
+    window.api.prefs.set('pref:editorColWidth', String(editorColWidth))
+    document.documentElement.style.setProperty('--editor-col-w', `${editorColWidth}px`)
+    set({ editorColWidth })
+  },
   setTypewriterMode: (typewriterMode) => {
-    try { localStorage.setItem('pref:typewriterMode', String(typewriterMode)) } catch { /* noop */ }
+    window.api.prefs.set('pref:typewriterMode', String(typewriterMode))
     set({ typewriterMode })
   },
   setAutoVersion: (autoVersion) => {
-    try { localStorage.setItem('pref:autoVersion', String(autoVersion)) } catch { /* noop */ }
+    window.api.prefs.set('pref:autoVersion', String(autoVersion))
     set({ autoVersion })
   },
   setHistoryRetentionDays: (historyRetentionDays) => {
-    try { localStorage.setItem('pref:historyRetentionDays', String(historyRetentionDays)) } catch { /* noop */ }
+    window.api.prefs.set('pref:historyRetentionDays', String(historyRetentionDays))
     set({ historyRetentionDays })
   },
+  setAccent: (accent) => {
+    window.api.prefs.set('pref:accent', accent)
+    document.documentElement.style.setProperty('--accent', accent)
+    set({ accent })
+  },
+  setToast: (message, type = 'error') => set({ toast: { message, type, id: Date.now() } }),
+  clearToast: () => set({ toast: null }),
   toggleBinder: () => set((s) => ({ layout: { ...s.layout, binder: !s.layout.binder } })),
   toggleInsp: () => set((s) => ({ layout: { ...s.layout, insp: !s.layout.insp } })),
   setRecents: (recents) => set({ recents }),
