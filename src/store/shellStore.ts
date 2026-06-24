@@ -15,6 +15,7 @@ interface ShellState {
   density: Density
   editorFont: EditorFont
   editorSize: number
+  editorColWidth: number
   typewriterMode: boolean
   autoVersion: boolean
   historyRetentionDays: number   // 0 = keep forever
@@ -33,6 +34,7 @@ interface ShellState {
   setDensity: (d: Density) => void
   setEditorFont: (f: EditorFont) => void
   setEditorSize: (n: number) => void
+  setEditorColWidth: (n: number) => void
   setTypewriterMode: (v: boolean) => void
   setAutoVersion: (v: boolean) => void
   setHistoryRetentionDays: (n: number) => void
@@ -59,6 +61,12 @@ export const useShellStore = create<ShellState>((set) => ({
   density: 'balanced',
   editorFont: 'mono',
   editorSize: 17,
+  editorColWidth: (() => {
+    const n = parseInt(window.api.prefs.get('pref:editorColWidth') ?? '720', 10)
+    const w = isNaN(n) ? 720 : n
+    if (w !== 720) document.documentElement.style.setProperty('--editor-col-w', w + 'px')
+    return w
+  })(),
   typewriterMode: window.api.prefs.get('pref:typewriterMode') === 'true',
   autoVersion: window.api.prefs.get('pref:autoVersion') !== 'false',
   historyRetentionDays: (() => {
@@ -96,6 +104,11 @@ export const useShellStore = create<ShellState>((set) => ({
   setEditorSize: (editorSize) => {
     document.documentElement.style.setProperty('--editor-size', `${editorSize}px`)
     set({ editorSize })
+  },
+  setEditorColWidth: (editorColWidth) => {
+    window.api.prefs.set('pref:editorColWidth', String(editorColWidth))
+    document.documentElement.style.setProperty('--editor-col-w', `${editorColWidth}px`)
+    set({ editorColWidth })
   },
   setTypewriterMode: (typewriterMode) => {
     window.api.prefs.set('pref:typewriterMode', String(typewriterMode))

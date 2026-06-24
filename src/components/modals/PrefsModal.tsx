@@ -42,6 +42,8 @@ export default function PrefsModal({ onClose }: Props): React.ReactElement {
   const setEditorFont = useShellStore((s) => s.setEditorFont)
   const editorSize = useShellStore((s) => s.editorSize)
   const setEditorSize = useShellStore((s) => s.setEditorSize)
+  const editorColWidth = useShellStore((s) => s.editorColWidth)
+  const setEditorColWidth = useShellStore((s) => s.setEditorColWidth)
   const typewriterMode = useShellStore((s) => s.typewriterMode)
   const setTypewriterMode = useShellStore((s) => s.setTypewriterMode)
   const autoVersion = useShellStore((s) => s.autoVersion)
@@ -110,6 +112,21 @@ export default function PrefsModal({ onClose }: Props): React.ReactElement {
             />
             <span style={{ width: 36, textAlign: 'right', fontSize: 12, color: 'var(--text-2)', fontFamily: 'var(--mono)' }}>
               {editorSize}px
+            </span>
+          </Row>
+
+          <Row label="Editor Width">
+            <input
+              type="range"
+              min={560}
+              max={960}
+              step={40}
+              value={editorColWidth}
+              onChange={(e) => setEditorColWidth(Number(e.target.value))}
+              style={{ flex: 1 }}
+            />
+            <span style={{ width: 42, textAlign: 'right', fontSize: 12, color: 'var(--text-2)', fontFamily: 'var(--mono)' }}>
+              {editorColWidth}px
             </span>
           </Row>
 

@@ -203,7 +203,7 @@ button { font-family: inherit; cursor: default; }
 .doc-bar svg { width: 14px; height: 14px; flex: none; vertical-align: -2px; }
 
 .editor-wrap { flex: 1; min-height: 0; overflow-y: auto; display: flex; justify-content: center; }
-.editor-col { width: 100%; max-width: 720px; padding: 40px 56px 45vh; position: relative; }
+.editor-col { width: 100%; max-width: var(--editor-col-w, 720px); padding: 40px 56px 45vh; position: relative; }
 .cm { position: relative; }
 .cm pre, .cm textarea {
   margin: 0; border: 0; padding: 0; width: 100%;
