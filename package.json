@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "description": "Local-first writing studio for long-form fiction",
   "private": true,
+  "repository": "github:dusky/konbiniwriter",
+  "author": "Dusky",
   "type": "module",
   "main": "electron-dist/electron/main.js",
   "scripts": {
