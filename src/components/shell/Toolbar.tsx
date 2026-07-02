@@ -97,7 +97,7 @@ export default function Toolbar(): React.ReactElement {
       <div className="tb-spacer" />
 
       <div className="tb-group">
-        <button className="tb-btn" title="Take Snapshot (⌘⇧S)" onClick={() => setModal('snapshot')}>
+        <button className="tb-btn" title="Take Snapshot (⌘⇧S)" onClick={() => setModal('history')}>
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
             <path d="M8 3v6M5 6l3 3 3-3" />
             <path d="M3 11h10" />
@@ -132,6 +132,13 @@ export default function Toolbar(): React.ReactElement {
       <div className="tb-sep" />
 
       <div className="tb-group">
+        <button className="tb-btn" title="Find & Replace (⌘H)" aria-label="Find and Replace" onClick={() => window.dispatchEvent(new CustomEvent('konbini:toggle-find'))}>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
+            <circle cx="6.5" cy="6.5" r="4" />
+            <path d="M9.5 9.5L13 13" strokeLinecap="round" />
+            <path d="M5 6.5h3M6.5 5v3" strokeLinecap="round" />
+          </svg>
+        </button>
         <button className="tb-btn" title="Search Project (⌘⇧F)" onClick={() => setModal('search')}>
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
             <circle cx="6.5" cy="6.5" r="4" />

@@ -137,7 +137,7 @@ export default function Binder(): React.ReactElement {
       { label: '---', action: () => {} },
       { label: 'Rename',        action: () => { setRenamingId(id); setRenameValue(node?.title ?? '') } },
       { label: 'Duplicate',     action: () => mutate({ type: 'duplicate', id }) },
-      { label: 'Take Snapshot', action: () => { selectNode(id); setModal('snapshot') }, disabled: node?.type === 'folder' },
+      { label: 'Take Snapshot', action: () => { selectNode(id); setModal('history') }, disabled: node?.type === 'folder' },
       { label: '---', action: () => {} },
       inTrash
         ? { label: 'Delete Permanently', action: () => setConfirmDelete(id), danger: true }
@@ -149,6 +149,12 @@ export default function Binder(): React.ReactElement {
     <div className="binder">
       <div className="binder-hd">Binder</div>
       <div className="binder-scroll">
+        {flat.length === 0 && (
+          <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-3)', fontSize: 12.5, lineHeight: 1.6 }}>
+            <div style={{ marginBottom: 10 }}>Your project is empty.</div>
+            <button className="btn sm" onClick={() => createNode(null, 'document')}>+ Create your first document</button>
+          </div>
+        )}
         {flat.map(({ id, depth }) => {
           const node = project.nodes[id]
           if (!node) return null

@@ -16,6 +16,16 @@ export default function Outliner(): React.ReactElement {
 
   const flat = flattenVisible(project)
 
+  if (flat.length === 0) {
+    return (
+      <div className="main">
+        <div className="outl" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-3)', fontSize: 13 }}>
+          No documents here yet. Add some from the Binder.
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="main">
       <div className="outl">

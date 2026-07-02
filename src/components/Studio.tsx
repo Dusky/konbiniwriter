@@ -10,7 +10,6 @@ import Binder from './binder/Binder'
 import Inspector from './inspector/Inspector'
 import EditorPane from './editor/EditorPane'
 import CompositionMode from './editor/CompositionMode'
-import SnapshotModal from './modals/SnapshotModal'
 import CompileModal from './modals/CompileModal'
 import ShortcutsModal from './modals/ShortcutsModal'
 import AboutModal from './modals/AboutModal'
@@ -113,7 +112,6 @@ export default function Studio(): React.ReactElement {
 
       {modal === 'command-palette' && <CommandPalette onClose={() => setModal(null)} />}
       {modal === 'history'     && <HistoryModal    onClose={() => setModal(null)} />}
-      {modal === 'snapshot'    && <SnapshotModal   onClose={() => setModal(null)} />}
       {modal === 'compile'     && <CompileModal    onClose={() => setModal(null)} />}
       {modal === 'shortcuts'   && <ShortcutsModal  onClose={() => setModal(null)} />}
       {modal === 'about'       && <AboutModal      onClose={() => setModal(null)} />}

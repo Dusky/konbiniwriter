@@ -10,7 +10,7 @@ const SHORTCUTS = [
       ['New Folder', 'mod+alt+n'],
       ['New Document', 'mod+shift+d'],
       ['New Scene', 'mod+shift+n'],
-      ['Take Snapshot', 'mod+shift+s'],
+      ['History / Snapshots', 'mod+shift+s'],
       ['Compile', 'mod+shift+e'],
       ['Close Project', 'mod+w'],
     ],
@@ -18,10 +18,10 @@ const SHORTCUTS = [
   {
     heading: 'Edit',
     rows: [
-      ['Undo Text', 'mod+z'],
-      ['Undo Tree Change', 'mod+z'],
-      ['Redo Tree Change', 'mod+shift+z'],
+      ['Undo (text / tree)', 'mod+z'],
+      ['Redo (text / tree)', 'mod+shift+z'],
       ['Find in Document', 'mod+f'],
+      ['Find & Replace', 'mod+h'],
       ['Search Project', 'mod+shift+f'],
     ],
   },
@@ -44,7 +44,6 @@ const SHORTCUTS = [
     heading: 'Other',
     rows: [
       ['Command Palette', 'mod+k'],
-      ['Document History', ''],
       ['Writing Stats', ''],
       ['Preferences', 'mod+,'],
       ['Keyboard Shortcuts', 'mod+/'],
@@ -59,6 +58,7 @@ const SHORTCUTS = [
       ['Reader Panel', 'mod+shift+r'],
       ['Batch Generator', 'mod+shift+g'],
       ['Autopilot', 'mod+shift+p'],
+      ['Slop Proof', 'alt+p'],
       ['Prompt Registry', ''],
       ['Propagation Debt', ''],
       ['Foundation', ''],

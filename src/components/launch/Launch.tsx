@@ -87,8 +87,8 @@ export default function Launch(): React.ReactElement {
                 <span><b>New Project</b><small>Start writing something new</small></span>
               </button>
               <button className="ll-btn" onClick={doOpen} disabled={opening}>
-                <span className="llb-ic">⊕</span>
-                <span><b>Open Project</b><small>Browse for a .konbini folder</small></span>
+                <span className="llb-ic">{opening ? '…' : '⊕'}</span>
+                <span><b>{opening ? 'Opening…' : 'Open Project'}</b><small>{opening ? 'Reading manuscript files' : 'Browse for a .konbini folder'}</small></span>
               </button>
             </div>
           </div>

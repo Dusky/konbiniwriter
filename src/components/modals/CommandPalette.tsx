@@ -106,7 +106,7 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
       { id: 'new-folder', label: 'New Folder', section: 'Create', hint: '⌘⌥N', run: () => createNode('folder') },
       // Project tools
       { id: 'history', label: 'Document History…', section: 'Document', run: openModal('history') },
-      { id: 'snapshot', label: 'Take Snapshot…', section: 'Document', hint: '⌘⇧S', run: openModal('snapshot') },
+      { id: 'snapshot', label: 'Take Snapshot…', section: 'Document', hint: '⌘⇧S', run: openModal('history') },
       { id: 'search', label: 'Search Project…', section: 'Project', hint: '⌘⇧F', run: openModal('search') },
       { id: 'compile', label: 'Compile / Export…', section: 'Project', hint: '⌘⇧E', run: openModal('compile') },
       { id: 'stats', label: 'Writing Stats…', section: 'Project', run: openModal('stats') },

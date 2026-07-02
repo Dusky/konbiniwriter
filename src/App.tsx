@@ -107,7 +107,7 @@ export default function App(): React.ReactElement {
 
     // Modals
     if (!shift && !alt && e.key === 'k') { e.preventDefault(); setModal('command-palette') }
-    if (shift && e.key === 'S') { e.preventDefault(); setModal('snapshot') }
+    if (shift && e.key === 'S') { e.preventDefault(); setModal('history') }
     if (shift && e.key === 'E') { e.preventDefault(); setModal('compile') }
     if (e.key === '/') { e.preventDefault(); setModal('shortcuts') }
     if (!shift && !alt && e.key === ',') { e.preventDefault(); setModal('prefs') }
