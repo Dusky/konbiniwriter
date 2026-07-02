@@ -6,17 +6,20 @@ import { streamCompletion } from '../../lib/AIClient'
 import { formatUSD } from '../../lib/Pricing'
 
 const ANTHROPIC_MODELS = [
-  { id: 'claude-opus-4-8',           label: 'Claude Opus 4.8 (best quality)' },
-  { id: 'claude-sonnet-4-6',         label: 'Claude Sonnet 4.6 (balanced)' },
-  { id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5 (fast/cheap)' },
+  { id: 'claude-fable-5',   label: 'Claude Fable 5 (most capable)' },
+  { id: 'claude-opus-4-8',  label: 'Claude Opus 4.8 (best quality)' },
+  { id: 'claude-sonnet-5',  label: 'Claude Sonnet 5 (balanced)' },
+  { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5 (fast/cheap)' },
 ]
 
 const OPENAI_PRESETS: { label: string; url: string; keyRequired: boolean; exampleModel: string }[] = [
-  { label: 'OpenAI',    url: 'https://api.openai.com/v1',         keyRequired: true,  exampleModel: 'gpt-4o' },
-  { label: 'Groq',      url: 'https://api.groq.com/openai/v1',    keyRequired: true,  exampleModel: 'llama-3.3-70b-versatile' },
-  { label: 'Together',  url: 'https://api.together.xyz/v1',        keyRequired: true,  exampleModel: 'meta-llama/Llama-3.3-70B-Instruct-Turbo' },
-  { label: 'Ollama',    url: 'http://localhost:11434/v1',          keyRequired: false, exampleModel: 'llama3.3' },
-  { label: 'LM Studio', url: 'http://localhost:1234/v1',           keyRequired: false, exampleModel: 'local-model' },
+  { label: 'OpenAI',     url: 'https://api.openai.com/v1',         keyRequired: true,  exampleModel: 'gpt-4o' },
+  { label: 'OpenRouter', url: 'https://openrouter.ai/api/v1',      keyRequired: true,  exampleModel: 'anthropic/claude-sonnet-4.5' },
+  { label: 'NanoGPT',    url: 'https://nano-gpt.com/api/v1',       keyRequired: true,  exampleModel: 'chatgpt-4o-latest' },
+  { label: 'Groq',       url: 'https://api.groq.com/openai/v1',    keyRequired: true,  exampleModel: 'llama-3.3-70b-versatile' },
+  { label: 'Together',   url: 'https://api.together.xyz/v1',        keyRequired: true,  exampleModel: 'meta-llama/Llama-3.3-70B-Instruct-Turbo' },
+  { label: 'Ollama',     url: 'http://localhost:11434/v1',          keyRequired: false, exampleModel: 'llama3.3' },
+  { label: 'LM Studio',  url: 'http://localhost:1234/v1',           keyRequired: false, exampleModel: 'local-model' },
 ]
 
 async function validateAnthropicKey(apiKey: string): Promise<{ ok: boolean; error?: string }> {
@@ -29,7 +32,7 @@ async function validateAnthropicKey(apiKey: string): Promise<{ ok: boolean; erro
         'anthropic-dangerous-direct-browser-access': 'true',
         'content-type': 'application/json',
       },
-      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1, messages: [{ role: 'user', content: 'hi' }] }),
+      body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 1, messages: [{ role: 'user', content: 'hi' }] }),
     })
     if (res.ok || res.status === 400) return { ok: true }
     const body = await res.json().catch(() => ({}))

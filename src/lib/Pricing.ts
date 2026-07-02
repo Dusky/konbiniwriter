@@ -8,7 +8,9 @@
 export interface Rate { input: number; output: number }
 
 const RATES: Array<{ match: RegExp; rate: Rate }> = [
-  // Anthropic (Opus 4.x share one price; Sonnet 4.6; Haiku 4.5)
+  // Anthropic (Claude 5 family; Opus 4.x share one price; Sonnet tiers; Haiku 4.5)
+  { match: /fable-5|mythos-5/i, rate: { input: 10, output: 50 } },
+  { match: /sonnet-5/i, rate: { input: 3, output: 15 } },
   { match: /opus-4/i, rate: { input: 5, output: 25 } },
   { match: /sonnet-4/i, rate: { input: 3, output: 15 } },
   { match: /haiku-4/i, rate: { input: 1, output: 5 } },

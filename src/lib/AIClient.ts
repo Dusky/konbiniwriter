@@ -73,6 +73,10 @@ export async function streamCompletion(
 
 // ── Anthropic Messages API (SSE) ─────────────────────────────────────────────
 
+// Opus 4.7+, Sonnet 5, and the Claude 5 family reject sampling parameters
+// (temperature/top_p/top_k) with a 400 — omit temperature for those models.
+const NO_SAMPLING_PARAMS = /fable-5|mythos|opus-4-[78]|sonnet-5/i
+
 async function streamAnthropic(
   opts: { apiKey: string; model: string; messages: AIMessage[]; maxTokens: number; temperature: number; systemPrompt?: string; signal?: AbortSignal },
   cb: StreamCallbacks,
@@ -80,10 +84,10 @@ async function streamAnthropic(
   const body: Record<string, unknown> = {
     model: opts.model,
     max_tokens: opts.maxTokens,
-    temperature: opts.temperature,
     messages: opts.messages,
     stream: true,
   }
+  if (!NO_SAMPLING_PARAMS.test(opts.model)) body.temperature = opts.temperature
   if (opts.systemPrompt) body.system = opts.systemPrompt
 
   let res: Response
