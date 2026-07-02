@@ -1,4 +1,5 @@
 import { useAIStore } from '../store/aiStore'
+import { sseLines, sseFlush, type SSEBuffer } from './sse'
 
 export interface TokenUsage { inputTokens: number; outputTokens: number }
 
@@ -119,38 +120,42 @@ async function streamAnthropic(
   if (!reader) { cb.onError(new Error('No response body')); return }
 
   const decoder = new TextDecoder()
+  const buf: SSEBuffer = { pending: '' }
   let full = ''
   let inputTokens = 0
   let outputTokens = 0
+
+  const handleLine = (line: string): void => {
+    if (!line.startsWith('data: ')) return
+    const data = line.slice(6).trim()
+    if (data === '[DONE]') return
+    try {
+      const ev = JSON.parse(data)
+      if (ev.type === 'content_block_delta' && ev.delta?.type === 'text_delta') {
+        full += ev.delta.text
+        cb.onChunk(ev.delta.text)
+      } else if (ev.type === 'message_start') {
+        // Initial usage: input tokens (+ any cache tokens) and a partial output count.
+        const u = ev.message?.usage
+        if (u) {
+          inputTokens = (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0)
+          outputTokens = u.output_tokens ?? 0
+        }
+      } else if (ev.type === 'message_delta' && ev.usage) {
+        // Cumulative output tokens for the message.
+        outputTokens = ev.usage.output_tokens ?? outputTokens
+      }
+    } catch { /* ignore malformed SSE */ }
+  }
 
   try {
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
-      const chunk = decoder.decode(value, { stream: true })
-      for (const line of chunk.split('\n')) {
-        if (!line.startsWith('data: ')) continue
-        const data = line.slice(6).trim()
-        if (data === '[DONE]') continue
-        try {
-          const ev = JSON.parse(data)
-          if (ev.type === 'content_block_delta' && ev.delta?.type === 'text_delta') {
-            full += ev.delta.text
-            cb.onChunk(ev.delta.text)
-          } else if (ev.type === 'message_start') {
-            // Initial usage: input tokens (+ any cache tokens) and a partial output count.
-            const u = ev.message?.usage
-            if (u) {
-              inputTokens = (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0)
-              outputTokens = u.output_tokens ?? 0
-            }
-          } else if (ev.type === 'message_delta' && ev.usage) {
-            // Cumulative output tokens for the message.
-            outputTokens = ev.usage.output_tokens ?? outputTokens
-          }
-        } catch { /* ignore malformed SSE */ }
-      }
+      for (const line of sseLines(buf, decoder.decode(value, { stream: true }))) handleLine(line)
     }
+    for (const line of sseLines(buf, decoder.decode())) handleLine(line)
+    for (const line of sseFlush(buf)) handleLine(line)
     if (inputTokens || outputTokens) cb.onUsage?.({ inputTokens, outputTokens })
     cb.onDone(full)
   } catch (e) {
@@ -212,31 +217,35 @@ async function streamOpenAI(
   if (!reader) { cb.onError(new Error('No response body')); return }
 
   const decoder = new TextDecoder()
+  const buf: SSEBuffer = { pending: '' }
   let full = ''
   let inputTokens = 0
   let outputTokens = 0
+
+  const handleLine = (line: string): void => {
+    if (!line.startsWith('data: ')) return
+    const data = line.slice(6).trim()
+    if (data === '[DONE]') return
+    try {
+      const ev = JSON.parse(data)
+      const text = ev.choices?.[0]?.delta?.content
+      if (text) { full += text; cb.onChunk(text) }
+      // Final usage chunk (stream_options.include_usage); usually has empty choices.
+      if (ev.usage) {
+        inputTokens = ev.usage.prompt_tokens ?? inputTokens
+        outputTokens = ev.usage.completion_tokens ?? outputTokens
+      }
+    } catch { /* ignore malformed SSE */ }
+  }
 
   try {
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
-      const chunk = decoder.decode(value, { stream: true })
-      for (const line of chunk.split('\n')) {
-        if (!line.startsWith('data: ')) continue
-        const data = line.slice(6).trim()
-        if (data === '[DONE]') continue
-        try {
-          const ev = JSON.parse(data)
-          const text = ev.choices?.[0]?.delta?.content
-          if (text) { full += text; cb.onChunk(text) }
-          // Final usage chunk (stream_options.include_usage); usually has empty choices.
-          if (ev.usage) {
-            inputTokens = ev.usage.prompt_tokens ?? inputTokens
-            outputTokens = ev.usage.completion_tokens ?? outputTokens
-          }
-        } catch { /* ignore malformed SSE */ }
-      }
+      for (const line of sseLines(buf, decoder.decode(value, { stream: true }))) handleLine(line)
     }
+    for (const line of sseLines(buf, decoder.decode())) handleLine(line)
+    for (const line of sseFlush(buf)) handleLine(line)
     if (inputTokens || outputTokens) cb.onUsage?.({ inputTokens, outputTokens })
     cb.onDone(full)
   } catch (e) {
