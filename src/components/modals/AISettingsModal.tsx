@@ -347,7 +347,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                 ))}
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
-                Tokens of manuscript context sent per AI call, by feature. Raise for large-context models (128k+). Defaults: inline 6k · chat 8k · batch 12k · autopilot 16k.
+                Tokens of manuscript context sent per AI call, by feature. Defaults are sized for long-context models: inline 16k · chat 48k · batch 48k · autopilot 100k. Lower these for small local models.
               </div>
             </div>
           </Row>

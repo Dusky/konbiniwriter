@@ -67,12 +67,12 @@ export async function streamCompletion(
 
   if (provider === 'anthropic') {
     await streamAnthropic(
-      { apiKey: store.anthropicKey, model, messages, maxTokens: opts.maxTokens ?? 2048, temperature: opts.temperature ?? 0.7, systemPrompt: opts.systemPrompt, signal: opts.signal },
+      { apiKey: store.anthropicKey, model, messages, maxTokens: opts.maxTokens ?? 4096, temperature: opts.temperature ?? 0.7, systemPrompt: opts.systemPrompt, signal: opts.signal },
       wrapped,
     )
   } else {
     await streamOpenAI(
-      { baseUrl: store.openaiBaseUrl, apiKey: store.openaiKey, model, messages, maxTokens: opts.maxTokens ?? 2048, temperature: opts.temperature ?? 0.7, systemPrompt: opts.systemPrompt, signal: opts.signal },
+      { baseUrl: store.openaiBaseUrl, apiKey: store.openaiKey, model, messages, maxTokens: opts.maxTokens ?? 4096, temperature: opts.temperature ?? 0.7, systemPrompt: opts.systemPrompt, signal: opts.signal },
       wrapped,
     )
   }
