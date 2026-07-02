@@ -68,7 +68,7 @@ export default function App(): React.ReactElement {
     // silently discard work.
     if (e.key === 'Escape') {
       const open = useShellStore.getState().modal
-      const guarded = ['foundation', 'bestof', 'critic', 'reader', 'batch-generator', 'autopilot', 'codex', 'command-palette', 'search']
+      const guarded = ['foundation', 'bestof', 'batch-generator', 'autopilot', 'codex', 'command-palette', 'search']
       if (open && !guarded.includes(open)) {
         e.preventDefault()
         setModal(null)
@@ -117,7 +117,7 @@ export default function App(): React.ReactElement {
       e.preventDefault()
       if (useAIStore.getState().enabled) useShellStore.getState().toggleAssistant()
     }
-    if (shift && e.key === 'R') { e.preventDefault(); setModal('reader') }
+    if (shift && e.key === 'R') { e.preventDefault(); if (useAIStore.getState().enabled) useShellStore.getState().toggleDockPanel('reader') }
     if (shift && e.key === 'G') { e.preventDefault(); setModal('batch-generator') }
     if (shift && e.key === 'P') { e.preventDefault(); setModal('autopilot') }
 

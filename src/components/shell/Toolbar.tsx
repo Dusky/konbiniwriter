@@ -10,6 +10,8 @@ export default function Toolbar(): React.ReactElement {
   const setModal = useShellStore((s) => s.setModal)
   const assistantOpen = useShellStore((s) => s.assistantOpen)
   const toggleAssistant = useShellStore((s) => s.toggleAssistant)
+  const dockPanel = useShellStore((s) => s.dockPanel)
+  const toggleDockPanel = useShellStore((s) => s.toggleDockPanel)
 
   const view = useProjectStore((s) => s.view)
   const setView = useProjectStore((s) => s.setView)
@@ -174,7 +176,7 @@ export default function Toolbar(): React.ReactElement {
                 <path d="M2 4h12M2 8h8M2 12h10" strokeLinecap="round" />
               </svg>
             </button>
-            <button className="tb-btn" title="Reader Panel — 4-persona critique" onClick={() => setModal('reader')}>
+            <button className={`tb-btn${dockPanel === 'reader' ? ' on' : ''}`} title="Reader Panel — 4-persona critique" aria-pressed={dockPanel === 'reader'} onClick={() => toggleDockPanel('reader')}>
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
                 <circle cx="5" cy="6" r="2.5" />
                 <circle cx="11" cy="6" r="2.5" />
@@ -185,7 +187,7 @@ export default function Toolbar(): React.ReactElement {
             <button className="tb-btn" title="Best of N — generate variants, rank them, keep the winner" onClick={() => setModal('bestof')}>
               <span style={{ fontSize: 13 }}>🏆</span> Best of N
             </button>
-            <button className="tb-btn" title="Critic — professor critique + targeted revision" onClick={() => setModal('critic')}>
+            <button className={`tb-btn${dockPanel === 'critic' ? ' on' : ''}`} title="Critic — professor critique + targeted revision" aria-pressed={dockPanel === 'critic'} onClick={() => toggleDockPanel('critic')}>
               <span style={{ fontSize: 13 }}>🎓</span> Critic
             </button>
             <button

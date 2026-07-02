@@ -5,6 +5,8 @@ export type Screen = 'launch' | 'studio'
 export type Theme = 'dark' | 'light'
 export type Density = 'compact' | 'balanced' | 'roomy'
 export type EditorFont = 'mono' | 'serif' | 'sans'
+/** Right-rail dock panels (AI features that live beside the editor). */
+export type DockPanel = 'reader' | 'critic' | 'codex' | null
 
 export interface Toast { message: string; type: 'error' | 'info' | 'success'; id: number }
 
@@ -25,11 +27,14 @@ interface ShellState {
   recents: RecentEntry[]
   layout: { binder: boolean; insp: boolean }
   assistantOpen: boolean
+  dockPanel: DockPanel
   // actions
   setScreen: (s: Screen) => void
   setModal: (m: ModalId) => void
   toggleAssistant: () => void
   setAssistantOpen: (open: boolean) => void
+  setDockPanel: (p: DockPanel) => void
+  toggleDockPanel: (p: Exclude<DockPanel, null>) => void
   setTheme: (t: Theme) => void
   setDensity: (d: Density) => void
   setEditorFont: (f: EditorFont) => void
@@ -84,11 +89,14 @@ export const useShellStore = create<ShellState>((set) => ({
   recents: [],
   layout: { binder: true, insp: true },
   assistantOpen: false,
+  dockPanel: null,
 
   setScreen: (screen) => set({ screen }),
   setModal: (modal) => set({ modal }),
   toggleAssistant: () => set((s) => ({ assistantOpen: !s.assistantOpen })),
   setAssistantOpen: (assistantOpen) => set({ assistantOpen }),
+  setDockPanel: (dockPanel) => set({ dockPanel }),
+  toggleDockPanel: (p) => set((s) => ({ dockPanel: s.dockPanel === p ? null : p })),
   setTheme: (theme) => {
     document.documentElement.dataset.theme = theme
     set({ theme })

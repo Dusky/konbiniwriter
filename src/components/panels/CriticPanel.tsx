@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useProjectStore } from '../../store/projectStore'
+import { useShellStore } from '../../store/shellStore'
 import { useAIStore } from '../../store/aiStore'
 import { promptRegistry } from '../../lib/PromptRegistry'
 import { buildContext, renderContext } from '../../lib/ContextBuilder'
@@ -10,14 +11,14 @@ const PROFESSOR_ID = 'builtin:evaluation:professor'
 const REVISE_ID = 'builtin:revision:draft'
 
 interface Note { issue: string; suggestion: string; on: boolean }
-interface Props { onClose: () => void }
 
-export default function CriticModal({ onClose }: Props): React.ReactElement {
+export default function CriticPanel(): React.ReactElement {
   const project = useProjectStore((s) => s.project)
   const selectedId = useProjectStore((s) => s.selectedId)
   const mentionIndex = useProjectStore((s) => s.mentionIndex)
   const queueProposal = useProjectStore((s) => s.queueProposal)
   const aiEnabled = useAIStore((s) => s.enabled)
+  const setDockPanel = useShellStore((s) => s.setDockPanel)
 
   const [assessment, setAssessment] = useState('')
   const [notes, setNotes] = useState<Note[]>([])
@@ -29,11 +30,9 @@ export default function CriticModal({ onClose }: Props): React.ReactElement {
 
   useEffect(() => () => abortRef.current?.abort(), [])
 
-  if (!project) return <></>
-
-  const node = selectedId ? project.nodes[selectedId] : null
+  const node = project && selectedId ? project.nodes[selectedId] : null
   const isDoc = !!node && node.type !== 'folder'
-  const hasContent = !!(selectedId && project.docs[selectedId]?.content.trim())
+  const hasContent = !!(project && selectedId && project.docs[selectedId]?.content.trim())
 
   const gen = (promptId: string, vars: Record<string, string>): Promise<string> => {
     const tmpl = promptRegistry.get(promptId)
@@ -52,9 +51,9 @@ export default function CriticModal({ onClose }: Props): React.ReactElement {
   }
 
   const ctxAndSynopsis = () => ({
-    context: renderContext(buildContext(project, mentionIndex, selectedId!, 'evaluation')),
+    context: renderContext(buildContext(project!, mentionIndex, selectedId!, 'evaluation')),
     synopsis: node?.meta.synopsis ?? '',
-    document: project.docs[selectedId!]?.content ?? '',
+    document: project!.docs[selectedId!]?.content ?? '',
   })
 
   const critique = async () => {
@@ -110,75 +109,66 @@ export default function CriticModal({ onClose }: Props): React.ReactElement {
   const selectedCount = notes.filter((n) => n.on).length
 
   return (
-    // Inert backdrop — critique notes are only dismissed via Close.
-    <div className="modal-bg">
-      <div className="modal" style={{ maxWidth: 620, maxHeight: '88vh', display: 'flex', flexDirection: 'column' }} role="dialog" aria-modal="true" aria-label="Critic">
-        <div className="modal-hd" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+    <div className="dock-panel">
+      <div className="dock-hd">
+        <div style={{ flex: 1, minWidth: 0 }}>
           <h3>Critic</h3>
-          <span className="sub">professor critique → targeted revision</span>
+          <span className="sub"> · professor critique</span>
         </div>
-
-        {!aiEnabled ? (
-          <>
-            <div className="modal-body" style={{ color: 'var(--text-3)' }}>Enable AI to run a critique.</div>
-            <div className="modal-foot"><span className="tb-spacer" /><button className="btn" onClick={onClose}>Close</button></div>
-          </>
-        ) : !isDoc ? (
-          <>
-            <div className="modal-body" style={{ color: 'var(--text-3)' }}>Select a document in the binder to critique.</div>
-            <div className="modal-foot"><span className="tb-spacer" /><button className="btn" onClick={onClose}>Close</button></div>
-          </>
-        ) : (
-          <>
-            <div className="modal-body" style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={{ fontSize: 13, color: 'var(--text-2)' }}>
-                Target: <strong style={{ color: 'var(--text)' }}>{node!.title}</strong>
-                {!hasContent && <span style={{ color: 'var(--text-3)' }}> — empty document</span>}
-              </div>
-
-              {assessment && (
-                <div style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text)', background: 'var(--bg-2)', borderLeft: '3px solid var(--accent)', borderRadius: 6, padding: '10px 12px' }}>
-                  {assessment}
-                </div>
-              )}
-
-              {notes.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-3)' }}>Notes ({selectedCount} of {notes.length} selected for revision)</div>
-                  {notes.map((nt, i) => (
-                    <label key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', cursor: 'pointer', opacity: nt.on ? 1 : 0.55 }}>
-                      <input type="checkbox" checked={nt.on} onChange={() => toggle(i)} style={{ marginTop: 3 }} />
-                      <div style={{ fontSize: 13, lineHeight: 1.5 }}>
-                        <div style={{ color: 'var(--text)' }}>{nt.issue}</div>
-                        {nt.suggestion && <div style={{ color: 'var(--text-3)', marginTop: 2 }}>→ {nt.suggestion}</div>}
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              )}
-
-              {critiquing && <div style={{ fontSize: 13, color: 'var(--text-2)', textAlign: 'center', padding: '16px 0' }}>Reading the scene…</div>}
-              {done && <div style={{ fontSize: 12, color: 'var(--st-final)' }}>Revision queued — review it in Changeset Review.</div>}
-              {error && <div style={{ fontSize: 12, color: 'var(--st-idea)' }}>{error}</div>}
-            </div>
-
-            <div className="modal-foot">
-              <span style={{ fontSize: 11, color: 'var(--text-3)' }}>Revision routes through Changeset Review.</span>
-              <span className="tb-spacer" />
-              <button className="btn" onClick={onClose} disabled={busy}>Close</button>
-              <button className="btn" onClick={critique} disabled={busy || !hasContent}>
-                {critiquing ? 'Critiquing…' : notes.length ? 'Re-critique' : 'Critique'}
-              </button>
-              {notes.length > 0 && (
-                <button className="btn" onClick={draftRevision} disabled={busy || selectedCount === 0}
-                  style={{ background: 'var(--accent)', color: 'var(--accent-fg)', borderColor: 'transparent' }}>
-                  {drafting ? 'Revising…' : 'Draft revision →'}
-                </button>
-              )}
-            </div>
-          </>
-        )}
+        <button className="icon-btn sm" onClick={() => setDockPanel(null)} title="Close critic panel">✕</button>
       </div>
+
+      {!aiEnabled ? (
+        <div className="dock-body" style={{ padding: 16, color: 'var(--text-3)', fontSize: 13 }}>Enable AI to run a critique.</div>
+      ) : !isDoc ? (
+        <div className="dock-body" style={{ padding: 16, color: 'var(--text-3)', fontSize: 13 }}>Select a document in the binder to critique.</div>
+      ) : (
+        <>
+          <div className="dock-body" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ fontSize: 13, color: 'var(--text-2)' }}>
+              Target: <strong style={{ color: 'var(--text)' }}>{node!.title}</strong>
+              {!hasContent && <span style={{ color: 'var(--text-3)' }}> — empty document</span>}
+            </div>
+
+            {assessment && (
+              <div style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text)', background: 'var(--bg)', borderLeft: '3px solid var(--accent)', borderRadius: 6, padding: '10px 12px' }}>
+                {assessment}
+              </div>
+            )}
+
+            {notes.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-3)' }}>Notes ({selectedCount} of {notes.length} selected for revision)</div>
+                {notes.map((nt, i) => (
+                  <label key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', cursor: 'pointer', opacity: nt.on ? 1 : 0.55 }}>
+                    <input type="checkbox" checked={nt.on} onChange={() => toggle(i)} style={{ marginTop: 3, accentColor: 'var(--accent)' }} />
+                    <div style={{ fontSize: 13, lineHeight: 1.5 }}>
+                      <div style={{ color: 'var(--text)' }}>{nt.issue}</div>
+                      {nt.suggestion && <div style={{ color: 'var(--text-3)', marginTop: 2 }}>→ {nt.suggestion}</div>}
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {critiquing && <div style={{ fontSize: 13, color: 'var(--text-2)', textAlign: 'center', padding: '16px 0' }}>Reading the scene…</div>}
+            {done && <div style={{ fontSize: 12, color: 'var(--st-final)' }}>Revision queued — review it in Changeset Review.</div>}
+            {error && <div style={{ fontSize: 12, color: 'var(--st-idea)' }}>{error}</div>}
+          </div>
+
+          <div style={{ flex: 'none', display: 'flex', flexWrap: 'wrap', gap: 8, padding: '10px 12px', borderTop: '0.5px solid var(--border)' }}>
+            <button className="btn sm" onClick={critique} disabled={busy || !hasContent}>
+              {critiquing ? 'Critiquing…' : notes.length ? 'Re-critique' : 'Critique'}
+            </button>
+            {notes.length > 0 && (
+              <button className="btn sm" onClick={draftRevision} disabled={busy || selectedCount === 0}
+                style={{ background: 'var(--accent)', color: 'var(--accent-fg)', borderColor: 'transparent' }}>
+                {drafting ? 'Revising…' : 'Draft revision →'}
+              </button>
+            )}
+          </div>
+        </>
+      )}
     </div>
   )
 }
