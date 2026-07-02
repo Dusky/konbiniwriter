@@ -269,7 +269,8 @@ button { font-family: inherit; cursor: default; }
 .inspector { background: var(--bg-2); border-left: 0.5px solid var(--border); display: flex;
   flex-direction: column; min-width: 0; overflow: hidden; }
 .insp-scroll { flex: 1; overflow-y: auto; padding: 0 0 24px; }
-.insp-sec { padding: 14px 16px; border-bottom: 0.5px solid var(--border); }
+/* density-driven: balanced (--row-pad:5px) resolves to the original 14px */
+.insp-sec { padding: calc(var(--row-pad) * 2 + 4px) 16px; border-bottom: 0.5px solid var(--border); }
 .insp-sec h4 { margin: 0 0 10px; font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
   color: var(--text-3); font-weight: 600; }
 .field { margin-bottom: 12px; }
@@ -284,7 +285,7 @@ button { font-family: inherit; cursor: default; }
   background-repeat: no-repeat; background-position: right 9px center; padding-right: 26px; }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .pill-row { display: flex; flex-wrap: wrap; gap: 6px; }
-.pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 999px;
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: calc(var(--row-pad) - 1px) 9px; border-radius: 999px;
   font-size: 11px; border: 0.5px solid var(--border-2); background: var(--bg); color: var(--text-2); }
 .pill .dot { width: 7px; height: 7px; border-radius: 50%; }
 .pill.on { color: var(--text); border-color: var(--accent); background: var(--accent-soft); }
@@ -317,11 +318,11 @@ button { font-family: inherit; cursor: default; }
 .card:hover { border-color: var(--border-2); box-shadow: 0 6px 18px rgba(0,0,0,.35); }
 .card.sel { box-shadow: 0 0 0 2px var(--accent), 0 6px 18px rgba(0,0,0,.35); }
 .card .pin { height: 5px; background: var(--card-label, var(--border-2)); }
-.card .ct { padding: 12px 13px 8px; display: flex; align-items: flex-start; gap: 8px;
+.card .ct { padding: calc(var(--row-pad) * 2 + 2px) 13px 8px; display: flex; align-items: flex-start; gap: 8px;
   border-bottom: 0.5px dashed var(--border); }
 .card .ct .t { flex: 1; font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.25; }
 .card .ct .st { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex: none; }
-.card .cs { flex: 1; padding: 11px 13px; font-size: 12px; line-height: 1.55; color: var(--text-2);
+.card .cs { flex: 1; padding: 11px 13px; font-size: calc(var(--row-font) - 1px); line-height: 1.55; color: var(--text-2);
   font-family: var(--editor-font); background: transparent; border: 0; resize: none; outline: none; width: 100%; }
 .card .cs::placeholder { color: var(--text-3); font-style: italic; }
 .card .cf { padding: 7px 13px; display: flex; align-items: center; gap: 8px; font-size: 10px;
@@ -329,11 +330,11 @@ button { font-family: inherit; cursor: default; }
 
 /* ── outliner ────────────────────────────────────────────────────────────── */
 .outl { flex: 1; min-height: 0; overflow: auto; }
-.otable { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.otable { width: 100%; border-collapse: collapse; font-size: calc(var(--row-font) - 0.5px); }
 .otable th { position: sticky; top: 0; background: var(--bg); text-align: left; font-weight: 600;
   font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--text-3);
   padding: 8px 12px; border-bottom: 0.5px solid var(--border); z-index: 1; }
-.otable td { padding: 7px 12px; border-bottom: 0.5px solid var(--border); color: var(--text-2); vertical-align: middle; }
+.otable td { padding: calc(var(--row-pad) + 2px) 12px; border-bottom: 0.5px solid var(--border); color: var(--text-2); vertical-align: middle; }
 .otable tr:hover td { background: var(--bg-2); }
 .otable tr.sel td { background: var(--sel-bg); }
 .otable .o-title { color: var(--text); display: flex; align-items: center; gap: 8px; }
