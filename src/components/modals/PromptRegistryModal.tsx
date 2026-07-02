@@ -136,7 +136,7 @@ export default function PromptRegistryModal({ onClose }: Props): React.ReactElem
                   {selected.prompt.isBuiltin && <button className="btn" onClick={() => handleReset(selected.prompt.id)} style={{ fontSize: 11 }}>Reset to default</button>}
                   <button className="btn" onClick={() => handleDuplicate(selected.prompt.id)} style={{ fontSize: 11 }}>Duplicate</button>
                   <span className="tb-spacer" />
-                  {saved && <span style={{ fontSize: 11, color: 'oklch(0.68 0.14 150)' }}>Saved</span>}
+                  {saved && <span style={{ fontSize: 11, color: 'var(--success)' }}>Saved</span>}
                   <button className="btn" onClick={handleSave} disabled={!selected.dirty} style={{ background: selected.dirty ? 'var(--accent)' : undefined, color: selected.dirty ? 'var(--accent-fg)' : undefined, borderColor: selected.dirty ? 'transparent' : undefined }}>Save changes</button>
                 </div>
               </div>
@@ -190,7 +190,7 @@ export default function PromptRegistryModal({ onClose }: Props): React.ReactElem
                     : <button className="btn" onClick={() => deleteAgent(sa.id)} style={{ fontSize: 11, color: 'var(--st-idea)' }}>Delete</button>}
                   <button className="btn" onClick={() => dupAgent(sa.id)} style={{ fontSize: 11 }}>Duplicate</button>
                   <span className="tb-spacer" />
-                  {saved && <span style={{ fontSize: 11, color: 'oklch(0.68 0.14 150)' }}>Saved</span>}
+                  {saved && <span style={{ fontSize: 11, color: 'var(--success)' }}>Saved</span>}
                   <button className="btn" onClick={saveAgent} disabled={!selAgent.dirty} style={{ background: selAgent.dirty ? 'var(--accent)' : undefined, color: selAgent.dirty ? 'var(--accent-fg)' : undefined, borderColor: selAgent.dirty ? 'transparent' : undefined }}>Save changes</button>
                 </div>
               </div>

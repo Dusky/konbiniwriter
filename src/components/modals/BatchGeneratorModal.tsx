@@ -197,7 +197,7 @@ export default function BatchGeneratorModal({ onClose }: Props): React.ReactElem
               {log}
             </div>
           )}
-          {error && <div style={{ fontSize: 12, color: 'oklch(0.65 0.15 20)' }}>{error}</div>}
+          {error && <div style={{ fontSize: 12, color: 'var(--danger)' }}>{error}</div>}
         </div>
 
         <div className="modal-foot">

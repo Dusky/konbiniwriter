@@ -543,7 +543,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
               <button
                 className="btn"
                 onClick={handleStop}
-                style={{ borderColor: 'oklch(0.65 0.15 20)', color: 'oklch(0.65 0.15 20)' }}
+                style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}
               >
                 Stop
               </button>

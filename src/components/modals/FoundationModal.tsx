@@ -430,7 +430,7 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
 
             {gate && (
               <div style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-2)', fontSize: 12, lineHeight: 1.55 }}>
-                <span style={{ fontWeight: 600, color: gate.verdict === 'pass' ? 'oklch(0.68 0.14 150)' : 'var(--st-idea)' }}>
+                <span style={{ fontWeight: 600, color: gate.verdict === 'pass' ? 'var(--success)' : 'var(--st-idea)' }}>
                   {gate.overall}/100 · {gate.verdict === 'pass' ? 'pass' : 'needs work'}
                 </span>
                 {gate.rounds > 0 && <span style={{ color: 'var(--text-3)', marginLeft: 10 }}>Auto-revised {gate.rounds}×</span>}

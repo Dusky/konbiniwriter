@@ -34,6 +34,8 @@ export default function Toolbar(): React.ReactElement {
         <button
           className={`tb-btn${layout.binder ? ' on' : ''}`}
           title="Toggle Binder (⌘⌥B)"
+          aria-label="Toggle Binder"
+          aria-pressed={layout.binder}
           onClick={toggleBinder}
         >
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
@@ -59,6 +61,8 @@ export default function Toolbar(): React.ReactElement {
         <button
           className={`tb-btn${splitOpen ? ' on' : ''}`}
           title="Split Editor (⌘\)"
+          aria-label="Split Editor"
+          aria-pressed={splitOpen}
           onClick={toggleSplit}
         >
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
@@ -69,6 +73,8 @@ export default function Toolbar(): React.ReactElement {
         <button
           className={`tb-btn${focusMode ? ' on' : ''}`}
           title="Focus Mode (⌘⌥O)"
+          aria-label="Focus Mode"
+          aria-pressed={focusMode}
           onClick={() => setFocusMode(!focusMode)}
         >
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
@@ -79,6 +85,7 @@ export default function Toolbar(): React.ReactElement {
         <button
           className="tb-btn"
           title="Composition Mode (⌘⌥C)"
+          aria-label="Composition Mode"
           onClick={() => setCompositionMode(true)}
         >
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
@@ -111,6 +118,8 @@ export default function Toolbar(): React.ReactElement {
         <button
           className={`tb-btn${layout.insp ? ' on' : ''}`}
           title="Toggle Inspector (⌘⌥I)"
+          aria-label="Toggle Inspector"
+          aria-pressed={layout.insp}
           onClick={toggleInsp}
         >
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
@@ -207,7 +216,7 @@ export default function Toolbar(): React.ReactElement {
           </button>
           <button className="tb-btn" title="Autopilot (⌘⇧P)" onClick={() => setModal('autopilot')}>▶▶</button>
           <div className="tb-sep" />
-          <button className={`tb-btn${assistantOpen ? ' on' : ''}`} title="AI Chat (⌘⇧A)" onClick={toggleAssistant}>
+          <button className={`tb-btn${assistantOpen ? ' on' : ''}`} title="AI Chat (⌘⇧A)" aria-label="AI Chat" aria-pressed={assistantOpen} onClick={toggleAssistant}>
             <span className="ai-spark">✦</span> Chat
           </button>
           <button className="tb-btn" title="AI Settings" onClick={() => setModal('ai-settings')} style={{ color: 'var(--accent)' }}>

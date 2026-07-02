@@ -286,7 +286,7 @@ export default function CodexModal({ onClose }: Props): React.ReactElement {
                     )}
                     <div style={{ display: 'flex', gap: 10, marginTop: 'auto', paddingTop: 8 }}>
                       {selectedScan.added ? (
-                        <span style={{ fontSize: 12, color: 'oklch(0.68 0.14 150)' }}>Added to codex ✓</span>
+                        <span style={{ fontSize: 12, color: 'var(--success)' }}>Added to codex ✓</span>
                       ) : (
                         <>
                           <button className="btn" style={{ background: 'var(--accent)', color: 'var(--accent-fg)', borderColor: 'transparent' }} onClick={() => handleAddScanEntry(selectedScan)}>
@@ -443,7 +443,7 @@ export default function CodexModal({ onClose }: Props): React.ReactElement {
               )}
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'auto', paddingTop: 8 }}>
-                <button className="btn" onClick={() => setConfirmDelete(selected.id)} style={{ fontSize: 11, color: 'oklch(0.65 0.15 20)' }}>
+                <button className="btn" onClick={() => setConfirmDelete(selected.id)} style={{ fontSize: 11, color: 'var(--danger)' }}>
                   Delete entry
                 </button>
               </div>
@@ -458,7 +458,7 @@ export default function CodexModal({ onClose }: Props): React.ReactElement {
         </div>
 
         <div className="modal-foot">
-          {scanError && <span style={{ fontSize: 11, color: 'oklch(0.65 0.15 20)' }}>{scanError}</span>}
+          {scanError && <span style={{ fontSize: 11, color: 'var(--danger)' }}>{scanError}</span>}
           <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{codex.length} entr{codex.length !== 1 ? 'ies' : 'y'}</span>
           <span className="tb-spacer" />
           <button className="btn" onClick={onClose}>Close</button>

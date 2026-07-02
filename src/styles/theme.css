@@ -44,6 +44,14 @@
   --st-draft: oklch(0.66 0.10 250);
   --st-rev:   oklch(0.66 0.10 300);
   --st-final: oklch(0.68 0.11 150);
+
+  /* semantic state colors — the ONLY seam for success/error/warning UI */
+  --success: var(--st-final);
+  --danger:  var(--st-idea);
+  --warn:    var(--st-prog);
+  --warn-bg:     oklch(0.25 0.04 30);
+  --warn-border: oklch(0.40 0.08 30);
+  --warn-text:   oklch(0.85 0.05 30);
 }
 
 /* ── light ───────────────────────────────────────────────────────────────── */
@@ -71,6 +79,13 @@
   --hl-link:   oklch(0.52 0.13 300);
   --hl-code:   oklch(0.50 0.08 190);
   --dim:       oklch(0.72 0.006 285);
+
+  --success: oklch(0.55 0.13 150);
+  --danger:  oklch(0.55 0.15 20);
+  --warn:    oklch(0.58 0.12 75);
+  --warn-bg:     oklch(0.94 0.03 75);
+  --warn-border: oklch(0.80 0.08 75);
+  --warn-text:   oklch(0.42 0.09 60);
 }
 
 /* ── density ─────────────────────────────────────────────────────────────── */
@@ -87,14 +102,30 @@ body {
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
 }
+[data-theme="light"] body { background: oklch(0.88 0.004 90); }
 button { font-family: inherit; cursor: default; }
 ::selection { background: var(--accent-soft); }
+
+/* keyboard focus — visible ring for keyboard users only, no ring on click */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 
 /* ── desktop window ──────────────────────────────────────────────────────── */
 .stage { position: fixed; inset: 0; display: grid; place-items: center; padding: 22px;
   background:
     radial-gradient(1200px 600px at 50% -10%, oklch(0.20 0.02 300 / .5), transparent 70%),
     oklch(0.095 0.004 285); }
+[data-theme="light"] .stage {
+  background:
+    radial-gradient(1200px 600px at 50% -10%, oklch(0.92 0.02 300 / .6), transparent 70%),
+    oklch(0.86 0.005 90); }
 .win {
   width: 100%; height: 100%; max-width: 1480px; max-height: 940px;
   display: flex; flex-direction: column;

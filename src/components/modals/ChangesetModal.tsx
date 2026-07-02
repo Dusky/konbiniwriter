@@ -41,8 +41,8 @@ function HunkRow({
       </div>
       <div style={{ fontFamily: 'var(--mono)', fontSize: 12, lineHeight: 1.6 }}>
         {seg.del.map((line, i) => (
-          <div key={`d${i}`} style={{ padding: '1px 10px', background: 'color-mix(in oklch, oklch(0.55 0.15 20) 12%, var(--bg))', color: 'var(--text)', textDecoration: accepted ? 'line-through' : 'none', opacity: accepted ? 0.5 : 1 }}>
-            <span style={{ color: 'oklch(0.65 0.15 20)', marginRight: 6, userSelect: 'none' }}>−</span>{line || ' '}
+          <div key={`d${i}`} style={{ padding: '1px 10px', background: 'color-mix(in oklch, var(--danger) 12%, var(--bg))', color: 'var(--text)', textDecoration: accepted ? 'line-through' : 'none', opacity: accepted ? 0.5 : 1 }}>
+            <span style={{ color: 'var(--danger)', marginRight: 6, userSelect: 'none' }}>−</span>{line || ' '}
           </div>
         ))}
         {seg.add.map((line, i) => (

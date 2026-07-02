@@ -280,14 +280,14 @@ export default function Inspector(): React.ReactElement {
                 {judgeRunning ? '…' : judgeResult ? 'Re-score' : 'Score'}
               </button>
             </h4>
-            {judgeError && <div style={{ color: 'var(--accent-danger, #ef4444)', fontSize: 12 }}>{judgeError}</div>}
+            {judgeError && <div style={{ color: 'var(--danger)', fontSize: 12 }}>{judgeError}</div>}
             {judgeResult && (
               <>
                 {judgeResult.scores.map((s) => (
                   <div key={s.dimension} style={{ marginBottom: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
                       <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{s.dimension}</span>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: s.score >= 8 ? 'var(--accent-ok, #22c55e)' : s.score >= 5 ? 'var(--accent)' : 'var(--accent-danger, #ef4444)' }}>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: s.score >= 8 ? 'var(--success)' : s.score >= 5 ? 'var(--accent)' : 'var(--danger)' }}>
                         {s.score}/10
                       </span>
                     </div>

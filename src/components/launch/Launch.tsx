@@ -77,7 +77,7 @@ export default function Launch(): React.ReactElement {
             <div className="ll-name">Konbini</div>
             <div className="ll-tag">Writing Studio</div>
             {showFsaCaveat && (
-              <div style={{ marginBottom: 12, padding: '10px 12px', background: 'oklch(0.25 0.04 30)', border: '1px solid oklch(0.4 0.08 30)', borderRadius: 6, fontSize: 12, color: 'oklch(0.85 0.05 30)', lineHeight: 1.5 }}>
+              <div style={{ marginBottom: 12, padding: '10px 12px', background: 'var(--warn-bg)', border: '1px solid var(--warn-border)', borderRadius: 6, fontSize: 12, color: 'var(--warn-text)', lineHeight: 1.5 }}>
                 ⚠ This browser lacks file storage support. Use Chrome, Edge, Firefox, or the desktop app.
               </div>
             )}

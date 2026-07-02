@@ -126,12 +126,12 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
   const [contextMsgsDraft, setContextMsgsDraft] = useState(String(chatContextMessages))
 
   const BUDGET_FEATURES: { id: string; label: string; default: number }[] = [
-    { id: 'inline',     label: 'Inline rewrite',  default: 6_000 },
-    { id: 'chat',       label: 'Chat',             default: 8_000 },
-    { id: 'batch',      label: 'Batch / generate', default: 12_000 },
-    { id: 'evaluation', label: 'Evaluation',       default: 8_000 },
-    { id: 'autopilot',  label: 'Autopilot',        default: 16_000 },
-    { id: 'codex',      label: 'Codex',            default: 4_000 },
+    { id: 'inline',     label: 'Inline rewrite',  default: 16_000 },
+    { id: 'chat',       label: 'Chat',             default: 48_000 },
+    { id: 'batch',      label: 'Batch / generate', default: 48_000 },
+    { id: 'evaluation', label: 'Evaluation',       default: 24_000 },
+    { id: 'autopilot',  label: 'Autopilot',        default: 100_000 },
+    { id: 'codex',      label: 'Codex',            default: 8_000 },
   ]
   const [budgetDrafts, setBudgetDrafts] = useState<Record<string, string>>(
     () => Object.fromEntries(BUDGET_FEATURES.map(({ id, default: d }) => [id, String(contextBudgets[id] || d)]))
@@ -185,7 +185,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                 <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} style={{ accentColor: 'var(--accent)', width: 15, height: 15 }} />
                 <span style={{ fontSize: 13 }}>Enable AI features</span>
               </label>
-              {enabled && <span style={{ fontSize: 11, color: 'oklch(0.68 0.14 150)' }}>● Active</span>}
+              {enabled && <span style={{ fontSize: 11, color: 'var(--success)' }}>● Active</span>}
             </div>
           </Row>
 
@@ -210,14 +210,14 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                       onChange={(e) => { setAnthropicDraft(e.target.value); setAnthropicKeyValidated(false) }}
                       placeholder="sk-ant-…"
                       onKeyDown={(e) => e.key === 'Enter' && handleAnthropicValidate()}
-                      style={{ flex: 1, padding: '7px 10px', borderRadius: 6, fontSize: 13, border: `1px solid ${anthropicKeyValidated ? 'oklch(0.68 0.14 150)' : anthropicKeyError ? 'oklch(0.60 0.15 20)' : 'var(--border-2)'}`, background: 'var(--bg-2)', color: 'var(--text)', fontFamily: 'var(--mono)' }}
+                      style={{ flex: 1, padding: '7px 10px', borderRadius: 6, fontSize: 13, border: `1px solid ${anthropicKeyValidated ? 'var(--success)' : anthropicKeyError ? 'var(--danger)' : 'var(--border-2)'}`, background: 'var(--bg-2)', color: 'var(--text)', fontFamily: 'var(--mono)' }}
                     />
                     <button className="btn" onClick={handleAnthropicValidate} disabled={validating || !anthropicDraft.trim()} style={{ whiteSpace: 'nowrap' }}>
                       {validating ? 'Checking…' : anthropicKeyValidated ? '✓ Valid' : 'Validate'}
                     </button>
                   </div>
-                  {anthropicKeyError && <div style={{ fontSize: 11, color: 'oklch(0.65 0.15 20)' }}>{anthropicKeyError}</div>}
-                  {anthropicKeyValidated && <div style={{ fontSize: 11, color: 'oklch(0.68 0.14 150)' }}>Key validated successfully.</div>}
+                  {anthropicKeyError && <div style={{ fontSize: 11, color: 'var(--danger)' }}>{anthropicKeyError}</div>}
+                  {anthropicKeyValidated && <div style={{ fontSize: 11, color: 'var(--success)' }}>Key validated successfully.</div>}
                   <div style={{ fontSize: 11, color: 'var(--text-3)' }}>Stored in localStorage only — never written to project files.</div>
                 </div>
               </Row>
@@ -271,14 +271,14 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                       value={openaiModel}
                       onChange={(e) => { setOpenaiModel(e.target.value); setOpenaiTested(false) }}
                       placeholder="gpt-4o, llama3.3, etc."
-                      style={{ flex: 1, padding: '7px 10px', borderRadius: 6, border: `1px solid ${openaiTested ? 'oklch(0.68 0.14 150)' : openaiTestError ? 'oklch(0.60 0.15 20)' : 'var(--border-2)'}`, background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)' }}
+                      style={{ flex: 1, padding: '7px 10px', borderRadius: 6, border: `1px solid ${openaiTested ? 'var(--success)' : openaiTestError ? 'var(--danger)' : 'var(--border-2)'}`, background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)' }}
                     />
                     <button className="btn" onClick={handleOpenAITest} disabled={validating || !openaiBaseUrl.trim() || !openaiModel.trim()} style={{ whiteSpace: 'nowrap' }}>
                       {validating ? 'Testing…' : openaiTested ? '✓ OK' : 'Test'}
                     </button>
                   </div>
-                  {openaiTestError && <div style={{ fontSize: 11, color: 'oklch(0.65 0.15 20)' }}>{openaiTestError}</div>}
-                  {openaiTested && <div style={{ fontSize: 11, color: 'oklch(0.68 0.14 150)' }}>Endpoint reachable.</div>}
+                  {openaiTestError && <div style={{ fontSize: 11, color: 'var(--danger)' }}>{openaiTestError}</div>}
+                  {openaiTested && <div style={{ fontSize: 11, color: 'var(--success)' }}>Endpoint reachable.</div>}
                   {OPENAI_PRESETS.find((p) => p.url === openaiBaseUrl && !p.keyRequired) && (
                     <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
                       Local server — make sure it's running and has CORS enabled{' '}
@@ -365,7 +365,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                 <button className="btn" style={{ fontSize: 12, padding: '4px 12px' }} disabled={!project || voiceRefreshing} onClick={handleRefreshVoice}>
                   {voiceRefreshing ? 'Refreshing…' : voiceRefreshed ? 'Refreshed ✓' : 'Refresh from manuscript'}
                 </button>
-                {voiceError && <span style={{ fontSize: 11, color: 'oklch(0.65 0.15 20)' }}>{voiceError}</span>}
+                {voiceError && <span style={{ fontSize: 11, color: 'var(--danger)' }}>{voiceError}</span>}
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-3)' }}>Gathers prose from compiled documents and re-derives the style guide. Saved automatically.</div>
             </div>
