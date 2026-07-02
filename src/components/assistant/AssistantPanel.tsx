@@ -4,6 +4,7 @@ import { useShellStore } from '../../store/shellStore'
 import { useAIStore } from '../../store/aiStore'
 import { streamCompletion, type AIMessage } from '../../lib/AIClient'
 import { buildContext, renderContext } from '../../lib/ContextBuilder'
+import ConfirmDialog from '../common/ConfirmDialog'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -172,7 +173,7 @@ export default function AssistantPanel(): React.ReactElement {
     if (writeTimerRef.current) clearTimeout(writeTimerRef.current)
     writeTimerRef.current = setTimeout(() => {
       writeTimerRef.current = null
-      void window.api.aux.write(project.id, CHAT_FILE, JSON.stringify(threadsRef.current))
+      window.api.aux.write(project.id, CHAT_FILE, JSON.stringify(threadsRef.current)).catch((e: Error) => useShellStore.getState().setToast('Chat history could not be saved: ' + e.message))
     }, WRITE_DEBOUNCE_MS)
     return () => {
       if (writeTimerRef.current) clearTimeout(writeTimerRef.current)
@@ -184,7 +185,7 @@ export default function AssistantPanel(): React.ReactElement {
     if (writeTimerRef.current && project) {
       clearTimeout(writeTimerRef.current)
       writeTimerRef.current = null
-      void window.api.aux.write(project.id, CHAT_FILE, JSON.stringify(threadsRef.current))
+      window.api.aux.write(project.id, CHAT_FILE, JSON.stringify(threadsRef.current)).catch((e: Error) => useShellStore.getState().setToast('Chat history could not be saved: ' + e.message))
     }
   }, [project?.id])
 
@@ -266,9 +267,12 @@ export default function AssistantPanel(): React.ReactElement {
     setStreaming(false)
   }
 
+  const [confirmClear, setConfirmClear] = useState(false)
+
   function clearChat() {
     stop()
     setThreads((prev) => ({ ...prev, [key]: [] }))
+    setConfirmClear(false)
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -305,10 +309,20 @@ export default function AssistantPanel(): React.ReactElement {
           </button>
         )}
         {messages.length > 0 && (
-          <button className="btn sm" onClick={clearChat}>Clear</button>
+          <button className="btn sm" onClick={() => setConfirmClear(true)}>Clear</button>
         )}
         <button className="icon-btn sm" onClick={() => setAssistantOpen(false)} title="Close assistant">✕</button>
       </div>
+
+      {confirmClear && (
+        <ConfirmDialog
+          title="Clear Chat"
+          message="This deletes the entire conversation thread for this document. This cannot be undone."
+          confirmLabel="Clear Thread"
+          onConfirm={clearChat}
+          onCancel={() => setConfirmClear(false)}
+        />
+      )}
 
       {showContext && contextPacket && (
         <div style={{ borderBottom: '0.5px solid var(--border)', padding: '8px 14px', background: 'var(--bg)', fontSize: 11 }}>

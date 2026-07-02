@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useProjectStore } from '../../store/projectStore'
+import { useShellStore } from '../../store/shellStore'
 import { STATUS_META, wordCount } from '@shared/utils'
 import type { ID } from '@shared/types'
 
@@ -127,7 +128,7 @@ export default function Timeline(): React.ReactElement {
                   try {
                     const result = await window.api.node.mutate(project.id, { type: 'move', id: dragId, newParentId: dt.parentId, atIndex: dt.atIndex })
                     applyMutation(result)
-                  } catch { return }
+                  } catch (e) { useShellStore.getState().setToast('Move could not be saved: ' + (e as Error).message); return }
                 }}
               >
                 {row.sceneIds.length === 0 && (
@@ -172,7 +173,7 @@ export default function Timeline(): React.ReactElement {
                           try {
                             const result = await window.api.node.mutate(project.id, { type: 'move', id: dragId, newParentId: dt.parentId, atIndex: dt.atIndex })
                             applyMutation(result)
-                          } catch { return }
+                          } catch (e) { useShellStore.getState().setToast('Move could not be saved: ' + (e as Error).message); return }
                         }}
                         onClick={() => selectNode(id)}
                         onDoubleClick={() => { selectNode(id); setView('editor') }}

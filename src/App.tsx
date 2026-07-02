@@ -33,10 +33,14 @@ export default function App(): React.ReactElement {
     if (!project) return
     const selectedId = useProjectStore.getState().selectedId
     const parentId = selectedId && project.nodes[selectedId]?.type === 'folder' ? selectedId : null
-    const result = await window.api.node.mutate(project.id, { type: 'create', parentId, nodeType })
-    applyMutation(result)
-    const newId = Object.values(result.nodes).find((n) => n.ext['_newId'])?.id
-    if (newId) { selectNode(newId); setRenamingId(newId) }
+    try {
+      const result = await window.api.node.mutate(project.id, { type: 'create', parentId, nodeType })
+      applyMutation(result)
+      const newId = Object.values(result.nodes).find((n) => n.ext['_newId'])?.id
+      if (newId) { selectNode(newId); setRenamingId(newId) }
+    } catch (e) {
+      useShellStore.getState().setToast('Could not create: ' + (e as Error).message)
+    }
   }, [project, applyMutation, selectNode, setRenamingId])
 
   useEffect(() => {

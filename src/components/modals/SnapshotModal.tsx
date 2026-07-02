@@ -82,6 +82,8 @@ export default function SnapshotModal({ onClose }: Props): React.ReactElement {
       addSnapshot(nodeId, snap)
       setSnapshots((prev) => [snap, ...prev])
       setNewTitle('')
+    } catch (e) {
+      useShellStore.getState().setToast('Snapshot could not be taken: ' + (e as Error).message)
     } finally {
       setTaking(false)
     }

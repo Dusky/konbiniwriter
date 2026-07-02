@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { useProjectStore, flattenVisible, subtreeWordCount, isDescendant } from '../../store/projectStore'
 import { useShellStore } from '../../store/shellStore'
 import ContextMenu, { type MenuItem } from '../common/ContextMenu'
+import ConfirmDialog from '../common/ConfirmDialog'
 import { STATUS_META, fmtWords } from '@shared/utils'
 import type { ID, NodeType } from '@shared/types'
 
@@ -25,8 +26,10 @@ export default function Binder(): React.ReactElement {
   const canUndo = useProjectStore((s) => s.nodeHistory.length > 0)
   const canRedo = useProjectStore((s) => s.nodeFuture.length > 0)
   const setModal = useShellStore((s) => s.setModal)
+  const setToast = useShellStore((s) => s.setToast)
 
   const [ctx, setCtx] = useState<{ x: number; y: number; id: ID } | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<ID | null>(null)
   const [drag, setDrag] = useState<DragState | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const renameInputRef = useRef<HTMLInputElement>(null)
@@ -53,14 +56,22 @@ export default function Binder(): React.ReactElement {
 
   // ── IPC mutations ────────────────────────────────────────────────────────
 
+  // Every structural write funnels through here — a failed write must never
+  // pass silently (the store was NOT updated, so the UI still matches disk).
   const mutate = async (op: Parameters<typeof window.api.node.mutate>[1]) => {
-    const result = await window.api.node.mutate(project.id, op)
-    applyMutation(result)
-    return result
+    try {
+      const result = await window.api.node.mutate(project.id, op)
+      applyMutation(result)
+      return result
+    } catch (e) {
+      setToast('Change could not be saved: ' + (e as Error).message)
+      return null
+    }
   }
 
   const createNode = async (parentId: ID | null, nodeType: NodeType) => {
     const result = await mutate({ type: 'create', parentId, nodeType })
+    if (!result) return
     // The new node id is in result.nodes — find the node with _newId set
     const newId = Object.values(result.nodes).find((n) => n.ext['_newId'])?.id
     if (newId) { selectNode(newId); setRenamingId(newId) }
@@ -129,7 +140,7 @@ export default function Binder(): React.ReactElement {
       { label: 'Take Snapshot', action: () => { selectNode(id); setModal('snapshot') }, disabled: node?.type === 'folder' },
       { label: '---', action: () => {} },
       inTrash
-        ? { label: 'Delete Permanently', action: () => mutate({ type: 'delete', id }), danger: true }
+        ? { label: 'Delete Permanently', action: () => setConfirmDelete(id), danger: true }
         : { label: 'Move to Trash', action: () => mutate({ type: 'trash', id }), danger: true },
     ]
   }
@@ -230,6 +241,16 @@ export default function Binder(): React.ReactElement {
           y={ctx.y}
           items={ctxItems(ctx.id)}
           onClose={() => setCtx(null)}
+        />
+      )}
+
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Delete Permanently"
+          message={`"${project.nodes[confirmDelete]?.title ?? 'This item'}" and everything inside it will be deleted from disk. This cannot be undone.`}
+          confirmLabel="Delete Permanently"
+          onConfirm={() => { mutate({ type: 'delete', id: confirmDelete }); setConfirmDelete(null) }}
+          onCancel={() => setConfirmDelete(null)}
         />
       )}
     </div>

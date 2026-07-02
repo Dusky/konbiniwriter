@@ -21,7 +21,7 @@ interface ShellState {
   historyRetentionDays: number   // 0 = keep forever
   accent: string
   modal: ModalId
-  toast: Toast | null
+  toasts: Toast[]
   recents: RecentEntry[]
   layout: { binder: boolean; insp: boolean }
   assistantOpen: boolean
@@ -40,7 +40,7 @@ interface ShellState {
   setHistoryRetentionDays: (n: number) => void
   setAccent: (color: string) => void
   setToast: (message: string, type?: Toast['type']) => void
-  clearToast: () => void
+  clearToast: (id?: number) => void
   toggleBinder: () => void
   toggleInsp: () => void
   setRecents: (r: RecentEntry[]) => void
@@ -80,7 +80,7 @@ export const useShellStore = create<ShellState>((set) => ({
     return color
   })(),
   modal: null,
-  toast: null,
+  toasts: [],
   recents: [],
   layout: { binder: true, insp: true },
   assistantOpen: false,
@@ -127,8 +127,11 @@ export const useShellStore = create<ShellState>((set) => ({
     document.documentElement.style.setProperty('--accent', accent)
     set({ accent })
   },
-  setToast: (message, type = 'error') => set({ toast: { message, type, id: Date.now() } }),
-  clearToast: () => set({ toast: null }),
+  // Stack up to 3 toasts so a second failure doesn't erase the first.
+  setToast: (message, type = 'error') => set((s) => ({
+    toasts: [...s.toasts, { message, type, id: Date.now() + Math.random() }].slice(-3),
+  })),
+  clearToast: (id) => set((s) => ({ toasts: id === undefined ? [] : s.toasts.filter((t) => t.id !== id) })),
   toggleBinder: () => set((s) => ({ layout: { ...s.layout, binder: !s.layout.binder } })),
   toggleInsp: () => set((s) => ({ layout: { ...s.layout, insp: !s.layout.insp } })),
   setRecents: (recents) => set({ recents }),

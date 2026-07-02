@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useProjectStore } from '../../store/projectStore'
+import { useShellStore } from '../../store/shellStore'
 import { useAIStore } from '../../store/aiStore'
 import { STATUS_META, STATUS_ORDER, LABEL_META, LABEL_ORDER, wordCount, charCount } from '@shared/utils'
 import type { StatusId, LabelId } from '@shared/types'
@@ -77,8 +78,12 @@ export default function Inspector(): React.ReactElement {
   }
 
   const mutateNode = async (op: Parameters<typeof window.api.node.mutate>[1]) => {
-    const result = await window.api.node.mutate(project.id, op)
-    applyMutation(result)
+    try {
+      const result = await window.api.node.mutate(project.id, op)
+      applyMutation(result)
+    } catch (e) {
+      useShellStore.getState().setToast('Change could not be saved: ' + (e as Error).message)
+    }
   }
 
   const handleMeta = (patch: Partial<typeof node.meta>) => {

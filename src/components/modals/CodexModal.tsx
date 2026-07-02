@@ -6,6 +6,7 @@ import { debtService } from '../../lib/DebtService'
 import { promptRegistry } from '../../lib/PromptRegistry'
 import { streamCompletion } from '../../lib/AIClient'
 import { uid } from '@shared/utils'
+import ConfirmDialog from '../common/ConfirmDialog'
 import type { CodexEntry, CodexCategory, CodexFact, ID } from '@shared/types'
 
 interface ScanEntry {
@@ -192,9 +193,12 @@ export default function CodexModal({ onClose }: Props): React.ReactElement {
     setAliasDraft('')
   }
 
+  const [confirmDelete, setConfirmDelete] = useState<ID | null>(null)
+
   const handleDelete = (id: ID) => {
     deleteCodexEntry(id)
     if (selected?.id === id) setSelected(null)
+    setConfirmDelete(null)
   }
 
   const backlinks = useMemo(() => {
@@ -439,7 +443,7 @@ export default function CodexModal({ onClose }: Props): React.ReactElement {
               )}
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'auto', paddingTop: 8 }}>
-                <button className="btn" onClick={() => handleDelete(selected.id)} style={{ fontSize: 11, color: 'oklch(0.65 0.15 20)' }}>
+                <button className="btn" onClick={() => setConfirmDelete(selected.id)} style={{ fontSize: 11, color: 'oklch(0.65 0.15 20)' }}>
                   Delete entry
                 </button>
               </div>
@@ -459,6 +463,15 @@ export default function CodexModal({ onClose }: Props): React.ReactElement {
           <span className="tb-spacer" />
           <button className="btn" onClick={onClose}>Close</button>
         </div>
+
+        {confirmDelete && (
+          <ConfirmDialog
+            title="Delete Entry"
+            message={`"${codex.find((e) => e.id === confirmDelete)?.name ?? 'This entry'}" and all its facts will be removed from the codex. This cannot be undone.`}
+            onConfirm={() => handleDelete(confirmDelete)}
+            onCancel={() => setConfirmDelete(null)}
+          />
+        )}
       </div>
     </div>
   )

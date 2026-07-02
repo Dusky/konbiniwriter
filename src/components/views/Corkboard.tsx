@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react'
 import { useProjectStore } from '../../store/projectStore'
+import { useShellStore } from '../../store/shellStore'
 import { STATUS_META, LABEL_META, wordCount } from '@shared/utils'
 import ContextMenu from '../common/ContextMenu'
 import { useNodeMenu } from '../common/useNodeMenu'
@@ -25,8 +26,12 @@ export default function Corkboard(): React.ReactElement {
     updateMeta(nodeId, { synopsis })
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(async () => {
-      const result = await window.api.node.mutate(project.id, { type: 'updateMeta', id: nodeId, patch: { synopsis } })
-      applyMutation(result)
+      try {
+        const result = await window.api.node.mutate(project.id, { type: 'updateMeta', id: nodeId, patch: { synopsis } })
+        applyMutation(result)
+      } catch (e) {
+        useShellStore.getState().setToast('Synopsis could not be saved: ' + (e as Error).message)
+      }
     }, 400)
   }
 
