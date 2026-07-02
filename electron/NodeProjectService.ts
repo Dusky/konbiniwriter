@@ -20,10 +20,19 @@ async function readText(dir: string, ...parts: string[]): Promise<string | null>
   } catch { return null }
 }
 
+// Write via temp-file-then-rename so a crash mid-write can never leave a
+// truncated .md or manifest behind (rename is atomic on the same filesystem).
 async function writeText(dir: string, content: string, ...parts: string[]): Promise<void> {
   const p = path.join(dir, ...parts)
   await fs.mkdir(path.dirname(p), { recursive: true })
-  await fs.writeFile(p, content, 'utf-8')
+  const tmp = `${p}.tmp-${process.pid}`
+  try {
+    await fs.writeFile(tmp, content, 'utf-8')
+    await fs.rename(tmp, p)
+  } catch (e) {
+    await fs.unlink(tmp).catch(() => {})
+    throw e
+  }
 }
 
 async function removeFile(dir: string, ...parts: string[]): Promise<void> {
