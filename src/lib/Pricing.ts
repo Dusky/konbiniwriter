@@ -24,11 +24,26 @@ export function rateFor(model: string): Rate | null {
   return RATES.find((r) => r.match.test(model))?.rate ?? null
 }
 
-/** USD cost of a call, or null if the model's price is unknown. */
-export function costOf(model: string, inputTokens: number, outputTokens: number): number | null {
+/**
+ * USD cost of a call, or null if the model's price is unknown.
+ * Cache reads bill at ~0.1× the input rate, cache writes at 1.25×
+ * (Anthropic prompt caching, 5-minute TTL).
+ */
+export function costOf(
+  model: string,
+  inputTokens: number,
+  outputTokens: number,
+  cacheReadTokens = 0,
+  cacheCreationTokens = 0,
+): number | null {
   const rate = rateFor(model)
   if (!rate) return null
-  return (inputTokens * rate.input + outputTokens * rate.output) / 1_000_000
+  return (
+    inputTokens * rate.input +
+    cacheReadTokens * rate.input * 0.1 +
+    cacheCreationTokens * rate.input * 1.25 +
+    outputTokens * rate.output
+  ) / 1_000_000
 }
 
 /** Compact USD formatting: $0.0042, $0.42, $12.30. */
