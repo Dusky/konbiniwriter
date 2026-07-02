@@ -18,12 +18,12 @@ import PrefsModal from './modals/PrefsModal'
 import SearchModal from './modals/SearchModal'
 import ChangesetModal from './modals/ChangesetModal'
 import PromptRegistryModal from './modals/PromptRegistryModal'
-import CodexModal from './modals/CodexModal'
 import AISettingsModal from './modals/AISettingsModal'
 import BatchGeneratorModal from './modals/BatchGeneratorModal'
 import AssistantPanel from './assistant/AssistantPanel'
 import ReaderPanel from './panels/ReaderPanel'
 import CriticPanel from './panels/CriticPanel'
+import CodexPanel from './panels/CodexPanel'
 import StatsModal from './modals/StatsModal'
 import AutopilotModal from './modals/AutopilotModal'
 import CommandPalette from './modals/CommandPalette'
@@ -87,6 +87,7 @@ export default function Studio(): React.ReactElement {
     !layout.binder ? 'no-binder' : '',
     !layout.insp ? 'no-insp' : '',
     focusMode ? 'focus-mode' : '',
+    activeDock === 'codex' ? 'dock-wide' : '',
     activeDock === 'reader' || activeDock === 'critic' ? 'dock-narrow' : '',
     !activeDock && showAssistant ? 'asst-open' : '',
   ].filter(Boolean).join(' ')
@@ -112,7 +113,8 @@ export default function Studio(): React.ReactElement {
         )}
         {/* Always keep a grid child in slot 3 so the editor stays in column 2.
             Dock panels win over the assistant, which wins over the inspector. */}
-        {activeDock === 'reader' ? <ReaderPanel />
+        {activeDock === 'codex' ? <CodexPanel />
+          : activeDock === 'reader' ? <ReaderPanel />
           : activeDock === 'critic' ? <CriticPanel />
           : showAssistant ? <AssistantPanel />
           : showInsp ? <Inspector />
@@ -131,7 +133,6 @@ export default function Studio(): React.ReactElement {
       {modal === 'prefs'       && <PrefsModal       onClose={() => setModal(null)} />}
       {modal === 'search'          && <SearchModal         onClose={() => setModal(null)} />}
       {modal === 'prompt-registry' && <PromptRegistryModal  onClose={() => setModal(null)} />}
-      {modal === 'codex'           && <CodexModal           onClose={() => setModal(null)} />}
       {modal === 'ai-settings'     && <AISettingsModal      onClose={() => setModal(null)} />}
       {modal === 'batch-generator' && <BatchGeneratorModal  onClose={() => setModal(null)} />}
       {modal === 'stats'           && <StatsModal           onClose={() => setModal(null)} />}

@@ -68,7 +68,7 @@ export default function App(): React.ReactElement {
     // silently discard work.
     if (e.key === 'Escape') {
       const open = useShellStore.getState().modal
-      const guarded = ['foundation', 'bestof', 'batch-generator', 'autopilot', 'codex', 'command-palette', 'search']
+      const guarded = ['foundation', 'bestof', 'batch-generator', 'autopilot', 'command-palette', 'search']
       if (open && !guarded.includes(open)) {
         e.preventDefault()
         setModal(null)
@@ -112,7 +112,7 @@ export default function App(): React.ReactElement {
     if (e.key === '/') { e.preventDefault(); setModal('shortcuts') }
     if (!shift && !alt && e.key === ',') { e.preventDefault(); setModal('prefs') }
     if (shift && e.key === 'F') { e.preventDefault(); setModal('search') }
-    if (shift && e.key === 'K') { e.preventDefault(); setModal('codex') }
+    if (shift && e.key === 'K') { e.preventDefault(); if (useAIStore.getState().enabled) useShellStore.getState().toggleDockPanel('codex') }
     if (shift && e.key === 'A') {
       e.preventDefault()
       if (useAIStore.getState().enabled) useShellStore.getState().toggleAssistant()

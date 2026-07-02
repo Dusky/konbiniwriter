@@ -165,7 +165,7 @@ export default function Toolbar(): React.ReactElement {
       {aiEnabled ? (
         <>
           <div className="tb-group">
-            <button className="tb-btn" title="Codex (⌘⇧K)" onClick={() => setModal('codex')}>
+            <button className={`tb-btn${dockPanel === 'codex' ? ' on' : ''}`} title="Codex (⌘⇧K)" aria-pressed={dockPanel === 'codex'} onClick={() => toggleDockPanel('codex')}>
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
                 <path d="M3 2h8l2 2v10H3z" /><path d="M6 6h4M6 9h4M6 12h2" />
               </svg>

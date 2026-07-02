@@ -23,7 +23,6 @@ export type ModalId =
   | 'prefs'
   | 'search'
   | 'prompt-registry'
-  | 'codex'
   | 'ai-settings'
   | 'batch-generator'
   | 'bestof'
