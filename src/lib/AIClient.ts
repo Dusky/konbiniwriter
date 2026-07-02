@@ -173,8 +173,8 @@ async function streamOpenAI(
   opts: { baseUrl: string; apiKey: string; model: string; messages: AIMessage[]; maxTokens: number; temperature: number; systemPrompt?: string; signal?: AbortSignal },
   cb: StreamCallbacks,
 ): Promise<void> {
-  const msgs: AIMessage[] = opts.systemPrompt
-    ? [{ role: 'user', content: `[System: ${opts.systemPrompt}]\n\n${opts.messages[0]?.content ?? ''}` }, ...opts.messages.slice(1)]
+  const msgs: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = opts.systemPrompt
+    ? [{ role: 'system', content: opts.systemPrompt }, ...opts.messages]
     : opts.messages
 
   const baseUrl = opts.baseUrl.replace(/\/$/, '')
