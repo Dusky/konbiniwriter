@@ -168,7 +168,7 @@ export default function Binder(): React.ReactElement {
               {isOver && dropPos === 'before' && <div className="drop-line" />}
               <div
                 className={`tree-row${selectedId === id ? ' sel' : ''}${isOver && dropPos === 'into' ? ' drop-into' : ''}`}
-                style={{ paddingLeft: `${depth * 15 + 4}px` }}
+                style={{ paddingLeft: `${depth * 15 + 4}px`, opacity: drag?.dragId === id ? 0.4 : 1 }}
                 onClick={() => { if (renamingId !== id) selectNode(id) }}
                 onContextMenu={(e) => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, id }) }}
                 draggable
