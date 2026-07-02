@@ -33,10 +33,14 @@ export default function App(): React.ReactElement {
     if (!project) return
     const selectedId = useProjectStore.getState().selectedId
     const parentId = selectedId && project.nodes[selectedId]?.type === 'folder' ? selectedId : null
-    const result = await window.api.node.mutate(project.id, { type: 'create', parentId, nodeType })
-    applyMutation(result)
-    const newId = Object.values(result.nodes).find((n) => n.ext['_newId'])?.id
-    if (newId) { selectNode(newId); setRenamingId(newId) }
+    try {
+      const result = await window.api.node.mutate(project.id, { type: 'create', parentId, nodeType })
+      applyMutation(result)
+      const newId = Object.values(result.nodes).find((n) => n.ext['_newId'])?.id
+      if (newId) { selectNode(newId); setRenamingId(newId) }
+    } catch (e) {
+      useShellStore.getState().setToast('Could not create: ' + (e as Error).message)
+    }
   }, [project, applyMutation, selectNode, setRenamingId])
 
   useEffect(() => {
@@ -59,11 +63,13 @@ export default function App(): React.ReactElement {
     const alt = e.altKey
 
     // Escape closes the open modal. Generative modals (which hold expensive,
-    // unsaved AI output) and the palette/search (own their Escape) are excluded
-    // so a stray Escape can't silently discard work.
+    // unsaved AI output — a close aborts the in-flight run) and the
+    // palette/search (own their Escape) are excluded so a stray Escape can't
+    // silently discard work.
     if (e.key === 'Escape') {
       const open = useShellStore.getState().modal
-      if (open && !['foundation', 'bestof', 'critic', 'command-palette', 'search'].includes(open)) {
+      const guarded = ['foundation', 'bestof', 'batch-generator', 'autopilot', 'command-palette', 'search']
+      if (open && !guarded.includes(open)) {
         e.preventDefault()
         setModal(null)
       }
@@ -101,17 +107,17 @@ export default function App(): React.ReactElement {
 
     // Modals
     if (!shift && !alt && e.key === 'k') { e.preventDefault(); setModal('command-palette') }
-    if (shift && e.key === 'S') { e.preventDefault(); setModal('snapshot') }
+    if (shift && e.key === 'S') { e.preventDefault(); setModal('history') }
     if (shift && e.key === 'E') { e.preventDefault(); setModal('compile') }
     if (e.key === '/') { e.preventDefault(); setModal('shortcuts') }
     if (!shift && !alt && e.key === ',') { e.preventDefault(); setModal('prefs') }
     if (shift && e.key === 'F') { e.preventDefault(); setModal('search') }
-    if (shift && e.key === 'K') { e.preventDefault(); setModal('codex') }
+    if (shift && e.key === 'K') { e.preventDefault(); if (useAIStore.getState().enabled) useShellStore.getState().toggleDockPanel('codex') }
     if (shift && e.key === 'A') {
       e.preventDefault()
       if (useAIStore.getState().enabled) useShellStore.getState().toggleAssistant()
     }
-    if (shift && e.key === 'R') { e.preventDefault(); setModal('reader') }
+    if (shift && e.key === 'R') { e.preventDefault(); if (useAIStore.getState().enabled) useShellStore.getState().toggleDockPanel('reader') }
     if (shift && e.key === 'G') { e.preventDefault(); setModal('batch-generator') }
     if (shift && e.key === 'P') { e.preventDefault(); setModal('autopilot') }
 

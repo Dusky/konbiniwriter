@@ -40,15 +40,22 @@ const MIN_TRUNCATE_TOKENS = 500
 
 const TRUNCATION_PREFIX = '[…earlier scene content truncated…]\n\n'
 
-// Default budget per feature (generous for context quality; tighten per model)
+// Default budget per feature. Sized for modern long-context models (200k–1M
+// windows) — the manuscript tier lets drafting/chat see the whole book so far.
+// Users can tighten per feature in AI Settings for smaller local models.
 const BUDGETS: Record<ContextFeature, number> = {
-  inline:     6_000,
-  chat:       8_000,
-  codex:      4_000,
-  batch:     12_000,
-  evaluation: 8_000,
-  autopilot: 16_000,
+  inline:     16_000,
+  chat:       48_000,
+  codex:       8_000,
+  batch:      48_000,
+  evaluation: 24_000,
+  autopilot: 100_000,
 }
+
+// Features whose calls benefit from seeing the full manuscript written so far
+// (continuity for drafting and conversation). Inline edits and evaluation stay
+// scene-scoped.
+const MANUSCRIPT_FEATURES: ReadonlySet<ContextFeature> = new Set(['chat', 'batch', 'autopilot'])
 
 function getNodePath(project: Project, nodeId: ID): string[] {
   const path: string[] = []
@@ -76,6 +83,38 @@ function getSiblingContext(project: Project, nodeId: ID): string {
     })
     .filter(Boolean)
   return siblings.length ? `Siblings in "${parent.title}":\n${siblings.join('\n')}` : ''
+}
+
+/**
+ * The manuscript written so far: every non-empty, non-folder document that
+ * precedes `docId` in binder order (trash excluded), rendered as titled
+ * sections. Truncation keeps the END, so the scenes closest to the current
+ * one survive when the budget runs out.
+ */
+function getManuscriptSoFar(project: Project, docId: ID): string {
+  const ordered: ID[] = []
+  const walk = (ids: ID[]) => {
+    for (const id of ids) {
+      const n = project.nodes[id]
+      if (!n) continue
+      if (n.type !== 'folder') ordered.push(id)
+      walk(n.childIds)
+    }
+  }
+  walk(project.rootIds.filter((id) => id !== project.trashId))
+
+  const idx = ordered.indexOf(docId)
+  const before = idx === -1 ? [] : ordered.slice(0, idx)
+
+  const sections = before
+    .map((id) => {
+      const content = project.docs[id]?.content?.trim()
+      if (!content) return ''
+      return `## ${project.nodes[id]?.title ?? 'Untitled'}\n${content}`
+    })
+    .filter(Boolean)
+
+  return sections.join('\n\n')
 }
 
 function getCodexContext(
@@ -176,6 +215,13 @@ export function buildContext(
 
   // Tier 6: codex entities mentioned in this scene
   addTier('Codex entities', getCodexContext(project, index, docId))
+
+  // Tier 7 (chat/batch/autopilot): the manuscript written so far. Added last
+  // so it fills whatever budget the core tiers left; truncatable, keeping the
+  // most recent scenes.
+  if (MANUSCRIPT_FEATURES.has(feature)) {
+    addTier('Manuscript so far', getManuscriptSoFar(project, docId), { truncatable: true })
+  }
 
   const included = tiers.filter((t) => t.included)
   const totalTokens = included.reduce((s, t) => s + t.tokens, 0)

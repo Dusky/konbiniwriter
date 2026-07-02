@@ -106,7 +106,7 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
       { id: 'new-folder', label: 'New Folder', section: 'Create', hint: '⌘⌥N', run: () => createNode('folder') },
       // Project tools
       { id: 'history', label: 'Document History…', section: 'Document', run: openModal('history') },
-      { id: 'snapshot', label: 'Take Snapshot…', section: 'Document', hint: '⌘⇧S', run: openModal('snapshot') },
+      { id: 'snapshot', label: 'Take Snapshot…', section: 'Document', hint: '⌘⇧S', run: openModal('history') },
       { id: 'search', label: 'Search Project…', section: 'Project', hint: '⌘⇧F', run: openModal('search') },
       { id: 'compile', label: 'Compile / Export…', section: 'Project', hint: '⌘⇧E', run: openModal('compile') },
       { id: 'stats', label: 'Writing Stats…', section: 'Project', run: openModal('stats') },
@@ -115,14 +115,14 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
 
     if (aiEnabled) {
       cmds.push(
-        { id: 'ai-codex', label: 'Codex…', section: 'AI', hint: '⌘⇧K', run: openModal('codex') },
+        { id: 'ai-codex', label: 'Codex…', section: 'AI', hint: '⌘⇧K', run: () => shell.setDockPanel('codex') },
         { id: 'ai-debt', label: 'Propagation Debt…', section: 'AI', run: openModal('debt') },
         { id: 'ai-chat', label: 'AI Chat…', section: 'AI', hint: '⌘⇧A', run: () => shell.toggleAssistant() },
-        { id: 'ai-reader', label: 'Reader Panel…', section: 'AI', hint: '⌘⇧R', run: openModal('reader') },
+        { id: 'ai-reader', label: 'Reader Panel…', section: 'AI', hint: '⌘⇧R', run: () => shell.setDockPanel('reader') },
         { id: 'ai-foundation', label: 'Foundation (seed → world → cast)…', section: 'AI', run: openModal('foundation') },
         { id: 'ai-batch', label: 'Batch Generators…', section: 'AI', hint: '⌘⇧G', run: openModal('batch-generator') },
         { id: 'ai-bestof', label: 'Best of N (variant tournament)…', section: 'AI', run: openModal('bestof') },
-        { id: 'ai-critic', label: 'Critic (professor critique + revision)…', section: 'AI', run: openModal('critic') },
+        { id: 'ai-critic', label: 'Critic (professor critique + revision)…', section: 'AI', run: () => shell.setDockPanel('critic') },
         { id: 'ai-autopilot', label: 'Autopilot…', section: 'AI', hint: '⌘⇧P', run: openModal('autopilot') },
         { id: 'ai-prompts', label: 'Prompt Registry…', section: 'AI', run: openModal('prompt-registry') },
         { id: 'ai-settings', label: 'AI Settings…', section: 'AI', run: openModal('ai-settings') },

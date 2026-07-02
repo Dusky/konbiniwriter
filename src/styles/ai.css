@@ -51,8 +51,21 @@
 .ai-empty .ae-actions { margin-top: 20px; display: flex; gap: 8px; }
 
 /* ════ ASSISTANT PANEL (right column; replaces inspector when open) ════════ */
-.body.asst-open { grid-template-columns: var(--binder-w, 264px) 1fr 372px; }
-.body.asst-open.no-binder { grid-template-columns: 0 1fr 372px; }
+.body.asst-open { grid-template-columns: minmax(180px, var(--binder-w, 264px)) minmax(0, 1fr) minmax(280px, 372px); }
+.body.asst-open.no-binder { grid-template-columns: 0 minmax(0, 1fr) minmax(280px, 372px); }
+
+/* ════ DOCK PANELS (Reader / Critic / Codex — right column) ═══════════════ */
+.body.dock-narrow { grid-template-columns: minmax(180px, var(--binder-w, 264px)) minmax(0, 1fr) minmax(300px, 372px); }
+.body.dock-narrow.no-binder { grid-template-columns: 0 minmax(0, 1fr) minmax(300px, 372px); }
+.body.dock-wide { grid-template-columns: minmax(180px, var(--binder-w, 264px)) minmax(0, 1fr) minmax(360px, 460px); }
+.body.dock-wide.no-binder { grid-template-columns: 0 minmax(0, 1fr) minmax(360px, 460px); }
+.dock-panel { min-width: 0; z-index: 5; background: var(--bg-2); border-left: 0.5px solid var(--border-2);
+  display: flex; flex-direction: column; overflow: hidden; }
+.dock-hd { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 16px;
+  border-bottom: 0.5px solid var(--border); }
+.dock-hd h3 { margin: 0; font-size: 13.5px; font-weight: 600; }
+.dock-hd .sub { font-size: 12px; color: var(--text-3); }
+.dock-body { flex: 1; overflow-y: auto; }
 .assistant { min-width: 0; z-index: 5;
   background: var(--bg-2); border-left: 0.5px solid var(--border-2);
   display: flex; flex-direction: column; }
@@ -344,7 +357,7 @@ mark.slop-telling { --sc: oklch(0.62 0.11 300); background: color-mix(in oklch, 
 mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, oklch(0.60 0.05 190) 10%, transparent); }
 
 /* ════ SELECTION TOOLBAR ══════════════════════════════════════════════════ */
-.sel-tb { position: fixed; z-index: 800; display: flex; align-items: center; gap: 2px; padding: 4px;
+.sel-tb { position: fixed; z-index: 950; display: flex; align-items: center; gap: 2px; padding: 4px;
   background: var(--bg-2); border: 0.5px solid var(--border-2); border-radius: 10px; box-shadow: 0 10px 34px rgba(0,0,0,.45); }
 .sel-tb .sel-spark { color: var(--accent); font-size: 12px; padding: 0 6px 0 4px; }
 .sel-tb button { height: 28px; padding: 0 11px; border: 0; background: transparent; color: var(--text); font-size: 12.5px; border-radius: 7px; }

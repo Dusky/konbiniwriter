@@ -175,6 +175,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   loadProject: (project) => {
     useShellStore.getState().setAssistantOpen(false)
+    useShellStore.getState().setDockPanel(null)
     set({
       project,
       selectedId: null,
@@ -204,6 +205,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
   unloadProject: () => {
     useShellStore.getState().setAssistantOpen(false)
+    useShellStore.getState().setDockPanel(null)
     set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], debt: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], nodeFuture: [], judgeResults: new Map(), sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, autopilotPreset: [], focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null })
   },
 

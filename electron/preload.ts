@@ -34,7 +34,15 @@ async function loadRecents(): Promise<RecentEntry[]> {
 
 async function saveRecents(recents: RecentEntry[]): Promise<void> {
   const dir = await getUserData()
-  await fs.writeFile(path.join(dir, 'recents.json'), JSON.stringify(recents, null, 2), 'utf-8')
+  const p = path.join(dir, 'recents.json')
+  const tmp = `${p}.tmp-${process.pid}`
+  try {
+    await fs.writeFile(tmp, JSON.stringify(recents, null, 2), 'utf-8')
+    await fs.rename(tmp, p)
+  } catch (e) {
+    await fs.unlink(tmp).catch(() => {})
+    throw e
+  }
 }
 
 async function touchRecent(entry: Omit<RecentEntry, 'opened'>): Promise<void> {

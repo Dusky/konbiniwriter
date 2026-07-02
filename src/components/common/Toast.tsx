@@ -1,17 +1,13 @@
 import React, { useEffect } from 'react'
-import { useShellStore } from '../../store/shellStore'
+import { useShellStore, type Toast as ToastItem } from '../../store/shellStore'
 
-export default function Toast(): React.ReactElement | null {
-  const toast = useShellStore((s) => s.toast)
+function ToastCard({ toast }: { toast: ToastItem }): React.ReactElement {
   const clearToast = useShellStore((s) => s.clearToast)
 
   useEffect(() => {
-    if (!toast) return
-    const t = setTimeout(clearToast, 5000)
+    const t = setTimeout(() => clearToast(toast.id), 5000)
     return () => clearTimeout(t)
-  }, [toast?.id])
-
-  if (!toast) return null
+  }, [toast.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const borderColor =
     toast.type === 'error' ? 'var(--st-idea)'
@@ -23,11 +19,10 @@ export default function Toast(): React.ReactElement | null {
       role="alert"
       aria-live="assertive"
       style={{
-        position: 'fixed', bottom: 48, left: '50%', transform: 'translateX(-50%)',
         background: 'var(--bg-3)', border: `1px solid ${borderColor}`,
         borderRadius: 8, padding: '10px 16px',
         boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
-        zIndex: 9999, display: 'flex', alignItems: 'center', gap: 10,
+        display: 'flex', alignItems: 'center', gap: 10,
         fontSize: 13, color: 'var(--text)', maxWidth: 480, minWidth: 240,
         animation: 'toast-in 0.15s ease',
       }}
@@ -37,10 +32,24 @@ export default function Toast(): React.ReactElement | null {
       </span>
       <span style={{ flex: 1 }}>{toast.message}</span>
       <button
-        onClick={clearToast}
+        onClick={() => clearToast(toast.id)}
         style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 0, fontSize: 14, lineHeight: 1 }}
         aria-label="Dismiss"
       >✕</button>
+    </div>
+  )
+}
+
+export default function Toast(): React.ReactElement | null {
+  const toasts = useShellStore((s) => s.toasts)
+  if (toasts.length === 0) return null
+
+  return (
+    <div style={{
+      position: 'fixed', bottom: 48, left: '50%', transform: 'translateX(-50%)',
+      zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center',
+    }}>
+      {toasts.map((t) => <ToastCard key={t.id} toast={t} />)}
     </div>
   )
 }

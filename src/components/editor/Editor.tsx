@@ -134,6 +134,13 @@ export default function Editor({ docId }: Props): React.ReactElement {
     return () => window.removeEventListener('keydown', handler)
   }, [runProof])
 
+  // Focus restore after a modal closes (dispatched from Studio).
+  useEffect(() => {
+    const handler = () => viewRef.current?.focus()
+    window.addEventListener('konbini:focus-editor', handler)
+    return () => window.removeEventListener('konbini:focus-editor', handler)
+  }, [])
+
   // Auto-run slop proof 30s after idle when slopAutoRun is enabled
   const slopAutoRunTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => () => {
@@ -247,7 +254,7 @@ export default function Editor({ docId }: Props): React.ReactElement {
       for (const c of COWRITE_COMMANDS) items.push({ label: c.label, action: () => startCowrite(c.id) })
     }
     items.push({ label: '---', action: () => {} })
-    items.push({ label: 'Take Snapshot', action: () => setModal('snapshot') })
+    items.push({ label: 'Take Snapshot', action: () => setModal('history') })
     items.push({ label: 'Document History', action: () => setModal('history') })
     return items
   }, [aiEnabled, doCut, doCopy, doPaste, doSelectAll, startCowrite, setModal])
@@ -452,6 +459,16 @@ export default function Editor({ docId }: Props): React.ReactElement {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [findReplaceOpen])
+
+  // Toolbar Find button (dispatched as an event to avoid prop drilling).
+  useEffect(() => {
+    const handler = () => {
+      setFindReplaceOpen((open) => !open)
+      setTimeout(() => findInputRef.current?.focus(), 50)
+    }
+    window.addEventListener('konbini:toggle-find', handler)
+    return () => window.removeEventListener('konbini:toggle-find', handler)
+  }, [])
 
   // Sync focus mode into CM6 state field
   useEffect(() => {

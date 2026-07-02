@@ -10,7 +10,6 @@ import Binder from './binder/Binder'
 import Inspector from './inspector/Inspector'
 import EditorPane from './editor/EditorPane'
 import CompositionMode from './editor/CompositionMode'
-import SnapshotModal from './modals/SnapshotModal'
 import CompileModal from './modals/CompileModal'
 import ShortcutsModal from './modals/ShortcutsModal'
 import AboutModal from './modals/AboutModal'
@@ -19,11 +18,12 @@ import PrefsModal from './modals/PrefsModal'
 import SearchModal from './modals/SearchModal'
 import ChangesetModal from './modals/ChangesetModal'
 import PromptRegistryModal from './modals/PromptRegistryModal'
-import CodexModal from './modals/CodexModal'
 import AISettingsModal from './modals/AISettingsModal'
 import BatchGeneratorModal from './modals/BatchGeneratorModal'
-import ReaderModal from './modals/ReaderModal'
 import AssistantPanel from './assistant/AssistantPanel'
+import ReaderPanel from './panels/ReaderPanel'
+import CriticPanel from './panels/CriticPanel'
+import CodexPanel from './panels/CodexPanel'
 import StatsModal from './modals/StatsModal'
 import AutopilotModal from './modals/AutopilotModal'
 import CommandPalette from './modals/CommandPalette'
@@ -31,7 +31,6 @@ import HistoryModal from './modals/HistoryModal'
 import DebtInboxModal from './modals/DebtInboxModal'
 import FoundationModal from './modals/FoundationModal'
 import BestOfModal from './modals/BestOfModal'
-import CriticModal from './modals/CriticModal'
 import { debtService } from '../lib/DebtService'
 
 export default function Studio(): React.ReactElement {
@@ -40,6 +39,8 @@ export default function Studio(): React.ReactElement {
   const setModal = useShellStore((s) => s.setModal)
   const assistantOpen = useShellStore((s) => s.assistantOpen)
   const setAssistantOpen = useShellStore((s) => s.setAssistantOpen)
+  const dockPanel = useShellStore((s) => s.dockPanel)
+  const setDockPanel = useShellStore((s) => s.setDockPanel)
   const aiEnabled = useAIStore((s) => s.enabled)
   const compositionMode = useProjectStore((s) => s.compositionMode)
   const focusMode = useProjectStore((s) => s.focusMode)
@@ -62,17 +63,33 @@ export default function Studio(): React.ReactElement {
   const showBinder = layout.binder && !focusMode
   const showInsp = layout.insp && !focusMode
   const showAssistant = assistantOpen && aiEnabled && !focusMode
+  // Dock panels (Reader/Critic/Codex) are AI features that take the right rail,
+  // winning over Assistant/Inspector while open.
+  const activeDock = aiEnabled && !focusMode ? dockPanel : null
 
   React.useEffect(() => {
     if (!aiEnabled && assistantOpen) setAssistantOpen(false)
-  }, [aiEnabled, assistantOpen, setAssistantOpen])
+    if (!aiEnabled && dockPanel) setDockPanel(null)
+  }, [aiEnabled, assistantOpen, setAssistantOpen, dockPanel, setDockPanel])
+
+  // Keyboard-first: closing any modal hands focus back to the editor so the
+  // writer can keep typing without reaching for the mouse.
+  const prevModal = React.useRef(modal)
+  React.useEffect(() => {
+    if (prevModal.current !== null && modal === null) {
+      window.dispatchEvent(new CustomEvent('konbini:focus-editor'))
+    }
+    prevModal.current = modal
+  }, [modal])
 
   const bodyClass = [
     'body',
     !layout.binder ? 'no-binder' : '',
     !layout.insp ? 'no-insp' : '',
     focusMode ? 'focus-mode' : '',
-    showAssistant ? 'asst-open' : '',
+    activeDock === 'codex' ? 'dock-wide' : '',
+    activeDock === 'reader' || activeDock === 'critic' ? 'dock-narrow' : '',
+    !activeDock && showAssistant ? 'asst-open' : '',
   ].filter(Boolean).join(' ')
 
   return (
@@ -94,8 +111,14 @@ export default function Studio(): React.ReactElement {
         ) : (
           <EditorPane splitOpen={false} pane="left" />
         )}
-        {/* Always keep a grid child in slot 3 so the editor stays in column 2. */}
-        {showAssistant ? <AssistantPanel /> : showInsp ? <Inspector /> : <div />}
+        {/* Always keep a grid child in slot 3 so the editor stays in column 2.
+            Dock panels win over the assistant, which wins over the inspector. */}
+        {activeDock === 'codex' ? <CodexPanel />
+          : activeDock === 'reader' ? <ReaderPanel />
+          : activeDock === 'critic' ? <CriticPanel />
+          : showAssistant ? <AssistantPanel />
+          : showInsp ? <Inspector />
+          : <div />}
       </div>
       <StatusBar />
 
@@ -103,7 +126,6 @@ export default function Studio(): React.ReactElement {
 
       {modal === 'command-palette' && <CommandPalette onClose={() => setModal(null)} />}
       {modal === 'history'     && <HistoryModal    onClose={() => setModal(null)} />}
-      {modal === 'snapshot'    && <SnapshotModal   onClose={() => setModal(null)} />}
       {modal === 'compile'     && <CompileModal    onClose={() => setModal(null)} />}
       {modal === 'shortcuts'   && <ShortcutsModal  onClose={() => setModal(null)} />}
       {modal === 'about'       && <AboutModal      onClose={() => setModal(null)} />}
@@ -111,16 +133,13 @@ export default function Studio(): React.ReactElement {
       {modal === 'prefs'       && <PrefsModal       onClose={() => setModal(null)} />}
       {modal === 'search'          && <SearchModal         onClose={() => setModal(null)} />}
       {modal === 'prompt-registry' && <PromptRegistryModal  onClose={() => setModal(null)} />}
-      {modal === 'codex'           && <CodexModal           onClose={() => setModal(null)} />}
       {modal === 'ai-settings'     && <AISettingsModal      onClose={() => setModal(null)} />}
       {modal === 'batch-generator' && <BatchGeneratorModal  onClose={() => setModal(null)} />}
-      {modal === 'reader'          && <ReaderModal          onClose={() => setModal(null)} />}
       {modal === 'stats'           && <StatsModal           onClose={() => setModal(null)} />}
       {modal === 'autopilot'       && <AutopilotModal       onClose={() => setModal(null)} />}
       {modal === 'debt'            && <DebtInboxModal       onClose={() => setModal(null)} />}
       {modal === 'foundation'      && <FoundationModal      onClose={() => setModal(null)} />}
       {modal === 'bestof'          && <BestOfModal          onClose={() => setModal(null)} />}
-      {modal === 'critic'          && <CriticModal          onClose={() => setModal(null)} />}
 
       {activeProposal && (
         <ChangesetModal

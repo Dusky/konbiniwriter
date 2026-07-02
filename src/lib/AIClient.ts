@@ -1,6 +1,14 @@
 import { useAIStore } from '../store/aiStore'
+import { sseLines, sseFlush, type SSEBuffer } from './sse'
 
-export interface TokenUsage { inputTokens: number; outputTokens: number }
+export interface TokenUsage {
+  inputTokens: number
+  outputTokens: number
+  /** Tokens served from the prompt cache (~0.1× input price). */
+  cacheReadTokens?: number
+  /** Tokens written to the prompt cache (1.25× input price). */
+  cacheCreationTokens?: number
+}
 
 export interface StreamCallbacks {
   onChunk: (text: string) => void
@@ -52,25 +60,29 @@ export async function streamCompletion(
   const wrapped: StreamCallbacks = {
     ...callbacks,
     onUsage: (u) => {
-      useAIStore.getState().recordSpend(model, u.inputTokens, u.outputTokens)
+      useAIStore.getState().recordSpend(model, u.inputTokens, u.outputTokens, u.cacheReadTokens ?? 0, u.cacheCreationTokens ?? 0)
       callbacks.onUsage?.(u)
     },
   }
 
   if (provider === 'anthropic') {
     await streamAnthropic(
-      { apiKey: store.anthropicKey, model, messages, maxTokens: opts.maxTokens ?? 2048, temperature: opts.temperature ?? 0.7, systemPrompt: opts.systemPrompt, signal: opts.signal },
+      { apiKey: store.anthropicKey, model, messages, maxTokens: opts.maxTokens ?? 4096, temperature: opts.temperature ?? 0.7, systemPrompt: opts.systemPrompt, signal: opts.signal },
       wrapped,
     )
   } else {
     await streamOpenAI(
-      { baseUrl: store.openaiBaseUrl, apiKey: store.openaiKey, model, messages, maxTokens: opts.maxTokens ?? 2048, temperature: opts.temperature ?? 0.7, systemPrompt: opts.systemPrompt, signal: opts.signal },
+      { baseUrl: store.openaiBaseUrl, apiKey: store.openaiKey, model, messages, maxTokens: opts.maxTokens ?? 4096, temperature: opts.temperature ?? 0.7, systemPrompt: opts.systemPrompt, signal: opts.signal },
       wrapped,
     )
   }
 }
 
 // ── Anthropic Messages API (SSE) ─────────────────────────────────────────────
+
+// Opus 4.7+, Sonnet 5, and the Claude 5 family reject sampling parameters
+// (temperature/top_p/top_k) with a 400 — omit temperature for those models.
+const NO_SAMPLING_PARAMS = /fable-5|mythos|opus-4-[78]|sonnet-5/i
 
 async function streamAnthropic(
   opts: { apiKey: string; model: string; messages: AIMessage[]; maxTokens: number; temperature: number; systemPrompt?: string; signal?: AbortSignal },
@@ -79,11 +91,17 @@ async function streamAnthropic(
   const body: Record<string, unknown> = {
     model: opts.model,
     max_tokens: opts.maxTokens,
-    temperature: opts.temperature,
     messages: opts.messages,
     stream: true,
   }
-  if (opts.systemPrompt) body.system = opts.systemPrompt
+  if (!NO_SAMPLING_PARAMS.test(opts.model)) body.temperature = opts.temperature
+  // System goes in as a block array with a cache breakpoint: the tiered
+  // manuscript context repeats across calls (chat turns, reader personas,
+  // gate rounds), so cache reads cut its cost ~90%. Prefixes below the
+  // model's cacheable minimum silently don't cache — no size gate needed.
+  if (opts.systemPrompt) {
+    body.system = [{ type: 'text', text: opts.systemPrompt, cache_control: { type: 'ephemeral' } }]
+  }
 
   let res: Response
   try {
@@ -119,39 +137,49 @@ async function streamAnthropic(
   if (!reader) { cb.onError(new Error('No response body')); return }
 
   const decoder = new TextDecoder()
+  const buf: SSEBuffer = { pending: '' }
   let full = ''
   let inputTokens = 0
   let outputTokens = 0
+  let cacheReadTokens = 0
+  let cacheCreationTokens = 0
+
+  const handleLine = (line: string): void => {
+    if (!line.startsWith('data: ')) return
+    const data = line.slice(6).trim()
+    if (data === '[DONE]') return
+    try {
+      const ev = JSON.parse(data)
+      if (ev.type === 'content_block_delta' && ev.delta?.type === 'text_delta') {
+        full += ev.delta.text
+        cb.onChunk(ev.delta.text)
+      } else if (ev.type === 'message_start') {
+        // Initial usage: uncached input, cache activity, and a partial output count.
+        const u = ev.message?.usage
+        if (u) {
+          inputTokens = u.input_tokens ?? 0
+          cacheReadTokens = u.cache_read_input_tokens ?? 0
+          cacheCreationTokens = u.cache_creation_input_tokens ?? 0
+          outputTokens = u.output_tokens ?? 0
+        }
+      } else if (ev.type === 'message_delta' && ev.usage) {
+        // Cumulative output tokens for the message.
+        outputTokens = ev.usage.output_tokens ?? outputTokens
+      }
+    } catch { /* ignore malformed SSE */ }
+  }
 
   try {
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
-      const chunk = decoder.decode(value, { stream: true })
-      for (const line of chunk.split('\n')) {
-        if (!line.startsWith('data: ')) continue
-        const data = line.slice(6).trim()
-        if (data === '[DONE]') continue
-        try {
-          const ev = JSON.parse(data)
-          if (ev.type === 'content_block_delta' && ev.delta?.type === 'text_delta') {
-            full += ev.delta.text
-            cb.onChunk(ev.delta.text)
-          } else if (ev.type === 'message_start') {
-            // Initial usage: input tokens (+ any cache tokens) and a partial output count.
-            const u = ev.message?.usage
-            if (u) {
-              inputTokens = (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0)
-              outputTokens = u.output_tokens ?? 0
-            }
-          } else if (ev.type === 'message_delta' && ev.usage) {
-            // Cumulative output tokens for the message.
-            outputTokens = ev.usage.output_tokens ?? outputTokens
-          }
-        } catch { /* ignore malformed SSE */ }
-      }
+      for (const line of sseLines(buf, decoder.decode(value, { stream: true }))) handleLine(line)
     }
-    if (inputTokens || outputTokens) cb.onUsage?.({ inputTokens, outputTokens })
+    for (const line of sseLines(buf, decoder.decode())) handleLine(line)
+    for (const line of sseFlush(buf)) handleLine(line)
+    if (inputTokens || outputTokens || cacheReadTokens || cacheCreationTokens) {
+      cb.onUsage?.({ inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens })
+    }
     cb.onDone(full)
   } catch (e) {
     handleStreamError(e, cb)
@@ -168,8 +196,8 @@ async function streamOpenAI(
   opts: { baseUrl: string; apiKey: string; model: string; messages: AIMessage[]; maxTokens: number; temperature: number; systemPrompt?: string; signal?: AbortSignal },
   cb: StreamCallbacks,
 ): Promise<void> {
-  const msgs: AIMessage[] = opts.systemPrompt
-    ? [{ role: 'user', content: `[System: ${opts.systemPrompt}]\n\n${opts.messages[0]?.content ?? ''}` }, ...opts.messages.slice(1)]
+  const msgs: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = opts.systemPrompt
+    ? [{ role: 'system', content: opts.systemPrompt }, ...opts.messages]
     : opts.messages
 
   const baseUrl = opts.baseUrl.replace(/\/$/, '')
@@ -212,31 +240,35 @@ async function streamOpenAI(
   if (!reader) { cb.onError(new Error('No response body')); return }
 
   const decoder = new TextDecoder()
+  const buf: SSEBuffer = { pending: '' }
   let full = ''
   let inputTokens = 0
   let outputTokens = 0
+
+  const handleLine = (line: string): void => {
+    if (!line.startsWith('data: ')) return
+    const data = line.slice(6).trim()
+    if (data === '[DONE]') return
+    try {
+      const ev = JSON.parse(data)
+      const text = ev.choices?.[0]?.delta?.content
+      if (text) { full += text; cb.onChunk(text) }
+      // Final usage chunk (stream_options.include_usage); usually has empty choices.
+      if (ev.usage) {
+        inputTokens = ev.usage.prompt_tokens ?? inputTokens
+        outputTokens = ev.usage.completion_tokens ?? outputTokens
+      }
+    } catch { /* ignore malformed SSE */ }
+  }
 
   try {
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
-      const chunk = decoder.decode(value, { stream: true })
-      for (const line of chunk.split('\n')) {
-        if (!line.startsWith('data: ')) continue
-        const data = line.slice(6).trim()
-        if (data === '[DONE]') continue
-        try {
-          const ev = JSON.parse(data)
-          const text = ev.choices?.[0]?.delta?.content
-          if (text) { full += text; cb.onChunk(text) }
-          // Final usage chunk (stream_options.include_usage); usually has empty choices.
-          if (ev.usage) {
-            inputTokens = ev.usage.prompt_tokens ?? inputTokens
-            outputTokens = ev.usage.completion_tokens ?? outputTokens
-          }
-        } catch { /* ignore malformed SSE */ }
-      }
+      for (const line of sseLines(buf, decoder.decode(value, { stream: true }))) handleLine(line)
     }
+    for (const line of sseLines(buf, decoder.decode())) handleLine(line)
+    for (const line of sseFlush(buf)) handleLine(line)
     if (inputTokens || outputTokens) cb.onUsage?.({ inputTokens, outputTokens })
     cb.onDone(full)
   } catch (e) {

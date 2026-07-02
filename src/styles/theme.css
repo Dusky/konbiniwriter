@@ -44,6 +44,14 @@
   --st-draft: oklch(0.66 0.10 250);
   --st-rev:   oklch(0.66 0.10 300);
   --st-final: oklch(0.68 0.11 150);
+
+  /* semantic state colors — the ONLY seam for success/error/warning UI */
+  --success: var(--st-final);
+  --danger:  var(--st-idea);
+  --warn:    var(--st-prog);
+  --warn-bg:     oklch(0.25 0.04 30);
+  --warn-border: oklch(0.40 0.08 30);
+  --warn-text:   oklch(0.85 0.05 30);
 }
 
 /* ── light ───────────────────────────────────────────────────────────────── */
@@ -71,6 +79,13 @@
   --hl-link:   oklch(0.52 0.13 300);
   --hl-code:   oklch(0.50 0.08 190);
   --dim:       oklch(0.72 0.006 285);
+
+  --success: oklch(0.55 0.13 150);
+  --danger:  oklch(0.55 0.15 20);
+  --warn:    oklch(0.58 0.12 75);
+  --warn-bg:     oklch(0.94 0.03 75);
+  --warn-border: oklch(0.80 0.08 75);
+  --warn-text:   oklch(0.42 0.09 60);
 }
 
 /* ── density ─────────────────────────────────────────────────────────────── */
@@ -87,14 +102,30 @@ body {
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
 }
+[data-theme="light"] body { background: oklch(0.88 0.004 90); }
 button { font-family: inherit; cursor: default; }
 ::selection { background: var(--accent-soft); }
+
+/* keyboard focus — visible ring for keyboard users only, no ring on click */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 
 /* ── desktop window ──────────────────────────────────────────────────────── */
 .stage { position: fixed; inset: 0; display: grid; place-items: center; padding: 22px;
   background:
     radial-gradient(1200px 600px at 50% -10%, oklch(0.20 0.02 300 / .5), transparent 70%),
     oklch(0.095 0.004 285); }
+[data-theme="light"] .stage {
+  background:
+    radial-gradient(1200px 600px at 50% -10%, oklch(0.92 0.02 300 / .6), transparent 70%),
+    oklch(0.86 0.005 90); }
 .win {
   width: 100%; height: 100%; max-width: 1480px; max-height: 940px;
   display: flex; flex-direction: column;
@@ -143,10 +174,16 @@ button { font-family: inherit; cursor: default; }
 .seg button.on { background: var(--bg-3); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.2); }
 
 /* ── app body grid ───────────────────────────────────────────────────────── */
-.body { flex: 1; min-height: 0; display: grid; grid-template-columns: var(--binder-w, 264px) 1fr var(--insp-w, 286px); }
-.body.no-binder { grid-template-columns: 0 1fr var(--insp-w, 286px); }
-.body.no-insp { grid-template-columns: var(--binder-w, 264px) 1fr 0; }
-.body.no-binder.no-insp { grid-template-columns: 0 1fr 0; }
+/* Side columns squeeze before the editor does; the center pane never
+   collapses below its min-width. */
+.body { flex: 1; min-height: 0; display: grid;
+  grid-template-columns: minmax(180px, var(--binder-w, 264px)) minmax(0, 1fr) minmax(200px, var(--insp-w, 286px)); }
+@media (max-width: 960px) {
+  .body { grid-template-columns: minmax(160px, var(--binder-w, 200px)) minmax(0, 1fr) minmax(180px, var(--insp-w, 220px)); }
+}
+.body.no-binder { grid-template-columns: 0 minmax(0, 1fr) minmax(200px, var(--insp-w, 286px)); }
+.body.no-insp { grid-template-columns: minmax(180px, var(--binder-w, 264px)) minmax(0, 1fr) 0; }
+.body.no-binder.no-insp { grid-template-columns: 0 minmax(0, 1fr) 0; }
 .body.focus-mode { grid-template-columns: 0 1fr 0; }
 
 /* ── binder ──────────────────────────────────────────────────────────────── */
@@ -183,7 +220,11 @@ button { font-family: inherit; cursor: default; }
 .icon-btn svg { width: 15px; height: 15px; }
 
 /* context menu */
-.ctx { position: fixed; z-index: 1000; min-width: 180px; background: var(--bg-2);
+/* z-index scale (keep in sync when adding layers):
+   otable th 1 · assistant 5 · win-bar 10 · mac-menubar 200 · menu-dd 500 ·
+   comp 900 · sel-tb 950 · modal-bg 1100 · confirm-dialog 1200 · ctx 1300 ·
+   toast 9999 */
+.ctx { position: fixed; z-index: 1300; min-width: 180px; background: var(--bg-2);
   border: 0.5px solid var(--border-2); border-radius: 9px; padding: 5px;
   box-shadow: 0 12px 40px rgba(0,0,0,.5); font-size: 12.5px; }
 .ctx button { display: flex; width: 100%; align-items: center; gap: 9px; padding: 6px 9px; border: 0;
@@ -238,7 +279,8 @@ button { font-family: inherit; cursor: default; }
 .inspector { background: var(--bg-2); border-left: 0.5px solid var(--border); display: flex;
   flex-direction: column; min-width: 0; overflow: hidden; }
 .insp-scroll { flex: 1; overflow-y: auto; padding: 0 0 24px; }
-.insp-sec { padding: 14px 16px; border-bottom: 0.5px solid var(--border); }
+/* density-driven: balanced (--row-pad:5px) resolves to the original 14px */
+.insp-sec { padding: calc(var(--row-pad) * 2 + 4px) 16px; border-bottom: 0.5px solid var(--border); }
 .insp-sec h4 { margin: 0 0 10px; font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
   color: var(--text-3); font-weight: 600; }
 .field { margin-bottom: 12px; }
@@ -253,7 +295,7 @@ button { font-family: inherit; cursor: default; }
   background-repeat: no-repeat; background-position: right 9px center; padding-right: 26px; }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .pill-row { display: flex; flex-wrap: wrap; gap: 6px; }
-.pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 999px;
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: calc(var(--row-pad) - 1px) 9px; border-radius: 999px;
   font-size: 11px; border: 0.5px solid var(--border-2); background: var(--bg); color: var(--text-2); }
 .pill .dot { width: 7px; height: 7px; border-radius: 50%; }
 .pill.on { color: var(--text); border-color: var(--accent); background: var(--accent-soft); }
@@ -286,11 +328,11 @@ button { font-family: inherit; cursor: default; }
 .card:hover { border-color: var(--border-2); box-shadow: 0 6px 18px rgba(0,0,0,.35); }
 .card.sel { box-shadow: 0 0 0 2px var(--accent), 0 6px 18px rgba(0,0,0,.35); }
 .card .pin { height: 5px; background: var(--card-label, var(--border-2)); }
-.card .ct { padding: 12px 13px 8px; display: flex; align-items: flex-start; gap: 8px;
+.card .ct { padding: calc(var(--row-pad) * 2 + 2px) 13px 8px; display: flex; align-items: flex-start; gap: 8px;
   border-bottom: 0.5px dashed var(--border); }
 .card .ct .t { flex: 1; font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.25; }
 .card .ct .st { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex: none; }
-.card .cs { flex: 1; padding: 11px 13px; font-size: 12px; line-height: 1.55; color: var(--text-2);
+.card .cs { flex: 1; padding: 11px 13px; font-size: calc(var(--row-font) - 1px); line-height: 1.55; color: var(--text-2);
   font-family: var(--editor-font); background: transparent; border: 0; resize: none; outline: none; width: 100%; }
 .card .cs::placeholder { color: var(--text-3); font-style: italic; }
 .card .cf { padding: 7px 13px; display: flex; align-items: center; gap: 8px; font-size: 10px;
@@ -298,11 +340,11 @@ button { font-family: inherit; cursor: default; }
 
 /* ── outliner ────────────────────────────────────────────────────────────── */
 .outl { flex: 1; min-height: 0; overflow: auto; }
-.otable { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.otable { width: 100%; border-collapse: collapse; font-size: calc(var(--row-font) - 0.5px); }
 .otable th { position: sticky; top: 0; background: var(--bg); text-align: left; font-weight: 600;
   font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--text-3);
   padding: 8px 12px; border-bottom: 0.5px solid var(--border); z-index: 1; }
-.otable td { padding: 7px 12px; border-bottom: 0.5px solid var(--border); color: var(--text-2); vertical-align: middle; }
+.otable td { padding: calc(var(--row-pad) + 2px) 12px; border-bottom: 0.5px solid var(--border); color: var(--text-2); vertical-align: middle; }
 .otable tr:hover td { background: var(--bg-2); }
 .otable tr.sel td { background: var(--sel-bg); }
 .otable .o-title { color: var(--text); display: flex; align-items: center; gap: 8px; }

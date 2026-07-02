@@ -35,7 +35,7 @@ export function useNodeMenu(): (nodeId: ID) => MenuItem[] {
       { label: 'New Scene', action: () => mutate({ type: 'create', parentId: siblingParent, nodeType: 'scene' }) },
       { label: 'Duplicate', action: () => mutate({ type: 'duplicate', id: nodeId }) },
       { label: '---', action: () => {} },
-      { label: 'Take Snapshot', action: () => { selectNode(nodeId); setModal('snapshot') }, disabled: isFolder },
+      { label: 'Take Snapshot', action: () => { selectNode(nodeId); setModal('history') }, disabled: isFolder },
       { label: 'Document History', action: () => { selectNode(nodeId); setModal('history') }, disabled: isFolder },
       { label: '---', action: () => {} },
       inTrash

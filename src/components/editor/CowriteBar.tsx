@@ -162,12 +162,12 @@ export default function CowriteBar({ docId, selection, selRange, anchorRect, onC
           </button>
         ))}
         {running && (
-          <button onClick={handleStop} style={{ padding: '3px 8px', borderRadius: 5, border: '1px solid var(--border)', background: 'transparent', color: 'oklch(0.65 0.15 20)', fontSize: 12, cursor: 'pointer' }}>
+          <button onClick={handleStop} style={{ padding: '3px 8px', borderRadius: 5, border: '1px solid var(--border)', background: 'transparent', color: 'var(--danger)', fontSize: 12, cursor: 'pointer' }}>
             Stop
           </button>
         )}
         {error && (
-          <span style={{ fontSize: 11, color: 'oklch(0.65 0.15 20)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={error}>
+          <span style={{ fontSize: 11, color: 'var(--danger)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={error}>
             {error}
           </span>
         )}

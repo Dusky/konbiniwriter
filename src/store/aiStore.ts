@@ -41,7 +41,7 @@ interface AIState {
   spendUSD: number          // sum of priced calls
   spendCalls: number
   spendUnpriced: number     // calls whose model has no known price
-  recordSpend: (model: string, inputTokens: number, outputTokens: number) => void
+  recordSpend: (model: string, inputTokens: number, outputTokens: number, cacheReadTokens?: number, cacheCreationTokens?: number) => void
   resetSpend: () => void
 
   spendCapUSD: number       // 0 = no cap; halts an autopilot run when the run's cost crosses it
@@ -75,7 +75,7 @@ export const useAIStore = create<AIState>((set) => ({
   setOpenaiKey: (openaiKey) => { save(`${SK}:openaiKey`, openaiKey); set({ openaiKey }) },
   setOpenaiModel: (openaiModel) => { save(`${SK}:openaiModel`, openaiModel); set({ openaiModel }) },
 
-  chatMaxTokens: parseInt(load(`${SK}:chatMaxTokens`, '2048'), 10) || 2048,
+  chatMaxTokens: parseInt(load(`${SK}:chatMaxTokens`, '8192'), 10) || 8192,
   chatContextMessages: parseInt(load(`${SK}:chatContextMessages`, '30'), 10),
   setChatMaxTokens: (chatMaxTokens) => { save(`${SK}:chatMaxTokens`, String(chatMaxTokens)); set({ chatMaxTokens }) },
   setChatContextMessages: (chatContextMessages) => { save(`${SK}:chatContextMessages`, String(chatContextMessages)); set({ chatContextMessages }) },
@@ -92,10 +92,12 @@ export const useAIStore = create<AIState>((set) => ({
   spendUSD: 0,
   spendCalls: 0,
   spendUnpriced: 0,
-  recordSpend: (model, inputTokens, outputTokens) => set((s) => {
-    const cost = costOf(model, inputTokens, outputTokens)
+  recordSpend: (model, inputTokens, outputTokens, cacheReadTokens = 0, cacheCreationTokens = 0) => set((s) => {
+    const cost = costOf(model, inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens)
     return {
-      spendInputTokens: s.spendInputTokens + inputTokens,
+      // Cache tokens fold into the input tally so the UI total reflects
+      // everything sent; the dollar figure already prices them correctly.
+      spendInputTokens: s.spendInputTokens + inputTokens + cacheReadTokens + cacheCreationTokens,
       spendOutputTokens: s.spendOutputTokens + outputTokens,
       spendUSD: s.spendUSD + (cost ?? 0),
       spendCalls: s.spendCalls + 1,

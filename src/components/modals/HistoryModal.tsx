@@ -53,6 +53,8 @@ export default function HistoryModal({ onClose }: Props): React.ReactElement {
   const [selected, setSelected] = useState<Snapshot | null>(null)
   const [filter, setFilter] = useState<Filter>('all')
   const [restoring, setRestoring] = useState(false)
+  const [taking, setTaking] = useState(false)
+  const [newTitle, setNewTitle] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState<{ type: 'restore' | 'delete'; snap: Snapshot } | null>(null)
   const [compareMode, setCompareMode] = useState<'current' | 'previous'>('current')
@@ -83,6 +85,20 @@ export default function HistoryModal({ onClose }: Props): React.ReactElement {
         </div>
       </div>
     )
+  }
+
+  const handleTake = async () => {
+    setTaking(true)
+    try {
+      const snap = await window.api.snapshot.take(project.id, nodeId, newTitle.trim() || undefined)
+      addSnapshot(nodeId, snap)
+      setSnapshots((prev) => [snap, ...prev])
+      setNewTitle('')
+    } catch (e) {
+      setError('Snapshot could not be taken: ' + (e as Error).message)
+    } finally {
+      setTaking(false)
+    }
   }
 
   const handleRestore = (snap: Snapshot) => setConfirming({ type: 'restore', snap })
@@ -173,6 +189,19 @@ export default function HistoryModal({ onClose }: Props): React.ReactElement {
         <div className="modal-body" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, minHeight: 340 }}>
           {/* Left: timeline */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 400, overflowY: 'auto' }}>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 6, flexShrink: 0 }}>
+              <input
+                className="inp"
+                style={{ flex: 1, fontSize: 12 }}
+                placeholder="Snapshot name (optional)"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !taking) handleTake() }}
+              />
+              <button className="btn sm" disabled={taking} onClick={handleTake}>
+                {taking ? '…' : '+ Take Snapshot'}
+              </button>
+            </div>
             {error && (
               <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-3)', border: '1px solid var(--st-idea)', borderRadius: 6, padding: '8px 12px', marginBottom: 6, fontSize: 12, flexShrink: 0 }}>
                 <span style={{ color: 'var(--st-idea)' }}>⚠</span>
