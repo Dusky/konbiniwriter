@@ -63,11 +63,13 @@ export default function App(): React.ReactElement {
     const alt = e.altKey
 
     // Escape closes the open modal. Generative modals (which hold expensive,
-    // unsaved AI output) and the palette/search (own their Escape) are excluded
-    // so a stray Escape can't silently discard work.
+    // unsaved AI output — a close aborts the in-flight run) and the
+    // palette/search (own their Escape) are excluded so a stray Escape can't
+    // silently discard work.
     if (e.key === 'Escape') {
       const open = useShellStore.getState().modal
-      if (open && !['foundation', 'bestof', 'critic', 'command-palette', 'search'].includes(open)) {
+      const guarded = ['foundation', 'bestof', 'critic', 'reader', 'batch-generator', 'autopilot', 'codex', 'command-palette', 'search']
+      if (open && !guarded.includes(open)) {
         e.preventDefault()
         setModal(null)
       }

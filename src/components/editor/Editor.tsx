@@ -134,6 +134,13 @@ export default function Editor({ docId }: Props): React.ReactElement {
     return () => window.removeEventListener('keydown', handler)
   }, [runProof])
 
+  // Focus restore after a modal closes (dispatched from Studio).
+  useEffect(() => {
+    const handler = () => viewRef.current?.focus()
+    window.addEventListener('konbini:focus-editor', handler)
+    return () => window.removeEventListener('konbini:focus-editor', handler)
+  }, [])
+
   // Auto-run slop proof 30s after idle when slopAutoRun is enabled
   const slopAutoRunTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => () => {

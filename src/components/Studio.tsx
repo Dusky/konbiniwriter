@@ -67,6 +67,16 @@ export default function Studio(): React.ReactElement {
     if (!aiEnabled && assistantOpen) setAssistantOpen(false)
   }, [aiEnabled, assistantOpen, setAssistantOpen])
 
+  // Keyboard-first: closing any modal hands focus back to the editor so the
+  // writer can keep typing without reaching for the mouse.
+  const prevModal = React.useRef(modal)
+  React.useEffect(() => {
+    if (prevModal.current !== null && modal === null) {
+      window.dispatchEvent(new CustomEvent('konbini:focus-editor'))
+    }
+    prevModal.current = modal
+  }, [modal])
+
   const bodyClass = [
     'body',
     !layout.binder ? 'no-binder' : '',
