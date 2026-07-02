@@ -12,7 +12,7 @@
   background:
     radial-gradient(1200px 700px at 50% -15%, oklch(0.92 0.03 300 / .6), transparent 70%),
     oklch(0.87 0.005 90); }
-.launch-win { width: 100%; max-width: 920px; height: 560px; display: grid; grid-template-columns: 340px 1fr;
+.launch-win { width: 100%; max-width: 920px; height: min(560px, calc(100vh - 60px)); display: grid; grid-template-columns: 340px 1fr;
   background: var(--bg); border: 0.5px solid var(--border-2); border-radius: 16px; overflow: hidden;
   box-shadow: 0 40px 120px -20px rgba(0,0,0,.7), 0 4px 14px rgba(0,0,0,.5); }
 .launch-left { background: linear-gradient(165deg, color-mix(in oklch, var(--accent) 14%, var(--sidebar)), var(--sidebar));

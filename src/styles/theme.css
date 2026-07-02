@@ -174,10 +174,16 @@ button { font-family: inherit; cursor: default; }
 .seg button.on { background: var(--bg-3); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.2); }
 
 /* ── app body grid ───────────────────────────────────────────────────────── */
-.body { flex: 1; min-height: 0; display: grid; grid-template-columns: var(--binder-w, 264px) 1fr var(--insp-w, 286px); }
-.body.no-binder { grid-template-columns: 0 1fr var(--insp-w, 286px); }
-.body.no-insp { grid-template-columns: var(--binder-w, 264px) 1fr 0; }
-.body.no-binder.no-insp { grid-template-columns: 0 1fr 0; }
+/* Side columns squeeze before the editor does; the center pane never
+   collapses below its min-width. */
+.body { flex: 1; min-height: 0; display: grid;
+  grid-template-columns: minmax(180px, var(--binder-w, 264px)) minmax(0, 1fr) minmax(200px, var(--insp-w, 286px)); }
+@media (max-width: 960px) {
+  .body { grid-template-columns: minmax(160px, var(--binder-w, 200px)) minmax(0, 1fr) minmax(180px, var(--insp-w, 220px)); }
+}
+.body.no-binder { grid-template-columns: 0 minmax(0, 1fr) minmax(200px, var(--insp-w, 286px)); }
+.body.no-insp { grid-template-columns: minmax(180px, var(--binder-w, 264px)) minmax(0, 1fr) 0; }
+.body.no-binder.no-insp { grid-template-columns: 0 minmax(0, 1fr) 0; }
 .body.focus-mode { grid-template-columns: 0 1fr 0; }
 
 /* ── binder ──────────────────────────────────────────────────────────────── */
@@ -214,7 +220,11 @@ button { font-family: inherit; cursor: default; }
 .icon-btn svg { width: 15px; height: 15px; }
 
 /* context menu */
-.ctx { position: fixed; z-index: 1000; min-width: 180px; background: var(--bg-2);
+/* z-index scale (keep in sync when adding layers):
+   otable th 1 · assistant 5 · win-bar 10 · mac-menubar 200 · menu-dd 500 ·
+   comp 900 · sel-tb 950 · modal-bg 1100 · confirm-dialog 1200 · ctx 1300 ·
+   toast 9999 */
+.ctx { position: fixed; z-index: 1300; min-width: 180px; background: var(--bg-2);
   border: 0.5px solid var(--border-2); border-radius: 9px; padding: 5px;
   box-shadow: 0 12px 40px rgba(0,0,0,.5); font-size: 12.5px; }
 .ctx button { display: flex; width: 100%; align-items: center; gap: 9px; padding: 6px 9px; border: 0;
