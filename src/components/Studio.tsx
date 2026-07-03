@@ -7,7 +7,7 @@ import Titlebar from './shell/Titlebar'
 import Toolbar from './shell/Toolbar'
 import StatusBar from './shell/StatusBar'
 import Binder from './binder/Binder'
-import Inspector from './inspector/Inspector'
+import RightRail from './shell/RightRail'
 import EditorPane from './editor/EditorPane'
 import CompositionMode from './editor/CompositionMode'
 import CompileModal from './modals/CompileModal'
@@ -20,10 +20,6 @@ import ChangesetModal from './modals/ChangesetModal'
 import PromptRegistryModal from './modals/PromptRegistryModal'
 import AISettingsModal from './modals/AISettingsModal'
 import BatchGeneratorModal from './modals/BatchGeneratorModal'
-import AssistantPanel from './assistant/AssistantPanel'
-import ReaderPanel from './panels/ReaderPanel'
-import CriticPanel from './panels/CriticPanel'
-import CodexPanel from './panels/CodexPanel'
 import StatsModal from './modals/StatsModal'
 import AutopilotModal from './modals/AutopilotModal'
 import CommandPalette from './modals/CommandPalette'
@@ -83,9 +79,8 @@ export default function Studio(): React.ReactElement {
     !layout.binder ? 'no-binder' : '',
     activeRail === null ? 'no-insp' : '',
     focusMode ? 'focus-mode' : '',
-    activeRail === 'codex' ? 'dock-wide' : '',
-    activeRail === 'reader' || activeRail === 'critic' ? 'dock-narrow' : '',
-    activeRail === 'assistant' ? 'asst-open' : '',
+    activeRail === 'codex' ? 'rail-wide' : '',
+    activeRail && activeRail !== 'codex' ? 'rail-open' : '',
   ].filter(Boolean).join(' ')
 
   return (
@@ -108,13 +103,8 @@ export default function Studio(): React.ReactElement {
           <EditorPane splitOpen={false} pane="left" />
         )}
         {/* Always keep a grid child in slot 3 so the editor stays in column 2.
-            The right rail shows exactly one panel, selected by railPanel. */}
-        {activeRail === 'codex' ? <CodexPanel />
-          : activeRail === 'reader' ? <ReaderPanel />
-          : activeRail === 'critic' ? <CriticPanel />
-          : activeRail === 'assistant' ? <AssistantPanel />
-          : activeRail === 'inspector' ? <Inspector />
-          : <div />}
+            The tabbed rail owns the panel switching. */}
+        {activeRail ? <RightRail /> : <div />}
       </div>
       <StatusBar />
 
