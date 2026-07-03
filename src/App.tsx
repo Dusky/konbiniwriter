@@ -14,7 +14,7 @@ export default function App(): React.ReactElement {
   const setToast = useShellStore((s) => s.setToast)
   const setRecents = useShellStore((s) => s.setRecents)
   const toggleBinder = useShellStore((s) => s.toggleBinder)
-  const toggleInsp = useShellStore((s) => s.toggleInsp)
+  const toggleRailPanel = useShellStore((s) => s.toggleRailPanel)
   const setTheme = useShellStore((s) => s.setTheme)
   const setView = useProjectStore((s) => s.setView)
   const toggleSplit = useProjectStore((s) => s.toggleSplit)
@@ -91,7 +91,7 @@ export default function App(): React.ReactElement {
 
     // Navigation & layout
     if (alt && e.key === 'b') { e.preventDefault(); toggleBinder() }
-    if (alt && e.key === 'i') { e.preventDefault(); toggleInsp() }
+    if (alt && e.key === 'i') { e.preventDefault(); toggleRailPanel('inspector') }
     if (alt && e.key === 't') { e.preventDefault(); setTheme(theme === 'dark' ? 'light' : 'dark') }
     if (alt && e.key === 'c') { e.preventDefault(); setCompositionMode(true) }
     if (alt && e.key === 'o') { e.preventDefault(); setFocusMode(!useProjectStore.getState().focusMode) }
@@ -112,12 +112,12 @@ export default function App(): React.ReactElement {
     if (e.key === '/') { e.preventDefault(); setModal('shortcuts') }
     if (!shift && !alt && e.key === ',') { e.preventDefault(); setModal('prefs') }
     if (shift && e.key === 'F') { e.preventDefault(); setModal('search') }
-    if (shift && e.key === 'K') { e.preventDefault(); if (useAIStore.getState().enabled) useShellStore.getState().toggleDockPanel('codex') }
+    if (shift && e.key === 'K') { e.preventDefault(); if (useAIStore.getState().enabled) useShellStore.getState().toggleRailPanel('codex') }
     if (shift && e.key === 'A') {
       e.preventDefault()
-      if (useAIStore.getState().enabled) useShellStore.getState().toggleAssistant()
+      if (useAIStore.getState().enabled) useShellStore.getState().toggleRailPanel('assistant')
     }
-    if (shift && e.key === 'R') { e.preventDefault(); if (useAIStore.getState().enabled) useShellStore.getState().toggleDockPanel('reader') }
+    if (shift && e.key === 'R') { e.preventDefault(); if (useAIStore.getState().enabled) useShellStore.getState().toggleRailPanel('reader') }
     if (shift && e.key === 'G') { e.preventDefault(); setModal('batch-generator') }
     if (shift && e.key === 'P') { e.preventDefault(); setModal('autopilot') }
 

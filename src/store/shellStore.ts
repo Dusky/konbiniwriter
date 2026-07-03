@@ -5,8 +5,8 @@ export type Screen = 'launch' | 'studio'
 export type Theme = 'dark' | 'light'
 export type Density = 'compact' | 'balanced' | 'roomy'
 export type EditorFont = 'mono' | 'serif' | 'sans'
-/** Right-rail dock panels (AI features that live beside the editor). */
-export type DockPanel = 'reader' | 'critic' | 'codex' | null
+/** The single panel shown in the tabbed right rail (null = rail closed). */
+export type RailPanel = 'inspector' | 'assistant' | 'codex' | 'reader' | 'critic' | null
 
 export interface Toast { message: string; type: 'error' | 'info' | 'success'; id: number }
 
@@ -25,16 +25,13 @@ interface ShellState {
   modal: ModalId
   toasts: Toast[]
   recents: RecentEntry[]
-  layout: { binder: boolean; insp: boolean }
-  assistantOpen: boolean
-  dockPanel: DockPanel
+  layout: { binder: boolean }
+  railPanel: RailPanel
   // actions
   setScreen: (s: Screen) => void
   setModal: (m: ModalId) => void
-  toggleAssistant: () => void
-  setAssistantOpen: (open: boolean) => void
-  setDockPanel: (p: DockPanel) => void
-  toggleDockPanel: (p: Exclude<DockPanel, null>) => void
+  setRailPanel: (p: RailPanel) => void
+  toggleRailPanel: (p: Exclude<RailPanel, null>) => void
   setTheme: (t: Theme) => void
   setDensity: (d: Density) => void
   setEditorFont: (f: EditorFont) => void
@@ -47,7 +44,6 @@ interface ShellState {
   setToast: (message: string, type?: Toast['type']) => void
   clearToast: (id?: number) => void
   toggleBinder: () => void
-  toggleInsp: () => void
   setRecents: (r: RecentEntry[]) => void
   touchRecent: (r: RecentEntry) => void
   removeRecent: (id: string) => void
@@ -87,16 +83,13 @@ export const useShellStore = create<ShellState>((set) => ({
   modal: null,
   toasts: [],
   recents: [],
-  layout: { binder: true, insp: true },
-  assistantOpen: false,
-  dockPanel: null,
+  layout: { binder: true },
+  railPanel: 'inspector',
 
   setScreen: (screen) => set({ screen }),
   setModal: (modal) => set({ modal }),
-  toggleAssistant: () => set((s) => ({ assistantOpen: !s.assistantOpen })),
-  setAssistantOpen: (assistantOpen) => set({ assistantOpen }),
-  setDockPanel: (dockPanel) => set({ dockPanel }),
-  toggleDockPanel: (p) => set((s) => ({ dockPanel: s.dockPanel === p ? null : p })),
+  setRailPanel: (railPanel) => set({ railPanel }),
+  toggleRailPanel: (p) => set((s) => ({ railPanel: s.railPanel === p ? null : p })),
   setTheme: (theme) => {
     document.documentElement.dataset.theme = theme
     set({ theme })
@@ -141,7 +134,6 @@ export const useShellStore = create<ShellState>((set) => ({
   })),
   clearToast: (id) => set((s) => ({ toasts: id === undefined ? [] : s.toasts.filter((t) => t.id !== id) })),
   toggleBinder: () => set((s) => ({ layout: { ...s.layout, binder: !s.layout.binder } })),
-  toggleInsp: () => set((s) => ({ layout: { ...s.layout, insp: !s.layout.insp } })),
   setRecents: (recents) => set({ recents }),
   touchRecent: (r) =>
     set((s) => ({

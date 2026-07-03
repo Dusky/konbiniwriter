@@ -4,6 +4,8 @@
    ─────────────────────────────────────────────────────────────────────────── */
 
 .ai-spark { color: var(--accent); font-size: 12px; }
+/* attention dot on the AI menu button when there's pending debt / slop */
+.ai-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--st-prog); margin-left: 4px; }
 .tb-btn.ai-enable { color: var(--text-2); }
 .tb-btn.ai-enable:hover { color: var(--text); }
 .cost-chip { font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums;
@@ -50,16 +52,27 @@
 .ai-empty .ae-sub { font-size: 13px; color: var(--text-3); line-height: 1.6; max-width: 460px; }
 .ai-empty .ae-actions { margin-top: 20px; display: flex; gap: 8px; }
 
-/* ════ ASSISTANT PANEL (right column; replaces inspector when open) ════════ */
-.body.asst-open { grid-template-columns: minmax(180px, var(--binder-w, 264px)) minmax(0, 1fr) minmax(280px, 372px); }
-.body.asst-open.no-binder { grid-template-columns: 0 minmax(0, 1fr) minmax(280px, 372px); }
-
-/* ════ DOCK PANELS (Reader / Critic / Codex — right column) ═══════════════ */
-.body.dock-narrow { grid-template-columns: minmax(180px, var(--binder-w, 264px)) minmax(0, 1fr) minmax(300px, 372px); }
-.body.dock-narrow.no-binder { grid-template-columns: 0 minmax(0, 1fr) minmax(300px, 372px); }
-.body.dock-wide { grid-template-columns: minmax(180px, var(--binder-w, 264px)) minmax(0, 1fr) minmax(360px, 460px); }
-.body.dock-wide.no-binder { grid-template-columns: 0 minmax(0, 1fr) minmax(360px, 460px); }
-.dock-panel { min-width: 0; z-index: 5; background: var(--bg-2); border-left: 0.5px solid var(--border-2);
+/* ════ TABBED RIGHT RAIL (Inspector / Chat / Codex / Readers / Critic) ═════ */
+.body.rail-open { grid-template-columns: minmax(180px, var(--binder-w, 264px)) minmax(0, 1fr) minmax(300px, 340px); }
+.body.rail-open.no-binder { grid-template-columns: 0 minmax(0, 1fr) minmax(300px, 340px); }
+.body.rail-wide { grid-template-columns: minmax(180px, var(--binder-w, 264px)) minmax(0, 1fr) minmax(360px, 460px); }
+.body.rail-wide.no-binder { grid-template-columns: 0 minmax(0, 1fr) minmax(360px, 460px); }
+.rail { min-width: 0; z-index: 5; background: var(--bg-2); border-left: 0.5px solid var(--border-2);
+  display: flex; flex-direction: column; overflow: hidden; }
+.rail-tabs { flex: none; display: flex; align-items: stretch; height: 38px; padding: 0 4px;
+  border-bottom: 0.5px solid var(--border); }
+.rail-tabs > button { background: none; border: none; cursor: pointer; padding: 0 11px; font-size: 12px;
+  color: var(--text-3); border-bottom: 2px solid transparent; white-space: nowrap; }
+.rail-tabs > button:hover { color: var(--text-2); }
+.rail-tabs > button.on { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+.rail-tabs .rail-close { flex: none; padding: 0 8px; color: var(--text-3); font-size: 13px; }
+.rail-tabs .rail-close:hover { color: var(--text); }
+.rail-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+/* Panels render their own container inside the rail — strip the duplicate
+   left border/background/height so the rail owns the chrome. */
+.rail-body > * { flex: 1; min-height: 0; border-left: none; }
+/* Dock panels (Codex/Reader/Critic) still use their own body layout. */
+.dock-panel { min-width: 0; background: transparent;
   display: flex; flex-direction: column; overflow: hidden; }
 .dock-hd { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 16px;
   border-bottom: 0.5px solid var(--border); }

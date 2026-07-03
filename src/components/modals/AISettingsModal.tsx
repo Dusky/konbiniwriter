@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { useAIStore, type AIProvider } from '../../store/aiStore'
+import { useAIStore, AI_SERVICES, type AIService } from '../../store/aiStore'
 import { useProjectStore } from '../../store/projectStore'
 import { promptRegistry } from '../../lib/PromptRegistry'
 import { streamCompletion } from '../../lib/AIClient'
@@ -12,14 +12,14 @@ const ANTHROPIC_MODELS = [
   { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5 (fast/cheap)' },
 ]
 
-const OPENAI_PRESETS: { label: string; url: string; keyRequired: boolean; exampleModel: string }[] = [
-  { label: 'OpenAI',     url: 'https://api.openai.com/v1',         keyRequired: true,  exampleModel: 'gpt-4o' },
-  { label: 'OpenRouter', url: 'https://openrouter.ai/api/v1',      keyRequired: true,  exampleModel: 'anthropic/claude-sonnet-4.5' },
-  { label: 'NanoGPT',    url: 'https://nano-gpt.com/api/v1',       keyRequired: true,  exampleModel: 'chatgpt-4o-latest' },
-  { label: 'Groq',       url: 'https://api.groq.com/openai/v1',    keyRequired: true,  exampleModel: 'llama-3.3-70b-versatile' },
-  { label: 'Together',   url: 'https://api.together.xyz/v1',        keyRequired: true,  exampleModel: 'meta-llama/Llama-3.3-70B-Instruct-Turbo' },
-  { label: 'Ollama',     url: 'http://localhost:11434/v1',          keyRequired: false, exampleModel: 'llama3.3' },
-  { label: 'LM Studio',  url: 'http://localhost:1234/v1',           keyRequired: false, exampleModel: 'local-model' },
+// Sub-presets shown only under the "Custom" service — one-click endpoints for
+// other OpenAI-compatible providers and local servers. The four first-class
+// services (Claude/ChatGPT/NanoGPT/OpenRouter) live in AI_SERVICES.
+const CUSTOM_PRESETS: { label: string; url: string; keyRequired: boolean; exampleModel: string }[] = [
+  { label: 'Groq',      url: 'https://api.groq.com/openai/v1',    keyRequired: true,  exampleModel: 'llama-3.3-70b-versatile' },
+  { label: 'Together',  url: 'https://api.together.xyz/v1',        keyRequired: true,  exampleModel: 'meta-llama/Llama-3.3-70B-Instruct-Turbo' },
+  { label: 'Ollama',    url: 'http://localhost:11434/v1',          keyRequired: false, exampleModel: 'llama3.3' },
+  { label: 'LM Studio', url: 'http://localhost:1234/v1',           keyRequired: false, exampleModel: 'local-model' },
 ]
 
 async function validateAnthropicKey(apiKey: string): Promise<{ ok: boolean; error?: string }> {
@@ -73,7 +73,7 @@ interface Props { onClose: () => void }
 export default function AISettingsModal({ onClose }: Props): React.ReactElement {
   const {
     enabled, setEnabled,
-    provider, setProvider,
+    provider, service, setService,
     anthropicKey, setAnthropicKey, anthropicModel, setAnthropicModel,
     anthropicKeyValidated, anthropicKeyError, setAnthropicKeyValidated,
     openaiBaseUrl, setOpenaiBaseUrl, openaiKey, setOpenaiKey, openaiModel, setOpenaiModel,
@@ -190,16 +190,19 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
           </Row>
 
           <Row label="Provider">
-            <div className="seg">
-              {(['anthropic', 'openai'] as AIProvider[]).map((p) => (
-                <button key={p} className={provider === p ? 'on' : ''} onClick={() => setProvider(p)}>
-                  {p === 'anthropic' ? 'Anthropic' : 'OpenAI-compatible'}
-                </button>
-              ))}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div className="seg" style={{ flexWrap: 'wrap' }}>
+                {(Object.keys(AI_SERVICES) as AIService[]).map((id) => (
+                  <button key={id} className={service === id ? 'on' : ''} onClick={() => setService(id)}>
+                    {AI_SERVICES[id].label}
+                  </button>
+                ))}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-3)' }}>Bring your own key for any provider — keys stay in localStorage, never in project files.</div>
             </div>
           </Row>
 
-          {provider === 'anthropic' ? (
+          {service === 'claude' ? (
             <>
               <Row label="API Key">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -229,39 +232,49 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
             </>
           ) : (
             <>
-              <Row label="Presets">
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {OPENAI_PRESETS.map((p) => (
-                    <button
-                      key={p.label}
-                      className="btn"
-                      style={{ fontSize: 12, padding: '4px 10px', background: openaiBaseUrl === p.url ? 'var(--accent)' : undefined, color: openaiBaseUrl === p.url ? 'var(--accent-fg)' : undefined, borderColor: openaiBaseUrl === p.url ? 'transparent' : undefined }}
-                      onClick={() => { setOpenaiBaseUrl(p.url); if (!openaiModel || openaiModel === openaiModel) setOpenaiModel(p.exampleModel); setOpenaiTested(false) }}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-              </Row>
-              <Row label="Base URL">
-                <input
-                  value={openaiBaseUrl}
-                  onChange={(e) => { setOpenaiBaseUrl(e.target.value); setOpenaiTested(false) }}
-                  placeholder="https://api.openai.com/v1"
-                  style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)', boxSizing: 'border-box' }}
-                />
-                <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-3)' }}>Any provider with an OpenAI-compatible <code style={{ fontFamily: 'var(--mono)', background: 'var(--bg-2)', padding: '1px 4px', borderRadius: 3 }}>/chat/completions</code> endpoint.</div>
-              </Row>
+              {service === 'custom' ? (
+                <>
+                  <Row label="Presets">
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {CUSTOM_PRESETS.map((p) => (
+                        <button
+                          key={p.label}
+                          className="btn"
+                          style={{ fontSize: 12, padding: '4px 10px', background: openaiBaseUrl === p.url ? 'var(--accent)' : undefined, color: openaiBaseUrl === p.url ? 'var(--accent-fg)' : undefined, borderColor: openaiBaseUrl === p.url ? 'transparent' : undefined }}
+                          onClick={() => { setOpenaiBaseUrl(p.url); setOpenaiModel(p.exampleModel); setOpenaiTested(false) }}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  </Row>
+                  <Row label="Base URL">
+                    <input
+                      value={openaiBaseUrl}
+                      onChange={(e) => { setOpenaiBaseUrl(e.target.value); setOpenaiTested(false) }}
+                      placeholder="https://api.openai.com/v1"
+                      style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)', boxSizing: 'border-box' }}
+                    />
+                    <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-3)' }}>Any provider with an OpenAI-compatible <code style={{ fontFamily: 'var(--mono)', background: 'var(--bg-2)', padding: '1px 4px', borderRadius: 3 }}>/chat/completions</code> endpoint.</div>
+                  </Row>
+                </>
+              ) : (
+                <Row label="Endpoint">
+                  <div style={{ fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--mono)', padding: '4px 0' }}>{openaiBaseUrl}</div>
+                </Row>
+              )}
               <Row label="API Key">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <input
                     type="password"
                     value={openaiKey}
                     onChange={(e) => { setOpenaiKey(e.target.value); setOpenaiTested(false) }}
-                    placeholder="Optional — leave blank for local servers"
+                    placeholder={service === 'custom' ? 'Optional — leave blank for local servers' : `${AI_SERVICES[service].label} API key`}
                     style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)', boxSizing: 'border-box' }}
                   />
-                  <div style={{ fontSize: 11, color: 'var(--text-3)' }}>Stored in localStorage only. Leave blank for Ollama / LM Studio.</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                    Stored in localStorage only.{service === 'custom' ? ' Leave blank for Ollama / LM Studio.' : ''}
+                  </div>
                 </div>
               </Row>
               <Row label="Model">
@@ -270,7 +283,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                     <input
                       value={openaiModel}
                       onChange={(e) => { setOpenaiModel(e.target.value); setOpenaiTested(false) }}
-                      placeholder="gpt-4o, llama3.3, etc."
+                      placeholder={AI_SERVICES[service].exampleModel ?? 'gpt-4o, llama3.3, etc.'}
                       style={{ flex: 1, padding: '7px 10px', borderRadius: 6, border: `1px solid ${openaiTested ? 'var(--success)' : openaiTestError ? 'var(--danger)' : 'var(--border-2)'}`, background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)' }}
                     />
                     <button className="btn" onClick={handleOpenAITest} disabled={validating || !openaiBaseUrl.trim() || !openaiModel.trim()} style={{ whiteSpace: 'nowrap' }}>
@@ -279,7 +292,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                   </div>
                   {openaiTestError && <div style={{ fontSize: 11, color: 'var(--danger)' }}>{openaiTestError}</div>}
                   {openaiTested && <div style={{ fontSize: 11, color: 'var(--success)' }}>Endpoint reachable.</div>}
-                  {OPENAI_PRESETS.find((p) => p.url === openaiBaseUrl && !p.keyRequired) && (
+                  {CUSTOM_PRESETS.find((p) => p.url === openaiBaseUrl && !p.keyRequired) && (
                     <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
                       Local server — make sure it's running and has CORS enabled{' '}
                       {openaiBaseUrl.includes('11434') && <>(Ollama: <code style={{ fontFamily: 'var(--mono)', background: 'var(--bg-2)', padding: '1px 4px', borderRadius: 3 }}>OLLAMA_ORIGINS=* ollama serve</code>)</>}.

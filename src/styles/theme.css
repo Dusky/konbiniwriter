@@ -233,6 +233,7 @@ button { font-family: inherit; cursor: default; }
 .ctx button.danger { color: var(--st-idea); }
 .ctx button svg { width: 14px; height: 14px; opacity: .8; }
 .ctx .sub { padding: 6px 9px 2px; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.ctx .ctx-head { padding: 7px 9px 3px; font-size: 10px; letter-spacing: .07em; text-transform: uppercase; color: var(--text-3); font-weight: 600; }
 .ctx hr { border: 0; border-top: 0.5px solid var(--border); margin: 5px 2px; }
 
 /* ── main / editor ───────────────────────────────────────────────────────── */

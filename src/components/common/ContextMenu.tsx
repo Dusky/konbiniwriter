@@ -2,9 +2,11 @@ import React, { useEffect, useRef } from 'react'
 
 export interface MenuItem {
   label: string
-  action: () => void
+  action?: () => void
   danger?: boolean
   disabled?: boolean
+  /** Renders as a non-interactive section label instead of a button. */
+  header?: boolean
 }
 
 interface Props {
@@ -44,11 +46,13 @@ export default function ContextMenu({ x, y, items, onClose }: Props): React.Reac
       {items.map((item, i) =>
         item.label === '---' ? (
           <hr key={i} />
+        ) : item.header ? (
+          <div key={i} className="ctx-head">{item.label}</div>
         ) : (
           <button
             key={i}
             className={item.danger ? 'danger' : ''}
-            onClick={() => { item.action(); onClose() }}
+            onClick={() => { item.action?.(); onClose() }}
             disabled={item.disabled}
           >
             {item.label}

@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react'
 import { useProjectStore } from '../../store/projectStore'
-import { useShellStore } from '../../store/shellStore'
 import { useAIStore } from '../../store/aiStore'
 import { backlinksFor } from '../../lib/MentionIndex'
 import { debtService } from '../../lib/DebtService'
@@ -51,7 +50,6 @@ export default function CodexPanel(): React.ReactElement {
   const selectNode = useProjectStore((s) => s.selectNode)
   const raiseDebt = useProjectStore((s) => s.raiseDebt)
   const aiEnabled = useAIStore((s) => s.enabled)
-  const setDockPanel = useShellStore((s) => s.setDockPanel)
 
   const [category, setCategory] = useState<CodexCategory>('character')
   const [selected, setSelected] = useState<CodexEntry | null>(null)
@@ -229,7 +227,6 @@ export default function CodexPanel(): React.ReactElement {
             {scanning ? 'Scanning…' : 'Scan'}
           </button>
         )}
-        <button className="icon-btn sm" onClick={() => setDockPanel(null)} title="Close codex">✕</button>
       </div>
 
       {/* Category chips */}

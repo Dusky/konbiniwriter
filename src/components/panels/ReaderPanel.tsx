@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react'
 import { useProjectStore } from '../../store/projectStore'
-import { useShellStore } from '../../store/shellStore'
 import { streamCompletion } from '../../lib/AIClient'
 import { agentRegistry, promptRegistry } from '../../lib/PromptRegistry'
 
@@ -50,7 +49,6 @@ interface PersonaResult {
 export default function ReaderPanel(): React.ReactElement {
   const project = useProjectStore((s) => s.project)
   const selectedId = useProjectStore((s) => s.selectedId)
-  const setDockPanel = useShellStore((s) => s.setDockPanel)
 
   // Snapshot the configured reader agents for this session.
   const personas = useMemo(() => readerPersonas(), [])
@@ -132,7 +130,6 @@ export default function ReaderPanel(): React.ReactElement {
               {anyDone ? 'Re-run' : 'Run readers'}
             </button>
         }
-        <button className="icon-btn sm" onClick={() => setDockPanel(null)} title="Close reader panel">✕</button>
       </div>
 
       {avgScore != null && (

@@ -3,8 +3,22 @@ import { costOf } from '../lib/Pricing'
 
 export type AIProvider = 'anthropic' | 'openai'
 
+// User-facing BYOK service. Claude speaks the Anthropic wire format; every other
+// service speaks the OpenAI-compatible /chat/completions format. 'custom' is the
+// escape hatch for a free-form endpoint (local servers, Groq, Together, …).
+export type AIService = 'claude' | 'chatgpt' | 'nanogpt' | 'openrouter' | 'custom'
+
+export const AI_SERVICES: Record<AIService, { label: string; provider: AIProvider; url?: string; exampleModel?: string }> = {
+  claude:     { label: 'Claude',     provider: 'anthropic' },
+  chatgpt:    { label: 'ChatGPT',    provider: 'openai', url: 'https://api.openai.com/v1', exampleModel: 'gpt-4o' },
+  nanogpt:    { label: 'NanoGPT',    provider: 'openai', url: 'https://nano-gpt.com/api/v1', exampleModel: 'chatgpt-4o-latest' },
+  openrouter: { label: 'OpenRouter', provider: 'openai', url: 'https://openrouter.ai/api/v1', exampleModel: 'anthropic/claude-sonnet-4.5' },
+  custom:     { label: 'Custom',     provider: 'openai' },
+}
+
 interface AIState {
   enabled: boolean
+  service: AIService
   provider: AIProvider
   // Anthropic
   anthropicKey: string
@@ -17,6 +31,7 @@ interface AIState {
   openaiModel: string
 
   setEnabled: (on: boolean) => void
+  setService: (s: AIService) => void
   setProvider: (p: AIProvider) => void
   setAnthropicKey: (key: string) => void
   setAnthropicModel: (model: string) => void
@@ -55,8 +70,21 @@ const SK = 'konbini:ai'
 function load(k: string, fallback = '') { return window.api.prefs.get(k) ?? fallback }
 function save(k: string, v: string) { window.api.prefs.set(k, v) }
 
+// Resolve the selected service: use the saved one, else derive from the legacy
+// provider/baseUrl prefs so existing installs land on the right chip.
+function initialService(): AIService {
+  const saved = load(`${SK}:service`) as AIService
+  if (saved && AI_SERVICES[saved]) return saved
+  if (load(`${SK}:provider`, 'anthropic') === 'anthropic') return 'claude'
+  const url = load(`${SK}:openaiBaseUrl`)
+  const match = (Object.entries(AI_SERVICES) as [AIService, typeof AI_SERVICES[AIService]][])
+    .find(([, s]) => s.url && s.url === url)
+  return match ? match[0] : 'custom'
+}
+
 export const useAIStore = create<AIState>((set) => ({
   enabled: false,
+  service: initialService(),
   provider: (load(`${SK}:provider`, 'anthropic') as AIProvider),
   anthropicKey: load(`${SK}:anthropicKey`),
   anthropicModel: load(`${SK}:anthropicModel`, 'claude-opus-4-8'),
@@ -67,6 +95,23 @@ export const useAIStore = create<AIState>((set) => ({
   openaiModel: load(`${SK}:openaiModel`, 'gpt-4o'),
 
   setEnabled: (enabled) => set({ enabled }),
+  // Selecting a service also sets the wire-format provider and, for the named
+  // OpenAI-compatible services, the endpoint + a starter model (only when the
+  // current model is empty or still one of the built-in examples — never
+  // clobbering a model the user typed).
+  setService: (service) => {
+    const s = AI_SERVICES[service]
+    save(`${SK}:service`, service)
+    save(`${SK}:provider`, s.provider)
+    const patch: Partial<AIState> = { service, provider: s.provider }
+    if (s.url) { save(`${SK}:openaiBaseUrl`, s.url); patch.openaiBaseUrl = s.url }
+    if (s.exampleModel) {
+      const cur = load(`${SK}:openaiModel`)
+      const isDefaulty = !cur || Object.values(AI_SERVICES).some((x) => x.exampleModel === cur)
+      if (isDefaulty) { save(`${SK}:openaiModel`, s.exampleModel); patch.openaiModel = s.exampleModel }
+    }
+    set(patch)
+  },
   setProvider: (provider) => { save(`${SK}:provider`, provider); set({ provider }) },
   setAnthropicKey: (anthropicKey) => { save(`${SK}:anthropicKey`, anthropicKey); set({ anthropicKey, anthropicKeyValidated: false, anthropicKeyError: null }) },
   setAnthropicModel: (anthropicModel) => { save(`${SK}:anthropicModel`, anthropicModel); set({ anthropicModel }) },

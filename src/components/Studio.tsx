@@ -7,7 +7,7 @@ import Titlebar from './shell/Titlebar'
 import Toolbar from './shell/Toolbar'
 import StatusBar from './shell/StatusBar'
 import Binder from './binder/Binder'
-import Inspector from './inspector/Inspector'
+import RightRail from './shell/RightRail'
 import EditorPane from './editor/EditorPane'
 import CompositionMode from './editor/CompositionMode'
 import CompileModal from './modals/CompileModal'
@@ -20,10 +20,6 @@ import ChangesetModal from './modals/ChangesetModal'
 import PromptRegistryModal from './modals/PromptRegistryModal'
 import AISettingsModal from './modals/AISettingsModal'
 import BatchGeneratorModal from './modals/BatchGeneratorModal'
-import AssistantPanel from './assistant/AssistantPanel'
-import ReaderPanel from './panels/ReaderPanel'
-import CriticPanel from './panels/CriticPanel'
-import CodexPanel from './panels/CodexPanel'
 import StatsModal from './modals/StatsModal'
 import AutopilotModal from './modals/AutopilotModal'
 import CommandPalette from './modals/CommandPalette'
@@ -37,10 +33,8 @@ export default function Studio(): React.ReactElement {
   const layout = useShellStore((s) => s.layout)
   const modal = useShellStore((s) => s.modal)
   const setModal = useShellStore((s) => s.setModal)
-  const assistantOpen = useShellStore((s) => s.assistantOpen)
-  const setAssistantOpen = useShellStore((s) => s.setAssistantOpen)
-  const dockPanel = useShellStore((s) => s.dockPanel)
-  const setDockPanel = useShellStore((s) => s.setDockPanel)
+  const railPanel = useShellStore((s) => s.railPanel)
+  const setRailPanel = useShellStore((s) => s.setRailPanel)
   const aiEnabled = useAIStore((s) => s.enabled)
   const compositionMode = useProjectStore((s) => s.compositionMode)
   const focusMode = useProjectStore((s) => s.focusMode)
@@ -61,16 +55,14 @@ export default function Studio(): React.ReactElement {
     : null
 
   const showBinder = layout.binder && !focusMode
-  const showInsp = layout.insp && !focusMode
-  const showAssistant = assistantOpen && aiEnabled && !focusMode
-  // Dock panels (Reader/Critic/Codex) are AI features that take the right rail,
-  // winning over Assistant/Inspector while open.
-  const activeDock = aiEnabled && !focusMode ? dockPanel : null
+  // The right rail shows one panel at a time. AI panels require AI on; focus
+  // mode hides the rail entirely.
+  const activeRail = focusMode ? null : railPanel
 
   React.useEffect(() => {
-    if (!aiEnabled && assistantOpen) setAssistantOpen(false)
-    if (!aiEnabled && dockPanel) setDockPanel(null)
-  }, [aiEnabled, assistantOpen, setAssistantOpen, dockPanel, setDockPanel])
+    // AI turned off while an AI panel was docked — fall back to the inspector.
+    if (!aiEnabled && railPanel && railPanel !== 'inspector') setRailPanel('inspector')
+  }, [aiEnabled, railPanel, setRailPanel])
 
   // Keyboard-first: closing any modal hands focus back to the editor so the
   // writer can keep typing without reaching for the mouse.
@@ -85,11 +77,10 @@ export default function Studio(): React.ReactElement {
   const bodyClass = [
     'body',
     !layout.binder ? 'no-binder' : '',
-    !layout.insp ? 'no-insp' : '',
+    activeRail === null ? 'no-insp' : '',
     focusMode ? 'focus-mode' : '',
-    activeDock === 'codex' ? 'dock-wide' : '',
-    activeDock === 'reader' || activeDock === 'critic' ? 'dock-narrow' : '',
-    !activeDock && showAssistant ? 'asst-open' : '',
+    activeRail === 'codex' ? 'rail-wide' : '',
+    activeRail && activeRail !== 'codex' ? 'rail-open' : '',
   ].filter(Boolean).join(' ')
 
   return (
@@ -112,13 +103,8 @@ export default function Studio(): React.ReactElement {
           <EditorPane splitOpen={false} pane="left" />
         )}
         {/* Always keep a grid child in slot 3 so the editor stays in column 2.
-            Dock panels win over the assistant, which wins over the inspector. */}
-        {activeDock === 'codex' ? <CodexPanel />
-          : activeDock === 'reader' ? <ReaderPanel />
-          : activeDock === 'critic' ? <CriticPanel />
-          : showAssistant ? <AssistantPanel />
-          : showInsp ? <Inspector />
-          : <div />}
+            The tabbed rail owns the panel switching. */}
+        {activeRail ? <RightRail /> : <div />}
       </div>
       <StatusBar />
 
