@@ -2,7 +2,9 @@
 // electron/main.ts — Electron main process entry point.
 //
 // Dev mode:  loads http://localhost:5173 (Vite dev server)
-// Prod mode: loads file://dist/index.html (built output)
+// Prod mode: loads the built renderer at <app>/dist/index.html. The compiled
+//            main lives at <app>/electron-dist/electron/main.js, so the path
+//            climbs two levels up to reach the app-root dist/.
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -57,12 +59,18 @@ function createWindow() {
             sandbox: false, // preload needs Node.js
         },
     });
+    // Surface a failed load instead of blanking silently (open devtools so the
+    // error is visible in a packaged build).
+    win.webContents.on('did-fail-load', (_e, code, desc, url) => {
+        console.error(`Renderer failed to load (${code} ${desc}): ${url}`);
+        win?.webContents.openDevTools();
+    });
     if (DEV) {
         win.loadURL('http://localhost:5173');
         win.webContents.openDevTools();
     }
     else {
-        win.loadFile(path.join(__dirname, '../dist/index.html'));
+        win.loadFile(path.join(__dirname, '../../dist/index.html'));
     }
     // Push maximize state to the renderer so window controls stay in sync no matter
     // how the window was (un)maximized — button, OS shortcut, or titlebar double-click.
