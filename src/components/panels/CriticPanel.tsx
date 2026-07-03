@@ -18,7 +18,7 @@ export default function CriticPanel(): React.ReactElement {
   const mentionIndex = useProjectStore((s) => s.mentionIndex)
   const queueProposal = useProjectStore((s) => s.queueProposal)
   const aiEnabled = useAIStore((s) => s.enabled)
-  const setDockPanel = useShellStore((s) => s.setDockPanel)
+  const setRailPanel = useShellStore((s) => s.setRailPanel)
 
   const [assessment, setAssessment] = useState('')
   const [notes, setNotes] = useState<Note[]>([])
@@ -115,7 +115,7 @@ export default function CriticPanel(): React.ReactElement {
           <h3>Critic</h3>
           <span className="sub"> · professor critique</span>
         </div>
-        <button className="icon-btn sm" onClick={() => setDockPanel(null)} title="Close critic panel">✕</button>
+        <button className="icon-btn sm" onClick={() => setRailPanel(null)} title="Close critic panel">✕</button>
       </div>
 
       {!aiEnabled ? (

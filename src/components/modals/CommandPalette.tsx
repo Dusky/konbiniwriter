@@ -94,7 +94,7 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
       { id: 'view-timeline', label: 'View: Timeline', section: 'View', hint: '⌘4', run: () => proj.setView('timeline') },
       // Layout / modes
       { id: 'toggle-binder', label: 'Toggle Binder', section: 'Layout', hint: '⌘⌥B', run: () => shell.toggleBinder() },
-      { id: 'toggle-insp', label: 'Toggle Inspector', section: 'Layout', hint: '⌘⌥I', run: () => shell.toggleInsp() },
+      { id: 'toggle-insp', label: 'Toggle Inspector', section: 'Layout', hint: '⌘⌥I', run: () => shell.toggleRailPanel('inspector') },
       { id: 'split', label: 'Toggle Split Editor', section: 'Layout', hint: '⌘\\', run: () => proj.toggleSplit() },
       { id: 'focus', label: `Focus Mode: ${proj.focusMode ? 'Off' : 'On'}`, section: 'Layout', hint: '⌘⌥O', run: () => proj.setFocusMode(!useProjectStore.getState().focusMode) },
       { id: 'composition', label: 'Composition Mode', section: 'Layout', hint: '⌘⌥C', run: () => proj.setCompositionMode(true) },
@@ -115,14 +115,14 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
 
     if (aiEnabled) {
       cmds.push(
-        { id: 'ai-codex', label: 'Codex…', section: 'AI', hint: '⌘⇧K', run: () => shell.setDockPanel('codex') },
+        { id: 'ai-codex', label: 'Codex…', section: 'AI', hint: '⌘⇧K', run: () => shell.setRailPanel('codex') },
         { id: 'ai-debt', label: 'Propagation Debt…', section: 'AI', run: openModal('debt') },
-        { id: 'ai-chat', label: 'AI Chat…', section: 'AI', hint: '⌘⇧A', run: () => shell.toggleAssistant() },
-        { id: 'ai-reader', label: 'Reader Panel…', section: 'AI', hint: '⌘⇧R', run: () => shell.setDockPanel('reader') },
+        { id: 'ai-chat', label: 'AI Chat…', section: 'AI', hint: '⌘⇧A', run: () => shell.setRailPanel('assistant') },
+        { id: 'ai-reader', label: 'Reader Panel…', section: 'AI', hint: '⌘⇧R', run: () => shell.setRailPanel('reader') },
         { id: 'ai-foundation', label: 'Foundation (seed → world → cast)…', section: 'AI', run: openModal('foundation') },
         { id: 'ai-batch', label: 'Batch Generators…', section: 'AI', hint: '⌘⇧G', run: openModal('batch-generator') },
         { id: 'ai-bestof', label: 'Best of N (variant tournament)…', section: 'AI', run: openModal('bestof') },
-        { id: 'ai-critic', label: 'Critic (professor critique + revision)…', section: 'AI', run: () => shell.setDockPanel('critic') },
+        { id: 'ai-critic', label: 'Critic (professor critique + revision)…', section: 'AI', run: () => shell.setRailPanel('critic') },
         { id: 'ai-autopilot', label: 'Autopilot…', section: 'AI', hint: '⌘⇧P', run: openModal('autopilot') },
         { id: 'ai-prompts', label: 'Prompt Registry…', section: 'AI', run: openModal('prompt-registry') },
         { id: 'ai-settings', label: 'AI Settings…', section: 'AI', run: openModal('ai-settings') },

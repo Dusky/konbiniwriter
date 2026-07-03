@@ -50,7 +50,7 @@ interface PersonaResult {
 export default function ReaderPanel(): React.ReactElement {
   const project = useProjectStore((s) => s.project)
   const selectedId = useProjectStore((s) => s.selectedId)
-  const setDockPanel = useShellStore((s) => s.setDockPanel)
+  const setRailPanel = useShellStore((s) => s.setRailPanel)
 
   // Snapshot the configured reader agents for this session.
   const personas = useMemo(() => readerPersonas(), [])
@@ -132,7 +132,7 @@ export default function ReaderPanel(): React.ReactElement {
               {anyDone ? 'Re-run' : 'Run readers'}
             </button>
         }
-        <button className="icon-btn sm" onClick={() => setDockPanel(null)} title="Close reader panel">✕</button>
+        <button className="icon-btn sm" onClick={() => setRailPanel(null)} title="Close reader panel">✕</button>
       </div>
 
       {avgScore != null && (

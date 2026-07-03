@@ -6,12 +6,9 @@ import { useAIStore } from '../../store/aiStore'
 export default function Toolbar(): React.ReactElement {
   const layout = useShellStore((s) => s.layout)
   const toggleBinder = useShellStore((s) => s.toggleBinder)
-  const toggleInsp = useShellStore((s) => s.toggleInsp)
   const setModal = useShellStore((s) => s.setModal)
-  const assistantOpen = useShellStore((s) => s.assistantOpen)
-  const toggleAssistant = useShellStore((s) => s.toggleAssistant)
-  const dockPanel = useShellStore((s) => s.dockPanel)
-  const toggleDockPanel = useShellStore((s) => s.toggleDockPanel)
+  const railPanel = useShellStore((s) => s.railPanel)
+  const toggleRailPanel = useShellStore((s) => s.toggleRailPanel)
 
   const view = useProjectStore((s) => s.view)
   const setView = useProjectStore((s) => s.setView)
@@ -118,11 +115,11 @@ export default function Toolbar(): React.ReactElement {
 
       <div className="tb-group">
         <button
-          className={`tb-btn${layout.insp ? ' on' : ''}`}
+          className={`tb-btn${railPanel === 'inspector' ? ' on' : ''}`}
           title="Toggle Inspector (⌘⌥I)"
           aria-label="Toggle Inspector"
-          aria-pressed={layout.insp}
-          onClick={toggleInsp}
+          aria-pressed={railPanel === 'inspector'}
+          onClick={() => toggleRailPanel('inspector')}
         >
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
             <rect x="10" y="2" width="4" height="12" rx="1" />
@@ -165,7 +162,7 @@ export default function Toolbar(): React.ReactElement {
       {aiEnabled ? (
         <>
           <div className="tb-group">
-            <button className={`tb-btn${dockPanel === 'codex' ? ' on' : ''}`} title="Codex (⌘⇧K)" aria-pressed={dockPanel === 'codex'} onClick={() => toggleDockPanel('codex')}>
+            <button className={`tb-btn${railPanel === 'codex' ? ' on' : ''}`} title="Codex (⌘⇧K)" aria-pressed={railPanel === 'codex'} onClick={() => toggleRailPanel('codex')}>
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
                 <path d="M3 2h8l2 2v10H3z" /><path d="M6 6h4M6 9h4M6 12h2" />
               </svg>
@@ -176,7 +173,7 @@ export default function Toolbar(): React.ReactElement {
                 <path d="M2 4h12M2 8h8M2 12h10" strokeLinecap="round" />
               </svg>
             </button>
-            <button className={`tb-btn${dockPanel === 'reader' ? ' on' : ''}`} title="Reader Panel — 4-persona critique" aria-pressed={dockPanel === 'reader'} onClick={() => toggleDockPanel('reader')}>
+            <button className={`tb-btn${railPanel === 'reader' ? ' on' : ''}`} title="Reader Panel — 4-persona critique" aria-pressed={railPanel === 'reader'} onClick={() => toggleRailPanel('reader')}>
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
                 <circle cx="5" cy="6" r="2.5" />
                 <circle cx="11" cy="6" r="2.5" />
@@ -187,7 +184,7 @@ export default function Toolbar(): React.ReactElement {
             <button className="tb-btn" title="Best of N — generate variants, rank them, keep the winner" onClick={() => setModal('bestof')}>
               <span style={{ fontSize: 13 }}>🏆</span> Best of N
             </button>
-            <button className={`tb-btn${dockPanel === 'critic' ? ' on' : ''}`} title="Critic — professor critique + targeted revision" aria-pressed={dockPanel === 'critic'} onClick={() => toggleDockPanel('critic')}>
+            <button className={`tb-btn${railPanel === 'critic' ? ' on' : ''}`} title="Critic — professor critique + targeted revision" aria-pressed={railPanel === 'critic'} onClick={() => toggleRailPanel('critic')}>
               <span style={{ fontSize: 13 }}>🎓</span> Critic
             </button>
             <button
@@ -225,7 +222,7 @@ export default function Toolbar(): React.ReactElement {
           </button>
           <button className="tb-btn" title="Autopilot (⌘⇧P)" onClick={() => setModal('autopilot')}>▶▶</button>
           <div className="tb-sep" />
-          <button className={`tb-btn${assistantOpen ? ' on' : ''}`} title="AI Chat (⌘⇧A)" aria-label="AI Chat" aria-pressed={assistantOpen} onClick={toggleAssistant}>
+          <button className={`tb-btn${railPanel === 'assistant' ? ' on' : ''}`} title="AI Chat (⌘⇧A)" aria-label="AI Chat" aria-pressed={railPanel === 'assistant'} onClick={() => toggleRailPanel('assistant')}>
             <span className="ai-spark">✦</span> Chat
           </button>
           <button className="tb-btn" title="AI Settings" onClick={() => setModal('ai-settings')} style={{ color: 'var(--accent)' }}>

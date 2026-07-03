@@ -51,7 +51,7 @@ export default function CodexPanel(): React.ReactElement {
   const selectNode = useProjectStore((s) => s.selectNode)
   const raiseDebt = useProjectStore((s) => s.raiseDebt)
   const aiEnabled = useAIStore((s) => s.enabled)
-  const setDockPanel = useShellStore((s) => s.setDockPanel)
+  const setRailPanel = useShellStore((s) => s.setRailPanel)
 
   const [category, setCategory] = useState<CodexCategory>('character')
   const [selected, setSelected] = useState<CodexEntry | null>(null)
@@ -229,7 +229,7 @@ export default function CodexPanel(): React.ReactElement {
             {scanning ? 'Scanning…' : 'Scan'}
           </button>
         )}
-        <button className="icon-btn sm" onClick={() => setDockPanel(null)} title="Close codex">✕</button>
+        <button className="icon-btn sm" onClick={() => setRailPanel(null)} title="Close codex">✕</button>
       </div>
 
       {/* Category chips */}

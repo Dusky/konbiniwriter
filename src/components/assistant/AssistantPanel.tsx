@@ -97,7 +97,7 @@ export default function AssistantPanel(): React.ReactElement {
   const mentionIndex = useProjectStore((s) => s.mentionIndex)
   const chatMaxTokens = useAIStore((s) => s.chatMaxTokens)
   const chatContextMessages = useAIStore((s) => s.chatContextMessages)
-  const setAssistantOpen = useShellStore((s) => s.setAssistantOpen)
+  const setRailPanel = useShellStore((s) => s.setRailPanel)
 
   const [threads, setThreads] = useState<ChatThreads>({})
   const [loaded, setLoaded] = useState(false)
@@ -311,7 +311,7 @@ export default function AssistantPanel(): React.ReactElement {
         {messages.length > 0 && (
           <button className="btn sm" onClick={() => setConfirmClear(true)}>Clear</button>
         )}
-        <button className="icon-btn sm" onClick={() => setAssistantOpen(false)} title="Close assistant">✕</button>
+        <button className="icon-btn sm" onClick={() => setRailPanel(null)} title="Close assistant">✕</button>
       </div>
 
       {confirmClear && (
