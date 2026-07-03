@@ -4,6 +4,8 @@
    ─────────────────────────────────────────────────────────────────────────── */
 
 .ai-spark { color: var(--accent); font-size: 12px; }
+/* attention dot on the AI menu button when there's pending debt / slop */
+.ai-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--st-prog); margin-left: 4px; }
 .tb-btn.ai-enable { color: var(--text-2); }
 .tb-btn.ai-enable:hover { color: var(--text); }
 .cost-chip { font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums;

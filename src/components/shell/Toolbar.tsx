@@ -1,7 +1,8 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useShellStore } from '../../store/shellStore'
 import { useProjectStore } from '../../store/projectStore'
 import { useAIStore } from '../../store/aiStore'
+import ContextMenu from '../common/ContextMenu'
 
 export default function Toolbar(): React.ReactElement {
   const layout = useShellStore((s) => s.layout)
@@ -9,6 +10,8 @@ export default function Toolbar(): React.ReactElement {
   const setModal = useShellStore((s) => s.setModal)
   const railPanel = useShellStore((s) => s.railPanel)
   const toggleRailPanel = useShellStore((s) => s.toggleRailPanel)
+  const setRailPanel = useShellStore((s) => s.setRailPanel)
+  const [aiMenu, setAiMenu] = useState<{ x: number; y: number } | null>(null)
 
   const view = useProjectStore((s) => s.view)
   const setView = useProjectStore((s) => s.setView)
@@ -161,73 +164,48 @@ export default function Toolbar(): React.ReactElement {
 
       {aiEnabled ? (
         <>
-          <div className="tb-group">
-            <button className={`tb-btn${railPanel === 'codex' ? ' on' : ''}`} title="Codex (⌘⇧K)" aria-pressed={railPanel === 'codex'} onClick={() => toggleRailPanel('codex')}>
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
-                <path d="M3 2h8l2 2v10H3z" /><path d="M6 6h4M6 9h4M6 12h2" />
-              </svg>
-              Codex
-            </button>
-            <button className="tb-btn" title="Prompt Registry" onClick={() => setModal('prompt-registry')}>
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
-                <path d="M2 4h12M2 8h8M2 12h10" strokeLinecap="round" />
-              </svg>
-            </button>
-            <button className={`tb-btn${railPanel === 'reader' ? ' on' : ''}`} title="Reader Panel — 4-persona critique" aria-pressed={railPanel === 'reader'} onClick={() => toggleRailPanel('reader')}>
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
-                <circle cx="5" cy="6" r="2.5" />
-                <circle cx="11" cy="6" r="2.5" />
-                <path d="M1 13c0-2 1.8-3.5 4-3.5M11 13c2.2 0 4 1.5 4 3.5M8 13c-1.5 0-2.5.8-2.5 2M8 13c1.5 0 2.5.8 2.5 2" strokeLinecap="round" />
-              </svg>
-              Readers
-            </button>
-            <button className="tb-btn" title="Best of N — generate variants, rank them, keep the winner" onClick={() => setModal('bestof')}>
-              <span style={{ fontSize: 13 }}>🏆</span> Best of N
-            </button>
-            <button className={`tb-btn${railPanel === 'critic' ? ' on' : ''}`} title="Critic — professor critique + targeted revision" aria-pressed={railPanel === 'critic'} onClick={() => toggleRailPanel('critic')}>
-              <span style={{ fontSize: 13 }}>🎓</span> Critic
-            </button>
-            <button
-              className={`tb-btn${slopCount > 0 ? ' on' : ''}`}
-              title="Slop Proof — flag clichés and weak prose (⌥P)"
-              disabled={slopRunning}
-              onClick={() => (window as unknown as Record<string, () => void>).__konbiniRunProof?.()}
-              style={{ position: 'relative' }}
-            >
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
-                <path d="M8 2l1.5 4h4l-3.2 2.4 1.2 4L8 10l-3.5 2.4 1.2-4L2.5 6h4z" />
-              </svg>
-              {slopRunning ? '…' : slopCount > 0 ? `${slopCount}` : 'Proof'}
-            </button>
-            <button
-              className={`tb-btn${debtOpen > 0 ? ' on' : ''}`}
-              title="Propagation Debt — scenes made stale by canon changes"
-              onClick={() => setModal('debt')}
-            >
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
-                <path d="M8 1.5l6 11H2z" /><path d="M8 6.5v3" strokeLinecap="round" /><circle cx="8" cy="11.4" r="0.5" fill="currentColor" stroke="none" />
-              </svg>
-              {debtOpen > 0 ? `Debt ${debtOpen}` : 'Debt'}
-            </button>
-          </div>
-          <div className="tb-sep" />
-          <button className="tb-btn" title="Foundation — seed → concept → world → cast" onClick={() => setModal('foundation')}>
-            <span style={{ fontSize: 13 }}>❖</span> Foundation
-          </button>
-          <button className="tb-btn" title="Batch Generators — cast, beat sheet, chapter draft" onClick={() => setModal('batch-generator')}>
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
-              <path d="M2 3h5v4H2zM9 3h5v4H9zM2 9h5v4H2zM9 9h5v4H9z" />
-            </svg>
-            Generate
-          </button>
-          <button className="tb-btn" title="Autopilot (⌘⇧P)" onClick={() => setModal('autopilot')}>▶▶</button>
-          <div className="tb-sep" />
-          <button className={`tb-btn${railPanel === 'assistant' ? ' on' : ''}`} title="AI Chat (⌘⇧A)" aria-label="AI Chat" aria-pressed={railPanel === 'assistant'} onClick={() => toggleRailPanel('assistant')}>
-            <span className="ai-spark">✦</span> Chat
+          <button
+            className={`tb-btn${railPanel && railPanel !== 'inspector' ? ' on' : ''}`}
+            title="AI tools"
+            aria-haspopup="menu"
+            onClick={(e) => {
+              const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+              setAiMenu({ x: r.left, y: r.bottom + 4 })
+            }}
+          >
+            <span className="ai-spark">✦</span> AI ▾
+            {(debtOpen > 0 || slopCount > 0) && <span className="ai-dot" />}
           </button>
           <button className="tb-btn" title="AI Settings" onClick={() => setModal('ai-settings')} style={{ color: 'var(--accent)' }}>
-            <span style={{ fontSize: 14 }}>✦</span> AI
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
+              <circle cx="8" cy="8" r="1.5" />
+              <path d="M8 2v1.5M8 12.5V14M2 8h1.5M12.5 8H14M3.5 3.5l1 1M11.5 11.5l1 1M3.5 12.5l1-1M11.5 4.5l1-1" />
+            </svg>
           </button>
+          {aiMenu && (
+            <ContextMenu
+              x={aiMenu.x}
+              y={aiMenu.y}
+              onClose={() => setAiMenu(null)}
+              items={[
+                { label: 'Foundation', header: true },
+                { label: 'Foundation — seed → world → cast', action: () => setModal('foundation') },
+                { label: 'Codex', action: () => setRailPanel('codex') },
+                { label: 'Prompt Registry', action: () => setModal('prompt-registry') },
+                { label: 'Draft', header: true },
+                { label: 'Chat', action: () => setRailPanel('assistant') },
+                { label: 'Generate — cast, beats, chapter', action: () => setModal('batch-generator') },
+                { label: slopRunning ? 'Slop Proof — running…' : slopCount > 0 ? `Slop Proof — ${slopCount} flagged` : 'Slop Proof', disabled: slopRunning, action: () => (window as unknown as Record<string, () => void>).__konbiniRunProof?.() },
+                { label: 'Evaluate', header: true },
+                { label: 'Reader Panel', action: () => setRailPanel('reader') },
+                { label: 'Critic', action: () => setRailPanel('critic') },
+                { label: 'Best of N', action: () => setModal('bestof') },
+                { label: 'Revise', header: true },
+                { label: 'Autopilot', action: () => setModal('autopilot') },
+                { label: debtOpen > 0 ? `Propagation Debt — ${debtOpen}` : 'Propagation Debt', action: () => setModal('debt') },
+              ]}
+            />
+          )}
         </>
       ) : (
         <button className="tb-btn ai-enable" title="Enable AI (⌘⇧A)" onClick={() => setModal('ai-settings')}>
