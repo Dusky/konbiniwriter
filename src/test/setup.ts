@@ -27,7 +27,14 @@ const api = {
   },
 }
 
-;(globalThis as any).window = { api }
+;(globalThis as any).window = { api, location: { reload() {} } }
+// Minimal document so stores that apply theme/CSS vars at construction load
+// under the node test environment.
+;(globalThis as any).document = {
+  documentElement: { dataset: {} as Record<string, string>, style: { setProperty() {} } },
+  addEventListener() {},
+  removeEventListener() {},
+}
 ;(globalThis as any).localStorage = {
   getItem: (k: string) => prefs.get(k),
   setItem: (k: string, v: string) => prefs.set(k, v),

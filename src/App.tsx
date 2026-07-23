@@ -5,6 +5,7 @@ import { useAIStore } from './store/aiStore'
 import Launch from './components/launch/Launch'
 import Studio from './components/Studio'
 import Toast from './components/common/Toast'
+import ErrorBoundary from './components/common/ErrorBoundary'
 import type { NodeType } from './shared/types'
 
 export default function App(): React.ReactElement {
@@ -158,9 +159,9 @@ export default function App(): React.ReactElement {
   }, [handleKey])
 
   return (
-    <>
+    <ErrorBoundary>
       {screen === 'launch' ? <Launch /> : <Studio />}
       <Toast />
-    </>
+    </ErrorBoundary>
   )
 }
