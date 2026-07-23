@@ -63,9 +63,9 @@ export default function Timeline(): React.ReactElement {
   const rows = buildRows(project)
 
   return (
-    <div className="main" style={{ overflow: 'auto', padding: '24px 16px' }}>
+    <div className="main tl">
       {rows.length === 0 && (
-        <div style={{ color: 'var(--text-3)', textAlign: 'center', paddingTop: 60, fontSize: 13 }}>
+        <div className="tl-empty">
           No documents yet. Add some from the Binder.
         </div>
       )}
@@ -74,47 +74,19 @@ export default function Timeline(): React.ReactElement {
         const rowParentId = row.folderId
 
         return (
-          <div key={row.folderId ?? '__ungrouped'} style={{ marginBottom: 32 }}>
+          <div key={row.folderId ?? '__ungrouped'} className="tl-row">
             {/* Row header */}
-            <div style={{
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              color: 'var(--text-3)',
-              marginBottom: 10,
-              paddingLeft: 4,
-            }}>
+            <div className="tl-row-hd">
               {row.folderTitle}
             </div>
 
             {/* Horizontal scroll area with connecting line */}
-            <div style={{ position: 'relative' }}>
+            <div className="tl-track">
               {/* Connecting line behind cards */}
-              {row.sceneIds.length > 1 && (
-                <div style={{
-                  position: 'absolute',
-                  top: 104,
-                  left: 80,
-                  right: 80,
-                  height: 2,
-                  background: 'var(--border)',
-                  zIndex: 0,
-                }} />
-              )}
+              {row.sceneIds.length > 1 && <div className="tl-line" />}
 
               <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'row',
-                  gap: 12,
-                  overflowX: 'auto',
-                  paddingBottom: 8,
-                  paddingTop: 4,
-                  paddingLeft: 4,
-                  paddingRight: 4,
-                  alignItems: 'flex-start',
-                }}
+                className="tl-cards"
                 onDragOver={(e) => {
                   e.preventDefault()
                   e.dataTransfer.dropEffect = 'move'
@@ -132,7 +104,7 @@ export default function Timeline(): React.ReactElement {
                 }}
               >
                 {row.sceneIds.length === 0 && (
-                  <div style={{ color: 'var(--text-3)', fontSize: 12, padding: '16px 8px' }}>
+                  <div className="tl-empty-row">
                     No scenes in this chapter.
                   </div>
                 )}
@@ -150,11 +122,12 @@ export default function Timeline(): React.ReactElement {
                     <React.Fragment key={id}>
                       {/* Drop indicator before this card */}
                       {dropTarget && dropTarget.parentId === rowParentId && dropTarget.atIndex === i && (
-                        <div style={{ width: 3, alignSelf: 'stretch', background: 'var(--accent)', borderRadius: 2, flexShrink: 0 }} />
+                        <div className="tl-drop" />
                       )}
 
                       <div
                         draggable
+                        className={`tl-card${isSelected ? ' sel' : ''}${dragId === id ? ' dragging' : ''}`}
                         onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDragId(id) }}
                         onDragEnd={() => { setDragId(null); setDropTarget(null) }}
                         onDragOver={(e) => {
@@ -177,101 +150,33 @@ export default function Timeline(): React.ReactElement {
                         }}
                         onClick={() => selectNode(id)}
                         onDoubleClick={() => { selectNode(id); setView('editor') }}
-                        style={{
-                          position: 'relative',
-                          zIndex: 1,
-                          flexShrink: 0,
-                          width: 160,
-                          height: 200,
-                          background: 'var(--bg-2)',
-                          border: isSelected
-                            ? '2px solid var(--accent)'
-                            : '1px solid var(--border)',
-                          borderRadius: 'var(--r-md)',
-                          overflow: 'hidden',
-                          cursor: 'grab',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          transition: 'box-shadow 0.15s',
-                          boxShadow: isSelected ? '0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent)' : undefined,
-                          opacity: dragId === id ? 0.4 : 1,
-                        }}
                       >
                         {/* Status color bar */}
-                        <div style={{
-                          height: 4,
-                          background: statusMeta?.color ?? 'var(--border)',
-                          flexShrink: 0,
-                        }} />
+                        <div className="tl-card-bar" style={{ background: statusMeta?.color ?? 'var(--border)' }} />
 
                         {/* Card body */}
-                        <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-                          {/* Title */}
-                          <div style={{
-                            fontSize: 13,
-                            fontWeight: 700,
-                            color: 'var(--text)',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                            marginBottom: 4,
-                          }}>
-                            {node.title}
-                          </div>
+                        <div className="tl-card-body">
+                          <div className="tl-card-title">{node.title}</div>
 
-                          {/* Word count */}
-                          <div style={{
-                            fontSize: 10,
-                            color: 'var(--text-3)',
-                            marginBottom: 6,
-                          }}>
+                          <div className="tl-card-wc">
                             {words > 0 ? `${words.toLocaleString()} words` : 'No content'}
                           </div>
 
-                          {/* Synopsis */}
-                          <div style={{
-                            fontSize: 11,
-                            fontStyle: 'italic',
-                            color: 'var(--text-2)',
-                            flex: 1,
-                            overflow: 'hidden',
-                            display: '-webkit-box',
-                            WebkitLineClamp: 5,
-                            WebkitBoxOrient: 'vertical',
-                            lineHeight: 1.45,
-                          }}>
+                          <div className="tl-card-syn">
                             {synopsis || <span style={{ color: 'var(--text-3)' }}>No synopsis</span>}
                           </div>
 
                           {/* Status pill */}
-                          <div style={{
-                            marginTop: 8,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 4,
-                            background: 'var(--bg-3)',
-                            borderRadius: 'var(--r-lg)',
-                            padding: '2px 7px',
-                            alignSelf: 'flex-start',
-                          }}>
-                            <span style={{
-                              width: 6,
-                              height: 6,
-                              borderRadius: '50%',
-                              background: statusMeta?.color ?? 'var(--border)',
-                              flexShrink: 0,
-                              display: 'inline-block',
-                            }} />
-                            <span style={{ fontSize: 10, color: 'var(--text-2)', fontWeight: 500 }}>
-                              {statusMeta?.label ?? node.meta.status}
-                            </span>
+                          <div className="tl-card-pill">
+                            <span className="dot" style={{ background: statusMeta?.color ?? 'var(--border)' }} />
+                            <span className="lbl">{statusMeta?.label ?? node.meta.status}</span>
                           </div>
                         </div>
                       </div>
 
                       {/* Drop indicator after last card */}
                       {i === row.sceneIds.length - 1 && dropTarget && dropTarget.parentId === rowParentId && dropTarget.atIndex === row.sceneIds.length && (
-                        <div style={{ width: 3, alignSelf: 'stretch', background: 'var(--accent)', borderRadius: 2, flexShrink: 0 }} />
+                        <div className="tl-drop" />
                       )}
                     </React.Fragment>
                   )
