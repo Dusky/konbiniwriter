@@ -196,7 +196,15 @@ button { font-family: inherit; cursor: default; }
 .body.focus-mode { grid-template-columns: 0 1fr 0; }
 
 /* ── binder ──────────────────────────────────────────────────────────────── */
-.binder { background: var(--sidebar); border-right: 0.5px solid var(--border);
+/* Drag gutter for resizable sidebars (see SidebarResizer). */
+.resizer { position: absolute; top: 0; bottom: 0; width: 11px; z-index: 20; cursor: col-resize; }
+.resizer-right { right: -5px; } .resizer-left { left: -3px; }
+.resizer::after { content: ''; position: absolute; top: 0; bottom: 0; width: 1px; background: transparent; transition: background .12s; }
+.resizer-right::after { right: 5px; } .resizer-left::after { left: 3px; }
+.resizer:hover::after, .resizer:active::after, .resizer:focus-visible::after { background: var(--accent); }
+.resizer:focus-visible { outline: none; }
+
+.binder { position: relative; background: var(--sidebar); border-right: 0.5px solid var(--border);
   display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
 .binder-hd { height: 30px; flex: none; display: flex; align-items: center; padding: 0 12px;
   font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3);

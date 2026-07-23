@@ -57,7 +57,7 @@
 .body.rail-open.no-binder { grid-template-columns: 0 minmax(0, 1fr) minmax(300px, 340px); }
 .body.rail-wide { grid-template-columns: minmax(180px, var(--binder-w, 264px)) minmax(0, 1fr) minmax(360px, 460px); }
 .body.rail-wide.no-binder { grid-template-columns: 0 minmax(0, 1fr) minmax(360px, 460px); }
-.rail { min-width: 0; z-index: 5; background: var(--bg-2); border-left: 0.5px solid var(--border-2);
+.rail { position: relative; min-width: 0; z-index: 5; background: var(--bg-2); border-left: 0.5px solid var(--border-2);
   display: flex; flex-direction: column; overflow: hidden; }
 .rail-tabs { flex: none; display: flex; align-items: stretch; height: 38px; padding: 0 4px;
   border-bottom: 0.5px solid var(--border); }
@@ -131,7 +131,7 @@
 .thinking i:nth-child(2) { animation-delay: .15s; } .thinking i:nth-child(3) { animation-delay: .3s; }
 @keyframes tk { 0%, 100% { opacity: .25; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-2px); } }
 .asst-input { flex: none; padding: 10px; border-top: 0.5px solid var(--border); display: flex; gap: 8px; align-items: flex-end; }
-.asst-input textarea { flex: 1; resize: none; max-height: 120px; background: var(--bg); border: 0.5px solid var(--border-2);
+.asst-input textarea { flex: 1; resize: vertical; min-height: 38px; max-height: 320px; background: var(--bg); border: 0.5px solid var(--border-2);
   border-radius: 9px; color: var(--text); font-family: var(--ui-font); font-size: 13px; padding: 9px 11px; outline: none; line-height: 1.4; }
 .asst-input textarea:focus { border-color: var(--accent); }
 .send-btn { width: 32px; height: 32px; flex: none; border: 0; border-radius: 8px; background: var(--accent);

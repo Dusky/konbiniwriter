@@ -4,6 +4,7 @@ import { useShellStore } from '../../store/shellStore'
 import ContextMenu, { type MenuItem } from '../common/ContextMenu'
 import ConfirmDialog from '../common/ConfirmDialog'
 import Icon from '../common/Icon'
+import SidebarResizer from '../common/SidebarResizer'
 import { STATUS_META, fmtWords } from '@shared/utils'
 import type { ID, NodeType } from '@shared/types'
 
@@ -148,6 +149,7 @@ export default function Binder(): React.ReactElement {
 
   return (
     <div className="binder">
+      <SidebarResizer edge="right" cssVar="--binder-w" prefKey="pref:binderWidth" min={180} max={480} fallback={264} />
       <div className="binder-hd">Binder</div>
       <div className="binder-scroll">
         {flat.length === 0 && (

@@ -41,6 +41,14 @@ export default function Studio(): React.ReactElement {
   const splitOpen = useProjectStore((s) => s.splitOpen)
   const splitId = useProjectStore((s) => s.splitId)
 
+  // Apply persisted sidebar widths on mount (the resizers write these prefs).
+  useEffect(() => {
+    const bw = window.api.prefs.get('pref:binderWidth')
+    if (bw) document.documentElement.style.setProperty('--binder-w', `${bw}px`)
+    const iw = window.api.prefs.get('pref:inspWidth')
+    if (iw) document.documentElement.style.setProperty('--insp-w', `${iw}px`)
+  }, [])
+
   // External-edit conflicts: another program changed a doc on disk, and our next
   // save preserved that version as a .conflict backup. Warn so nothing is lost silently.
   useEffect(() => {

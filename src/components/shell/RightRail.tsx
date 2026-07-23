@@ -2,6 +2,7 @@ import React from 'react'
 import { useShellStore, type RailPanel } from '../../store/shellStore'
 import { useAIStore } from '../../store/aiStore'
 import Icon from '../common/Icon'
+import SidebarResizer from '../common/SidebarResizer'
 import Inspector from '../inspector/Inspector'
 import AssistantPanel from '../assistant/AssistantPanel'
 import CodexPanel from '../panels/CodexPanel'
@@ -27,6 +28,7 @@ export default function RightRail(): React.ReactElement {
 
   return (
     <div className="rail">
+      <SidebarResizer edge="left" cssVar="--insp-w" prefKey="pref:inspWidth" min={220} max={560} fallback={286} />
       <div className="rail-tabs">
         {tabs.map((t) => (
           <button
