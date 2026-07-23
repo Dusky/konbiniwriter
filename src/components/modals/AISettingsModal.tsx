@@ -282,7 +282,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                     value={agentCommand}
                     onChange={(e) => setAgentCommand(e.target.value)}
                     placeholder="claude -p --permission-mode acceptEdits"
-                    style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)', boxSizing: 'border-box' }}
+                    className="ai-inp mono"
                   />
                   <div className="ai-hint">
                     Runs in your project folder with the prompt piped to stdin. Pick a preset above or edit freely. Desktop app only.
@@ -321,7 +321,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                         onChange={(e) => { setAnthropicDraft(e.target.value); setAnthropicKeyValidated(false) }}
                         placeholder="sk-ant-…"
                         onKeyDown={(e) => e.key === 'Enter' && handleAnthropicValidate()}
-                        style={{ flex: 1, padding: '7px 10px', borderRadius: 6, fontSize: 13, border: `1px solid ${anthropicKeyValidated ? 'var(--success)' : anthropicKeyError ? 'var(--danger)' : 'var(--border-2)'}`, background: 'var(--bg-2)', color: 'var(--text)', fontFamily: 'var(--mono)' }}
+                        className="ai-inp mono" style={{ flex: 1, borderColor: anthropicKeyValidated ? 'var(--success)' : anthropicKeyError ? 'var(--danger)' : undefined }}
                       />
                       <button className="btn" onClick={handleAnthropicValidate} disabled={validating || !anthropicDraft.trim()} style={{ whiteSpace: 'nowrap' }}>
                         {validating ? 'Checking…' : anthropicKeyValidated ? '✓ Valid' : 'Validate'}
@@ -357,7 +357,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                                 onChange={(e) => setOauthCode(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleOAuthComplete()}
                                 placeholder="code#state"
-                                style={{ flex: 1, padding: '7px 10px', borderRadius: 6, fontSize: 13, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontFamily: 'var(--mono)' }}
+                                className="ai-inp mono" style={{ flex: 1 }}
                               />
                               <button className="btn" onClick={handleOAuthComplete} disabled={oauthBusy || !oauthCode.trim()} style={{ whiteSpace: 'nowrap' }}>
                                 {oauthBusy ? 'Signing in…' : 'Complete'}
@@ -373,7 +373,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                 </Row>
               )}
               <Row label="Model">
-                <select value={anthropicModel} onChange={(e) => setAnthropicModel(e.target.value)} style={{ padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13 }}>
+                <select value={anthropicModel} onChange={(e) => setAnthropicModel(e.target.value)} className="ai-inp">
                   {ANTHROPIC_MODELS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
                 </select>
               </Row>
@@ -401,7 +401,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                       value={openaiBaseUrl}
                       onChange={(e) => { setOpenaiBaseUrl(e.target.value); setOpenaiTested(false) }}
                       placeholder="https://api.openai.com/v1"
-                      style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)', boxSizing: 'border-box' }}
+                      className="ai-inp mono"
                     />
                     <div className="ai-hint" style={{ marginTop: 4 }}>Any provider with an OpenAI-compatible <code style={{ fontFamily: 'var(--mono)', background: 'var(--bg-2)', padding: '1px 4px', borderRadius: 3 }}>/chat/completions</code> endpoint.</div>
                   </Row>
@@ -418,7 +418,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                     value={openaiKey}
                     onChange={(e) => { setOpenaiKey(e.target.value); setOpenaiTested(false) }}
                     placeholder={service === 'custom' ? 'Optional — leave blank for local servers' : `${AI_SERVICES[service].label} API key`}
-                    style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)', boxSizing: 'border-box' }}
+                    className="ai-inp mono"
                   />
                   <div className="ai-hint">
                     Stored in localStorage only.{service === 'custom' ? ' Leave blank for Ollama / LM Studio.' : ''}
@@ -432,7 +432,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                       value={openaiModel}
                       onChange={(e) => { setOpenaiModel(e.target.value); setOpenaiTested(false) }}
                       placeholder={AI_SERVICES[service].exampleModel ?? 'gpt-4o, llama3.3, etc.'}
-                      style={{ flex: 1, padding: '7px 10px', borderRadius: 6, border: `1px solid ${openaiTested ? 'var(--success)' : openaiTestError ? 'var(--danger)' : 'var(--border-2)'}`, background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)' }}
+                      className="ai-inp mono" style={{ flex: 1, borderColor: openaiTested ? 'var(--success)' : openaiTestError ? 'var(--danger)' : undefined }}
                     />
                     <button className="btn" onClick={handleOpenAITest} disabled={validating || !openaiBaseUrl.trim() || !openaiModel.trim()} style={{ whiteSpace: 'nowrap' }}>
                       {validating ? 'Testing…' : openaiTested ? '✓ OK' : 'Test'}
@@ -466,7 +466,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                     if (!isNaN(n) && n >= 256) { setChatMaxTokens(n); setMaxTokensDraft(String(n)) }
                     else setMaxTokensDraft(String(chatMaxTokens))
                   }}
-                  style={{ width: 90, padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)' }}
+                  className="ai-inp mono n"
                 />
                 <span className="ai-hint">per response — bump for long-form answers, lower for speed</span>
               </div>
@@ -482,7 +482,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                     if (!isNaN(n) && n >= 0) { setChatContextMessages(n); setContextMsgsDraft(String(n)) }
                     else setContextMsgsDraft(String(chatContextMessages))
                   }}
-                  style={{ width: 90, padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)' }}
+                  className="ai-inp mono n"
                 />
                 <span className="ai-hint">recent messages sent per turn — 0 = send full history</span>
               </div>
@@ -502,7 +502,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                       onChange={(e) => setBudgetDrafts((prev) => ({ ...prev, [id]: e.target.value }))}
                       onBlur={() => commitBudget(id, budgetDrafts[id] ?? '', defaultVal)}
                       onKeyDown={(e) => { if (e.key === 'Enter') commitBudget(id, budgetDrafts[id] ?? '', defaultVal) }}
-                      style={{ width: 80, padding: '4px 7px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)' }}
+                      className="ai-inp mono n" style={{ width: 80 }}
                     />
                   </div>
                 ))}

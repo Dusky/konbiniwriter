@@ -386,6 +386,11 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 .ai-stack { display: flex; flex-direction: column; gap: var(--s2); }
 .ai-hint { font-size: var(--t-xs); color: var(--text-3); line-height: 1.5; }
 .ai-hint code, .ai-warn code { font-family: var(--mono); }
+.ai-inp { width: 100%; padding: var(--s2) var(--s3); border-radius: var(--r-md); border: 1px solid var(--border-2);
+  background: var(--bg-2); color: var(--text); font-size: var(--t-base); box-sizing: border-box; }
+.ai-inp:focus { outline: none; border-color: var(--accent); }
+.ai-inp.mono { font-family: var(--mono); }
+.ai-inp.n { width: 90px; padding: var(--s1) var(--s2); }
 .ai-ta { width: 100%; padding: var(--s2) var(--s3); border-radius: var(--r-md); border: 1px solid var(--border-2);
   background: var(--bg-2); color: var(--text); font-size: var(--t-base); line-height: 1.5; resize: vertical; box-sizing: border-box; }
 .ai-ta:focus { outline: none; border-color: var(--accent); }
