@@ -1,16 +1,15 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useProjectStore } from '../../store/projectStore'
 import { streamCompletion } from '../../lib/AIClient'
 import { agentRegistry, promptRegistry } from '../../lib/PromptRegistry'
 import Icon from '../common/Icon'
 
-// A persona is derived from a registry 'reader' agent + its system-prompt — both
-// editable (Prompt Registry for the instructions; the agent for model/temp).
+// A persona = a registry 'reader' agent (model/temp) + its editable system prompt.
 interface Persona {
   id: string
   name: string
-  emoji: string
   description: string
+  promptId: string
   systemPrompt: string
   model?: string
   temperature: number
@@ -20,18 +19,18 @@ interface Persona {
 function readerPersonas(): Persona[] {
   return agentRegistry.byCategory('reader').map((a) => ({
     id: a.id,
-    name: a.name,
-    emoji: (a.parameters.emoji as string) ?? '🙂',
+    name: a.name.replace(/^Reader\s*·\s*/, ''),
     description: a.description,
+    promptId: a.systemPromptId,
     systemPrompt: promptRegistry.get(a.systemPromptId)?.template ?? '',
-    model: a.model || undefined, // '' → use the provider's default model
+    model: a.model || undefined,
     temperature: a.temperature,
     maxTokens: (a.parameters.maxTokens as number) ?? 500,
   }))
 }
 
-// Each reader ends with a structured line we can aggregate (instruction rides on
-// the user message, so the editable persona system prompts stay untouched).
+// Each reader ends with a structured line we aggregate; the instruction rides on
+// the user message so the editable persona prompts stay clean.
 function parseVerdict(text: string): { score: number | null; keep: boolean | null } {
   const m = text.match(/VERDICT:\s*(\d{1,3})\s*\|\s*(keep|drop|yes|no)/i)
   if (!m) return { score: null, keep: null }
@@ -41,29 +40,20 @@ function stripVerdict(text: string): string {
   return text.replace(/\s*VERDICT:[^\n]*$/i, '').trim()
 }
 
-interface PersonaResult {
-  text: string
-  status: 'idle' | 'streaming' | 'done' | 'error'
-  error?: string
-}
+interface PersonaResult { text: string; status: 'idle' | 'streaming' | 'done' | 'error'; error?: string }
 
 export default function ReaderPanel(): React.ReactElement {
   const project = useProjectStore((s) => s.project)
   const selectedId = useProjectStore((s) => s.selectedId)
 
-  // Snapshot the configured reader agents for this session.
-  const personas = useMemo(() => readerPersonas(), [])
-
+  const [personas, setPersonas] = useState<Persona[]>(readerPersonas)
   const [results, setResults] = useState<Record<string, PersonaResult>>({})
   const [running, setRunning] = useState(false)
-  const [activeTab, setActiveTab] = useState(personas[0]?.id ?? '')
+  const [showAdvanced, setShowAdvanced] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
-
   useEffect(() => () => { abortRef.current?.abort() }, [])
 
-  const docContent = selectedId && project
-    ? (project.docs[selectedId]?.content ?? '')
-    : ''
+  const docContent = selectedId && project ? (project.docs[selectedId]?.content ?? '') : ''
   const docTitle = selectedId && project ? project.nodes[selectedId]?.title ?? '' : ''
 
   function setPersonaResult(id: string, patch: Partial<PersonaResult>) {
@@ -71,7 +61,7 @@ export default function ReaderPanel(): React.ReactElement {
   }
 
   async function runAll() {
-    if (!docContent.trim()) return
+    if (!docContent.trim() || personas.length === 0) return
     abortRef.current = new AbortController()
     setRunning(true)
     setResults({})
@@ -88,26 +78,33 @@ export default function ReaderPanel(): React.ReactElement {
             onChunk: (chunk) => setResults((r) => ({ ...r, [p.id]: { ...(r[p.id] ?? { text: '', status: 'streaming' as const }), text: (r[p.id]?.text ?? '') + chunk, status: 'streaming' as const } })),
             onDone: (full) => setPersonaResult(p.id, { text: full, status: 'done' }),
             onError: (err) => setPersonaResult(p.id, { status: 'error', error: err.message }),
+            onAbort: () => setPersonaResult(p.id, { status: 'idle' }),
           },
         )
-      } catch {
-        setPersonaResult(p.id, { status: 'error', error: 'Stream failed' })
+      } catch (e) {
+        setPersonaResult(p.id, { status: 'error', error: (e as Error).message || 'Stream failed' })
       }
     }))
-
     setRunning(false)
   }
 
-  function stop() {
-    abortRef.current?.abort()
-    setRunning(false)
+  function stop() { abortRef.current?.abort(); setRunning(false) }
+
+  // Editable persona prompt (Advanced): persist to the registry + refresh.
+  function savePrompt(p: Persona, template: string) {
+    const tmpl = promptRegistry.get(p.promptId)
+    if (!tmpl || template === tmpl.template) return
+    promptRegistry.save({ ...tmpl, template, modifiedAt: new Date().toISOString() })
+    setPersonas(readerPersonas())
+  }
+  function resetPrompt(p: Persona) {
+    promptRegistry.reset(p.promptId)
+    setPersonas(readerPersonas())
   }
 
-  const activePersona = personas.find((p) => p.id === activeTab) ?? personas[0]
-  const activeResult = results[activeTab]
   const anyDone = personas.some((p) => results[p.id]?.status === 'done')
 
-  // Aggregate panel verdict across finished readers.
+  // Aggregate verdict across finished readers.
   const verdicts = personas
     .map((p) => (results[p.id]?.status === 'done' ? parseVerdict(results[p.id].text) : null))
     .filter((v): v is { score: number | null; keep: boolean | null } => v !== null)
@@ -115,7 +112,6 @@ export default function ReaderPanel(): React.ReactElement {
   const avgScore = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null
   const keepTotal = verdicts.filter((v) => v.keep != null).length
   const keepCount = verdicts.filter((v) => v.keep === true).length
-  const activeVerdict = activeResult?.status === 'done' ? parseVerdict(activeResult.text) : null
 
   return (
     <div className="dock-panel">
@@ -124,79 +120,84 @@ export default function ReaderPanel(): React.ReactElement {
           <h3>Reader Panel</h3>
           {docTitle && <span className="sub"> · {docTitle}</span>}
         </div>
+        <button className={`linkish sm${showAdvanced ? ' on' : ''}`} onClick={() => setShowAdvanced((v) => !v)} title="Edit reader prompts"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginRight: 'var(--s2)' }}>
+          <Icon name="settings" size={13} /> Advanced
+        </button>
         {running
           ? <button className="btn sm" onClick={stop}>Stop</button>
-          : <button className="btn sm" onClick={runAll} disabled={!docContent.trim()}
-              style={{ background: 'var(--accent)', color: 'var(--accent-fg)', borderColor: 'transparent' }}>
+          : <button className="btn sm primary" onClick={runAll} disabled={!docContent.trim()}>
               {anyDone ? 'Re-run' : 'Run readers'}
-            </button>
-        }
+            </button>}
       </div>
 
-      {avgScore != null && (
-        <div style={{ padding: '8px 16px', borderBottom: '0.5px solid var(--border)', fontSize: 12, color: 'var(--text-2)', fontFamily: 'var(--mono)' }}
-          title="Average engagement · readers who'd keep reading">
-          Panel <strong style={{ color: 'var(--text)' }}>{avgScore}</strong>/100 · {keepCount}/{keepTotal} keep
+      {avgScore != null && !showAdvanced && (
+        <div className="rp-panel-score">
+          <div className="meter" style={{ flex: 1 }}><i style={{ width: `${avgScore}%` }} /></div>
+          <span className="mono"><strong>{avgScore}</strong>/100 · {keepCount}/{keepTotal} keep</span>
         </div>
       )}
 
-      {/* Persona tabs */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', borderBottom: '0.5px solid var(--border)', padding: '0 8px' }}>
-        {personas.map((p) => {
-          const res = results[p.id]
-          return (
-            <button
-              key={p.id}
-              onClick={() => setActiveTab(p.id)}
-              style={{
-                background: 'none', border: 'none', cursor: 'pointer',
-                padding: '9px 10px', fontSize: 12.5, color: activeTab === p.id ? 'var(--accent)' : 'var(--text-2)',
-                borderBottom: activeTab === p.id ? '2px solid var(--accent)' : '2px solid transparent',
-                marginBottom: -1, display: 'flex', alignItems: 'center', gap: 5,
-                fontWeight: activeTab === p.id ? 600 : 400,
-              }}
-              title={p.description}
-            >
-              {p.emoji} {p.name}
-              {res?.status === 'streaming' && <span style={{ width: 6, height: 6, borderRadius: 'var(--r-full)', background: 'var(--st-prog)', animation: 'pulse 1s infinite' }} />}
-              {res?.status === 'done' && <Icon name="check" size={12} style={{ color: 'var(--st-final)' }} />}
-              {res?.status === 'error' && <Icon name="warning" size={12} style={{ color: 'var(--st-idea)' }} />}
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Content */}
-      <div className="dock-body" style={{ padding: 20 }}>
-        {!anyDone && !running && (
-          <div style={{ color: 'var(--text-3)', fontSize: 13, textAlign: 'center', paddingTop: 40 }}>
-            {docContent.trim()
-              ? <><p style={{ marginBottom: 12 }}>{activePersona?.emoji} <b>{activePersona?.name}</b> — {activePersona?.description}</p><p>Click "Run readers" to get feedback from all {personas.length} reader personas at once.</p></>
-              : <p>Select a document in the binder to evaluate.</p>
-            }
-          </div>
-        )}
-        {activeResult?.status === 'error' && (
-          <div style={{ color: 'var(--st-idea)', fontSize: 13 }}>
-            Error: {activeResult.error}
-          </div>
-        )}
-        {activeResult?.text && (
-          <>
-            {activeVerdict?.score != null && (
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '4px 10px', borderRadius: 'var(--r-lg)', background: 'var(--bg-2)', fontSize: 12 }}>
-                <span style={{ fontFamily: 'var(--mono)', fontWeight: 600, color: 'var(--text)' }}>{activeVerdict.score}/100</span>
-                <span style={{ color: activeVerdict.keep ? 'var(--st-final)' : 'var(--st-idea)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                  <Icon name={activeVerdict.keep ? 'check' : 'x'} size={13} />
-                  {activeVerdict.keep ? 'would keep reading' : 'would put it down'}
-                </span>
-              </div>
-            )}
-            <div style={{ fontSize: 13.5, lineHeight: 1.7, color: 'var(--text)', whiteSpace: 'pre-wrap' }}>
-              {activeResult.status === 'streaming' ? activeResult.text : stripVerdict(activeResult.text)}
-              {activeResult.status === 'streaming' && <span style={{ opacity: 0.7, animation: 'pulse 1s infinite' }}>▌</span>}
+      <div className="dock-body">
+        {showAdvanced ? (
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <div className="hint" style={{ padding: 'var(--s3) var(--s4) var(--s2)' }}>
+              Each reader's instructions. Edits are saved and used on the next run — Reset restores the built-in.
             </div>
-          </>
+            {personas.map((p) => (
+              <div key={p.id} className="rp-adv">
+                <div className="rp-adv-hd">
+                  <span style={{ fontWeight: 600, fontSize: 'var(--t-base)' }}>{p.name}</span>
+                  <button className="linkish sm" onClick={() => resetPrompt(p)}>Reset</button>
+                </div>
+                <textarea
+                  className="ai-ta"
+                  rows={4}
+                  defaultValue={p.systemPrompt}
+                  onBlur={(e) => savePrompt(p, e.target.value)}
+                />
+              </div>
+            ))}
+          </div>
+        ) : !anyDone && !running && Object.keys(results).length === 0 ? (
+          <div className="rp-empty">
+            {docContent.trim()
+              ? <>Get reactions from all {personas.length} reader personas at once. <br />Each rates engagement and whether they'd keep reading.</>
+              : 'Select a document in the binder to evaluate.'}
+          </div>
+        ) : (
+          // Compare view — every reader's reaction, stacked.
+          <div>
+            {personas.map((p) => {
+              const res = results[p.id]
+              const verdict = res?.status === 'done' ? parseVerdict(res.text) : null
+              return (
+                <div key={p.id} className="rp-reader">
+                  <div className="rp-reader-hd">
+                    <span className="rp-name">{p.name}</span>
+                    {res?.status === 'streaming' && <span className="rp-dot" />}
+                    {res?.status === 'error' && <Icon name="warning" size={13} style={{ color: 'var(--st-idea)' }} />}
+                    {verdict?.score != null && (
+                      <span className="rp-verdict" style={{ color: verdict.keep ? 'var(--st-final)' : 'var(--st-idea)' }}>
+                        <Icon name={verdict.keep ? 'check' : 'x'} size={12} />
+                        <span className="mono">{verdict.score}</span>
+                      </span>
+                    )}
+                  </div>
+                  {res?.status === 'error' ? (
+                    <div className="rp-body" style={{ color: 'var(--st-idea)' }}>{res.error}</div>
+                  ) : res?.text ? (
+                    <div className="rp-body">
+                      {res.status === 'streaming' ? res.text : stripVerdict(res.text)}
+                      {res.status === 'streaming' && <span style={{ opacity: 0.7, animation: 'pulse 1s infinite' }}>▌</span>}
+                    </div>
+                  ) : (
+                    <div className="rp-body hint">{running ? 'Reading…' : '—'}</div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         )}
       </div>
     </div>
