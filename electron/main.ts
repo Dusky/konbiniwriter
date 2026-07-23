@@ -6,7 +6,6 @@
 //            climbs two levels up to reach the app-root dist/.
 
 import { app, BrowserWindow, ipcMain, dialog, shell, safeStorage, IpcMainInvokeEvent } from 'electron'
-import { autoUpdater } from 'electron-updater'
 import * as path from 'path'
 import * as fs from 'fs'
 
@@ -113,14 +112,22 @@ app.whenReady().then(() => {
   })
 
   // Auto-update: check GitHub Releases on launch and download/notify in the
-  // background. Packaged builds only (dev has no update metadata); best-effort.
+  // background. Packaged builds only (dev has no update metadata). Loaded with
+  // require, not a top import, so a dev checkout compiles and runs without the
+  // packaging-only electron-updater dependency installed; best-effort.
   if (app.isPackaged) {
-    autoUpdater.autoDownload = true
-    autoUpdater.on('error', (err) => console.error('autoUpdater error:', err?.message ?? err))
-    autoUpdater.on('update-downloaded', (info) => {
-      win?.webContents.send('shell:update-ready', info?.version ?? '')
-    })
-    autoUpdater.checkForUpdatesAndNotify().catch((e) => console.error('update check failed:', e))
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { autoUpdater } = require('electron-updater')
+      autoUpdater.autoDownload = true
+      autoUpdater.on('error', (err: Error) => console.error('autoUpdater error:', err?.message ?? err))
+      autoUpdater.on('update-downloaded', (info: { version?: string }) => {
+        win?.webContents.send('shell:update-ready', info?.version ?? '')
+      })
+      autoUpdater.checkForUpdatesAndNotify().catch((e: unknown) => console.error('update check failed:', e))
+    } catch (e) {
+      console.error('electron-updater unavailable:', e)
+    }
   }
 })
 

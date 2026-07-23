@@ -40,7 +40,6 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
-const electron_updater_1 = require("electron-updater");
 const path = __importStar(require("path"));
 const DEV = process.env.ELECTRON_DEV === '1' || !electron_1.app.isPackaged;
 // Linux routinely opens Electron to a black window — in the packaged AppImage
@@ -132,14 +131,23 @@ electron_1.app.whenReady().then(() => {
             createWindow();
     });
     // Auto-update: check GitHub Releases on launch and download/notify in the
-    // background. Packaged builds only (dev has no update metadata); best-effort.
+    // background. Packaged builds only (dev has no update metadata). Loaded with
+    // require, not a top import, so a dev checkout compiles and runs without the
+    // packaging-only electron-updater dependency installed; best-effort.
     if (electron_1.app.isPackaged) {
-        electron_updater_1.autoUpdater.autoDownload = true;
-        electron_updater_1.autoUpdater.on('error', (err) => console.error('autoUpdater error:', err?.message ?? err));
-        electron_updater_1.autoUpdater.on('update-downloaded', (info) => {
-            win?.webContents.send('shell:update-ready', info?.version ?? '');
-        });
-        electron_updater_1.autoUpdater.checkForUpdatesAndNotify().catch((e) => console.error('update check failed:', e));
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            const { autoUpdater } = require('electron-updater');
+            autoUpdater.autoDownload = true;
+            autoUpdater.on('error', (err) => console.error('autoUpdater error:', err?.message ?? err));
+            autoUpdater.on('update-downloaded', (info) => {
+                win?.webContents.send('shell:update-ready', info?.version ?? '');
+            });
+            autoUpdater.checkForUpdatesAndNotify().catch((e) => console.error('update check failed:', e));
+        }
+        catch (e) {
+            console.error('electron-updater unavailable:', e);
+        }
     }
 });
 electron_1.app.on('window-all-closed', () => {
