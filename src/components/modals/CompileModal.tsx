@@ -127,16 +127,16 @@ export default function CompileModal({ onClose }: Props): React.ReactElement {
           <span className="sub">{included.size} documents · {totalWords.toLocaleString()} words</span>
         </div>
         {error && (
-          <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-3)', border: '1px solid var(--st-idea)', borderRadius: 'var(--r-md)', padding: '8px 14px', margin: '0 0 2px', fontSize: 12 }}>
-            <span style={{ color: 'var(--st-idea)', display: 'flex' }}><Icon name="warning" size={14} /></span>
-            <span style={{ flex: 1, color: 'var(--text)' }}>{error}</span>
-            <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 0, display: 'flex' }}><Icon name="x" size={14} /></button>
+          <div role="alert" className="err-banner" style={{ margin: '0 0 2px' }}>
+            <span className="err-banner-ic"><Icon name="warning" size={14} /></span>
+            <span className="err-banner-txt">{error}</span>
+            <button className="err-banner-x" onClick={() => setError(null)}><Icon name="x" size={14} /></button>
           </div>
         )}
-        <div className="modal-body" style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 16, minHeight: 340 }}>
+        <div className="modal-body cmp-body">
           {/* Left: document tree picker */}
           <div style={{ overflowY: 'auto' }}>
-            <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 8 }}>Documents</div>
+            <div className="cmp-lbl">Documents</div>
             <div className="tree-pick">
               {allDocIds.map((id) => {
                 const node = project.nodes[id]
@@ -153,15 +153,15 @@ export default function CompileModal({ onClose }: Props): React.ReactElement {
                 )
               })}
               {allDocIds.length === 0 && (
-                <div style={{ color: 'var(--text-3)', fontSize: 12 }}>No documents.</div>
+                <div style={{ color: 'var(--text-3)', fontSize: 'var(--t-sm)' }}>No documents.</div>
               )}
             </div>
           </div>
 
           {/* Right: format + preview */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="cmp-right">
             <div>
-              <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 8 }}>Format</div>
+              <div className="cmp-lbl">Format</div>
               <div className="seg" style={{ display: 'inline-flex' }}>
                 <button className={format === 'markdown' ? 'on' : ''} onClick={() => setFormat('markdown')}>Markdown</button>
                 <button className={format === 'docx' ? 'on' : ''} onClick={() => setFormat('docx')}>Word (.docx)</button>
@@ -170,7 +170,7 @@ export default function CompileModal({ onClose }: Props): React.ReactElement {
               </div>
             </div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 8 }}>Preview</div>
+              <div className="cmp-lbl">Preview</div>
               <div className="compile-preview">{preview || '(no content)'}</div>
             </div>
           </div>

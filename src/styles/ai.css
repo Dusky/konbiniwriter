@@ -662,3 +662,16 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 .stats-bar.empty { background: var(--border); }
 .stats-bar.dim { opacity: .55; }
 .stats-today { font-size: 9px; color: var(--text-3); white-space: nowrap; }
+
+/* generic error banner (alert) */
+.err-banner { display: flex; align-items: center; gap: var(--s2); background: var(--bg-3);
+  border: 0.5px solid var(--st-idea); border-radius: var(--r-md); padding: var(--s2) var(--s3); font-size: var(--t-sm); }
+.err-banner-ic { color: var(--st-idea); display: flex; }
+.err-banner-txt { flex: 1; color: var(--text); }
+.err-banner-x { background: none; border: none; cursor: pointer; color: var(--text-3); padding: 0; display: flex; }
+.err-banner-x:hover { color: var(--text); }
+
+/* ── Compile modal ── */
+.cmp-body { display: grid; grid-template-columns: 220px 1fr; gap: var(--s4); min-height: 340px; }
+.cmp-lbl { font-size: var(--t-xs); color: var(--text-3); margin-bottom: var(--s2); }
+.cmp-right { display: flex; flex-direction: column; gap: var(--s3); }
