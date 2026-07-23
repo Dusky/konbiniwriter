@@ -2,6 +2,7 @@ import React from 'react'
 import { useProjectStore } from '../../store/projectStore'
 import Editor from './Editor'
 import TabStrip from './TabStrip'
+import Icon from '../common/Icon'
 import Corkboard from '../views/Corkboard'
 import Outliner from '../views/Outliner'
 import Timeline from '../views/Timeline'
@@ -26,7 +27,7 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
     return (
       <div className="main">
         <div className="empty-state">
-          <div className="wm">✦</div>
+          <div className="wm"><Icon name="sparkle" /></div>
           <div className="big">No project open</div>
         </div>
       </div>
@@ -87,7 +88,7 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
         {tabs}
         {paneHeader}
         <div className="empty-state" style={{ flex: 1 }}>
-          <div className="wm">✦</div>
+          <div className="wm"><Icon name="sparkle" /></div>
           <div className="big">Select a document to write</div>
         </div>
       </div>
@@ -100,7 +101,7 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
         {tabs}
         {paneHeader}
         <div className="empty-state" style={{ flex: 1 }}>
-          <div className="wm">📁</div>
+          <div className="wm"><Icon name="folder" /></div>
           <div className="big">{selectedNode.title}</div>
           <p style={{ color: 'var(--text-3)', fontSize: 13 }}>Switch to Corkboard or Outliner to see children</p>
         </div>

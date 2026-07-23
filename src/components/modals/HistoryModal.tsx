@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import { useProjectStore } from '../../store/projectStore'
 import ContextMenu from '../common/ContextMenu'
+import Icon from '../common/Icon'
 import type { Snapshot } from '@shared/types'
 
 function relTime(iso: string): string {
@@ -204,9 +205,9 @@ export default function HistoryModal({ onClose }: Props): React.ReactElement {
             </div>
             {error && (
               <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-3)', border: '1px solid var(--st-idea)', borderRadius: 6, padding: '8px 12px', marginBottom: 6, fontSize: 12, flexShrink: 0 }}>
-                <span style={{ color: 'var(--st-idea)' }}>⚠</span>
+                <span style={{ color: 'var(--st-idea)', display: 'flex' }}><Icon name="warning" size={14} /></span>
                 <span style={{ flex: 1, color: 'var(--text)' }}>{error}</span>
-                <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 0 }}>✕</button>
+                <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 0, display: 'flex' }}><Icon name="x" size={14} /></button>
               </div>
             )}
             {confirming && (
@@ -251,7 +252,7 @@ export default function HistoryModal({ onClose }: Props): React.ReactElement {
                         <div className="si-m">{relTime(snap.takenAt)} · {snap.words} words</div>
                       </div>
                       <button className="btn sm" disabled={restoring} onClick={(e) => { e.stopPropagation(); handleRestore(snap) }}>{restoring ? '…' : 'Restore'}</button>
-                      <button className="btn sm danger" onClick={(e) => { e.stopPropagation(); handleDelete(snap) }}>✕</button>
+                      <button className="btn sm danger" onClick={(e) => { e.stopPropagation(); handleDelete(snap) }}><Icon name="x" size={13} /></button>
                     </div>
                   )
                 })}

@@ -6,6 +6,7 @@ import { debtService } from '../../lib/DebtService'
 import { promptRegistry } from '../../lib/PromptRegistry'
 import { streamCompletion } from '../../lib/AIClient'
 import { uid } from '@shared/utils'
+import Icon from '../common/Icon'
 import ConfirmDialog from '../common/ConfirmDialog'
 import type { CodexEntry, CodexCategory, CodexFact, ID } from '@shared/types'
 
@@ -238,7 +239,7 @@ export default function CodexPanel(): React.ReactElement {
         ))}
         {scanDone && scanResults.length > 0 && (
           <button className={showScan ? 'on' : ''} onClick={() => { setShowScan(true); if (!selectedScan && scanResults.length > 0) setSelectedScan(scanResults[0]) }}>
-            ✦ Scan ({scanResults.filter((e) => !e.added).length})
+            <Icon name="sparkle" size={12} /> Scan ({scanResults.filter((e) => !e.added).length})
           </button>
         )}
       </div>
