@@ -559,3 +559,16 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 .snap-tag.auto { background: var(--bg-3); color: var(--text-3); }
 .hist-cmp { display: flex; gap: var(--s1); margin-bottom: var(--s2); }
 .hist-range { font-size: var(--t-xs); color: var(--text-3); margin-bottom: var(--s2); }
+
+/* generic vertical stack (gap 12) */
+.stack { display: flex; flex-direction: column; gap: var(--s3); }
+
+/* ── Best-of-N modal ── */
+.bon-card { border: 0.5px solid var(--border); border-radius: var(--r-md); padding: 10px var(--s3); }
+.bon-card.win { border-color: var(--accent); }
+.bon-hd { display: flex; align-items: center; gap: var(--s2); margin-bottom: var(--s2); }
+.bon-rank { font-size: var(--t-sm); font-weight: 700; color: var(--text-2); }
+.bon-card.win .bon-rank { color: var(--accent); }
+.bon-elo { font-size: var(--t-xs); color: var(--text-3); font-family: var(--mono); }
+.bon-text { max-height: 130px; overflow-y: auto; font-size: var(--t-sm); line-height: 1.55;
+  color: var(--text-2); white-space: pre-wrap; background: var(--bg-2); border-radius: var(--r-md); padding: var(--s2) 10px; }

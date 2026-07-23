@@ -117,88 +117,80 @@ export default function BestOfModal({ onClose }: Props): React.ReactElement {
     // Inert backdrop — ranked variants are only dismissed via Close.
     <div className="modal-bg">
       <div className="modal" style={{ maxWidth: 640, maxHeight: '88vh', display: 'flex', flexDirection: 'column' }} role="dialog" aria-modal="true" aria-label="Best of N">
-        <div className="modal-hd" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="modal-hd" style={{ gap: 10 }}>
           <h3>Best of N</h3>
           <span className="sub">generate · rank · pick the winner</span>
         </div>
 
         {!aiEnabled ? (
           <>
-            <div className="modal-body" style={{ color: 'var(--text-3)' }}>Enable AI to run a variant tournament.</div>
+            <div className="modal-body dock-empty" style={{ padding: 'var(--s4) var(--s5)' }}>Enable AI to run a variant tournament.</div>
             <div className="modal-foot"><span className="tb-spacer" /><button className="btn" onClick={onClose}>Close</button></div>
           </>
         ) : !isDoc ? (
           <>
-            <div className="modal-body" style={{ color: 'var(--text-3)' }}>Select a document in the binder to generate variants for.</div>
+            <div className="modal-body dock-empty" style={{ padding: 'var(--s4) var(--s5)' }}>Select a document in the binder to generate variants for.</div>
             <div className="modal-foot"><span className="tb-spacer" /><button className="btn" onClick={onClose}>Close</button></div>
           </>
         ) : (
           <>
-            <div className="modal-body" style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={{ fontSize: 13, color: 'var(--text-2)' }}>
-                Target: <strong style={{ color: 'var(--text)' }}>{node!.title}</strong>
+            <div className="modal-body stack" style={{ overflowY: 'auto' }}>
+              <div className="crit-target">
+                Target: <strong>{node!.title}</strong>
               </div>
 
               {phase === 'config' && (
                 <>
                   <div>
-                    <label style={{ fontSize: 11, color: 'var(--text-3)', display: 'block', marginBottom: 6 }}>Variants</label>
+                    <label className="reg-lbl">Variants</label>
                     <div className="seg">
                       {[2, 3, 4].map((k) => (
                         <button key={k} className={n === k ? 'on' : ''} onClick={() => setN(k)}>{k}</button>
                       ))}
                     </div>
-                    <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
+                    <div className="hint">
                       {n} drafts · {(n * (n - 1)) / 2} pairwise comparison{(n * (n - 1)) / 2 === 1 ? '' : 's'}
                     </div>
                   </div>
                   <div>
-                    <label style={{ fontSize: 11, color: 'var(--text-3)', display: 'block', marginBottom: 6 }}>
-                      Synopsis / notes <span style={{ opacity: 0.6 }}>(overrides node synopsis)</span>
+                    <label className="reg-lbl">
+                      Synopsis / notes <span className="muted">(overrides node synopsis)</span>
                     </label>
                     <textarea
+                      className="ta"
                       value={synopsis}
                       onChange={(e) => setSynopsis(e.target.value)}
                       rows={3}
                       placeholder={nodeSynopsis || 'What this scene should cover…'}
-                      style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, lineHeight: 1.5, resize: 'vertical' }}
                     />
                   </div>
                 </>
               )}
 
               {phase === 'generating' && (
-                <div style={{ fontSize: 13, color: 'var(--text-2)', padding: '20px 0', textAlign: 'center' }}>
-                  Generating variant {genIndex + 1} of {n}…
-                </div>
+                <div className="crit-loading">Generating variant {genIndex + 1} of {n}…</div>
               )}
               {phase === 'ranking' && (
-                <div style={{ fontSize: 13, color: 'var(--text-2)', padding: '20px 0', textAlign: 'center' }}>
-                  Judging pairwise — {rankProgress.done} / {rankProgress.total}…
-                </div>
+                <div className="crit-loading">Judging pairwise — {rankProgress.done} / {rankProgress.total}…</div>
               )}
 
               {phase === 'results' && ranked.map((v, rank) => (
-                <div key={v.index} style={{ border: '1px solid', borderColor: rank === 0 ? 'var(--accent)' : 'var(--border)', borderRadius: 'var(--r-md)', padding: '10px 12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: rank === 0 ? 'var(--accent)' : 'var(--text-2)' }}>
-                      {rank === 0 ? '★ Winner' : `#${rank + 1}`}
-                    </span>
-                    <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
+                <div key={v.index} className={`bon-card${rank === 0 ? ' win' : ''}`}>
+                  <div className="bon-hd">
+                    <span className="bon-rank">{rank === 0 ? '★ Winner' : `#${rank + 1}`}</span>
+                    <span className="bon-elo">
                       Elo {Math.round(v.rating)} · {v.wins}W-{v.losses}L{v.ties ? `-${v.ties}T` : ''}
                     </span>
                     <span className="tb-spacer" />
-                    <button className="btn sm" onClick={() => useVariant(v.text)} style={rank === 0 ? { background: 'var(--accent)', color: 'var(--accent-fg)', borderColor: 'transparent' } : undefined}>
+                    <button className={`btn sm${rank === 0 ? ' primary' : ''}`} onClick={() => useVariant(v.text)}>
                       Use this →
                     </button>
                   </div>
-                  <div style={{ maxHeight: 130, overflowY: 'auto', fontSize: 12, lineHeight: 1.55, color: 'var(--text-2)', whiteSpace: 'pre-wrap', background: 'var(--bg-2)', borderRadius: 'var(--r-md)', padding: '8px 10px' }}>
-                    {v.text}
-                  </div>
+                  <div className="bon-text">{v.text}</div>
                 </div>
               ))}
 
-              {error && <div style={{ fontSize: 12, color: 'var(--st-idea)' }}>{error}</div>}
+              {error && <div style={{ fontSize: 'var(--t-sm)', color: 'var(--st-idea)' }}>{error}</div>}
             </div>
 
             <div className="modal-foot">
@@ -209,7 +201,7 @@ export default function BestOfModal({ onClose }: Props): React.ReactElement {
               ) : (
                 <>
                   <button className="btn" onClick={onClose}>Close</button>
-                  <button className="btn" onClick={run} style={{ background: 'var(--accent)', color: 'var(--accent-fg)', borderColor: 'transparent' }}>
+                  <button className="btn primary" onClick={run}>
                     {phase === 'results' ? 'Re-run' : `Run best of ${n}`}
                   </button>
                 </>
