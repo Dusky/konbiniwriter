@@ -9,6 +9,7 @@ import { MEMORY_INSTRUCTION, extractMemories, stripMemories, appendMemories } fr
 import { runAgent } from '../../lib/agent'
 import { toolLabel, type AgentToolContext } from '../../lib/agentTools'
 import { createProposal } from '../../lib/ProposalService'
+import Icon from '../common/Icon'
 import ConfirmDialog from '../common/ConfirmDialog'
 import type { Project } from '@shared/types'
 
@@ -466,7 +467,7 @@ export default function AssistantPanel(): React.ReactElement {
   return (
     <div className="assistant">
       <div className="asst-hd">
-        <span className="asst-mark">✦</span>
+        <span className="asst-mark"><Icon name="sparkle" /></span>
         <span className="asst-title">
           Assistant
           {contextLabel && (
@@ -580,11 +581,11 @@ export default function AssistantPanel(): React.ReactElement {
           const isStreamingThis = streaming && isLast && msg.role === 'assistant'
           return (
             <div key={i} className={`msg ${msg.role === 'user' ? 'user' : 'ai'}`}>
-              {msg.role === 'assistant' && <span className="msg-mark">✦</span>}
+              {msg.role === 'assistant' && <span className="msg-mark"><Icon name="sparkle" /></span>}
               <div className="msg-body">
                 {msg.isError ? (
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                    <span style={{ color: 'var(--st-idea)', flexShrink: 0, marginTop: 1 }}>⚠</span>
+                    <span style={{ color: 'var(--st-idea)', flexShrink: 0, marginTop: 1 }}><Icon name="warning" size={14} /></span>
                     <span className="msg-text">{msg.content}</span>
                   </div>
                 ) : (
@@ -605,7 +606,7 @@ export default function AssistantPanel(): React.ReactElement {
                       <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 2, fontSize: 11, color: 'var(--text-3)' }}>
                         {msg.toolUses.map((t, ti) => (
                           <div key={ti} style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
-                            <span style={{ color: 'var(--accent)', flexShrink: 0 }}>⚙</span>
+                            <span style={{ color: 'var(--accent)', flexShrink: 0, marginTop: 1 }}><Icon name="tool" size={12} /></span>
                             <span>{t}</span>
                           </div>
                         ))}
@@ -615,7 +616,7 @@ export default function AssistantPanel(): React.ReactElement {
                       <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 2, fontSize: 11, color: 'var(--text-3)' }}>
                         {msg.memories.map((m, mi) => (
                           <div key={mi} style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
-                            <span style={{ color: 'var(--accent)', flexShrink: 0 }}>✦</span>
+                            <span style={{ color: 'var(--accent)', flexShrink: 0, marginTop: 1 }}><Icon name="sparkle" size={12} /></span>
                             <span>Remembered: {m}</span>
                           </div>
                         ))}
@@ -644,8 +645,8 @@ export default function AssistantPanel(): React.ReactElement {
           rows={2}
         />
         {streaming
-          ? <button className="send-btn" onClick={stop} title="Stop">■</button>
-          : <button className="send-btn" onClick={send} disabled={!input.trim()} title="Send">↑</button>
+          ? <button className="send-btn" onClick={stop} title="Stop"><Icon name="stop" size={14} /></button>
+          : <button className="send-btn" onClick={send} disabled={!input.trim()} title="Send"><Icon name="send" size={16} /></button>
         }
       </div>
     </div>

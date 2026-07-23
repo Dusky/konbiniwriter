@@ -10,6 +10,15 @@
 
   --ui-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+
+  /* ── design scale (theme-independent) ──────────────────────────────────────
+     One 4px spacing grid, three radii + pill, one type ramp, three control
+     heights. Every spacing/radius/size choice should reference these — no more
+     hand-tuned magic numbers. See the interface-refresh spec. */
+  --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px;
+  --r-sm: 4px; --r-md: 7px; --r-lg: 11px; --r-full: 999px;
+  --t-xs: 11px; --t-sm: 12px; --t-base: 13px; --t-md: 14px; --t-lg: 16px; --t-xl: 21px; --t-2xl: 30px;
+  --h-sm: 24px; --h-md: 28px; --h-lg: 34px;
 }
 
 /* ── dark (default) ──────────────────────────────────────────────────────── */
