@@ -288,6 +288,15 @@ export interface OAuthTokenResult {
   error?: string
 }
 
+/** Callbacks for a streamed OAuth Messages API call (proxied through the platform). */
+export interface OAuthStreamHandlers {
+  /** Raw SSE text as it arrives (the caller parses it). */
+  onChunk: (text: string) => void
+  onDone: () => void
+  onError: (err: { status?: number; body?: string }) => void
+  onAbort?: () => void
+}
+
 export interface KonbiniAPI {
   project: {
     create(opts: { title: string; template: TemplateId; location: string }): Promise<Project>
@@ -340,6 +349,13 @@ export interface KonbiniAPI {
   oauth: {
     exchange(input: { code: string; state: string; verifier: string; redirectUri: string }): Promise<OAuthTokenResult>
     refresh(input: { refreshToken: string }): Promise<OAuthTokenResult>
+    /**
+     * Stream a Messages API call authenticated with a subscription (OAuth) token.
+     * Subscription tokens are first-party/server-side only — a renderer request
+     * carries a browser Origin that Anthropic rejects — so the Electron build
+     * proxies this through the main process. Returns an abort handle.
+     */
+    streamMessages(input: { token: string; body: unknown }, handlers: OAuthStreamHandlers): { abort: () => void }
   }
   /** Global key-value preference store. Synchronous so stores can hydrate at construction time. */
   prefs: {

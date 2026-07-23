@@ -245,6 +245,29 @@ const api: KonbiniAPI = {
   oauth: {
     exchange: (input) => ipcRenderer.invoke('oauth:exchange', input),
     refresh: (input) => ipcRenderer.invoke('oauth:refresh', input),
+    streamMessages: (input, handlers) => {
+      let reqId = -1
+      let channel = ''
+      const listener = (_e: unknown, msg: { type: string; data?: string; status?: number; body?: string }) => {
+        if (msg.type === 'chunk') handlers.onChunk(msg.data ?? '')
+        else if (msg.type === 'done') { cleanup(); handlers.onDone() }
+        else if (msg.type === 'aborted') { cleanup(); handlers.onAbort ? handlers.onAbort() : handlers.onDone() }
+        else if (msg.type === 'error') { cleanup(); handlers.onError({ status: msg.status, body: msg.body }) }
+      }
+      const cleanup = () => { if (channel) ipcRenderer.removeListener(channel, listener) }
+      // start (reserve id) → attach listener → go (begin streaming) so no chunk is missed.
+      void (async () => {
+        try {
+          reqId = await ipcRenderer.invoke('oauth:messages:start', input) as number
+          channel = `oauth:messages:${reqId}`
+          ipcRenderer.on(channel, listener)
+          await ipcRenderer.invoke('oauth:messages:go', reqId)
+        } catch (e) {
+          handlers.onError({ body: (e as Error).message })
+        }
+      })()
+      return { abort: () => { if (reqId >= 0) ipcRenderer.invoke('oauth:messages:abort', reqId) } }
+    },
   },
 }
 

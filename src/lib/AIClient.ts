@@ -1,6 +1,6 @@
 import { useAIStore } from '../store/aiStore'
 import { sseLines, sseFlush, type SSEBuffer } from './sse'
-import { getValidAccessToken, CLAUDE_CODE_SYSTEM, OAUTH_BETA } from './ClaudeOAuth'
+import { getValidAccessToken, CLAUDE_CODE_SYSTEM } from './ClaudeOAuth'
 
 export interface TokenUsage {
   inputTokens: number
@@ -95,6 +95,22 @@ export async function streamCompletion(
 // (temperature/top_p/top_k) with a 400 — omit temperature for those models.
 const NO_SAMPLING_PARAMS = /fable-5|mythos|opus-4-[78]|sonnet-5/i
 
+// Map an Anthropic HTTP error to a user-facing message. Auth failures read
+// differently for a subscription (OAuth) vs an API key, and we surface the API's
+// own message when there is one so failures are diagnosable.
+function mapAnthError(status: number, rawBody: string, oauth: boolean): string {
+  let apiMsg = ''
+  try { apiMsg = (JSON.parse(rawBody)?.error?.message ?? '') as string } catch { apiMsg = rawBody.slice(0, 200) }
+  if (status === 401 || status === 403) {
+    return oauth
+      ? `Claude subscription was rejected (${status}) — sign in again under AI Settings.${apiMsg ? ` (${apiMsg})` : ''}`
+      : 'Authentication failed — check your API key in AI Settings'
+  }
+  if (status === 429) return 'Rate limit reached — wait a moment and try again'
+  if (status >= 500) return `API service error (${status}) — try again shortly`
+  return apiMsg || `Request failed (${status})`
+}
+
 async function streamAnthropic(
   opts: { apiKey: string; oauthToken?: string; model: string; messages: AIMessage[]; maxTokens: number; temperature: number; systemPrompt?: string; signal?: AbortSignal },
   cb: StreamCallbacks,
@@ -118,47 +134,8 @@ async function streamAnthropic(
   if (opts.systemPrompt) sysBlocks.push({ type: 'text', text: opts.systemPrompt, cache_control: { type: 'ephemeral' } })
   if (sysBlocks.length) body.system = sysBlocks
 
-  const headers: Record<string, string> = {
-    'anthropic-version': '2023-06-01',
-    'anthropic-dangerous-direct-browser-access': 'true',
-    'content-type': 'application/json',
-  }
-  if (oauth) {
-    headers['authorization'] = `Bearer ${opts.oauthToken}`
-    headers['anthropic-beta'] = OAUTH_BETA
-  } else {
-    headers['x-api-key'] = opts.apiKey
-  }
-
-  let res: Response
-  try {
-    res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-      signal: opts.signal,
-    })
-  } catch (e) {
-    handleStreamError(e, cb)
-    return
-  }
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}))
-    const apiMsg = (body?.error?.message ?? '') as string
-    let msg: string
-    if (res.status === 401) msg = 'Authentication failed — check your API key in AI Settings'
-    else if (res.status === 429) msg = 'Rate limit reached — wait a moment and try again'
-    else if (res.status >= 500) msg = `API service error (${res.status}) — try again shortly`
-    else msg = apiMsg || `Request failed (${res.status})`
-    cb.onError(new Error(msg))
-    return
-  }
-
-  const reader = res.body?.getReader()
-  if (!reader) { cb.onError(new Error('No response body')); return }
-
-  const decoder = new TextDecoder()
+  // Shared SSE consumer — used by both the API-key fetch path and the OAuth
+  // main-process proxy path below.
   const buf: SSEBuffer = { pending: '' }
   let full = ''
   let inputTokens = 0
@@ -190,19 +167,72 @@ async function streamAnthropic(
       }
     } catch { /* ignore malformed SSE */ }
   }
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      for (const line of sseLines(buf, decoder.decode(value, { stream: true }))) handleLine(line)
-    }
-    for (const line of sseLines(buf, decoder.decode())) handleLine(line)
+  const consume = (text: string): void => { for (const line of sseLines(buf, text)) handleLine(line) }
+  const flushAndDone = (): void => {
     for (const line of sseFlush(buf)) handleLine(line)
     if (inputTokens || outputTokens || cacheReadTokens || cacheCreationTokens) {
       cb.onUsage?.({ inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens })
     }
     cb.onDone(full)
+  }
+
+  // OAuth (subscription): the request must not carry a browser Origin, so it's
+  // proxied through the platform (Electron main). The raw SSE text it returns is
+  // fed through the same parser as the direct path.
+  if (oauth) {
+    await new Promise<void>((resolve) => {
+      let settled = false
+      const finish = () => { if (!settled) { settled = true; resolve() } }
+      const handle = window.api.oauth.streamMessages(
+        { token: opts.oauthToken as string, body },
+        {
+          onChunk: (text) => consume(text),
+          onDone: () => { flushAndDone(); finish() },
+          onError: ({ status, body: errBody }) => { cb.onError(new Error(mapAnthError(status ?? 0, errBody ?? '', true))); finish() },
+          onAbort: () => { if (cb.onAbort) cb.onAbort(); else cb.onError(new Error('Request aborted')); finish() },
+        },
+      )
+      opts.signal?.addEventListener('abort', () => handle.abort(), { once: true })
+    })
+    return
+  }
+
+  // API key: direct browser fetch (permitted via the dangerous-direct header).
+  let res: Response
+  try {
+    res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': opts.apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      signal: opts.signal,
+    })
+  } catch (e) {
+    handleStreamError(e, cb)
+    return
+  }
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    cb.onError(new Error(mapAnthError(res.status, text, false)))
+    return
+  }
+
+  const reader = res.body?.getReader()
+  if (!reader) { cb.onError(new Error('No response body')); return }
+  const decoder = new TextDecoder()
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      consume(decoder.decode(value, { stream: true }))
+    }
+    consume(decoder.decode())
+    flushAndDone()
   } catch (e) {
     handleStreamError(e, cb)
   } finally {

@@ -130,6 +130,12 @@ const api: KonbiniAPI = {
       refresh_token: input.refreshToken,
       client_id: OAUTH_CLIENT_ID,
     }),
+    // A browser page can't call the Messages API with a subscription token —
+    // Anthropic rejects the browser Origin and CORS blocks it. Desktop only.
+    streamMessages: (_input, handlers) => {
+      handlers.onError({ body: 'Claude subscription chat requires the Konbini desktop app. Use an API key in the browser build.' })
+      return { abort: () => {} }
+    },
   },
 }
 

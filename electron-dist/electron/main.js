@@ -224,3 +224,71 @@ electron_1.ipcMain.handle('oauth:refresh', (_e, input) => postToken({
     refresh_token: input.refreshToken,
     client_id: OAUTH_CLIENT_ID,
 }));
+// ── IPC: OAuth (subscription) Messages API streaming ──────────────────────────
+// Subscription tokens are rejected when the request carries a browser Origin, so
+// the inference call is proxied here (Node fetch, no browser headers). A
+// start→go handshake lets the renderer attach its listener before bytes flow, so
+// no early SSE chunk is lost. Chunks are forwarded raw; the renderer parses SSE.
+const OAUTH_BETA = 'oauth-2025-04-20';
+let _oauthSeq = 0;
+const _oauthPending = new Map();
+electron_1.ipcMain.handle('oauth:messages:start', (event, payload) => {
+    const id = ++_oauthSeq;
+    _oauthPending.set(id, { token: payload.token, body: payload.body, sender: event.sender, controller: new AbortController() });
+    return id;
+});
+electron_1.ipcMain.handle('oauth:messages:abort', (_e, id) => {
+    _oauthPending.get(id)?.controller.abort();
+});
+electron_1.ipcMain.handle('oauth:messages:go', async (_e, id) => {
+    const req = _oauthPending.get(id);
+    if (!req)
+        return;
+    const channel = `oauth:messages:${id}`;
+    const send = (msg) => { if (!req.sender.isDestroyed())
+        req.sender.send(channel, msg); };
+    try {
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'authorization': `Bearer ${req.token}`,
+                'anthropic-version': '2023-06-01',
+                'anthropic-beta': OAUTH_BETA,
+                'content-type': 'application/json',
+                'user-agent': 'Konbini/0.1',
+            },
+            body: JSON.stringify(req.body),
+            signal: req.controller.signal,
+        });
+        if (!res.ok) {
+            const text = await res.text().catch(() => '');
+            send({ type: 'error', status: res.status, body: text });
+            return;
+        }
+        const reader = res.body?.getReader();
+        if (!reader) {
+            send({ type: 'error', status: 0, body: 'No response body' });
+            return;
+        }
+        const decoder = new TextDecoder();
+        for (;;) {
+            const { done, value } = await reader.read();
+            if (done)
+                break;
+            send({ type: 'chunk', data: decoder.decode(value, { stream: true }) });
+        }
+        const tail = decoder.decode();
+        if (tail)
+            send({ type: 'chunk', data: tail });
+        send({ type: 'done' });
+    }
+    catch (e) {
+        if (e.name === 'AbortError')
+            send({ type: 'aborted' });
+        else
+            send({ type: 'error', status: 0, body: e.message });
+    }
+    finally {
+        _oauthPending.delete(id);
+    }
+});

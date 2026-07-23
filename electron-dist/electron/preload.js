@@ -273,6 +273,42 @@ const api = {
     oauth: {
         exchange: (input) => electron_1.ipcRenderer.invoke('oauth:exchange', input),
         refresh: (input) => electron_1.ipcRenderer.invoke('oauth:refresh', input),
+        streamMessages: (input, handlers) => {
+            let reqId = -1;
+            let channel = '';
+            const listener = (_e, msg) => {
+                if (msg.type === 'chunk')
+                    handlers.onChunk(msg.data ?? '');
+                else if (msg.type === 'done') {
+                    cleanup();
+                    handlers.onDone();
+                }
+                else if (msg.type === 'aborted') {
+                    cleanup();
+                    handlers.onAbort ? handlers.onAbort() : handlers.onDone();
+                }
+                else if (msg.type === 'error') {
+                    cleanup();
+                    handlers.onError({ status: msg.status, body: msg.body });
+                }
+            };
+            const cleanup = () => { if (channel)
+                electron_1.ipcRenderer.removeListener(channel, listener); };
+            // start (reserve id) → attach listener → go (begin streaming) so no chunk is missed.
+            void (async () => {
+                try {
+                    reqId = await electron_1.ipcRenderer.invoke('oauth:messages:start', input);
+                    channel = `oauth:messages:${reqId}`;
+                    electron_1.ipcRenderer.on(channel, listener);
+                    await electron_1.ipcRenderer.invoke('oauth:messages:go', reqId);
+                }
+                catch (e) {
+                    handlers.onError({ body: e.message });
+                }
+            })();
+            return { abort: () => { if (reqId >= 0)
+                    electron_1.ipcRenderer.invoke('oauth:messages:abort', reqId); } };
+        },
     },
 };
 electron_1.contextBridge.exposeInMainWorld('api', api);
