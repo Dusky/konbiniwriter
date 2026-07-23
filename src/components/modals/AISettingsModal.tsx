@@ -16,6 +16,16 @@ const ANTHROPIC_MODELS = [
 // Sub-presets shown only under the "Custom" service — one-click endpoints for
 // other OpenAI-compatible providers and local servers. The four first-class
 // services (Claude/ChatGPT/NanoGPT/OpenRouter) live in AI_SERVICES.
+// One-click commands for the Local-agent service. The "auto-edit" / "full
+// access" Claude presets pass the permission flag that lets it actually write
+// files headlessly (a bare `claude -p` would only respond).
+const AGENT_PRESETS: { label: string; cmd: string; note: string }[] = [
+  { label: 'Claude Code · auto-edit', cmd: 'claude -p --permission-mode acceptEdits', note: 'approves file edits, blocks riskier actions' },
+  { label: 'Claude Code · full access', cmd: 'claude -p --dangerously-skip-permissions', note: 'approves everything — trusted projects only' },
+  { label: 'opencode', cmd: 'opencode run -', note: 'reads the prompt from stdin' },
+  { label: 'aider', cmd: 'aider --message-file -', note: 'reads the prompt from stdin' },
+]
+
 const CUSTOM_PRESETS: { label: string; url: string; keyRequired: boolean; exampleModel: string }[] = [
   { label: 'Groq',      url: 'https://api.groq.com/openai/v1',    keyRequired: true,  exampleModel: 'llama-3.3-70b-versatile' },
   { label: 'Together',  url: 'https://api.together.xyz/v1',        keyRequired: true,  exampleModel: 'meta-llama/Llama-3.3-70B-Instruct-Turbo' },
@@ -245,19 +255,36 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
 
           {service === 'agent' ? (
             <>
+              <Row label="Preset">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {AGENT_PRESETS.map((p) => (
+                      <button
+                        key={p.label}
+                        className="btn"
+                        title={p.note}
+                        style={{ fontSize: 12, padding: '4px 10px', background: agentCommand === p.cmd ? 'var(--accent)' : undefined, color: agentCommand === p.cmd ? 'var(--accent-fg)' : undefined, borderColor: agentCommand === p.cmd ? 'transparent' : undefined }}
+                        onClick={() => setAgentCommand(p.cmd)}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                    Claude Code asks before editing files; the <b>auto-edit</b> preset passes the flag that lets it write headlessly. A bare <code style={{ fontFamily: 'var(--mono)' }}>claude -p</code> would only reply.
+                  </div>
+                </div>
+              </Row>
               <Row label="Command">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <input
                     value={agentCommand}
                     onChange={(e) => setAgentCommand(e.target.value)}
-                    placeholder="claude -p"
+                    placeholder="claude -p --permission-mode acceptEdits"
                     style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)', boxSizing: 'border-box' }}
                   />
                   <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
-                    Runs in your project folder with the prompt piped to stdin. Examples:{' '}
-                    <code style={{ fontFamily: 'var(--mono)' }}>claude -p</code> ·{' '}
-                    <code style={{ fontFamily: 'var(--mono)' }}>opencode run -</code> ·{' '}
-                    <code style={{ fontFamily: 'var(--mono)' }}>aider --message-file -</code>. Desktop app only.
+                    Runs in your project folder with the prompt piped to stdin. Pick a preset above or edit freely. Desktop app only.
                   </div>
                 </div>
               </Row>

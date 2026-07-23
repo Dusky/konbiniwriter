@@ -222,6 +222,6 @@ export const useAIStore = create<AIState>((set) => ({
   aiToolsEnabled: load(`${SK}:aiToolsEnabled`, 'true') !== 'false',
   setAiToolsEnabled: (aiToolsEnabled) => { save(`${SK}:aiToolsEnabled`, aiToolsEnabled ? 'true' : 'false'); set({ aiToolsEnabled }) },
 
-  agentCommand: load(`${SK}:agentCommand`, 'claude -p'),
+  agentCommand: load(`${SK}:agentCommand`, 'claude -p --permission-mode acceptEdits'),
   setAgentCommand: (agentCommand) => { save(`${SK}:agentCommand`, agentCommand); set({ agentCommand }) },
 }))
