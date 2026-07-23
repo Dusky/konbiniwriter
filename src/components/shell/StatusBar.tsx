@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useProjectStore, subtreeWordCount } from '../../store/projectStore'
 import { useShellStore } from '../../store/shellStore'
+import { statsService } from '../../lib/StatsService'
 import { wordCount, charCount } from '@shared/utils'
 
 export default function StatusBar(): React.ReactElement {
@@ -63,6 +64,30 @@ export default function StatusBar(): React.ReactElement {
       )}
 
       <div className="sb-r">
+        {/* Daily writing goal — re-read as words change (sessionWordsAdded ticks). */}
+        {(() => {
+          void sessionWordsAdded
+          const goal = statsService.getDailyGoal()
+          const todayWords = statsService.getToday()
+          if (!goal && todayWords === 0) return null
+          const pct = goal ? Math.min(1, todayWords / goal) : 0
+          return (
+            <span
+              title="Daily writing goal — click for stats"
+              style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, color: goal && pct >= 1 ? 'var(--st-final)' : 'var(--text-3)' }}
+              onClick={() => setModal('stats')}
+            >
+              Today: <b>{todayWords.toLocaleString()}</b>
+              {goal > 0 && (
+                <>/ <b>{goal.toLocaleString()}</b>{pct >= 1 ? ' ✓' : ''}
+                  <span style={{ display: 'inline-block', width: 40, height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden', verticalAlign: 'middle' }}>
+                    <span style={{ display: 'block', height: '100%', width: `${pct * 100}%`, background: pct >= 1 ? 'var(--st-final)' : 'var(--accent)', borderRadius: 2, transition: 'width 0.3s' }} />
+                  </span>
+                </>
+              )}
+            </span>
+          )
+        })()}
         {project && (
           <span
             style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}

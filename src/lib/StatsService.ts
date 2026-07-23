@@ -1,4 +1,5 @@
 const KEY = 'konbini:stats:daily'
+const GOAL_KEY = 'konbini:stats:dailyGoal'
 
 type DailyRecord = Record<string, number> // ISO date (YYYY-MM-DD) → words written
 
@@ -48,6 +49,20 @@ class StatsService {
 
   getAllTimeTotal(): number {
     return Object.values(this.load()).reduce((a, b) => a + b, 0)
+  }
+
+  /** Words written today (persisted daily total). */
+  getToday(): number {
+    return this.load()[today()] ?? 0
+  }
+
+  /** Personal daily word goal; 0 = no goal set. */
+  getDailyGoal(): number {
+    const n = parseInt(window.api.prefs.get(GOAL_KEY) ?? '0', 10)
+    return isNaN(n) || n < 0 ? 0 : n
+  }
+  setDailyGoal(n: number): void {
+    window.api.prefs.set(GOAL_KEY, String(Math.max(0, Math.floor(n) || 0)))
   }
 }
 

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { statsService } from '../../lib/StatsService'
 
 interface Props { onClose: () => void }
@@ -9,6 +9,15 @@ export default function StatsModal({ onClose }: Props): React.ReactElement {
   const allTime = statsService.getAllTimeTotal()
   const todayWords = history[history.length - 1]?.words ?? 0
   const maxWords = Math.max(...history.map(d => d.words), 1)
+
+  const [goal, setGoal] = useState(statsService.getDailyGoal())
+  const goalMet = goal > 0 && todayWords >= goal
+  const commitGoal = (v: string) => {
+    const n = parseInt(v.replace(/[^0-9]/g, ''), 10)
+    const resolved = isNaN(n) ? 0 : n
+    statsService.setDailyGoal(resolved)
+    setGoal(resolved)
+  }
 
   return (
     <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -29,6 +38,26 @@ export default function StatsModal({ onClose }: Props): React.ReactElement {
                 <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)' }}>{chip.value}</div>
               </div>
             ))}
+          </div>
+
+          {/* Daily goal */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, padding: '10px 14px', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 8 }}>
+            <span style={{ fontSize: 13, color: 'var(--text-2)' }}>Daily goal</span>
+            <input
+              type="number"
+              min={0}
+              value={goal || ''}
+              placeholder="none"
+              onChange={(e) => commitGoal(e.target.value)}
+              style={{ width: 90, padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)' }}
+            />
+            <span style={{ fontSize: 12, color: 'var(--text-3)' }}>words / day</span>
+            <span className="tb-spacer" style={{ flex: 1 }} />
+            {goal > 0 && (
+              <span style={{ fontSize: 12, color: goalMet ? 'var(--st-final)' : 'var(--text-3)' }}>
+                {goalMet ? '✓ met today' : `${Math.round(Math.min(1, todayWords / goal) * 100)}% today`}
+              </span>
+            )}
           </div>
 
           {/* 30-day bar chart */}
