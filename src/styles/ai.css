@@ -472,3 +472,22 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
   border-bottom: 0.5px solid var(--border); }
 .asst-thread:hover { background: var(--bg-2); }
 .asst-thread.on { background: var(--accent-soft); }
+
+/* ── Registry modal (prompts / agents master-detail) ── */
+.reg-split { flex: 1; display: grid; grid-template-columns: 240px 1fr; overflow: hidden; }
+.reg-list { border-right: 0.5px solid var(--border); overflow-y: auto; padding: var(--s2) 0; }
+.reg-row { display: block; width: 100%; text-align: left; border: none; cursor: pointer;
+  padding: var(--s2) var(--s4); background: transparent; border-left: 2px solid transparent; }
+.reg-row:hover { background: var(--bg-3); }
+.reg-row.on { background: var(--sel-bg); border-left-color: var(--accent); }
+.reg-row-name { font-size: var(--t-sm); font-weight: 600; color: var(--text); }
+.reg-row-sub { font-size: var(--t-xs); color: var(--text-3); margin-top: 2px; }
+.reg-editor { overflow-y: auto; padding: var(--s4) var(--s5); display: flex; flex-direction: column; gap: var(--s3); }
+.reg-empty { display: flex; align-items: center; justify-content: center; color: var(--text-3); font-size: var(--t-base); }
+.reg-lbl { font-size: var(--t-xs); color: var(--text-3); display: block; margin-bottom: var(--s1); }
+.reg-lbl .muted { opacity: .6; }
+.reg-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.reg-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.reg-grid-ne { display: grid; grid-template-columns: 1fr 70px; gap: 10px; }
+.reg-actions { display: flex; gap: var(--s2); align-items: center; }
+.reg-note { font-size: var(--t-xs); color: var(--text-3); line-height: 1.5; }

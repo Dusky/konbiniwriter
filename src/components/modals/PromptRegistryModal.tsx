@@ -14,10 +14,6 @@ const FEATURES: { id: PromptFeature | 'all'; label: string }[] = [
 
 const AGENT_CATEGORIES: AgentCategory[] = ['reader', 'critic', 'judge', 'codex', 'autopilot']
 
-const inputStyle: React.CSSProperties = { width: '100%', padding: '6px 9px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13 }
-const monoStyle: React.CSSProperties = { ...inputStyle, fontSize: 12, fontFamily: 'var(--mono)' }
-const labelStyle: React.CSSProperties = { fontSize: 11, color: 'var(--text-3)', display: 'block', marginBottom: 4 }
-
 interface EditorState { prompt: PromptTemplate; dirty: boolean }
 interface AgentEditorState { agent: AgentTemplate; dirty: boolean }
 
@@ -110,92 +106,92 @@ export default function PromptRegistryModal({ onClose }: Props): React.ReactElem
         </div>
 
         {tab === 'prompts' ? (
-          <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '240px 1fr', overflow: 'hidden' }}>
-            <div style={{ borderRight: '0.5px solid var(--border)', overflowY: 'auto', padding: '6px 0' }}>
+          <div className="reg-split">
+            <div className="reg-list">
               {prompts.map((p) => (
-                <button key={p.id} onClick={() => selectPrompt(p)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', border: 'none', cursor: 'pointer', background: selected?.prompt.id === p.id ? 'var(--sel-bg)' : 'transparent', borderLeft: selected?.prompt.id === p.id ? '2px solid var(--accent)' : '2px solid transparent' }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{p.name}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{p.feature}{p.isBuiltin ? '' : ' · custom'}</div>
+                <button key={p.id} onClick={() => selectPrompt(p)} className={`reg-row${selected?.prompt.id === p.id ? ' on' : ''}`}>
+                  <div className="reg-row-name">{p.name}</div>
+                  <div className="reg-row-sub">{p.feature}{p.isBuiltin ? '' : ' · custom'}</div>
                 </button>
               ))}
             </div>
             {selected ? (
-              <div style={{ overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div><label style={labelStyle}>Name</label><input value={selected.prompt.name} onChange={(e) => handleChange('name', e.target.value)} style={inputStyle} /></div>
-                <div><label style={labelStyle}>Description</label><input value={selected.prompt.description} onChange={(e) => handleChange('description', e.target.value)} style={inputStyle} /></div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-                  <div><label style={labelStyle}>Model</label><input value={selected.prompt.model} onChange={(e) => handleChange('model', e.target.value)} style={monoStyle} /></div>
-                  <div><label style={labelStyle}>Temperature</label><input type="number" min={0} max={1} step={0.05} value={selected.prompt.temperature} onChange={(e) => handleChange('temperature', parseFloat(e.target.value))} style={inputStyle} /></div>
-                  <div><label style={labelStyle}>Max Tokens</label><input type="number" value={selected.prompt.maxTokens ?? ''} onChange={(e) => handleChange('maxTokens', parseInt(e.target.value) || undefined)} style={inputStyle} /></div>
+              <div className="reg-editor">
+                <div><label className="reg-lbl">Name</label><input className="inp" value={selected.prompt.name} onChange={(e) => handleChange('name', e.target.value)} /></div>
+                <div><label className="reg-lbl">Description</label><input className="inp" value={selected.prompt.description} onChange={(e) => handleChange('description', e.target.value)} /></div>
+                <div className="reg-grid-3">
+                  <div><label className="reg-lbl">Model</label><input className="inp mono" value={selected.prompt.model} onChange={(e) => handleChange('model', e.target.value)} /></div>
+                  <div><label className="reg-lbl">Temperature</label><input className="inp" type="number" min={0} max={1} step={0.05} value={selected.prompt.temperature} onChange={(e) => handleChange('temperature', parseFloat(e.target.value))} /></div>
+                  <div><label className="reg-lbl">Max Tokens</label><input className="inp" type="number" value={selected.prompt.maxTokens ?? ''} onChange={(e) => handleChange('maxTokens', parseInt(e.target.value) || undefined)} /></div>
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={labelStyle}>Template <span style={{ opacity: 0.6 }}>— use {'{{variable}}'} syntax</span></label>
-                  <textarea value={selected.prompt.template} onChange={(e) => handleChange('template', e.target.value)} rows={14} style={{ ...monoStyle, lineHeight: 1.5, resize: 'vertical', padding: '8px 10px' }} />
+                  <label className="reg-lbl">Template <span className="muted">— use {'{{variable}}'} syntax</span></label>
+                  <textarea className="ta mono" value={selected.prompt.template} onChange={(e) => handleChange('template', e.target.value)} rows={14} />
                 </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  {selected.prompt.isBuiltin && <button className="btn" onClick={() => handleReset(selected.prompt.id)} style={{ fontSize: 11 }}>Reset to default</button>}
-                  <button className="btn" onClick={() => handleDuplicate(selected.prompt.id)} style={{ fontSize: 11 }}>Duplicate</button>
+                <div className="reg-actions">
+                  {selected.prompt.isBuiltin && <button className="btn" onClick={() => handleReset(selected.prompt.id)}>Reset to default</button>}
+                  <button className="btn" onClick={() => handleDuplicate(selected.prompt.id)}>Duplicate</button>
                   <span className="tb-spacer" />
-                  {saved && <span style={{ fontSize: 11, color: 'var(--success)' }}>Saved</span>}
-                  <button className="btn" onClick={handleSave} disabled={!selected.dirty} style={{ background: selected.dirty ? 'var(--accent)' : undefined, color: selected.dirty ? 'var(--accent-fg)' : undefined, borderColor: selected.dirty ? 'transparent' : undefined }}>Save changes</button>
+                  {saved && <span className="hint" style={{ color: 'var(--success)' }}>Saved</span>}
+                  <button className={`btn${selected.dirty ? ' primary' : ''}`} onClick={handleSave} disabled={!selected.dirty}>Save changes</button>
                 </div>
               </div>
             ) : (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-3)', fontSize: 13 }}>Select a prompt to edit</div>
+              <div className="reg-empty">Select a prompt to edit</div>
             )}
           </div>
         ) : (
-          <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '240px 1fr', overflow: 'hidden' }}>
-            <div style={{ borderRight: '0.5px solid var(--border)', overflowY: 'auto', padding: '6px 0' }}>
+          <div className="reg-split">
+            <div className="reg-list">
               {agents.map((a) => (
-                <button key={a.id} onClick={() => selectAgent(a)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', border: 'none', cursor: 'pointer', background: sa?.id === a.id ? 'var(--sel-bg)' : 'transparent', borderLeft: sa?.id === a.id ? '2px solid var(--accent)' : '2px solid transparent' }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{(a.parameters.emoji as string) ?? ''} {a.name}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{a.category}{a.isBuiltin ? '' : ' · custom'}</div>
+                <button key={a.id} onClick={() => selectAgent(a)} className={`reg-row${sa?.id === a.id ? ' on' : ''}`}>
+                  <div className="reg-row-name">{(a.parameters.emoji as string) ?? ''} {a.name}</div>
+                  <div className="reg-row-sub">{a.category}{a.isBuiltin ? '' : ' · custom'}</div>
                 </button>
               ))}
             </div>
             {sa ? (
-              <div style={{ overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px', gap: 10 }}>
-                  <div><label style={labelStyle}>Name</label><input value={sa.name} onChange={(e) => changeAgent('name', e.target.value)} style={inputStyle} /></div>
-                  <div><label style={labelStyle}>Emoji</label><input value={(sa.parameters.emoji as string) ?? ''} onChange={(e) => changeParam('emoji', e.target.value)} style={{ ...inputStyle, textAlign: 'center' }} /></div>
+              <div className="reg-editor">
+                <div className="reg-grid-ne">
+                  <div><label className="reg-lbl">Name</label><input className="inp" value={sa.name} onChange={(e) => changeAgent('name', e.target.value)} /></div>
+                  <div><label className="reg-lbl">Emoji</label><input className="inp" style={{ textAlign: 'center' }} value={(sa.parameters.emoji as string) ?? ''} onChange={(e) => changeParam('emoji', e.target.value)} /></div>
                 </div>
-                <div><label style={labelStyle}>Description</label><input value={sa.description} onChange={(e) => changeAgent('description', e.target.value)} style={inputStyle} /></div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div><label className="reg-lbl">Description</label><input className="inp" value={sa.description} onChange={(e) => changeAgent('description', e.target.value)} /></div>
+                <div className="reg-grid-2">
                   <div>
-                    <label style={labelStyle}>Category</label>
-                    <select value={sa.category} onChange={(e) => changeAgent('category', e.target.value as AgentCategory)} style={inputStyle}>
+                    <label className="reg-lbl">Category</label>
+                    <select className="sel" value={sa.category} onChange={(e) => changeAgent('category', e.target.value as AgentCategory)}>
                       {AGENT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label style={labelStyle}>System prompt</label>
-                    <select value={sa.systemPromptId} onChange={(e) => changeAgent('systemPromptId', e.target.value)} style={inputStyle}>
+                    <label className="reg-lbl">System prompt</label>
+                    <select className="sel" value={sa.systemPromptId} onChange={(e) => changeAgent('systemPromptId', e.target.value)}>
                       {allPrompts.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
                   </div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-                  <div><label style={labelStyle}>Model <span style={{ opacity: 0.6 }}>(blank = default)</span></label><input value={sa.model} placeholder="provider default" onChange={(e) => changeAgent('model', e.target.value)} style={monoStyle} /></div>
-                  <div><label style={labelStyle}>Temperature</label><input type="number" min={0} max={2} step={0.05} value={sa.temperature} onChange={(e) => changeAgent('temperature', parseFloat(e.target.value) || 0)} style={inputStyle} /></div>
-                  <div><label style={labelStyle}>Max Tokens</label><input type="number" value={(sa.parameters.maxTokens as number) ?? ''} onChange={(e) => changeParam('maxTokens', parseInt(e.target.value) || undefined)} style={inputStyle} /></div>
+                <div className="reg-grid-3">
+                  <div><label className="reg-lbl">Model <span className="muted">(blank = default)</span></label><input className="inp mono" value={sa.model} placeholder="provider default" onChange={(e) => changeAgent('model', e.target.value)} /></div>
+                  <div><label className="reg-lbl">Temperature</label><input className="inp" type="number" min={0} max={2} step={0.05} value={sa.temperature} onChange={(e) => changeAgent('temperature', parseFloat(e.target.value) || 0)} /></div>
+                  <div><label className="reg-lbl">Max Tokens</label><input className="inp" type="number" value={(sa.parameters.maxTokens as number) ?? ''} onChange={(e) => changeParam('maxTokens', parseInt(e.target.value) || undefined)} /></div>
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--text-3)', lineHeight: 1.5 }}>
+                <div className="reg-note">
                   The system prompt holds this agent's instructions — edit it on the <strong>Prompts</strong> tab. Reader agents power the Reader Panel.
                 </div>
                 <div style={{ flex: 1 }} />
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <div className="reg-actions">
                   {sa.isBuiltin
-                    ? <button className="btn" onClick={() => resetAgent(sa.id)} style={{ fontSize: 11 }}>Reset to default</button>
-                    : <button className="btn" onClick={() => deleteAgent(sa.id)} style={{ fontSize: 11, color: 'var(--st-idea)' }}>Delete</button>}
-                  <button className="btn" onClick={() => dupAgent(sa.id)} style={{ fontSize: 11 }}>Duplicate</button>
+                    ? <button className="btn" onClick={() => resetAgent(sa.id)}>Reset to default</button>
+                    : <button className="btn" onClick={() => deleteAgent(sa.id)} style={{ color: 'var(--st-idea)' }}>Delete</button>}
+                  <button className="btn" onClick={() => dupAgent(sa.id)}>Duplicate</button>
                   <span className="tb-spacer" />
-                  {saved && <span style={{ fontSize: 11, color: 'var(--success)' }}>Saved</span>}
-                  <button className="btn" onClick={saveAgent} disabled={!selAgent.dirty} style={{ background: selAgent.dirty ? 'var(--accent)' : undefined, color: selAgent.dirty ? 'var(--accent-fg)' : undefined, borderColor: selAgent.dirty ? 'transparent' : undefined }}>Save changes</button>
+                  {saved && <span className="hint" style={{ color: 'var(--success)' }}>Saved</span>}
+                  <button className={`btn${selAgent.dirty ? ' primary' : ''}`} onClick={saveAgent} disabled={!selAgent.dirty}>Save changes</button>
                 </div>
               </div>
             ) : (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-3)', fontSize: 13 }}>Select an agent to edit, or “+ New agent”.</div>
+              <div className="reg-empty">Select an agent to edit, or “+ New agent”.</div>
             )}
           </div>
         )}

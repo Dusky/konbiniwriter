@@ -312,6 +312,7 @@ button { font-family: inherit; cursor: default; }
   padding: 7px 9px; outline: none; }
 .inp:focus, .sel:focus, .ta:focus { border-color: var(--accent); }
 .inp.lg { font-size: 15px; font-weight: 600; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .ta { resize: vertical; min-height: 90px; line-height: 1.5; }
 .sel { appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%23888' d='M0 0h10L5 6z'/></svg>");
   background-repeat: no-repeat; background-position: right 9px center; padding-right: 26px; }
