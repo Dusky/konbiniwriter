@@ -646,3 +646,19 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 .srch-hit.on { background: var(--bg-2); }
 .srch-hit-txt { font-size: var(--t-sm); color: var(--text-2); line-height: 1.5; font-family: var(--mono); word-break: break-word; }
 .srch-hit-txt mark { background: var(--accent-soft); color: var(--text); border-radius: 2px; padding: 0 1px; }
+
+/* ── Stats modal ── */
+.stats-chips { display: flex; gap: var(--s3); margin-bottom: var(--s5); }
+.stats-chip { flex: 1; background: var(--bg-2); border: 0.5px solid var(--border); border-radius: var(--r-md); padding: var(--s3) var(--s4); }
+.stats-chip-l { font-size: var(--t-xs); color: var(--text-3); margin-bottom: var(--s1); text-transform: uppercase; letter-spacing: .05em; }
+.stats-chip-v { font-size: var(--t-lg); font-weight: 600; color: var(--text); }
+.stats-goal { display: flex; align-items: center; gap: 10px; margin-bottom: var(--s5); padding: 10px var(--s3);
+  background: var(--bg-2); border: 0.5px solid var(--border); border-radius: var(--r-md); }
+.stats-goal-lbl { font-size: var(--t-base); color: var(--text-2); }
+.stats-chart-lbl { font-size: var(--t-xs); color: var(--text-3); margin-bottom: var(--s2); }
+.stats-chart { display: flex; align-items: flex-end; gap: 3px; height: 80px; padding: 0 0 20px; }
+.stats-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.stats-bar { width: 100%; border-radius: 2px; background: var(--accent); }
+.stats-bar.empty { background: var(--border); }
+.stats-bar.dim { opacity: .55; }
+.stats-today { font-size: 9px; color: var(--text-3); white-space: nowrap; }

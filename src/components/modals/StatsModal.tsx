@@ -27,59 +27,54 @@ export default function StatsModal({ onClose }: Props): React.ReactElement {
         </div>
         <div className="modal-body">
           {/* Stat chips */}
-          <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
+          <div className="stats-chips">
             {[
               { label: 'Today', value: todayWords.toLocaleString() + ' words' },
               { label: 'Streak', value: streak > 0 ? `🔥 ${streak}-day` : '—' },
               { label: 'All-time', value: allTime.toLocaleString() + ' words' },
             ].map(chip => (
-              <div key={chip.label} style={{ flex: 1, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', padding: '12px 16px' }}>
-                <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>{chip.label}</div>
-                <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)' }}>{chip.value}</div>
+              <div key={chip.label} className="stats-chip">
+                <div className="stats-chip-l">{chip.label}</div>
+                <div className="stats-chip-v">{chip.value}</div>
               </div>
             ))}
           </div>
 
           {/* Daily goal */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, padding: '10px 14px', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)' }}>
-            <span style={{ fontSize: 13, color: 'var(--text-2)' }}>Daily goal</span>
+          <div className="stats-goal">
+            <span className="stats-goal-lbl">Daily goal</span>
             <input
+              className="inp mono"
+              style={{ width: 90 }}
               type="number"
               min={0}
               value={goal || ''}
               placeholder="none"
               onChange={(e) => commitGoal(e.target.value)}
-              style={{ width: 90, padding: '5px 8px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)' }}
             />
-            <span style={{ fontSize: 12, color: 'var(--text-3)' }}>words / day</span>
+            <span style={{ fontSize: 'var(--t-sm)', color: 'var(--text-3)' }}>words / day</span>
             <span className="tb-spacer" style={{ flex: 1 }} />
             {goal > 0 && (
-              <span style={{ fontSize: 12, color: goalMet ? 'var(--st-final)' : 'var(--text-3)' }}>
+              <span style={{ fontSize: 'var(--t-sm)', color: goalMet ? 'var(--st-final)' : 'var(--text-3)' }}>
                 {goalMet ? '✓ met today' : `${Math.round(Math.min(1, todayWords / goal) * 100)}% today`}
               </span>
             )}
           </div>
 
           {/* 30-day bar chart */}
-          <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 8 }}>Last 30 days</div>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 80, padding: '0 0 20px' }}>
+          <div className="stats-chart-lbl">Last 30 days</div>
+          <div className="stats-chart">
             {history.map((d, i) => {
               const isToday = i === history.length - 1
               const height = d.words === 0 ? 2 : Math.max(4, Math.round((d.words / maxWords) * 72))
               return (
-                <div key={d.date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                <div key={d.date} className="stats-bar-col">
                   <div
+                    className={`stats-bar${d.words === 0 ? ' empty' : !isToday ? ' dim' : ''}`}
                     title={`${d.date}: ${d.words.toLocaleString()} words`}
-                    style={{
-                      width: '100%', height,
-                      background: d.words === 0 ? 'var(--border)' : 'var(--accent)',
-                      opacity: isToday ? 1 : d.words === 0 ? 1 : 0.55,
-                      borderRadius: 2,
-                    }}
+                    style={{ height }}
                   />
-                  {isToday && (
-                    <div style={{ fontSize: 9, color: 'var(--text-3)', whiteSpace: 'nowrap' }}>today</div>
-                  )}
+                  {isToday && <div className="stats-today">today</div>}
                 </div>
               )
             })}
