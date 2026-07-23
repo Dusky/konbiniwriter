@@ -204,6 +204,11 @@ const api = {
             electron_1.ipcRenderer.on('shell:maximized', handler);
             return () => { electron_1.ipcRenderer.removeListener('shell:maximized', handler); };
         },
+        openExternal: (url) => { electron_1.ipcRenderer.invoke('shell:openExternal', url); },
+    },
+    oauth: {
+        exchange: (input) => electron_1.ipcRenderer.invoke('oauth:exchange', input),
+        refresh: (input) => electron_1.ipcRenderer.invoke('oauth:refresh', input),
     },
 };
 electron_1.contextBridge.exposeInMainWorld('api', api);

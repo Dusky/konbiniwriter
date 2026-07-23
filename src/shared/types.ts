@@ -277,6 +277,16 @@ export interface CompileResult {
 
 // ── IPC API shape (mirrored in preload) ──────────────────────────────────────
 
+/** Result of an OAuth token exchange/refresh, normalized across backends. */
+export interface OAuthTokenResult {
+  ok: boolean
+  accessToken?: string
+  refreshToken?: string
+  /** Lifetime in seconds, as returned by the token endpoint. */
+  expiresIn?: number
+  error?: string
+}
+
 export interface KonbiniAPI {
   project: {
     create(opts: { title: string; template: TemplateId; location: string }): Promise<Project>
@@ -318,6 +328,17 @@ export interface KonbiniAPI {
     isMaximized(): Promise<boolean>
     /** Subscribe to maximize/unmaximize from any source (button, OS, double-click). Returns an unsubscribe fn. */
     onMaximizeChange?(cb: (maximized: boolean) => void): () => void
+    /** Open a URL in the user's default browser (used by the Claude OAuth sign-in). */
+    openExternal(url: string): void
+  }
+  /**
+   * OAuth token endpoint proxy for "Sign in with Claude". The token endpoint
+   * sends no CORS headers, so the Electron build routes these through the main
+   * process; the browser build calls it directly (best-effort). See ClaudeOAuth.ts.
+   */
+  oauth: {
+    exchange(input: { code: string; state: string; verifier: string; redirectUri: string }): Promise<OAuthTokenResult>
+    refresh(input: { refreshToken: string }): Promise<OAuthTokenResult>
   }
   /** Global key-value preference store. Synchronous so stores can hydrate at construction time. */
   prefs: {

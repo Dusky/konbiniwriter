@@ -8,23 +8,33 @@ export type AIProvider = 'anthropic' | 'openai'
 // escape hatch for a free-form endpoint (local servers, Groq, Together, …).
 export type AIService = 'claude' | 'chatgpt' | 'nanogpt' | 'openrouter' | 'custom'
 
+// Konbini is provider-neutral BYOK: every service is a peer. Order here is just
+// the picker order — Claude is one option among many, not the default.
 export const AI_SERVICES: Record<AIService, { label: string; provider: AIProvider; url?: string; exampleModel?: string }> = {
-  claude:     { label: 'Claude',     provider: 'anthropic' },
   chatgpt:    { label: 'ChatGPT',    provider: 'openai', url: 'https://api.openai.com/v1', exampleModel: 'gpt-4o' },
-  nanogpt:    { label: 'NanoGPT',    provider: 'openai', url: 'https://nano-gpt.com/api/v1', exampleModel: 'chatgpt-4o-latest' },
   openrouter: { label: 'OpenRouter', provider: 'openai', url: 'https://openrouter.ai/api/v1', exampleModel: 'anthropic/claude-sonnet-4.5' },
-  custom:     { label: 'Custom',     provider: 'openai' },
+  nanogpt:    { label: 'NanoGPT',    provider: 'openai', url: 'https://nano-gpt.com/api/v1', exampleModel: 'chatgpt-4o-latest' },
+  claude:     { label: 'Claude',     provider: 'anthropic' },
+  custom:     { label: 'Custom',     provider: 'openai', url: 'https://api.openai.com/v1', exampleModel: 'gpt-4o' },
 }
+
+/** How Claude (anthropic) authenticates: a pasted API key, or a subscription via OAuth. */
+export type AnthropicAuthMode = 'key' | 'oauth'
 
 interface AIState {
   enabled: boolean
   service: AIService
   provider: AIProvider
   // Anthropic
+  anthropicAuthMode: AnthropicAuthMode
   anthropicKey: string
   anthropicModel: string
   anthropicKeyValidated: boolean
   anthropicKeyError: string | null
+  // Claude subscription (OAuth) — tokens persisted so a sign-in survives reload.
+  oauthAccessToken: string
+  oauthRefreshToken: string
+  oauthExpiresAt: number
   // OpenAI-compatible (covers OpenAI, Groq, Together, Mistral, Ollama /v1, LM Studio, etc.)
   openaiBaseUrl: string
   openaiKey: string
@@ -33,9 +43,12 @@ interface AIState {
   setEnabled: (on: boolean) => void
   setService: (s: AIService) => void
   setProvider: (p: AIProvider) => void
+  setAnthropicAuthMode: (mode: AnthropicAuthMode) => void
   setAnthropicKey: (key: string) => void
   setAnthropicModel: (model: string) => void
   setAnthropicKeyValidated: (ok: boolean, err?: string | null) => void
+  setOAuthTokens: (access: string, refresh: string, expiresAt: number) => void
+  clearOAuth: () => void
   setOpenaiBaseUrl: (url: string) => void
   setOpenaiKey: (key: string) => void
   setOpenaiModel: (model: string) => void
@@ -71,25 +84,35 @@ function load(k: string, fallback = '') { return window.api.prefs.get(k) ?? fall
 function save(k: string, v: string) { window.api.prefs.set(k, v) }
 
 // Resolve the selected service: use the saved one, else derive from the legacy
-// provider/baseUrl prefs so existing installs land on the right chip.
+// provider/baseUrl prefs so existing installs land on the right chip. A fresh
+// install has no saved provider and defaults to the generic OpenAI-compatible
+// option — Konbini privileges no single vendor.
 function initialService(): AIService {
   const saved = load(`${SK}:service`) as AIService
   if (saved && AI_SERVICES[saved]) return saved
-  if (load(`${SK}:provider`, 'anthropic') === 'anthropic') return 'claude'
+  const savedProvider = load(`${SK}:provider`)
+  if (savedProvider === 'anthropic') return 'claude'
   const url = load(`${SK}:openaiBaseUrl`)
   const match = (Object.entries(AI_SERVICES) as [AIService, typeof AI_SERVICES[AIService]][])
     .find(([, s]) => s.url && s.url === url)
   return match ? match[0] : 'custom'
 }
+const INITIAL_SERVICE = initialService()
 
 export const useAIStore = create<AIState>((set) => ({
   enabled: false,
-  service: initialService(),
-  provider: (load(`${SK}:provider`, 'anthropic') as AIProvider),
+  service: INITIAL_SERVICE,
+  // Provider follows the resolved service so the two never disagree on a fresh
+  // install (no saved provider → OpenAI-compatible, not Anthropic).
+  provider: AI_SERVICES[INITIAL_SERVICE].provider,
+  anthropicAuthMode: (load(`${SK}:anthropicAuthMode`, 'key') as AnthropicAuthMode),
   anthropicKey: load(`${SK}:anthropicKey`),
   anthropicModel: load(`${SK}:anthropicModel`, 'claude-opus-4-8'),
   anthropicKeyValidated: false,
   anthropicKeyError: null,
+  oauthAccessToken: load(`${SK}:oauthAccessToken`),
+  oauthRefreshToken: load(`${SK}:oauthRefreshToken`),
+  oauthExpiresAt: parseInt(load(`${SK}:oauthExpiresAt`, '0'), 10) || 0,
   openaiBaseUrl: load(`${SK}:openaiBaseUrl`, 'https://api.openai.com/v1'),
   openaiKey: load(`${SK}:openaiKey`),
   openaiModel: load(`${SK}:openaiModel`, 'gpt-4o'),
@@ -113,6 +136,19 @@ export const useAIStore = create<AIState>((set) => ({
     set(patch)
   },
   setProvider: (provider) => { save(`${SK}:provider`, provider); set({ provider }) },
+  setAnthropicAuthMode: (anthropicAuthMode) => { save(`${SK}:anthropicAuthMode`, anthropicAuthMode); set({ anthropicAuthMode }) },
+  setOAuthTokens: (access, refresh, expiresAt) => {
+    save(`${SK}:oauthAccessToken`, access)
+    save(`${SK}:oauthRefreshToken`, refresh)
+    save(`${SK}:oauthExpiresAt`, String(expiresAt))
+    set({ oauthAccessToken: access, oauthRefreshToken: refresh, oauthExpiresAt: expiresAt })
+  },
+  clearOAuth: () => {
+    window.api.prefs.remove(`${SK}:oauthAccessToken`)
+    window.api.prefs.remove(`${SK}:oauthRefreshToken`)
+    window.api.prefs.remove(`${SK}:oauthExpiresAt`)
+    set({ oauthAccessToken: '', oauthRefreshToken: '', oauthExpiresAt: 0 })
+  },
   setAnthropicKey: (anthropicKey) => { save(`${SK}:anthropicKey`, anthropicKey); set({ anthropicKey, anthropicKeyValidated: false, anthropicKeyError: null }) },
   setAnthropicModel: (anthropicModel) => { save(`${SK}:anthropicModel`, anthropicModel); set({ anthropicModel }) },
   setAnthropicKeyValidated: (ok, err = null) => set({ anthropicKeyValidated: ok, anthropicKeyError: err }),

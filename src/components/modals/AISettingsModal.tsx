@@ -4,6 +4,7 @@ import { useProjectStore } from '../../store/projectStore'
 import { promptRegistry } from '../../lib/PromptRegistry'
 import { streamCompletion } from '../../lib/AIClient'
 import { formatUSD } from '../../lib/Pricing'
+import { createPKCE, authorizeUrl, completeSignIn, type PKCE } from '../../lib/ClaudeOAuth'
 
 const ANTHROPIC_MODELS = [
   { id: 'claude-fable-5',   label: 'Claude Fable 5 (most capable)' },
@@ -74,6 +75,8 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
   const {
     enabled, setEnabled,
     provider, service, setService,
+    anthropicAuthMode, setAnthropicAuthMode,
+    oauthAccessToken, clearOAuth,
     anthropicKey, setAnthropicKey, anthropicModel, setAnthropicModel,
     anthropicKeyValidated, anthropicKeyError, setAnthropicKeyValidated,
     openaiBaseUrl, setOpenaiBaseUrl, openaiKey, setOpenaiKey, openaiModel, setOpenaiModel,
@@ -166,7 +169,31 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
     setValidating(false)
   }
 
-  const canEnable = provider === 'anthropic' ? anthropicKeyValidated : true
+  // ── Claude subscription (OAuth) sign-in ──────────────────────────────────────
+  const [pkce, setPkce] = useState<PKCE | null>(null)
+  const [oauthCode, setOauthCode] = useState('')
+  const [oauthBusy, setOauthBusy] = useState(false)
+  const [oauthError, setOauthError] = useState<string | null>(null)
+
+  const handleOAuthStart = async () => {
+    setOauthError(null)
+    const p = await createPKCE()
+    setPkce(p)
+    window.api.shell.openExternal(authorizeUrl(p))
+  }
+
+  const handleOAuthComplete = async () => {
+    if (!pkce || !oauthCode.trim()) return
+    setOauthBusy(true); setOauthError(null)
+    const res = await completeSignIn(oauthCode.trim(), pkce)
+    setOauthBusy(false)
+    if (res.ok) { setPkce(null); setOauthCode('') }
+    else setOauthError(res.error ?? 'Sign-in failed.')
+  }
+
+  const canEnable = provider === 'anthropic'
+    ? (anthropicAuthMode === 'oauth' ? !!oauthAccessToken : anthropicKeyValidated)
+    : true
 
   return (
     <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -204,26 +231,81 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
 
           {service === 'claude' ? (
             <>
-              <Row label="API Key">
+              <Row label="Sign in with">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <input
-                      type="password"
-                      value={anthropicDraft}
-                      onChange={(e) => { setAnthropicDraft(e.target.value); setAnthropicKeyValidated(false) }}
-                      placeholder="sk-ant-…"
-                      onKeyDown={(e) => e.key === 'Enter' && handleAnthropicValidate()}
-                      style={{ flex: 1, padding: '7px 10px', borderRadius: 6, fontSize: 13, border: `1px solid ${anthropicKeyValidated ? 'var(--success)' : anthropicKeyError ? 'var(--danger)' : 'var(--border-2)'}`, background: 'var(--bg-2)', color: 'var(--text)', fontFamily: 'var(--mono)' }}
-                    />
-                    <button className="btn" onClick={handleAnthropicValidate} disabled={validating || !anthropicDraft.trim()} style={{ whiteSpace: 'nowrap' }}>
-                      {validating ? 'Checking…' : anthropicKeyValidated ? '✓ Valid' : 'Validate'}
-                    </button>
+                  <div className="seg">
+                    <button className={anthropicAuthMode === 'key' ? 'on' : ''} onClick={() => setAnthropicAuthMode('key')}>API key</button>
+                    <button className={anthropicAuthMode === 'oauth' ? 'on' : ''} onClick={() => setAnthropicAuthMode('oauth')}>Claude subscription</button>
                   </div>
-                  {anthropicKeyError && <div style={{ fontSize: 11, color: 'var(--danger)' }}>{anthropicKeyError}</div>}
-                  {anthropicKeyValidated && <div style={{ fontSize: 11, color: 'var(--success)' }}>Key validated successfully.</div>}
-                  <div style={{ fontSize: 11, color: 'var(--text-3)' }}>Stored in localStorage only — never written to project files.</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                    {anthropicAuthMode === 'oauth'
+                      ? 'Uses your Claude Pro/Max subscription via OAuth. Requests are branded as Claude Code (a system prefix Anthropic requires for subscription tokens), which can affect some prompts.'
+                      : 'Bring your own Anthropic API key — billed per token, no prompt restrictions.'}
+                  </div>
                 </div>
               </Row>
+
+              {anthropicAuthMode === 'key' ? (
+                <Row label="API Key">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input
+                        type="password"
+                        value={anthropicDraft}
+                        onChange={(e) => { setAnthropicDraft(e.target.value); setAnthropicKeyValidated(false) }}
+                        placeholder="sk-ant-…"
+                        onKeyDown={(e) => e.key === 'Enter' && handleAnthropicValidate()}
+                        style={{ flex: 1, padding: '7px 10px', borderRadius: 6, fontSize: 13, border: `1px solid ${anthropicKeyValidated ? 'var(--success)' : anthropicKeyError ? 'var(--danger)' : 'var(--border-2)'}`, background: 'var(--bg-2)', color: 'var(--text)', fontFamily: 'var(--mono)' }}
+                      />
+                      <button className="btn" onClick={handleAnthropicValidate} disabled={validating || !anthropicDraft.trim()} style={{ whiteSpace: 'nowrap' }}>
+                        {validating ? 'Checking…' : anthropicKeyValidated ? '✓ Valid' : 'Validate'}
+                      </button>
+                    </div>
+                    {anthropicKeyError && <div style={{ fontSize: 11, color: 'var(--danger)' }}>{anthropicKeyError}</div>}
+                    {anthropicKeyValidated && <div style={{ fontSize: 11, color: 'var(--success)' }}>Key validated successfully.</div>}
+                    <div style={{ fontSize: 11, color: 'var(--text-3)' }}>Stored in localStorage only — never written to project files.</div>
+                  </div>
+                </Row>
+              ) : (
+                <Row label="Subscription">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {oauthAccessToken ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ fontSize: 12, color: 'var(--success)' }}>● Signed in with your Claude subscription</span>
+                        <span className="tb-spacer" />
+                        <button className="btn" style={{ fontSize: 12, padding: '3px 10px' }} onClick={clearOAuth}>Sign out</button>
+                      </div>
+                    ) : (
+                      <>
+                        <button className="btn" style={{ alignSelf: 'flex-start' }} onClick={handleOAuthStart}>
+                          {pkce ? 'Reopen sign-in page' : 'Sign in with Claude'}
+                        </button>
+                        {pkce && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                              Authorize in the browser, then paste the code Anthropic shows you here:
+                            </div>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <input
+                                value={oauthCode}
+                                onChange={(e) => setOauthCode(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleOAuthComplete()}
+                                placeholder="code#state"
+                                style={{ flex: 1, padding: '7px 10px', borderRadius: 6, fontSize: 13, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontFamily: 'var(--mono)' }}
+                              />
+                              <button className="btn" onClick={handleOAuthComplete} disabled={oauthBusy || !oauthCode.trim()} style={{ whiteSpace: 'nowrap' }}>
+                                {oauthBusy ? 'Signing in…' : 'Complete'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        {oauthError && <div style={{ fontSize: 11, color: 'var(--danger)' }}>{oauthError}</div>}
+                      </>
+                    )}
+                    <div style={{ fontSize: 11, color: 'var(--text-3)' }}>Tokens stored in localStorage only — never written to project files.</div>
+                  </div>
+                </Row>
+              )}
               <Row label="Model">
                 <select value={anthropicModel} onChange={(e) => setAnthropicModel(e.target.value)} style={{ padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13 }}>
                   {ANTHROPIC_MODELS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
