@@ -79,6 +79,46 @@
 .dock-hd h3 { margin: 0; font-size: 13.5px; font-weight: 600; }
 .dock-hd .sub { font-size: 12px; color: var(--text-3); }
 .dock-body { flex: 1; overflow-y: auto; }
+
+/* ── Codex panel ── */
+.cdx-list { flex: 0 0 38%; display: flex; flex-direction: column;
+  border-bottom: 0.5px solid var(--border); overflow: hidden; }
+.cdx-list-scroll { flex: 1; overflow-y: auto; padding: var(--s1) 0; }
+.cdx-list-foot { padding: var(--s2); border-top: 0.5px solid var(--border); }
+.cdx-row { display: block; width: 100%; text-align: left; border: none; cursor: pointer;
+  padding: 7px var(--s4); background: transparent; border-left: 2px solid transparent; }
+.cdx-row:hover { background: var(--bg-3); }
+.cdx-row.on { background: var(--sel-bg); border-left-color: var(--accent); }
+.cdx-row.dim { opacity: .4; }
+.cdx-row-name { font-size: var(--t-base); font-weight: 600; color: var(--text); }
+.cdx-row-sub { font-size: var(--t-xs); color: var(--text-3); margin-top: 2px; }
+.cdx-empty { color: var(--text-3); font-size: var(--t-sm); text-align: center; padding: var(--s5) var(--s4); }
+.cdx-detail { padding: var(--s3) var(--s4); display: flex; flex-direction: column; gap: var(--s3); }
+.cdx-detail label { font-size: var(--t-xs); color: var(--text-3); display: block; margin-bottom: var(--s1); }
+.cdx-detail label .muted { opacity: .6; }
+.cdx-chips { display: flex; flex-wrap: wrap; gap: var(--s2); margin-bottom: var(--s2); }
+.cdx-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px var(--s2);
+  border-radius: var(--r-lg); background: var(--bg-3); font-size: var(--t-sm); color: var(--text-2); }
+.cdx-chip button { background: none; border: none; color: var(--text-3); cursor: pointer;
+  padding: 0; font-size: var(--t-sm); line-height: 1; }
+.cdx-chip button:hover { color: var(--text); }
+.cdx-fact { display: flex; gap: var(--s2); margin-bottom: var(--s2); align-items: flex-start; }
+.cdx-fact .inp.k { flex: 0 0 96px; }
+.cdx-fact-del { background: none; border: none; color: var(--text-3); cursor: pointer;
+  font-size: var(--t-lg); padding: 4px 2px; line-height: 1; }
+.cdx-fact-del:hover { color: var(--danger); }
+.cdx-linkbtn { padding: 3px var(--s3); border-radius: var(--r-lg); border: 0.5px solid var(--border-2);
+  background: var(--bg); color: var(--text-2); font-size: var(--t-sm); cursor: pointer; }
+.cdx-linkbtn:hover { border-color: var(--accent); color: var(--text); }
+.cdx-scan-name { font-size: var(--t-lg); font-weight: 600; color: var(--text); margin-bottom: var(--s2); }
+.cdx-detail-foot { display: flex; justify-content: space-between; align-items: center;
+  margin-top: auto; padding-top: var(--s2); }
+.cdx-cats { gap: 2px; flex-wrap: wrap; padding: var(--s2) 10px; border-bottom: 0.5px solid var(--border); }
+.cdx-scan-list { flex: 0 0 38%; overflow-y: auto; border-bottom: 0.5px solid var(--border); padding: var(--s1) 0; }
+.cdx-scan-facts { display: flex; flex-direction: column; gap: var(--s1); }
+.cdx-scan-fact { font-size: var(--t-sm); color: var(--text-2); }
+.cdx-scan-fact .k { color: var(--text-3); }
+
 .assistant { min-width: 0; z-index: 5;
   background: var(--bg-2); border-left: 0.5px solid var(--border-2);
   display: flex; flex-direction: column; }

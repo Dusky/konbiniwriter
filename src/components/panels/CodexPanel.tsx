@@ -210,13 +210,8 @@ export default function CodexPanel(): React.ReactElement {
     return [...docIds].map((id) => project.nodes[id]).filter(Boolean)
   }, [selected, mentionIndex, project])
 
-  const listRowStyle = (active: boolean, dim = false): React.CSSProperties => ({
-    display: 'block', width: '100%', textAlign: 'left', border: 'none',
-    padding: '7px 14px', cursor: 'pointer',
-    background: active ? 'var(--sel-bg)' : 'transparent',
-    borderLeft: active ? '2px solid var(--accent)' : '2px solid transparent',
-    opacity: dim ? 0.4 : 1,
-  })
+  const rowClass = (active: boolean, dim = false) =>
+    `cdx-row${active ? ' on' : ''}${dim ? ' dim' : ''}`
 
   return (
     <div className="dock-panel">
@@ -231,7 +226,7 @@ export default function CodexPanel(): React.ReactElement {
       </div>
 
       {/* Category chips */}
-      <div className="seg" style={{ gap: 2, flexWrap: 'wrap', padding: '8px 10px', borderBottom: '0.5px solid var(--border)' }}>
+      <div className="seg cdx-cats">
         {CATEGORIES.map((c) => (
           <button key={c.id} className={!showScan && category === c.id ? 'on' : ''} onClick={() => { setShowScan(false); setCategory(c.id) }}>
             {c.icon} {c.label}
@@ -247,43 +242,43 @@ export default function CodexPanel(): React.ReactElement {
       {showScan ? (
         <>
           {/* Scan results list */}
-          <div style={{ flex: '0 0 38%', overflowY: 'auto', borderBottom: '0.5px solid var(--border)', padding: '4px 0' }}>
+          <div className="cdx-scan-list">
             {scanResults.length === 0 && (
-              <div style={{ color: 'var(--text-3)', fontSize: 12, textAlign: 'center', padding: '24px 16px' }}>No new entries found.</div>
+              <div className="cdx-empty">No new entries found.</div>
             )}
             {scanResults.map((e) => (
-              <button key={e.id} onClick={() => setSelectedScan(e)} style={listRowStyle(selectedScan?.id === e.id, e.added)}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{e.added ? '✓ ' : ''}{e.name}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{e.category}</div>
+              <button key={e.id} onClick={() => setSelectedScan(e)} className={rowClass(selectedScan?.id === e.id, e.added)}>
+                <div className="cdx-row-name">{e.added ? '✓ ' : ''}{e.name}</div>
+                <div className="cdx-row-sub">{e.category}</div>
               </button>
             ))}
           </div>
           {/* Scan detail */}
-          <div className="dock-body" style={{ padding: '16px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="dock-body cdx-detail">
             {selectedScan ? (
               <>
                 <div>
-                  <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>
+                  <div className="cdx-row-sub" style={{ marginTop: 0, marginBottom: 4 }}>
                     {selectedScan.category} {selectedScan.aliases.length > 0 && `· aka ${selectedScan.aliases.join(', ')}`}
                   </div>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>{selectedScan.name}</div>
-                  <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.55 }}>{selectedScan.summary}</div>
+                  <div className="cdx-scan-name">{selectedScan.name}</div>
+                  <div style={{ fontSize: 'var(--t-base)', color: 'var(--text-2)', lineHeight: 1.55 }}>{selectedScan.summary}</div>
                 </div>
                 {selectedScan.facts.length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div className="cdx-scan-facts">
                     {selectedScan.facts.map((f, i) => (
-                      <div key={i} style={{ fontSize: 12, color: 'var(--text-2)' }}>
-                        <span style={{ color: 'var(--text-3)' }}>{f.label}:</span> {f.value}
+                      <div key={i} className="cdx-scan-fact">
+                        <span className="k">{f.label}:</span> {f.value}
                       </div>
                     ))}
                   </div>
                 )}
                 <div style={{ display: 'flex', gap: 10, marginTop: 'auto', paddingTop: 8 }}>
                   {selectedScan.added ? (
-                    <span style={{ fontSize: 12, color: 'var(--success)' }}>Added to codex ✓</span>
+                    <span style={{ fontSize: 'var(--t-sm)', color: 'var(--success)' }}>Added to codex ✓</span>
                   ) : (
                     <>
-                      <button className="btn sm" style={{ background: 'var(--accent)', color: 'var(--accent-fg)', borderColor: 'transparent' }} onClick={() => handleAddScanEntry(selectedScan)}>
+                      <button className="btn sm primary" onClick={() => handleAddScanEntry(selectedScan)}>
                         Add to Codex
                       </button>
                       <button className="btn sm" onClick={() => setScanResults((prev) => prev.filter((e) => e.id !== selectedScan.id))}>
@@ -294,120 +289,114 @@ export default function CodexPanel(): React.ReactElement {
                 </div>
               </>
             ) : (
-              <div style={{ color: 'var(--text-3)', fontSize: 13 }}>Select an entry to review</div>
+              <div style={{ color: 'var(--text-3)', fontSize: 'var(--t-base)' }}>Select an entry to review</div>
             )}
           </div>
         </>
       ) : (
         <>
           {/* Entry list */}
-          <div style={{ flex: '0 0 38%', display: 'flex', flexDirection: 'column', borderBottom: '0.5px solid var(--border)' }}>
-            <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
+          <div className="cdx-list">
+            <div className="cdx-list-scroll">
               {filtered.length === 0 && (
-                <div style={{ color: 'var(--text-3)', fontSize: 12, textAlign: 'center', padding: '24px 16px' }}>
-                  No {category}s yet
-                </div>
+                <div className="cdx-empty">No {category}s yet</div>
               )}
               {filtered.map((e) => (
-                <button key={e.id} onClick={() => setSelected({ ...e })} style={listRowStyle(selected?.id === e.id)}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{e.name || '(unnamed)'}</div>
+                <button key={e.id} onClick={() => setSelected({ ...e })} className={rowClass(selected?.id === e.id)}>
+                  <div className="cdx-row-name">{e.name || '(unnamed)'}</div>
                   {e.aliases.length > 0 && (
-                    <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>aka {e.aliases.join(', ')}</div>
+                    <div className="cdx-row-sub">aka {e.aliases.join(', ')}</div>
                   )}
                 </button>
               ))}
             </div>
-            <div style={{ padding: 8, borderTop: '0.5px solid var(--border)' }}>
+            <div className="cdx-list-foot">
               <button className="btn sm" onClick={handleNew} style={{ width: '100%' }}>+ New {category}</button>
             </div>
           </div>
 
           {/* Detail */}
           {selected ? (
-            <div className="dock-body" style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="dock-body cdx-detail">
               <div>
-                <label style={{ fontSize: 11, color: 'var(--text-3)', display: 'block', marginBottom: 4 }}>Name</label>
+                <label>Name</label>
                 <input
+                  className="inp lg"
                   value={selected.name}
                   onChange={(e) => handleField('name', e.target.value)}
                   placeholder={`${category} name…`}
-                  style={{ width: '100%', padding: '7px 10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg)', color: 'var(--text)', fontSize: 15, fontWeight: 600 }}
                 />
               </div>
 
               <div>
-                <label style={{ fontSize: 11, color: 'var(--text-3)', display: 'block', marginBottom: 6 }}>
-                  Aliases <span style={{ opacity: 0.6 }}>— also matched in [[wikilinks]]</span>
+                <label>
+                  Aliases <span className="muted">— also matched in [[wikilinks]]</span>
                 </label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
+                <div className="cdx-chips">
                   {selected.aliases.map((a) => (
-                    <span key={a} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 'var(--r-lg)', background: 'var(--bg-3)', fontSize: 12, color: 'var(--text-2)' }}>
+                    <span key={a} className="cdx-chip">
                       {a}
-                      <button onClick={() => handleField('aliases', selected.aliases.filter((x) => x !== a))} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', padding: 0, fontSize: 12 }}>×</button>
+                      <button onClick={() => handleField('aliases', selected.aliases.filter((x) => x !== a))}>×</button>
                     </span>
                   ))}
                 </div>
-                <div style={{ display: 'flex', gap: 6 }}>
+                <div style={{ display: 'flex', gap: 'var(--s2)' }}>
                   <input
+                    className="inp"
                     value={aliasDraft}
                     onChange={(e) => setAliasDraft(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleAddAlias()}
                     placeholder="Add alias…"
-                    style={{ flex: 1, padding: '5px 8px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg)', color: 'var(--text)', fontSize: 12 }}
                   />
                   <button className="btn sm" onClick={handleAddAlias}>Add</button>
                 </div>
               </div>
 
               <div>
-                <label style={{ fontSize: 11, color: 'var(--text-3)', display: 'block', marginBottom: 4 }}>Summary</label>
+                <label>Summary</label>
                 <textarea
+                  className="ta"
                   value={selected.summary}
                   onChange={(e) => handleField('summary', e.target.value)}
                   rows={4}
                   placeholder="Overview of this entry…"
-                  style={{ width: '100%', padding: '7px 10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg)', color: 'var(--text)', fontSize: 13, lineHeight: 1.5, resize: 'vertical' }}
                 />
               </div>
 
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-                  <label style={{ fontSize: 11, color: 'var(--text-3)', flex: 1 }}>Facts</label>
+                <div style={{ display: 'flex', alignItems: 'center', marginBottom: 'var(--s2)' }}>
+                  <label style={{ flex: 1, marginBottom: 0 }}>Facts</label>
                   <button className="btn sm" onClick={handleAddFact}>+ Add fact</button>
                 </div>
                 {selected.facts.map((fact) => (
-                  <div key={fact.id} style={{ display: 'flex', gap: 8, marginBottom: 6, alignItems: 'flex-start' }}>
+                  <div key={fact.id} className="cdx-fact">
                     <input
+                      className="inp k"
                       value={fact.label}
                       onChange={(e) => handleFactChange(fact.id, { label: e.target.value })}
                       placeholder="Label"
-                      style={{ flex: '0 0 96px', padding: '5px 8px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg)', color: 'var(--text)', fontSize: 12 }}
                     />
                     <input
+                      className="inp"
                       value={fact.value}
                       onChange={(e) => handleFactChange(fact.id, { value: e.target.value })}
                       onFocus={() => { factEditRef.current = { factId: fact.id, original: fact.value } }}
                       onBlur={() => handleFactBlur(fact)}
                       placeholder="Value"
-                      style={{ flex: 1, padding: '5px 8px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg)', color: 'var(--text)', fontSize: 12 }}
                     />
-                    <button onClick={() => handleDeleteFact(fact.id)} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 16, padding: '4px 2px' }}>×</button>
+                    <button className="cdx-fact-del" onClick={() => handleDeleteFact(fact.id)}>×</button>
                   </div>
                 ))}
               </div>
 
               {backlinks.length > 0 && (
                 <div>
-                  <label style={{ fontSize: 11, color: 'var(--text-3)', display: 'block', marginBottom: 6 }}>
+                  <label>
                     Referenced in {backlinks.length} document{backlinks.length !== 1 ? 's' : ''}
                   </label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s2)' }}>
                     {backlinks.map((node) => node && (
-                      <button
-                        key={node.id}
-                        onClick={() => selectNode(node.id)}
-                        style={{ padding: '3px 10px', borderRadius: 'var(--r-lg)', border: '1px solid var(--border-2)', background: 'var(--bg)', color: 'var(--text-2)', fontSize: 12, cursor: 'pointer' }}
-                      >
+                      <button key={node.id} className="cdx-linkbtn" onClick={() => selectNode(node.id)}>
                         {node.title}
                       </button>
                     ))}
@@ -415,8 +404,8 @@ export default function CodexPanel(): React.ReactElement {
                 </div>
               )}
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: 8 }}>
-                {scanError && <span style={{ fontSize: 11, color: 'var(--danger)' }}>{scanError}</span>}
+              <div className="cdx-detail-foot">
+                {scanError && <span style={{ fontSize: 'var(--t-xs)', color: 'var(--danger)' }}>{scanError}</span>}
                 <span className="tb-spacer" />
                 <button className="btn sm" onClick={() => setConfirmDelete(selected.id)} style={{ color: 'var(--danger)' }}>
                   Delete entry
@@ -424,7 +413,7 @@ export default function CodexPanel(): React.ReactElement {
               </div>
             </div>
           ) : (
-            <div className="dock-body" style={{ padding: 16, color: 'var(--text-3)', fontSize: 13 }}>
+            <div className="dock-body" style={{ padding: 'var(--s4)', color: 'var(--text-3)', fontSize: 'var(--t-base)' }}>
               {scanError ? <span style={{ color: 'var(--danger)' }}>{scanError}</span> : 'Select or create an entry.'}
             </div>
           )}
