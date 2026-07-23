@@ -127,7 +127,7 @@ export default function CompileModal({ onClose }: Props): React.ReactElement {
           <span className="sub">{included.size} documents · {totalWords.toLocaleString()} words</span>
         </div>
         {error && (
-          <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-3)', border: '1px solid var(--st-idea)', borderRadius: 6, padding: '8px 14px', margin: '0 0 2px', fontSize: 12 }}>
+          <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-3)', border: '1px solid var(--st-idea)', borderRadius: 'var(--r-md)', padding: '8px 14px', margin: '0 0 2px', fontSize: 12 }}>
             <span style={{ color: 'var(--st-idea)', display: 'flex' }}><Icon name="warning" size={14} /></span>
             <span style={{ flex: 1, color: 'var(--text)' }}>{error}</span>
             <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 0, display: 'flex' }}><Icon name="x" size={14} /></button>

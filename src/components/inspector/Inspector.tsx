@@ -143,7 +143,7 @@ export default function Inspector(): React.ReactElement {
                         padding: '5px 8px',
                         background: 'var(--bg-2)',
                         border: '1px solid var(--border)',
-                        borderRadius: 4,
+                        borderRadius: 'var(--r-sm)',
                         fontSize: 12,
                         color: 'var(--text)',
                         cursor: 'pointer',
@@ -298,7 +298,7 @@ export default function Inspector(): React.ReactElement {
                   </div>
                 ))}
                 {judgeResult.verdict && (
-                  <div style={{ marginTop: 8, padding: '8px 10px', background: 'var(--bg-2)', borderRadius: 4, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5, fontStyle: 'italic' }}>
+                  <div style={{ marginTop: 8, padding: '8px 10px', background: 'var(--bg-2)', borderRadius: 'var(--r-sm)', fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5, fontStyle: 'italic' }}>
                     {judgeResult.verdict}
                   </div>
                 )}

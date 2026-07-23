@@ -18,7 +18,7 @@ function HunkRow({
   onToggle: () => void
 }) {
   return (
-    <div style={{ margin: '6px 0', border: '1px solid var(--border-2)', borderRadius: 6, overflow: 'hidden' }}>
+    <div style={{ margin: '6px 0', border: '1px solid var(--border-2)', borderRadius: 'var(--r-md)', overflow: 'hidden' }}>
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '5px 10px', background: 'var(--bg-2)',
@@ -29,7 +29,7 @@ function HunkRow({
         <button
           onClick={onToggle}
           style={{
-            padding: '2px 10px', borderRadius: 4, border: '1px solid',
+            padding: '2px 10px', borderRadius: 'var(--r-sm)', border: '1px solid',
             fontSize: 11, cursor: 'pointer',
             background: accepted ? 'var(--accent)' : 'transparent',
             borderColor: accepted ? 'var(--accent)' : 'var(--border-2)',

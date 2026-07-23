@@ -21,7 +21,7 @@ function ToastCard({ toast }: { toast: ToastItem }): React.ReactElement {
       aria-live="assertive"
       style={{
         background: 'var(--bg-3)', border: `1px solid ${borderColor}`,
-        borderRadius: 8, padding: '10px 16px',
+        borderRadius: 'var(--r-md)', padding: '10px 16px',
         boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
         display: 'flex', alignItems: 'center', gap: 10,
         fontSize: 13, color: 'var(--text)', maxWidth: 480, minWidth: 240,

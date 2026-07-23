@@ -182,7 +182,7 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
             onKeyDown={handleKey}
             style={{
               width: '100%', background: 'var(--bg-2)', border: '1px solid var(--border-2)',
-              borderRadius: 8, padding: '9px 12px', fontSize: 14, color: 'var(--text)', outline: 'none',
+              borderRadius: 'var(--r-md)', padding: '9px 12px', fontSize: 14, color: 'var(--text)', outline: 'none',
             }}
           />
         </div>

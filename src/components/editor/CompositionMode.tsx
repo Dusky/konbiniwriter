@@ -98,14 +98,14 @@ export default function CompositionMode(): React.ReactElement {
               color: t.text,
               width: 20,
               height: 20,
-              borderRadius: 4,
+              borderRadius: 'var(--r-sm)',
               cursor: 'pointer',
             }}
             title={t.label}
           />
         ))}
         <button
-          style={{ background: 'transparent', border: '1px solid', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer', color: 'inherit' }}
+          style={{ background: 'transparent', border: '1px solid', borderRadius: 'var(--r-md)', padding: '4px 10px', fontSize: 12, cursor: 'pointer', color: 'inherit' }}
           onClick={() => setFocusMode(!focusMode)}
         >
           {focusMode ? 'Focus: On' : 'Focus: Off'}

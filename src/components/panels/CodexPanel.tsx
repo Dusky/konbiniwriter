@@ -331,7 +331,7 @@ export default function CodexPanel(): React.ReactElement {
                   value={selected.name}
                   onChange={(e) => handleField('name', e.target.value)}
                   placeholder={`${category} name…`}
-                  style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg)', color: 'var(--text)', fontSize: 15, fontWeight: 600 }}
+                  style={{ width: '100%', padding: '7px 10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg)', color: 'var(--text)', fontSize: 15, fontWeight: 600 }}
                 />
               </div>
 
@@ -341,7 +341,7 @@ export default function CodexPanel(): React.ReactElement {
                 </label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
                   {selected.aliases.map((a) => (
-                    <span key={a} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 12, background: 'var(--bg-3)', fontSize: 12, color: 'var(--text-2)' }}>
+                    <span key={a} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 'var(--r-lg)', background: 'var(--bg-3)', fontSize: 12, color: 'var(--text-2)' }}>
                       {a}
                       <button onClick={() => handleField('aliases', selected.aliases.filter((x) => x !== a))} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', padding: 0, fontSize: 12 }}>×</button>
                     </span>
@@ -353,7 +353,7 @@ export default function CodexPanel(): React.ReactElement {
                     onChange={(e) => setAliasDraft(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleAddAlias()}
                     placeholder="Add alias…"
-                    style={{ flex: 1, padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg)', color: 'var(--text)', fontSize: 12 }}
+                    style={{ flex: 1, padding: '5px 8px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg)', color: 'var(--text)', fontSize: 12 }}
                   />
                   <button className="btn sm" onClick={handleAddAlias}>Add</button>
                 </div>
@@ -366,7 +366,7 @@ export default function CodexPanel(): React.ReactElement {
                   onChange={(e) => handleField('summary', e.target.value)}
                   rows={4}
                   placeholder="Overview of this entry…"
-                  style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg)', color: 'var(--text)', fontSize: 13, lineHeight: 1.5, resize: 'vertical' }}
+                  style={{ width: '100%', padding: '7px 10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg)', color: 'var(--text)', fontSize: 13, lineHeight: 1.5, resize: 'vertical' }}
                 />
               </div>
 
@@ -381,7 +381,7 @@ export default function CodexPanel(): React.ReactElement {
                       value={fact.label}
                       onChange={(e) => handleFactChange(fact.id, { label: e.target.value })}
                       placeholder="Label"
-                      style={{ flex: '0 0 96px', padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg)', color: 'var(--text)', fontSize: 12 }}
+                      style={{ flex: '0 0 96px', padding: '5px 8px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg)', color: 'var(--text)', fontSize: 12 }}
                     />
                     <input
                       value={fact.value}
@@ -389,7 +389,7 @@ export default function CodexPanel(): React.ReactElement {
                       onFocus={() => { factEditRef.current = { factId: fact.id, original: fact.value } }}
                       onBlur={() => handleFactBlur(fact)}
                       placeholder="Value"
-                      style={{ flex: 1, padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg)', color: 'var(--text)', fontSize: 12 }}
+                      style={{ flex: 1, padding: '5px 8px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg)', color: 'var(--text)', fontSize: 12 }}
                     />
                     <button onClick={() => handleDeleteFact(fact.id)} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 16, padding: '4px 2px' }}>×</button>
                   </div>
@@ -406,7 +406,7 @@ export default function CodexPanel(): React.ReactElement {
                       <button
                         key={node.id}
                         onClick={() => selectNode(node.id)}
-                        style={{ padding: '3px 10px', borderRadius: 12, border: '1px solid var(--border-2)', background: 'var(--bg)', color: 'var(--text-2)', fontSize: 12, cursor: 'pointer' }}
+                        style={{ padding: '3px 10px', borderRadius: 'var(--r-lg)', border: '1px solid var(--border-2)', background: 'var(--bg)', color: 'var(--text-2)', fontSize: 12, cursor: 'pointer' }}
                       >
                         {node.title}
                       </button>

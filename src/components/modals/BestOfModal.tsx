@@ -161,7 +161,7 @@ export default function BestOfModal({ onClose }: Props): React.ReactElement {
                       onChange={(e) => setSynopsis(e.target.value)}
                       rows={3}
                       placeholder={nodeSynopsis || 'What this scene should cover…'}
-                      style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, lineHeight: 1.5, resize: 'vertical' }}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, lineHeight: 1.5, resize: 'vertical' }}
                     />
                   </div>
                 </>
@@ -179,7 +179,7 @@ export default function BestOfModal({ onClose }: Props): React.ReactElement {
               )}
 
               {phase === 'results' && ranked.map((v, rank) => (
-                <div key={v.index} style={{ border: '1px solid', borderColor: rank === 0 ? 'var(--accent)' : 'var(--border)', borderRadius: 8, padding: '10px 12px' }}>
+                <div key={v.index} style={{ border: '1px solid', borderColor: rank === 0 ? 'var(--accent)' : 'var(--border)', borderRadius: 'var(--r-md)', padding: '10px 12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                     <span style={{ fontSize: 12, fontWeight: 700, color: rank === 0 ? 'var(--accent)' : 'var(--text-2)' }}>
                       {rank === 0 ? '★ Winner' : `#${rank + 1}`}
@@ -192,7 +192,7 @@ export default function BestOfModal({ onClose }: Props): React.ReactElement {
                       Use this →
                     </button>
                   </div>
-                  <div style={{ maxHeight: 130, overflowY: 'auto', fontSize: 12, lineHeight: 1.55, color: 'var(--text-2)', whiteSpace: 'pre-wrap', background: 'var(--bg-2)', borderRadius: 6, padding: '8px 10px' }}>
+                  <div style={{ maxHeight: 130, overflowY: 'auto', fontSize: 12, lineHeight: 1.55, color: 'var(--text-2)', whiteSpace: 'pre-wrap', background: 'var(--bg-2)', borderRadius: 'var(--r-md)', padding: '8px 10px' }}>
                     {v.text}
                   </div>
                 </div>

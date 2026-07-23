@@ -333,7 +333,7 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
                 onChange={(e) => setSeedHints(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && !isBusy && runSeeds()}
                 placeholder="Optional hints — genre, tone, length… (e.g. dark fantasy, 80k words)"
-                style={{ flex: 1, padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13 }}
+                style={{ flex: 1, padding: '7px 10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13 }}
               />
               <button className="btn" disabled={isBusy} onClick={runSeeds}>
                 {running === 'seeds' ? 'Generating…' : seeds.length > 0 ? 'Regenerate' : 'Generate seeds'}
@@ -347,7 +347,7 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
                     key={i}
                     onClick={() => setSelectedSeed(s)}
                     style={{
-                      textAlign: 'left', padding: '10px 12px', borderRadius: 8, cursor: 'pointer',
+                      textAlign: 'left', padding: '10px 12px', borderRadius: 'var(--r-md)', cursor: 'pointer',
                       border: `1px solid ${selectedSeed === s ? 'var(--accent)' : 'var(--border)'}`,
                       background: selectedSeed === s ? 'var(--sel-bg)' : 'var(--bg-2)',
                       color: 'var(--text)', fontSize: 13, lineHeight: 1.5,
@@ -369,7 +369,7 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
                 onChange={(e) => { setSeed(e.target.value); setSelectedSeed(null) }}
                 rows={2}
                 placeholder="A retired cartographer discovers her old maps are redrawing themselves overnight."
-                style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, lineHeight: 1.5, resize: 'vertical' }}
+                style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, lineHeight: 1.5, resize: 'vertical' }}
               />
             </div>
           </div>
@@ -383,7 +383,7 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {seed.trim() && currentStep.id === 'concept' && (
-              <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '6px 10px', background: 'var(--bg-2)', borderRadius: 6, lineHeight: 1.4 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '6px 10px', background: 'var(--bg-2)', borderRadius: 'var(--r-md)', lineHeight: 1.4 }}>
                 Seed: {seed}
               </div>
             )}
@@ -397,7 +397,7 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
               onChange={(e) => setStep(currentStep.id as DocStepId, e.target.value)}
               rows={12}
               placeholder={!depMet ? (currentStep.id === 'concept' ? 'Enter a seed above first.' : 'Generate the Concept step first.') : 'Click Generate, or write directly here.'}
-              style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 12, lineHeight: 1.55, fontFamily: 'var(--mono)', resize: 'vertical' }}
+              style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 12, lineHeight: 1.55, fontFamily: 'var(--mono)', resize: 'vertical' }}
             />
           </div>
         )
@@ -429,7 +429,7 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
             </div>
 
             {gate && (
-              <div style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-2)', fontSize: 12, lineHeight: 1.55 }}>
+              <div style={{ padding: '8px 10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border)', background: 'var(--bg-2)', fontSize: 12, lineHeight: 1.55 }}>
                 <span style={{ fontWeight: 600, color: gate.verdict === 'pass' ? 'var(--success)' : 'var(--st-idea)' }}>
                   {gate.overall}/100 · {gate.verdict === 'pass' ? 'pass' : 'needs work'}
                 </span>
@@ -444,7 +444,7 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
               onChange={(e) => setStep('outline', e.target.value)}
               rows={10}
               placeholder={!text.concept.trim() ? 'Generate the Concept step first.' : 'Click Generate, or write directly here.'}
-              style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 12, lineHeight: 1.55, fontFamily: 'var(--mono)', resize: 'vertical' }}
+              style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 12, lineHeight: 1.55, fontFamily: 'var(--mono)', resize: 'vertical' }}
             />
           </div>
         )
@@ -468,7 +468,7 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
               onChange={(e) => { setVoice(e.target.value); setVoiceSaved(false) }}
               rows={12}
               placeholder="Click Generate, or paste your own style guide here."
-              style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 12, lineHeight: 1.55, fontFamily: 'var(--mono)', resize: 'vertical' }}
+              style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 12, lineHeight: 1.55, fontFamily: 'var(--mono)', resize: 'vertical' }}
             />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-2)', cursor: 'pointer' }}>

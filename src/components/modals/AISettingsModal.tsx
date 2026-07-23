@@ -571,7 +571,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
           <Row label="Voice fingerprint">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {voiceFingerprint ? (
-                <div style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-2)', fontSize: 11, color: 'var(--text-2)', fontFamily: 'var(--mono)', lineHeight: 1.5, maxHeight: 72, overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
+                <div style={{ padding: '8px 10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border)', background: 'var(--bg-2)', fontSize: 11, color: 'var(--text-2)', fontFamily: 'var(--mono)', lineHeight: 1.5, maxHeight: 72, overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
                   {voiceFingerprint.slice(0, 300)}{voiceFingerprint.length > 300 ? '…' : ''}
                 </div>
               ) : (

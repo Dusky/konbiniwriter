@@ -69,7 +69,7 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
         onChange={(e) => handlePickerChange(e.target.value)}
         style={{
           flex: 1, minWidth: 0, fontSize: 12, padding: '2px 6px',
-          borderRadius: 4, border: '1px solid var(--border)',
+          borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
           background: 'var(--bg-2)', color: 'var(--text)', cursor: 'pointer',
         }}
       >

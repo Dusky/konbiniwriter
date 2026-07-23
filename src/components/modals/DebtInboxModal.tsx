@@ -173,7 +173,7 @@ export default function DebtInboxModal({ onClose }: Props): React.ReactElement {
 
         <div className="modal-body" style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
           {checkResult && (
-            <div style={{ fontSize: 12, color: 'var(--text-2)', padding: '6px 10px', background: 'var(--bg-2)', borderRadius: 6 }}>
+            <div style={{ fontSize: 12, color: 'var(--text-2)', padding: '6px 10px', background: 'var(--bg-2)', borderRadius: 'var(--r-md)' }}>
               {checkResult}
             </div>
           )}
@@ -188,7 +188,7 @@ export default function DebtInboxModal({ onClose }: Props): React.ReactElement {
               <div
                 key={item.id}
                 style={{
-                  border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px',
+                  border: '1px solid var(--border)', borderRadius: 'var(--r-md)', padding: '12px 14px',
                   opacity: allResolved ? 0.55 : 1,
                 }}
               >

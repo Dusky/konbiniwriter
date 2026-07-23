@@ -134,12 +134,12 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
         </div>
 
         {!isFileSystemAccessSupported() && (
-          <div style={{ margin: '0 20px 12px', padding: '10px 12px', background: 'var(--warn-bg)', border: '1px solid var(--warn-border)', borderRadius: 6, fontSize: 12, color: 'var(--warn-text)', lineHeight: 1.5 }}>
+          <div style={{ margin: '0 20px 12px', padding: '10px 12px', background: 'var(--warn-bg)', border: '1px solid var(--warn-border)', borderRadius: 'var(--r-md)', fontSize: 12, color: 'var(--warn-text)', lineHeight: 1.5 }}>
             ⚠ This browser has no disk access — your project will be saved in browser storage (Firefox/Safari). For real files on disk, use Chrome/Edge or the desktop app.
           </div>
         )}
         {error && (
-          <div style={{ margin: '0 20px 12px', padding: '10px 12px', background: 'oklch(0.22 0.05 20)', border: '1px solid var(--st-idea)', borderRadius: 6, fontSize: 12, color: 'var(--st-idea)', lineHeight: 1.5 }}>
+          <div style={{ margin: '0 20px 12px', padding: '10px 12px', background: 'oklch(0.22 0.05 20)', border: '1px solid var(--st-idea)', borderRadius: 'var(--r-md)', fontSize: 12, color: 'var(--st-idea)', lineHeight: 1.5 }}>
             {error}
           </div>
         )}

@@ -14,7 +14,7 @@ const FEATURES: { id: PromptFeature | 'all'; label: string }[] = [
 
 const AGENT_CATEGORIES: AgentCategory[] = ['reader', 'critic', 'judge', 'codex', 'autopilot']
 
-const inputStyle: React.CSSProperties = { width: '100%', padding: '6px 9px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13 }
+const inputStyle: React.CSSProperties = { width: '100%', padding: '6px 9px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13 }
 const monoStyle: React.CSSProperties = { ...inputStyle, fontSize: 12, fontFamily: 'var(--mono)' }
 const labelStyle: React.CSSProperties = { fontSize: 11, color: 'var(--text-3)', display: 'block', marginBottom: 4 }
 

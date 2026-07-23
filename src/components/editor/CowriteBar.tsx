@@ -151,7 +151,7 @@ export default function CowriteBar({ docId, selection, selRange, anchorRect, onC
             onClick={() => handleCommand(cmd.id)}
             disabled={running !== null}
             style={{
-              padding: '3px 10px', borderRadius: 5, border: '1px solid var(--border)',
+              padding: '3px 10px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
               background: running === cmd.id ? 'var(--accent)' : 'transparent',
               color: running === cmd.id ? 'var(--accent-fg)' : 'var(--text)',
               fontSize: 12, cursor: running ? 'default' : 'pointer',
@@ -162,7 +162,7 @@ export default function CowriteBar({ docId, selection, selRange, anchorRect, onC
           </button>
         ))}
         {running && (
-          <button onClick={handleStop} style={{ padding: '3px 8px', borderRadius: 5, border: '1px solid var(--border)', background: 'transparent', color: 'var(--danger)', fontSize: 12, cursor: 'pointer' }}>
+          <button onClick={handleStop} style={{ padding: '3px 8px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--danger)', fontSize: 12, cursor: 'pointer' }}>
             Stop
           </button>
         )}
@@ -174,7 +174,7 @@ export default function CowriteBar({ docId, selection, selRange, anchorRect, onC
         <button
           onClick={() => setShowTemp(!showTemp)}
           title="Temperature override"
-          style={{ padding: '3px 7px', borderRadius: 5, border: '1px solid var(--border)', background: showTemp ? 'var(--bg-2)' : 'transparent', color: tempOverride !== null ? 'var(--accent)' : 'var(--text-3)', fontSize: 11, cursor: 'pointer' }}
+          style={{ padding: '3px 7px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)', background: showTemp ? 'var(--bg-2)' : 'transparent', color: tempOverride !== null ? 'var(--accent)' : 'var(--text-3)', fontSize: 11, cursor: 'pointer' }}
         >
           T{tempOverride !== null ? `:${tempOverride.toFixed(2)}` : ''}
         </button>
@@ -248,7 +248,7 @@ export default function CowriteBar({ docId, selection, selRange, anchorRect, onC
                     gap: 8,
                     background: 'var(--bg-2)',
                     border: '1px solid var(--border)',
-                    borderRadius: 6,
+                    borderRadius: 'var(--r-md)',
                     padding: '8px 10px',
                   }}
                 >
@@ -259,7 +259,7 @@ export default function CowriteBar({ docId, selection, selRange, anchorRect, onC
                     style={{
                       flexShrink: 0,
                       padding: '3px 9px',
-                      borderRadius: 5,
+                      borderRadius: 'var(--r-sm)',
                       border: 'none',
                       background: 'var(--accent)',
                       color: 'var(--accent-fg)',

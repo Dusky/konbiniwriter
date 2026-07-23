@@ -139,7 +139,7 @@ export default function BatchGeneratorModal({ onClose }: Props): React.ReactElem
                   key={g.id}
                   onClick={() => setGen(g.id)}
                   style={{
-                    padding: '10px 14px', borderRadius: 8, border: '1px solid',
+                    padding: '10px 14px', borderRadius: 'var(--r-md)', border: '1px solid',
                     borderColor: gen === g.id ? 'var(--accent)' : 'var(--border-2)',
                     background: gen === g.id ? 'var(--sel-bg)' : 'transparent',
                     textAlign: 'left', cursor: 'pointer',
@@ -158,7 +158,7 @@ export default function BatchGeneratorModal({ onClose }: Props): React.ReactElem
             <select
               value={targetId}
               onChange={(e) => setTargetId(e.target.value)}
-              style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13 }}
+              style={{ width: '100%', padding: '7px 10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13 }}
             >
               {allNodes.filter((n) => n.type !== 'folder').map((n) => (
                 <option key={n.id} value={n.id}>{n.title}</option>
@@ -177,7 +177,7 @@ export default function BatchGeneratorModal({ onClose }: Props): React.ReactElem
                 onChange={(e) => setSynopsis(e.target.value)}
                 rows={4}
                 placeholder={project.nodes[targetId]?.meta.synopsis || 'Add plot notes, constraints, or tone guidance…'}
-                style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, lineHeight: 1.5, resize: 'vertical' }}
+                style={{ width: '100%', padding: '7px 10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, lineHeight: 1.5, resize: 'vertical' }}
               />
             </div>
           )}
@@ -193,7 +193,7 @@ export default function BatchGeneratorModal({ onClose }: Props): React.ReactElem
 
           {/* Live output */}
           {log && (
-            <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 12px', maxHeight: 200, overflowY: 'auto', fontSize: 12, fontFamily: 'var(--mono)', lineHeight: 1.6, whiteSpace: 'pre-wrap', color: 'var(--text-2)' }}>
+            <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', padding: '10px 12px', maxHeight: 200, overflowY: 'auto', fontSize: 12, fontFamily: 'var(--mono)', lineHeight: 1.6, whiteSpace: 'pre-wrap', color: 'var(--text-2)' }}>
               {log}
             </div>
           )}

@@ -187,7 +187,7 @@ export default function Timeline(): React.ReactElement {
                           border: isSelected
                             ? '2px solid var(--accent)'
                             : '1px solid var(--border)',
-                          borderRadius: 6,
+                          borderRadius: 'var(--r-md)',
                           overflow: 'hidden',
                           cursor: 'grab',
                           display: 'flex',
@@ -250,7 +250,7 @@ export default function Timeline(): React.ReactElement {
                             alignItems: 'center',
                             gap: 4,
                             background: 'var(--bg-3)',
-                            borderRadius: 10,
+                            borderRadius: 'var(--r-lg)',
                             padding: '2px 7px',
                             alignSelf: 'flex-start',
                           }}>

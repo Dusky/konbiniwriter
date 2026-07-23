@@ -377,7 +377,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
             <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {/* Resume banner */}
               {resumable && (
-                <div style={{ border: '1px solid var(--accent)', background: 'var(--sel-bg)', borderRadius: 8, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ border: '1px solid var(--accent)', background: 'var(--sel-bg)', borderRadius: 'var(--r-md)', padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ flex: 1, fontSize: 13, color: 'var(--text)' }}>
                     <strong>Unfinished run</strong> — {resumeRemaining} of {resumable.queue.length} scene{resumable.queue.length === 1 ? '' : 's'} left.
                   </div>
@@ -392,7 +392,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
                 <select
                   value={promptId}
                   onChange={(e) => setPromptId(e.target.value)}
-                  style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13 }}
+                  style={{ width: '100%', padding: '7px 10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13 }}
                 >
                   {allPrompts.map((p) => (
                     <option key={p.id} value={p.id}>{p.name}</option>
@@ -423,7 +423,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
                   value={spendCapUSD || ''}
                   onChange={(e) => setSpendCap(Math.max(0, parseFloat(e.target.value) || 0))}
                   placeholder="0 = none"
-                  style={{ width: 80, padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)' }}
+                  style={{ width: 80, padding: '5px 8px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)' }}
                 />
                 <span style={{ color: 'var(--text-3)' }}>halts the run when crossed</span>
               </label>
@@ -438,7 +438,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
                 <label style={{ fontSize: 11, color: 'var(--text-3)', display: 'block', marginBottom: 6 }}>
                   Scenes ({checkedIds.length} of {nodeList.length} selected)
                 </label>
-                <div style={{ maxHeight: 280, overflowY: 'auto', border: '1px solid var(--border-2)', borderRadius: 6, background: 'var(--bg-2)' }}>
+                <div style={{ maxHeight: 280, overflowY: 'auto', border: '1px solid var(--border-2)', borderRadius: 'var(--r-md)', background: 'var(--bg-2)' }}>
                   {nodeList.map(({ id, depth }) => (
                     <label
                       key={id}
@@ -524,7 +524,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
                   overflowY: 'auto',
                   background: 'var(--bg-2)',
                   border: '1px solid var(--border)',
-                  borderRadius: 6,
+                  borderRadius: 'var(--r-md)',
                   padding: '10px 12px',
                   fontSize: 12,
                   fontFamily: 'var(--mono)',

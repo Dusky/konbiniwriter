@@ -34,19 +34,19 @@ export default class ErrorBoundary extends React.Component<Props, State> {
           </p>
           <pre style={{
             textAlign: 'left', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-            background: 'var(--bg-2, #26262e)', padding: '10px 12px', borderRadius: 8,
+            background: 'var(--bg-2, #26262e)', padding: '10px 12px', borderRadius: 'var(--r-md)',
             fontSize: 12, maxHeight: 160, overflow: 'auto', margin: '0 0 16px',
           }}>{error.message}</pre>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
             <button
               onClick={() => this.setState({ error: null })}
-              style={{ padding: '7px 14px', borderRadius: 6, border: '1px solid var(--border-2, #3a3a44)', background: 'transparent', color: 'inherit', cursor: 'pointer' }}
+              style={{ padding: '7px 14px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2, #3a3a44)', background: 'transparent', color: 'inherit', cursor: 'pointer' }}
             >
               Try to recover
             </button>
             <button
               onClick={() => window.location.reload()}
-              style={{ padding: '7px 14px', borderRadius: 6, border: 'none', background: 'var(--accent, #7a5cff)', color: 'var(--accent-fg, #fff)', cursor: 'pointer' }}
+              style={{ padding: '7px 14px', borderRadius: 'var(--r-md)', border: 'none', background: 'var(--accent, #7a5cff)', color: 'var(--accent-fg, #fff)', cursor: 'pointer' }}
             >
               Reload
             </button>

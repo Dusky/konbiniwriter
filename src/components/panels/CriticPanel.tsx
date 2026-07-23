@@ -128,7 +128,7 @@ export default function CriticPanel(): React.ReactElement {
             </div>
 
             {assessment && (
-              <div style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text)', background: 'var(--bg)', borderLeft: '3px solid var(--accent)', borderRadius: 6, padding: '10px 12px' }}>
+              <div style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text)', background: 'var(--bg)', borderLeft: '3px solid var(--accent)', borderRadius: 'var(--r-md)', padding: '10px 12px' }}>
                 {assessment}
               </div>
             )}
@@ -137,7 +137,7 @@ export default function CriticPanel(): React.ReactElement {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <div style={{ fontSize: 11, color: 'var(--text-3)' }}>Notes ({selectedCount} of {notes.length} selected for revision)</div>
                 {notes.map((nt, i) => (
-                  <label key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', cursor: 'pointer', opacity: nt.on ? 1 : 0.55 }}>
+                  <label key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', padding: '8px 10px', cursor: 'pointer', opacity: nt.on ? 1 : 0.55 }}>
                     <input type="checkbox" checked={nt.on} onChange={() => toggle(i)} style={{ marginTop: 3, accentColor: 'var(--accent)' }} />
                     <div style={{ fontSize: 13, lineHeight: 1.5 }}>
                       <div style={{ color: 'var(--text)' }}>{nt.issue}</div>

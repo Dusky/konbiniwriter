@@ -145,7 +145,7 @@ function renderAttachedFiles(project: Project, ids: string[]): AttachedRender {
 function chipStyle(auto: boolean): React.CSSProperties {
   return {
     display: 'inline-flex', alignItems: 'center', gap: 2,
-    fontSize: 11, padding: '2px 8px', borderRadius: 10, maxWidth: 160,
+    fontSize: 11, padding: '2px 8px', borderRadius: 'var(--r-lg)', maxWidth: 160,
     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
     border: '1px solid var(--border-2)',
     background: auto ? 'var(--accent)' : 'var(--bg-2)',
@@ -546,7 +546,7 @@ export default function AssistantPanel(): React.ReactElement {
               value=""
               onChange={(e) => { if (e.target.value) setAttachedIds((ids) => [...ids, e.target.value]) }}
               title="Attach another file to the chat context"
-              style={{ fontSize: 11, padding: '2px 6px', borderRadius: 10, border: '1px dashed var(--border-2)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer' }}
+              style={{ fontSize: 11, padding: '2px 6px', borderRadius: 'var(--r-lg)', border: '1px dashed var(--border-2)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer' }}
             >
               <option value="">+ Add file</option>
               {addableDocs.map((n) => <option key={n.id} value={n.id}>{n.title}</option>)}

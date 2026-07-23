@@ -183,7 +183,7 @@ export default function ReaderPanel(): React.ReactElement {
         {activeResult?.text && (
           <>
             {activeVerdict?.score != null && (
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '4px 10px', borderRadius: 14, background: 'var(--bg-2)', fontSize: 12 }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '4px 10px', borderRadius: 'var(--r-lg)', background: 'var(--bg-2)', fontSize: 12 }}>
                 <span style={{ fontFamily: 'var(--mono)', fontWeight: 600, color: 'var(--text)' }}>{activeVerdict.score}/100</span>
                 <span style={{ color: activeVerdict.keep ? 'var(--st-final)' : 'var(--st-idea)' }}>
                   {activeVerdict.keep ? '✓ would keep reading' : '✕ would put it down'}

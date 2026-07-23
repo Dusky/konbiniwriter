@@ -166,7 +166,7 @@ export default function HistoryModal({ onClose }: Props): React.ReactElement {
     <button
       onClick={() => setFilter(f)}
       style={{
-        padding: '2px 10px', borderRadius: 999, fontSize: 11, cursor: 'pointer',
+        padding: '2px 10px', borderRadius: 'var(--r-full)', fontSize: 11, cursor: 'pointer',
         border: '1px solid var(--border-2)',
         background: filter === f ? 'var(--accent-soft)' : 'transparent',
         color: filter === f ? 'var(--text)' : 'var(--text-3)',
@@ -204,14 +204,14 @@ export default function HistoryModal({ onClose }: Props): React.ReactElement {
               </button>
             </div>
             {error && (
-              <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-3)', border: '1px solid var(--st-idea)', borderRadius: 6, padding: '8px 12px', marginBottom: 6, fontSize: 12, flexShrink: 0 }}>
+              <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-3)', border: '1px solid var(--st-idea)', borderRadius: 'var(--r-md)', padding: '8px 12px', marginBottom: 6, fontSize: 12, flexShrink: 0 }}>
                 <span style={{ color: 'var(--st-idea)', display: 'flex' }}><Icon name="warning" size={14} /></span>
                 <span style={{ flex: 1, color: 'var(--text)' }}>{error}</span>
                 <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 0, display: 'flex' }}><Icon name="x" size={14} /></button>
               </div>
             )}
             {confirming && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-3)', borderRadius: 6, padding: '8px 12px', marginBottom: 6, fontSize: 12, flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-3)', borderRadius: 'var(--r-md)', padding: '8px 12px', marginBottom: 6, fontSize: 12, flexShrink: 0 }}>
                 <span style={{ flex: 1, color: 'var(--text-2)' }}>
                   {confirming.type === 'restore'
                     ? `Restore to version from ${relTime(confirming.snap.takenAt)}? Current text will be auto-saved to history first.`
@@ -267,7 +267,7 @@ export default function HistoryModal({ onClose }: Props): React.ReactElement {
                 <button
                   onClick={() => setCompareMode('current')}
                   style={{
-                    padding: '2px 9px', borderRadius: 999, fontSize: 11, cursor: 'pointer', border: '1px solid var(--border-2)',
+                    padding: '2px 9px', borderRadius: 'var(--r-full)', fontSize: 11, cursor: 'pointer', border: '1px solid var(--border-2)',
                     background: effectiveMode === 'current' ? 'var(--accent-soft)' : 'transparent',
                     color: effectiveMode === 'current' ? 'var(--text)' : 'var(--text-3)',
                   }}
@@ -277,7 +277,7 @@ export default function HistoryModal({ onClose }: Props): React.ReactElement {
                   disabled={!predecessor}
                   title={predecessor ? 'Compare with the previous version' : 'This is the oldest version'}
                   style={{
-                    padding: '2px 9px', borderRadius: 999, fontSize: 11, cursor: predecessor ? 'pointer' : 'not-allowed',
+                    padding: '2px 9px', borderRadius: 'var(--r-full)', fontSize: 11, cursor: predecessor ? 'pointer' : 'not-allowed',
                     border: '1px solid var(--border-2)', opacity: predecessor ? 1 : 0.4,
                     background: effectiveMode === 'previous' ? 'var(--accent-soft)' : 'transparent',
                     color: effectiveMode === 'previous' ? 'var(--text)' : 'var(--text-3)',

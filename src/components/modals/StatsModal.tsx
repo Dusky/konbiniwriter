@@ -33,7 +33,7 @@ export default function StatsModal({ onClose }: Props): React.ReactElement {
               { label: 'Streak', value: streak > 0 ? `🔥 ${streak}-day` : '—' },
               { label: 'All-time', value: allTime.toLocaleString() + ' words' },
             ].map(chip => (
-              <div key={chip.label} style={{ flex: 1, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 16px' }}>
+              <div key={chip.label} style={{ flex: 1, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', padding: '12px 16px' }}>
                 <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>{chip.label}</div>
                 <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)' }}>{chip.value}</div>
               </div>
@@ -41,7 +41,7 @@ export default function StatsModal({ onClose }: Props): React.ReactElement {
           </div>
 
           {/* Daily goal */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, padding: '10px 14px', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, padding: '10px 14px', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)' }}>
             <span style={{ fontSize: 13, color: 'var(--text-2)' }}>Daily goal</span>
             <input
               type="number"
@@ -49,7 +49,7 @@ export default function StatsModal({ onClose }: Props): React.ReactElement {
               value={goal || ''}
               placeholder="none"
               onChange={(e) => commitGoal(e.target.value)}
-              style={{ width: 90, padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)' }}
+              style={{ width: 90, padding: '5px 8px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)' }}
             />
             <span style={{ fontSize: 12, color: 'var(--text-3)' }}>words / day</span>
             <span className="tb-spacer" style={{ flex: 1 }} />

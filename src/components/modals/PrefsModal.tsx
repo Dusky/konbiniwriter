@@ -205,7 +205,7 @@ export default function PrefsModal({ onClose }: Props): React.ReactElement {
                 onChange={(e) => setTargetDraft(e.target.value)}
                 onBlur={(e) => commitTarget(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') commitTarget(targetDraft) }}
-                style={{ width: 100, padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)' }}
+                style={{ width: 100, padding: '5px 8px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)' }}
               />
               <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--text-3)' }}>words (project target)</span>
             </Row>

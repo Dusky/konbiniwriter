@@ -501,7 +501,7 @@ export default function Editor({ docId }: Props): React.ReactElement {
             onKeyDown={(e) => { if (e.key === 'Enter') goNext() }}
             placeholder="Find"
             style={{
-              padding: '3px 7px', borderRadius: 4, border: '1px solid var(--border)',
+              padding: '3px 7px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
               background: 'var(--bg-2)', color: 'var(--text)',
               fontSize: 13, width: 160, outline: 'none',
             }}
@@ -512,7 +512,7 @@ export default function Editor({ docId }: Props): React.ReactElement {
             onKeyDown={(e) => { if (e.key === 'Enter') doReplace() }}
             placeholder="Replace with"
             style={{
-              padding: '3px 7px', borderRadius: 4, border: '1px solid var(--border)',
+              padding: '3px 7px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
               background: 'var(--bg-2)', color: 'var(--text)',
               fontSize: 13, width: 160, outline: 'none',
             }}
@@ -526,7 +526,7 @@ export default function Editor({ docId }: Props): React.ReactElement {
               onClick={i === 0 ? goPrev : goNext}
               disabled={matches.length === 0}
               style={{
-                padding: '3px 8px', borderRadius: 4, border: '1px solid var(--border)',
+                padding: '3px 8px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
                 background: 'var(--bg-2)', color: 'var(--text)',
                 cursor: matches.length === 0 ? 'not-allowed' : 'pointer', fontSize: 13,
                 opacity: matches.length === 0 ? 0.5 : 1,
@@ -537,7 +537,7 @@ export default function Editor({ docId }: Props): React.ReactElement {
             onClick={doReplace}
             disabled={matches.length === 0}
             style={{
-              padding: '3px 8px', borderRadius: 4, border: '1px solid var(--border)',
+              padding: '3px 8px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
               background: 'var(--bg-2)', color: 'var(--text)',
               cursor: matches.length === 0 ? 'not-allowed' : 'pointer', fontSize: 13,
               opacity: matches.length === 0 ? 0.5 : 1,
@@ -547,7 +547,7 @@ export default function Editor({ docId }: Props): React.ReactElement {
             onClick={doReplaceAll}
             disabled={matches.length === 0}
             style={{
-              padding: '3px 8px', borderRadius: 4, border: '1px solid var(--border)',
+              padding: '3px 8px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
               background: 'var(--bg-2)', color: 'var(--text)',
               cursor: matches.length === 0 ? 'not-allowed' : 'pointer', fontSize: 13,
               opacity: matches.length === 0 ? 0.5 : 1,
@@ -556,7 +556,7 @@ export default function Editor({ docId }: Props): React.ReactElement {
           <button
             onClick={() => { setFindReplaceOpen(false); viewRef.current?.focus() }}
             style={{
-              marginLeft: 'auto', padding: '3px 8px', borderRadius: 4,
+              marginLeft: 'auto', padding: '3px 8px', borderRadius: 'var(--r-sm)',
               border: '1px solid var(--border)',
               background: 'var(--bg-2)', color: 'var(--text)',
               cursor: 'pointer', fontSize: 13,
@@ -568,7 +568,7 @@ export default function Editor({ docId }: Props): React.ReactElement {
       {wikilinkTip && (
         <div style={{
           position: 'fixed', left: wikilinkTip.x + 12, top: wikilinkTip.y + 12,
-          background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 6,
+          background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)',
           padding: '10px 12px', maxWidth: 280, zIndex: 9000, pointerEvents: 'none',
           boxShadow: '0 4px 16px rgba(0,0,0,0.18)', fontSize: 13, lineHeight: 1.5,
         }}>
