@@ -86,6 +86,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
     slopAutoRun, setSlopAutoRun,
     customInstructions, setCustomInstructions,
     aiMemoryEnabled, setAiMemoryEnabled,
+    aiToolsEnabled, setAiToolsEnabled,
   } = useAIStore()
 
   const project = useProjectStore((s) => s.project)
@@ -495,6 +496,18 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
               </label>
               <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
                 When on, the chat assistant appends durable facts you share (canon, character details, style rules) here on its own — each one flagged in the conversation and fully editable above.
+              </div>
+            </div>
+          </Row>
+
+          <Row label="Assistant tools">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                <input type="checkbox" checked={aiToolsEnabled} onChange={(e) => setAiToolsEnabled(e.target.checked)} style={{ accentColor: 'var(--accent)', width: 15, height: 15 }} />
+                <span style={{ fontSize: 13 }}>Let the assistant use tools <span style={{ color: 'var(--text-3)' }}>(Claude only)</span></span>
+              </label>
+              <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                On Claude, the chat can search the manuscript, read the outline, open documents, create new documents, and propose edits across the whole project. Proposed edits are queued in Changeset for your review — never written directly.
               </div>
             </div>
           </Row>

@@ -85,6 +85,11 @@ interface AIState {
   // When on, the chat assistant may append durable memories to project notes.
   aiMemoryEnabled: boolean
   setAiMemoryEnabled: (on: boolean) => void
+
+  // When on (Claude only), the chat assistant can call tools to search, read,
+  // create, and propose edits across the whole project.
+  aiToolsEnabled: boolean
+  setAiToolsEnabled: (on: boolean) => void
 }
 
 const SK = 'konbini:ai'
@@ -206,4 +211,7 @@ export const useAIStore = create<AIState>((set) => ({
 
   aiMemoryEnabled: load(`${SK}:aiMemoryEnabled`, 'true') !== 'false',
   setAiMemoryEnabled: (aiMemoryEnabled) => { save(`${SK}:aiMemoryEnabled`, aiMemoryEnabled ? 'true' : 'false'); set({ aiMemoryEnabled }) },
+
+  aiToolsEnabled: load(`${SK}:aiToolsEnabled`, 'true') !== 'false',
+  setAiToolsEnabled: (aiToolsEnabled) => { save(`${SK}:aiToolsEnabled`, aiToolsEnabled ? 'true' : 'false'); set({ aiToolsEnabled }) },
 }))

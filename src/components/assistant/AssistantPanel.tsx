@@ -6,6 +6,9 @@ import { streamCompletion, type AIMessage } from '../../lib/AIClient'
 import { buildContext, renderContext, estimateTokens } from '../../lib/ContextBuilder'
 import { composeCustomInstructions } from '../../lib/CustomInstructions'
 import { MEMORY_INSTRUCTION, extractMemories, stripMemories, appendMemories } from '../../lib/AiMemory'
+import { runAgent } from '../../lib/agent'
+import { toolLabel, type AgentToolContext } from '../../lib/agentTools'
+import { createProposal } from '../../lib/ProposalService'
 import ConfirmDialog from '../common/ConfirmDialog'
 import type { Project } from '@shared/types'
 
@@ -15,6 +18,8 @@ interface Message {
   isError?: boolean
   /** Durable notes this reply saved to project memory (for the UI indicator). */
   memories?: string[]
+  /** Human labels for tools this reply used (for the UI indicator). */
+  toolUses?: string[]
 }
 
 type ChatThreads = Record<string, Message[]>
@@ -156,7 +161,13 @@ export default function AssistantPanel(): React.ReactElement {
   const chatMaxTokens = useAIStore((s) => s.chatMaxTokens)
   const chatContextMessages = useAIStore((s) => s.chatContextMessages)
   const aiMemoryEnabled = useAIStore((s) => s.aiMemoryEnabled)
+  const aiToolsEnabled = useAIStore((s) => s.aiToolsEnabled)
+  const provider = useAIStore((s) => s.provider)
+  const anthropicModel = useAIStore((s) => s.anthropicModel)
   const setAiInstructions = useProjectStore((s) => s.setAiInstructions)
+  // Tools run only on Claude (native function-calling); other providers keep the
+  // plain streaming path and the <remember> sentinel.
+  const toolsActive = aiToolsEnabled && provider === 'anthropic'
 
   const [threads, setThreads] = useState<ChatThreads>({})
   const [loaded, setLoaded] = useState(false)
@@ -277,9 +288,8 @@ export default function AssistantPanel(): React.ReactElement {
     const parts = [base]
     const custom = composeCustomInstructions()
     if (custom) parts.push(custom)
-    // Only let the assistant save memories when enabled and a project is open
-    // to receive them.
-    if (aiMemoryEnabled && project) parts.push(MEMORY_INSTRUCTION)
+    // Memory sentinel only when tools are off (with tools, `remember` is a tool).
+    if (aiMemoryEnabled && project && !toolsActive) parts.push(MEMORY_INSTRUCTION)
     if (contextPacket) { const ctx = renderContext(contextPacket); if (ctx) parts.push(ctx) }
     if (attached.text) parts.push(attached.text)
     return parts.join('\n\n')
@@ -312,6 +322,48 @@ export default function AssistantPanel(): React.ReactElement {
         if (last?.role === 'assistant') updated[updated.length - 1] = updater(last)
         return { ...prev, [threadId]: updated }
       })
+    }
+
+    // Tool-using path (Claude): the agent can search, read, create, and propose
+    // edits across the project. Tool actions route through the reviewable seams.
+    if (toolsActive) {
+      const ctx: AgentToolContext = {
+        project: useProjectStore.getState().project as Project,
+        appendNote: (note) => {
+          const cur = (useProjectStore.getState().project?.settings.aiInstructions as string | undefined) ?? ''
+          setAiInstructions(appendMemories(cur, [note]))
+        },
+        createDocument: async (docTitle, parentTitle, content) => {
+          const proj = useProjectStore.getState().project
+          if (!proj) return
+          let parentId: string | null = null
+          if (parentTitle) {
+            const pf = Object.values(proj.nodes).find((n) => n.type === 'folder' && n.title.trim().toLowerCase() === parentTitle.trim().toLowerCase())
+            parentId = pf?.id ?? null
+          }
+          const result = await window.api.node.mutate(proj.id, { type: 'create', nodeType: 'document', title: docTitle, parentId })
+          useProjectStore.getState().applyMutation(result)
+          const newId = Object.values(result.nodes).find((n) => n.ext['_newId'])?.id
+          if (newId && content) useProjectStore.getState().updateContent(newId, content)
+        },
+        proposeEdit: (docId, docTitle, original, proposed) => {
+          const proposal = createProposal({ docId, docTitle, command: 'revision', label: `AI edit · ${docTitle}`, group: 'chat', original, proposed, scope: 'document' })
+          useProjectStore.getState().queueProposal(proposal)
+        },
+      }
+      const seenTools: string[] = []
+      await runAgent(
+        apiMessages,
+        { model: anthropicModel, maxTokens: chatMaxTokens, temperature: 0.7, systemPrompt: buildSystemPrompt(), signal: abortRef.current.signal, ctx },
+        {
+          onChunk: (chunk) => updateLastAssistant((last) => ({ ...last, content: last.content + chunk })),
+          onToolUse: (name, inp) => { seenTools.push(toolLabel(name, inp)); updateLastAssistant((last) => ({ ...last, toolUses: [...seenTools] })) },
+          onDone: (full) => { updateLastAssistant((last) => ({ ...last, content: full || last.content })); setStreaming(false) },
+          onError: (err) => { updateLastAssistant((last) => ({ ...last, content: err.message, isError: true })); setStreaming(false) },
+          onAbort: () => setStreaming(false),
+        },
+      )
+      return
     }
 
     await streamCompletion(
@@ -505,6 +557,16 @@ export default function AssistantPanel(): React.ReactElement {
                         <span style={{ opacity: 0.6, animation: 'pulse 1s infinite' }}>▌</span>
                       )}
                     </div>
+                    {msg.role === 'assistant' && msg.toolUses && msg.toolUses.length > 0 && (
+                      <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 2, fontSize: 11, color: 'var(--text-3)' }}>
+                        {msg.toolUses.map((t, ti) => (
+                          <div key={ti} style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                            <span style={{ color: 'var(--accent)', flexShrink: 0 }}>⚙</span>
+                            <span>{t}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {msg.role === 'assistant' && msg.memories && msg.memories.length > 0 && (
                       <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 2, fontSize: 11, color: 'var(--text-3)' }}>
                         {msg.memories.map((m, mi) => (
