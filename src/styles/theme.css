@@ -328,6 +328,32 @@ button { font-family: inherit; cursor: default; }
 .stat .n { font-size: 21px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
 .stat .l { font-size: 10.5px; color: var(--text-3); text-transform: uppercase; letter-spacing: .05em; margin-top: 2px; }
 
+/* ── inspector: tabs, backlinks, judge score, metadata ─────────────────────── */
+.insp-tabs { display: flex; border-bottom: 0.5px solid var(--border); flex: none; }
+.insp-tab { flex: 1; padding: 7px 0; font-size: 12px; color: var(--text-3); background: none;
+  border: none; border-bottom: 2px solid transparent; cursor: pointer; letter-spacing: .02em; }
+.insp-tab:hover { color: var(--text-2); }
+.insp-tab.on { color: var(--text); font-weight: 600; border-bottom-color: var(--accent); }
+.insp-empty { padding: 24px 16px; color: var(--text-3); font-size: 13px; }
+.insp-note { font-size: 11px; color: var(--text-3); margin-top: 4px; }
+.insp-links { display: flex; flex-direction: column; gap: 4px; }
+.insp-link { text-align: left; padding: 5px 8px; background: var(--bg); border: 0.5px solid var(--border);
+  border-radius: var(--r-sm); font-size: 12px; color: var(--text); cursor: pointer; }
+.insp-link:hover { border-color: var(--accent); background: var(--accent-soft); }
+.insp-meta-val { font-size: 12px; color: var(--text-2); padding: 4px 0; }
+.insp-meta-val.mono { font-family: var(--mono); font-size: 11px; color: var(--text-3); word-break: break-all; }
+.check-lbl { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12.5px; }
+.check-lbl input { accent-color: var(--accent); width: 15px; height: 15px; }
+/* judge score rows */
+.jscore { margin-bottom: 8px; }
+.jscore:last-child { margin-bottom: 0; }
+.jscore-hd { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
+.jscore-name { font-size: 12px; color: var(--text-2); }
+.jscore-val { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.jscore-note { font-size: 11px; color: var(--text-3); line-height: 1.4; margin-top: 4px; }
+.jverdict { margin-top: 8px; padding: 8px 10px; background: var(--bg); border: 0.5px solid var(--border);
+  border-radius: var(--r-md); font-size: 12px; color: var(--text-2); line-height: 1.5; font-style: italic; }
+
 /* ── statusbar ───────────────────────────────────────────────────────────── */
 .statusbar { height: 26px; flex: none; display: flex; align-items: center; gap: 16px;
   padding: 0 14px; background: var(--titlebar); border-top: 0.5px solid var(--border);

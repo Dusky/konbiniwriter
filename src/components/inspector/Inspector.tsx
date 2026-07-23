@@ -11,6 +11,10 @@ import { backlinksFor } from '../../lib/MentionIndex'
 interface JudgeScore { dimension: string; score: number; note: string }
 interface JudgeResult { scores: JudgeScore[]; verdict: string }
 
+function scoreColor(score: number): string {
+  return score >= 8 ? 'var(--success)' : score >= 5 ? 'var(--accent)' : 'var(--danger)'
+}
+
 export default function Inspector(): React.ReactElement {
   const project = useProjectStore((s) => s.project)
   const selectedId = useProjectStore((s) => s.selectedId)
@@ -31,9 +35,7 @@ export default function Inspector(): React.ReactElement {
     return (
       <div className="inspector">
         <div className="insp-scroll">
-          <div style={{ padding: '24px 16px', color: 'var(--text-3)', fontSize: 13 }}>
-            Select a document to see its properties.
-          </div>
+          <div className="insp-empty">Select a document to see its properties.</div>
         </div>
       </div>
     )
@@ -98,23 +100,12 @@ export default function Inspector(): React.ReactElement {
   return (
     <div className="inspector">
       {node.type !== 'folder' && (
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+        <div className="insp-tabs">
           {(['info', 'links'] as const).map((tab) => (
             <button
               key={tab}
+              className={`insp-tab${activeTab === tab ? ' on' : ''}`}
               onClick={() => setActiveTab(tab)}
-              style={{
-                flex: 1,
-                padding: '7px 0',
-                fontSize: 12,
-                fontWeight: activeTab === tab ? 600 : 400,
-                color: activeTab === tab ? 'var(--text)' : 'var(--text-3)',
-                background: 'none',
-                border: 'none',
-                borderBottom: activeTab === tab ? '2px solid var(--accent)' : '2px solid transparent',
-                cursor: 'pointer',
-                letterSpacing: 0.3,
-              }}
             >
               {tab === 'info' ? 'Info' : '↩ Links'}
             </button>
@@ -126,29 +117,14 @@ export default function Inspector(): React.ReactElement {
           <div className="insp-sec">
             <h4>Backlinks</h4>
             {backlinkIds.length === 0 ? (
-              <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '4px 0' }}>
-                No documents link here.
-              </div>
+              <div className="insp-note">No documents link here.</div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div className="insp-links">
                 {backlinkIds.map((id) => {
                   const n = project.nodes[id]
                   if (!n) return null
                   return (
-                    <button
-                      key={id}
-                      onClick={() => selectNode(id)}
-                      style={{
-                        textAlign: 'left',
-                        padding: '5px 8px',
-                        background: 'var(--bg-2)',
-                        border: '1px solid var(--border)',
-                        borderRadius: 'var(--r-sm)',
-                        fontSize: 12,
-                        color: 'var(--text)',
-                        cursor: 'pointer',
-                      }}
-                    >
+                    <button key={id} className="insp-link" onClick={() => selectNode(id)}>
                       {n.title}
                     </button>
                   )
@@ -229,7 +205,7 @@ export default function Inspector(): React.ReactElement {
             {target > 0 && (
               <div style={{ marginBottom: 8 }}>
                 <div className="meter"><i style={{ width: `${progress * 100}%` }} /></div>
-                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
+                <div className="insp-note">
                   {words} / {target} words ({Math.round(progress * 100)}%)
                 </div>
               </div>
@@ -253,12 +229,11 @@ export default function Inspector(): React.ReactElement {
           <div className="insp-sec">
             <h4>Compile</h4>
             <div className="field">
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <label className="check-lbl">
                 <input
                   type="checkbox"
                   checked={node.meta.includeInCompile}
                   onChange={(e) => handleMeta({ includeInCompile: e.target.checked })}
-                  style={{ accentColor: 'var(--accent)', width: 15, height: 15 }}
                 />
                 Include in Compile
               </label>
@@ -284,23 +259,19 @@ export default function Inspector(): React.ReactElement {
             {judgeResult && (
               <>
                 {judgeResult.scores.map((s) => (
-                  <div key={s.dimension} style={{ marginBottom: 8 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
-                      <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{s.dimension}</span>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: s.score >= 8 ? 'var(--success)' : s.score >= 5 ? 'var(--accent)' : 'var(--danger)' }}>
+                  <div key={s.dimension} className="jscore">
+                    <div className="jscore-hd">
+                      <span className="jscore-name">{s.dimension}</span>
+                      <span className="jscore-val" style={{ color: scoreColor(s.score) }}>
                         {s.score}/10
                       </span>
                     </div>
-                    <div style={{ height: 3, background: 'var(--border)', borderRadius: 2, overflow: 'hidden', marginBottom: 4 }}>
-                      <div style={{ height: '100%', width: `${s.score * 10}%`, background: s.score >= 8 ? 'var(--st-final)' : s.score >= 5 ? 'var(--accent)' : 'var(--st-idea)', borderRadius: 2 }} />
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--text-3)', lineHeight: 1.4 }}>{s.note}</div>
+                    <div className="meter"><i style={{ width: `${s.score * 10}%`, background: scoreColor(s.score) }} /></div>
+                    <div className="jscore-note">{s.note}</div>
                   </div>
                 ))}
                 {judgeResult.verdict && (
-                  <div style={{ marginTop: 8, padding: '8px 10px', background: 'var(--bg-2)', borderRadius: 'var(--r-sm)', fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5, fontStyle: 'italic' }}>
-                    {judgeResult.verdict}
-                  </div>
+                  <div className="jverdict">{judgeResult.verdict}</div>
                 )}
               </>
             )}
@@ -312,13 +283,11 @@ export default function Inspector(): React.ReactElement {
           <h4>Document</h4>
           <div className="field">
             <label>Type</label>
-            <div style={{ fontSize: 12, color: 'var(--text-2)', padding: '4px 0' }}>{node.type}</div>
+            <div className="insp-meta-val">{node.type}</div>
           </div>
           <div className="field">
             <label>ID</label>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-3)', padding: '4px 0', wordBreak: 'break-all' }}>
-              {node.id}
-            </div>
+            <div className="insp-meta-val mono">{node.id}</div>
           </div>
         </div>
       </div>
