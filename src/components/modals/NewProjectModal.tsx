@@ -3,8 +3,9 @@ import { isFileSystemAccessSupported } from '../../lib/BrowserProjectService'
 import { useShellStore } from '../../store/shellStore'
 import { useProjectStore } from '../../store/projectStore'
 import type { TemplateId, ImportDoc } from '@shared/types'
+import { isDocx, docxToText } from '../../lib/docxImport'
 
-const IMPORTABLE = /\.(md|markdown|mdown|txt|text)$/i
+const IMPORTABLE = /\.(md|markdown|mdown|txt|text|docx)$/i
 
 const TEMPLATES: { id: TemplateId; glyph: string; label: string; desc: string }[] = [
   { id: 'novel',       glyph: '冊', label: 'Novel',       desc: 'Three-act structure with chapter/scene hierarchy.' },
@@ -46,7 +47,7 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
   const handleImportFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []).filter((f) => IMPORTABLE.test(f.name))
     e.target.value = ''
-    if (files.length === 0) { setError('No Markdown or text files found in that folder.'); return }
+    if (files.length === 0) { setError('No Markdown, text, or Word (.docx) files found in that folder.'); return }
     setError(null); setCreating(true)
     try {
       const rel = (f: File) => (f.webkitRelativePath || f.name).replace(/\\/g, '/')
@@ -55,8 +56,17 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
       // Strip the wrapping top-level folder so it becomes the project itself.
       const docs: ImportDoc[] = await Promise.all(files.map(async (f) => {
         const p = rel(f)
-        const path = p.includes('/') ? p.split('/').slice(1).join('/') : p
-        return { path: path || f.name, content: await f.text() }
+        const raw = p.includes('/') ? p.split('/').slice(1).join('/') : p
+        // .docx → prose via mammoth; rename the node to a .md path so the
+        // importer titles it cleanly and the bundle stores Markdown.
+        const isWord = isDocx(f.name)
+        // A single unreadable .docx shouldn't abort the whole folder import —
+        // fall back to an empty doc so the rest still comes in.
+        const content = isWord
+          ? await docxToText(f).catch(() => '')
+          : await f.text()
+        const path = isWord ? (raw || f.name).replace(/\.docx$/i, '.md') : (raw || f.name)
+        return { path, content }
       }))
       const project = await window.api.project.import({ title: importTitle, location: 'browser-pick', docs })
       openProject(project)
@@ -147,7 +157,7 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
         <input ref={importInputRef} type="file" multiple onChange={handleImportFiles} style={{ display: 'none' }} />
         <div className="modal-foot">
           <button className="btn ghost" onClick={() => importInputRef.current?.click()} disabled={creating}
-            title="Import a folder of Markdown / text files as a new project">
+            title="Import a folder of Markdown, text, or Word (.docx) files as a new project">
             Import folder…
           </button>
           <span className="tb-spacer" />
