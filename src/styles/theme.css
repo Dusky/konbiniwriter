@@ -396,6 +396,17 @@ button { font-family: inherit; cursor: default; }
   font-size: 11px; color: var(--text-3); }
 .statusbar .sb-r { margin-left: auto; display: flex; gap: 16px; align-items: center; }
 .statusbar b { color: var(--text-2); font-weight: 600; font-variant-numeric: tabular-nums; }
+.sb-stat { cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.sb-mini { display: inline-block; height: 4px; background: var(--border); border-radius: 2px;
+  overflow: hidden; vertical-align: middle; }
+.sb-mini > i { display: block; height: 100%; background: var(--accent); border-radius: 2px; transition: width .3s; }
+.sb-mini > i.done { background: var(--st-final); }
+.sb-muted { color: var(--text-3); font-weight: normal; cursor: pointer; }
+.sb-goal-inp { width: 80px; padding: 0 4px; height: 20px; font-size: var(--t-sm); background: var(--bg-2);
+  border: 0.5px solid var(--border); border-radius: 3px; color: inherit; }
+.sb-save.saving { color: var(--st-prog); }
+.sb-save.error { color: var(--st-idea); }
+.sb-save.idle { color: var(--text-3); }
 
 /* ── corkboard ───────────────────────────────────────────────────────────── */
 .cork { flex: 1; min-height: 0; overflow-y: auto;

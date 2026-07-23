@@ -73,15 +73,16 @@ export default function StatusBar(): React.ReactElement {
           const pct = goal ? Math.min(1, todayWords / goal) : 0
           return (
             <span
+              className="sb-stat"
               title="Daily writing goal — click for stats"
-              style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, color: goal && pct >= 1 ? 'var(--st-final)' : 'var(--text-3)' }}
+              style={{ color: goal && pct >= 1 ? 'var(--st-final)' : 'var(--text-3)' }}
               onClick={() => setModal('stats')}
             >
               Today: <b>{todayWords.toLocaleString()}</b>
               {goal > 0 && (
                 <>/ <b>{goal.toLocaleString()}</b>{pct >= 1 ? ' ✓' : ''}
-                  <span style={{ display: 'inline-block', width: 40, height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden', verticalAlign: 'middle' }}>
-                    <span style={{ display: 'block', height: '100%', width: `${pct * 100}%`, background: pct >= 1 ? 'var(--st-final)' : 'var(--accent)', borderRadius: 2, transition: 'width 0.3s' }} />
+                  <span className="sb-mini" style={{ width: 40 }}>
+                    <i className={pct >= 1 ? 'done' : ''} style={{ width: `${pct * 100}%` }} />
                   </span>
                 </>
               )}
@@ -90,14 +91,14 @@ export default function StatusBar(): React.ReactElement {
         })()}
         {project && (
           <span
-            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+            className="sb-stat"
             title="Click to set word-count goal"
             onClick={() => { setDraft(wordTarget?.toString() ?? ''); setEditing(true) }}
           >
             Project: <b>{totalWords.toLocaleString()}</b>
                 {sessionWordsAdded > 0 && (
                   <span
-                    style={{ color: 'var(--text-3)', fontWeight: 'normal', cursor: 'pointer' }}
+                    className="sb-muted"
                     title="View Writing Stats"
                     onClick={(e) => { e.stopPropagation(); setModal('stats') }}
                   >
@@ -106,20 +107,8 @@ export default function StatusBar(): React.ReactElement {
                 )}
             {wordTarget && (
               <> / <b>{wordTarget.toLocaleString()}</b> words
-                <span
-                  style={{
-                    display: 'inline-block', width: 48, height: 4,
-                    background: 'var(--border)', borderRadius: 2, overflow: 'hidden',
-                    verticalAlign: 'middle', marginLeft: 4,
-                  }}
-                >
-                  <span style={{
-                    display: 'block', height: '100%',
-                    width: `${(progress ?? 0) * 100}%`,
-                    background: progress === 1 ? 'var(--st-final)' : 'var(--accent)',
-                    borderRadius: 2,
-                    transition: 'width 0.3s',
-                  }} />
+                <span className="sb-mini" style={{ width: 48, marginLeft: 4 }}>
+                  <i className={progress === 1 ? 'done' : ''} style={{ width: `${(progress ?? 0) * 100}%` }} />
                 </span>
               </>
             )}
@@ -136,16 +125,12 @@ export default function StatusBar(): React.ReactElement {
               onChange={(e) => setDraft(e.target.value)}
               onBlur={commitTarget}
               onKeyDown={(e) => { if (e.key === 'Enter') commitTarget(); if (e.key === 'Escape') setEditing(false) }}
-              style={{ width: 80, padding: '0 4px', height: 20, fontSize: 12, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 3, color: 'inherit' }}
+              className="sb-goal-inp"
               placeholder="goal"
             />
           </span>
         )}
-        <span style={{
-          color: saveStatus === 'saving' ? 'var(--st-prog)'
-            : saveStatus === 'error' ? 'var(--st-idea)'
-            : 'var(--text-3)',
-        }}>
+        <span className={`sb-save ${saveStatus === 'saving' ? 'saving' : saveStatus === 'error' ? 'error' : 'idle'}`}>
           {saveStatus === 'saving' ? 'Saving…'
             : saveStatus === 'saved' ? 'Saved'
             : saveStatus === 'error' ? 'Save failed'
