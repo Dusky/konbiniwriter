@@ -40,6 +40,7 @@ const fs = __importStar(require("fs/promises"));
 const path = __importStar(require("path"));
 const utils_1 = require("../src/shared/utils");
 const templates_1 = require("../src/shared/templates");
+const importer_1 = require("../src/shared/importer");
 // ── FS helpers ────────────────────────────────────────────────────────────────
 async function readText(dir, ...parts) {
     try {
@@ -123,6 +124,22 @@ class NodeProjectService {
             if (body.content) {
                 await writeText(bundlePath, body.content, 'docs', `${nodeId}.md`);
             }
+        }
+        await this.writeManifest(bundlePath, project);
+        this.paths.set(project.id, bundlePath);
+        this.projects.set(project.id, project);
+        return project;
+    }
+    // ── Import ────────────────────────────────────────────────────────────────────
+    async import(opts) {
+        const bundleName = `${opts.title.replace(/[<>:"/\\|?*]/g, '_')}.konbini`;
+        const bundlePath = path.join(opts.location, bundleName);
+        await fs.mkdir(path.join(bundlePath, 'docs'), { recursive: true });
+        await fs.mkdir(path.join(bundlePath, 'snapshots'), { recursive: true });
+        const project = (0, importer_1.buildProjectFromDocs)(opts.title, bundlePath, opts.docs);
+        for (const [nodeId, body] of Object.entries(project.docs)) {
+            await writeText(bundlePath, body.content, 'docs', `${nodeId}.md`);
+            this.knownMtime.set(`${project.id}:${nodeId}`, await statMtime(path.join(bundlePath, 'docs', `${nodeId}.md`)));
         }
         await this.writeManifest(bundlePath, project);
         this.paths.set(project.id, bundlePath);

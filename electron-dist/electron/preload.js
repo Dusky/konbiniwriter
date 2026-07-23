@@ -230,6 +230,24 @@ const api = {
             });
             return project;
         },
+        async import(opts) {
+            let location = opts.location;
+            if (location === 'browser-pick' || location === 'node-pick') {
+                const dir = await electron_1.ipcRenderer.invoke('dialog:saveDir', opts.title);
+                if (!dir)
+                    throw new DOMException('No folder selected.', 'AbortError');
+                location = dir;
+            }
+            const project = await NodeProjectService_1.nodeProjectService.import({ ...opts, location });
+            await touchRecent({
+                id: project.id, title: project.title,
+                location: project.settings.location,
+                words: Object.values(project.docs).reduce((a, d) => a + (0, utils_1.wordCount)(d.content), 0),
+                template: project.settings.template,
+                accent: project.settings.accent,
+            });
+            return project;
+        },
         async open(bundlePath) {
             const project = await NodeProjectService_1.nodeProjectService.open(bundlePath);
             await touchRecent({

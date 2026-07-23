@@ -7,8 +7,9 @@ import * as path from 'path'
 
 import { uid, wordCount, isValidAuxName } from '../src/shared/utils'
 import { buildProjectFromTemplate } from '../src/shared/templates'
+import { buildProjectFromDocs } from '../src/shared/importer'
 import type {
-  Project, KNode, DocBody, NodeOp, Snapshot, ID,
+  Project, KNode, DocBody, NodeOp, Snapshot, ID, ImportDoc,
   CompileFormat, CompileResult, CodexEntry, ProjectSettings, TemplateId,
 } from '../src/shared/types'
 
@@ -97,6 +98,27 @@ export class NodeProjectService {
       if (body.content) {
         await writeText(bundlePath, body.content, 'docs', `${nodeId}.md`)
       }
+    }
+
+    await this.writeManifest(bundlePath, project)
+    this.paths.set(project.id, bundlePath)
+    this.projects.set(project.id, project)
+    return project
+  }
+
+  // ── Import ────────────────────────────────────────────────────────────────────
+
+  async import(opts: { title: string; location: string; docs: ImportDoc[] }): Promise<Project> {
+    const bundleName = `${opts.title.replace(/[<>:"/\\|?*]/g, '_')}.konbini`
+    const bundlePath = path.join(opts.location, bundleName)
+    await fs.mkdir(path.join(bundlePath, 'docs'), { recursive: true })
+    await fs.mkdir(path.join(bundlePath, 'snapshots'), { recursive: true })
+
+    const project = buildProjectFromDocs(opts.title, bundlePath, opts.docs)
+
+    for (const [nodeId, body] of Object.entries(project.docs)) {
+      await writeText(bundlePath, body.content, 'docs', `${nodeId}.md`)
+      this.knownMtime.set(`${project.id}:${nodeId}`, await statMtime(path.join(bundlePath, 'docs', `${nodeId}.md`)))
     }
 
     await this.writeManifest(bundlePath, project)

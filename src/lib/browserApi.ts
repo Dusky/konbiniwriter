@@ -26,6 +26,17 @@ const api: KonbiniAPI = {
       })
       return project
     },
+    async import(opts) {
+      const project = await svc.import(opts)
+      recentsService.touch({
+        id: project.id, title: project.title,
+        location: project.settings.location,
+        words: Object.values(project.docs).reduce((a, d) => a + wordCount(d.content), 0),
+        template: project.settings.template,
+        accent: project.settings.accent,
+      })
+      return project
+    },
     async open(handleKey) {
       const project = await svc.open(handleKey)
       recentsService.touch({

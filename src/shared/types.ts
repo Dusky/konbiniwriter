@@ -297,9 +297,14 @@ export interface OAuthStreamHandlers {
   onAbort?: () => void
 }
 
+/** One imported source file. `path` is relative, e.g. "Part 1/ch1.md". */
+export interface ImportDoc { path: string; content: string }
+
 export interface KonbiniAPI {
   project: {
     create(opts: { title: string; template: TemplateId; location: string }): Promise<Project>
+    /** Build a new project bundle from imported files (renderer reads the sources). */
+    import(opts: { title: string; location: string; docs: ImportDoc[] }): Promise<Project>
     open(path: string): Promise<Project>
     openRecent(id: ID, location: string): Promise<Project>
     recents(): Promise<RecentEntry[]>

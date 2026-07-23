@@ -1,8 +1,10 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { isFileSystemAccessSupported } from '../../lib/BrowserProjectService'
 import { useShellStore } from '../../store/shellStore'
 import { useProjectStore } from '../../store/projectStore'
-import type { TemplateId } from '@shared/types'
+import type { TemplateId, ImportDoc } from '@shared/types'
+
+const IMPORTABLE = /\.(md|markdown|mdown|txt|text)$/i
 
 const TEMPLATES: { id: TemplateId; glyph: string; label: string; desc: string }[] = [
   { id: 'novel',       glyph: '冊', label: 'Novel',       desc: 'Three-act structure with chapter/scene hierarchy.' },
@@ -23,6 +25,48 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
   const touchRecent = useShellStore((s) => s.touchRecent)
   const loadProject = useProjectStore((s) => s.loadProject)
 
+  // Folder import: webkitdirectory is set imperatively (not a valid JSX attr).
+  const importInputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    const el = importInputRef.current
+    if (el) { el.setAttribute('webkitdirectory', ''); el.setAttribute('directory', '') }
+  }, [])
+
+  const openProject = (project: Parameters<typeof loadProject>[0]) => {
+    touchRecent({
+      id: project.id, title: project.title, location: project.settings.location,
+      opened: Date.now(), words: 0,
+      template: (project.settings.template as TemplateId) ?? 'blank', accent: project.settings.accent,
+    })
+    loadProject(project)
+    setScreen('studio')
+    onClose()
+  }
+
+  const handleImportFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []).filter((f) => IMPORTABLE.test(f.name))
+    e.target.value = ''
+    if (files.length === 0) { setError('No Markdown or text files found in that folder.'); return }
+    setError(null); setCreating(true)
+    try {
+      const rel = (f: File) => (f.webkitRelativePath || f.name).replace(/\\/g, '/')
+      const topFolder = rel(files[0]).split('/')[0]
+      const importTitle = (title.trim() && title.trim() !== 'Untitled Project') ? title.trim() : (topFolder || 'Imported Project')
+      // Strip the wrapping top-level folder so it becomes the project itself.
+      const docs: ImportDoc[] = await Promise.all(files.map(async (f) => {
+        const p = rel(f)
+        const path = p.includes('/') ? p.split('/').slice(1).join('/') : p
+        return { path: path || f.name, content: await f.text() }
+      }))
+      const project = await window.api.project.import({ title: importTitle, location: 'browser-pick', docs })
+      openProject(project)
+    } catch (err) {
+      const isUserCancel = (err instanceof DOMException && err.name === 'AbortError') || String(err).includes('No folder selected')
+      if (!isUserCancel) setError(String(err).replace(/^Error:\s*/, ''))
+      setCreating(false)
+    }
+  }
+
   const handleCreate = async () => {
     if (!title.trim() || creating) return
     setError(null)
@@ -36,18 +80,7 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
         template,
         location: 'browser-pick',
       })
-      touchRecent({
-        id: project.id,
-        title: project.title,
-        location: project.settings.location,
-        opened: Date.now(),
-        words: 0,
-        template,
-        accent: project.settings.accent,
-      })
-      loadProject(project)
-      setScreen('studio')
-      onClose()
+      openProject(project)
     } catch (err) {
       const isUserCancel = (err instanceof DOMException && (err as DOMException).name === 'AbortError')
         || String(err).includes('No folder selected')
@@ -111,7 +144,12 @@ export default function NewProjectModal({ onClose }: Props): React.ReactElement 
           </div>
         )}
 
+        <input ref={importInputRef} type="file" multiple onChange={handleImportFiles} style={{ display: 'none' }} />
         <div className="modal-foot">
+          <button className="btn ghost" onClick={() => importInputRef.current?.click()} disabled={creating}
+            title="Import a folder of Markdown / text files as a new project">
+            Import folder…
+          </button>
           <span className="tb-spacer" />
           <button className="btn ghost" onClick={onClose}>Cancel</button>
           <button className="btn primary" onClick={handleCreate} disabled={creating || !title.trim()}>

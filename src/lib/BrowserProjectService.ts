@@ -6,9 +6,10 @@
 // "path" strings throughout are opaque keys into this.handles; components never
 // see real filesystem paths (same story in Electron where they'd be real paths).
 
-import type { Project, KNode, DocBody, NodeOp, Snapshot, ID, CompileFormat, CompileResult } from '@shared/types'
+import type { Project, KNode, DocBody, NodeOp, Snapshot, ID, ImportDoc, CompileFormat, CompileResult } from '@shared/types'
 import { uid, wordCount, isValidAuxName } from '@shared/utils'
 import { buildProjectFromTemplate } from '@shared/templates'
+import { buildProjectFromDocs } from '@shared/importer'
 import { handleStore } from './HandleStore'
 
 // FSA permission methods aren't in the base DOM lib types yet.
@@ -189,6 +190,35 @@ export class BrowserProjectService {
       }
     }
 
+    await this.writeManifest(bundleHandle, project)
+    this.handles.set(project.id, bundleHandle)
+    this.tempHandles.delete(parentKey)
+    this.projects.set(project.id, project)
+    void handleStore.put(project.id, bundleHandle)
+    return project
+  }
+
+  async import(opts: { title: string; location: string; docs: ImportDoc[] }): Promise<Project> {
+    const [parentKey] = opts.location.split('::')
+    let parentHandle = this.tempHandles.get(parentKey)
+    if (!parentHandle) {
+      requireFSA()
+      try {
+        parentHandle = await window.showDirectoryPicker({ mode: 'readwrite' })
+      } catch (e) {
+        if (e instanceof DOMException && e.name === 'AbortError') throw new Error('No folder selected.')
+        throw e
+      }
+    }
+    const bundleName = `${opts.title.replace(/[<>:"/\\|?*]/g, '_')}.konbini`
+    const bundleHandle = await parentHandle.getDirectoryHandle(bundleName, { create: true })
+    await bundleHandle.getDirectoryHandle('docs', { create: true })
+    await bundleHandle.getDirectoryHandle('snapshots', { create: true })
+
+    const project = buildProjectFromDocs(opts.title, `${parentHandle.name}/${bundleName}`, opts.docs)
+    for (const [nodeId, body] of Object.entries(project.docs)) {
+      await writeText(bundleHandle, body.content, 'docs', `${nodeId}.md`)
+    }
     await this.writeManifest(bundleHandle, project)
     this.handles.set(project.id, bundleHandle)
     this.tempHandles.delete(parentKey)

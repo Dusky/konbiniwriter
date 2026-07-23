@@ -11,9 +11,10 @@
 //   - create() stores location as 'opfs:' + project.id
 //   - open(location) parses the 'opfs:' prefix to find the bundle dir
 
-import type { Project, KNode, DocBody, NodeOp, Snapshot, ID, CompileFormat, CompileResult } from '@shared/types'
+import type { Project, KNode, DocBody, NodeOp, Snapshot, ID, ImportDoc, CompileFormat, CompileResult } from '@shared/types'
 import { uid, wordCount, isValidAuxName } from '@shared/utils'
 import { buildProjectFromTemplate } from '@shared/templates'
+import { buildProjectFromDocs } from '@shared/importer'
 
 export function isOPFSSupported(): boolean {
   return typeof navigator !== 'undefined' && 'storage' in navigator && typeof (navigator.storage as any).getDirectory === 'function'
@@ -128,6 +129,23 @@ export class OPFSProjectService {
       }
     }
 
+    await this.writeManifest(bundleHandle, project)
+    this.handles.set(project.id, bundleHandle)
+    this.projects.set(project.id, project)
+    return project
+  }
+
+  async import(opts: { title: string; location: string; docs: ImportDoc[] }): Promise<Project> {
+    const root = await this.getRoot()
+    const project = buildProjectFromDocs(opts.title, '', opts.docs)
+    const bundleName = `${project.id}.konbini`
+    const bundleHandle = await root.getDirectoryHandle(bundleName, { create: true })
+    await bundleHandle.getDirectoryHandle('docs', { create: true })
+    await bundleHandle.getDirectoryHandle('snapshots', { create: true })
+    project.settings.location = 'opfs:' + project.id
+    for (const [nodeId, body] of Object.entries(project.docs)) {
+      await writeText(bundleHandle, body.content, 'docs', `${nodeId}.md`)
+    }
     await this.writeManifest(bundleHandle, project)
     this.handles.set(project.id, bundleHandle)
     this.projects.set(project.id, project)
