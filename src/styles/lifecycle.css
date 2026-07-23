@@ -14,7 +14,7 @@
     oklch(0.87 0.005 90); }
 .launch-win { width: 100%; max-width: 920px; height: min(560px, calc(100vh - 60px)); display: grid; grid-template-columns: 340px 1fr;
   background: var(--bg); border: 0.5px solid var(--border-2); border-radius: 16px; overflow: hidden;
-  box-shadow: 0 40px 120px -20px rgba(0,0,0,.7), 0 4px 14px rgba(0,0,0,.5); }
+  box-shadow: 0 20px 60px -18px rgba(0,0,0,.55), 0 3px 10px rgba(0,0,0,.4); }
 .launch-left { background: linear-gradient(165deg, color-mix(in oklch, var(--accent) 14%, var(--sidebar)), var(--sidebar));
   border-right: 0.5px solid var(--border); display: flex; flex-direction: column; padding: 38px 30px 22px; }
 .ll-top { flex: 1; }
@@ -109,7 +109,7 @@
 .mac-menubar .menu-top:hover, .mac-menubar .menu-top.open { background: var(--accent); color: var(--accent-fg); }
 .menu-dd { position: absolute; top: 100%; left: 0; margin-top: 3px; min-width: 236px; z-index: 500;
   background: color-mix(in oklch, var(--bg-2) 92%, transparent); -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px);
-  border: 0.5px solid var(--border-2); border-radius: 9px; padding: 5px; box-shadow: 0 16px 48px rgba(0,0,0,.5); }
+  border: 0.5px solid var(--border-2); border-radius: 9px; padding: 5px; box-shadow: var(--shadow); }
 .menu-item { display: flex; align-items: center; width: 100%; gap: 16px; padding: 5px 10px; border: 0;
   background: transparent; color: var(--text); border-radius: 6px; text-align: left; font-size: 12.5px; position: relative; }
 .menu-item:hover:not(.disabled) { background: var(--accent); color: var(--accent-fg); }
@@ -155,7 +155,7 @@
 .sc-head { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); font-weight: 700; margin-bottom: 9px; }
 .sc-row { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; font-size: 12.5px; color: var(--text-2); }
 .about { width: 360px; background: var(--bg-2); border: 0.5px solid var(--border-2); border-radius: 16px;
-  padding: 34px 30px; text-align: center; box-shadow: 0 30px 90px rgba(0,0,0,.6); }
+  padding: 34px 30px; text-align: center; box-shadow: var(--shadow); }
 .about-mark { font-family: var(--mono); font-size: 54px; color: var(--accent); }
 .about-name { font-size: 24px; font-weight: 700; margin-top: 10px; }
 .about-ver { font-size: 12px; color: var(--text-3); margin-top: 4px; }
