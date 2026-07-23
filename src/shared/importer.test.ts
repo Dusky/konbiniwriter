@@ -27,8 +27,9 @@ describe('buildProjectFromDocs', () => {
 
   it('always includes a Trash folder, listed last at root', () => {
     const p = buildProjectFromDocs('X', '', [{ path: 'a.md', content: '' }])
-    expect(p.nodes[p.trashId].title).toBe('Trash')
-    expect(p.rootIds[p.rootIds.length - 1]).toBe(p.trashId)
+    const trashId = p.trashId as string
+    expect(p.nodes[trashId].title).toBe('Trash')
+    expect(p.rootIds[p.rootIds.length - 1]).toBe(trashId)
   })
 
   it('reuses a folder across multiple files rather than duplicating it', () => {

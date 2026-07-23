@@ -1,6 +1,7 @@
 import type { Project, ID } from '@shared/types'
 import type { MentionIndex } from './MentionIndex'
 import { mentionsIn } from './MentionIndex'
+import { retrieve } from './RetrievalService'
 import { useAIStore } from '../store/aiStore'
 
 // Rough token estimate: 1 token ≈ 4 chars for English prose.
@@ -56,6 +57,10 @@ const BUDGETS: Record<ContextFeature, number> = {
 // (continuity for drafting and conversation). Inline edits and evaluation stay
 // scene-scoped.
 const MANUSCRIPT_FEATURES: ReadonlySet<ContextFeature> = new Set(['chat', 'batch', 'autopilot'])
+
+// Features that get BM25-retrieved relevant passages. Structured evaluators
+// (evaluation, codex) stay scene-scoped and clean.
+const RETRIEVAL_FEATURES: ReadonlySet<ContextFeature> = new Set(['chat', 'batch', 'autopilot', 'inline'])
 
 function getNodePath(project: Project, nodeId: ID): string[] {
   const path: string[] = []
@@ -215,6 +220,19 @@ export function buildContext(
 
   // Tier 6: codex entities mentioned in this scene
   addTier('Codex entities', getCodexContext(project, index, docId))
+
+  // Tier 6.5: the most relevant passages from elsewhere in the manuscript
+  // (BM25), keyed on the current scene. Placed before the recency dump below so
+  // relevant-but-old material gets budget priority.
+  if (RETRIEVAL_FEATURES.has(feature)) {
+    const query = (body?.content ?? '').trim()
+    if (query) {
+      const passages = retrieve(project, query, { excludeDocId: docId, limit: 6, maxChars: Math.min(6000, remaining * 4) })
+      if (passages.length) {
+        addTier('Relevant passages', passages.map((p) => `[from "${p.title}"]\n${p.text}`).join('\n\n'))
+      }
+    }
+  }
 
   // Tier 7 (chat/batch/autopilot): the manuscript written so far. Added last
   // so it fills whatever budget the core tiers left; truncatable, keeping the
