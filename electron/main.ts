@@ -123,6 +123,10 @@ ipcMain.handle('app:env', () => ({
   platform: process.platform,
 }))
 
+// Synchronous userData path — the preload needs it before the renderer's stores
+// hydrate their prefs at construction time.
+ipcMain.on('app:userDataSync', (e) => { e.returnValue = app.getPath('userData') })
+
 // ── IPC: window controls (for custom titlebar) ────────────────────────────────
 
 ipcMain.handle('shell:minimize', () => { win?.minimize() })

@@ -140,6 +140,9 @@ electron_1.ipcMain.handle('app:env', () => ({
     userData: electron_1.app.getPath('userData'),
     platform: process.platform,
 }));
+// Synchronous userData path — the preload needs it before the renderer's stores
+// hydrate their prefs at construction time.
+electron_1.ipcMain.on('app:userDataSync', (e) => { e.returnValue = electron_1.app.getPath('userData'); });
 // ── IPC: window controls (for custom titlebar) ────────────────────────────────
 electron_1.ipcMain.handle('shell:minimize', () => { win?.minimize(); });
 electron_1.ipcMain.handle('shell:maximize', () => {

@@ -58,10 +58,27 @@ const FONT_MAP: Record<string, string> = {
 export const useShellStore = create<ShellState>((set) => ({
   screen: 'launch',
   platform: (window.api?.shell?.platform ?? 'linux') as 'darwin' | 'win32' | 'linux',
-  theme: 'dark',
-  density: 'balanced',
-  editorFont: 'mono',
-  editorSize: 17,
+  theme: (() => {
+    const t = (window.api.prefs.get('pref:theme') as Theme) || 'dark'
+    document.documentElement.dataset.theme = t
+    return t
+  })(),
+  density: (() => {
+    const d = (window.api.prefs.get('pref:density') as Density) || 'balanced'
+    document.documentElement.dataset.density = d
+    return d
+  })(),
+  editorFont: (() => {
+    const f = (window.api.prefs.get('pref:editorFont') as EditorFont) || 'mono'
+    document.documentElement.style.setProperty('--editor-font', FONT_MAP[f])
+    return f
+  })(),
+  editorSize: (() => {
+    const n = parseInt(window.api.prefs.get('pref:editorSize') ?? '17', 10)
+    const size = isNaN(n) ? 17 : n
+    document.documentElement.style.setProperty('--editor-size', `${size}px`)
+    return size
+  })(),
   editorColWidth: (() => {
     const n = parseInt(window.api.prefs.get('pref:editorColWidth') ?? '720', 10)
     const w = isNaN(n) ? 720 : n
@@ -91,18 +108,22 @@ export const useShellStore = create<ShellState>((set) => ({
   setRailPanel: (railPanel) => set({ railPanel }),
   toggleRailPanel: (p) => set((s) => ({ railPanel: s.railPanel === p ? null : p })),
   setTheme: (theme) => {
+    window.api.prefs.set('pref:theme', theme)
     document.documentElement.dataset.theme = theme
     set({ theme })
   },
   setDensity: (density) => {
+    window.api.prefs.set('pref:density', density)
     document.documentElement.dataset.density = density
     set({ density })
   },
   setEditorFont: (editorFont) => {
+    window.api.prefs.set('pref:editorFont', editorFont)
     document.documentElement.style.setProperty('--editor-font', FONT_MAP[editorFont])
     set({ editorFont })
   },
   setEditorSize: (editorSize) => {
+    window.api.prefs.set('pref:editorSize', String(editorSize))
     document.documentElement.style.setProperty('--editor-size', `${editorSize}px`)
     set({ editorSize })
   },

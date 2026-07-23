@@ -43,8 +43,85 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs/promises"));
+const fs_1 = require("fs");
 const NodeProjectService_1 = require("./NodeProjectService");
 const utils_1 = require("../src/shared/utils");
+// ── Preferences (userData/prefs.json) ─────────────────────────────────────────
+// localStorage on the packaged app's file:// origin does not reliably survive an
+// Electron restart, so settings/AI config appeared to "not save". Back prefs
+// with a real file instead. The store layer reads prefs synchronously at
+// construction, so get/set are synchronous over an in-memory cache; writes are
+// debounced and flushed on page hide (and are atomic via tmp+rename).
+let _prefs = null;
+let _prefsPath = '';
+let _prefsTimer = null;
+function prefsFile() {
+    if (!_prefsPath)
+        _prefsPath = path.join(electron_1.ipcRenderer.sendSync('app:userDataSync'), 'prefs.json');
+    return _prefsPath;
+}
+function loadPrefs() {
+    if (_prefs)
+        return _prefs;
+    let data = {};
+    try {
+        data = JSON.parse((0, fs_1.readFileSync)(prefsFile(), 'utf-8'));
+    }
+    catch {
+        data = {};
+    }
+    // One-time migration from the old localStorage-backed prefs.
+    if (Object.keys(data).length === 0) {
+        try {
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (k != null) {
+                    const v = localStorage.getItem(k);
+                    if (v != null)
+                        data[k] = v;
+                }
+            }
+        }
+        catch { /* localStorage may be unavailable */ }
+        _prefs = data;
+        if (Object.keys(data).length > 0)
+            flushPrefs();
+        return _prefs;
+    }
+    _prefs = data;
+    return _prefs;
+}
+function flushPrefs() {
+    if (!_prefs)
+        return;
+    const p = prefsFile();
+    const tmp = `${p}.tmp-${process.pid}`;
+    try {
+        (0, fs_1.writeFileSync)(tmp, JSON.stringify(_prefs, null, 2), 'utf-8');
+        (0, fs_1.renameSync)(tmp, p);
+    }
+    catch (e) {
+        try {
+            (0, fs_1.unlinkSync)(tmp);
+        }
+        catch { /* noop */ }
+        console.error('prefs write failed', e);
+        window.dispatchEvent(new CustomEvent('konbini:prefs-error'));
+    }
+}
+function schedulePrefsFlush() {
+    if (_prefsTimer)
+        clearTimeout(_prefsTimer);
+    _prefsTimer = setTimeout(() => { _prefsTimer = null; flushPrefs(); }, 250);
+}
+// Never lose the last change if the window closes before the debounce fires.
+window.addEventListener('pagehide', () => {
+    if (_prefsTimer) {
+        clearTimeout(_prefsTimer);
+        _prefsTimer = null;
+    }
+    flushPrefs();
+});
 // ── Recents (stored in userData/recents.json) ─────────────────────────────────
 let _userData = null;
 async function getUserData() {
@@ -168,25 +245,12 @@ const api = {
         run: (pid, rid, ids, fmt) => NodeProjectService_1.nodeProjectService.compile(pid, rid, ids, fmt),
     },
     prefs: {
-        get: (key) => { try {
-            return localStorage.getItem(key);
-        }
-        catch {
-            return null;
-        } },
-        set: (key, value) => {
-            try {
-                localStorage.setItem(key, value);
-            }
-            catch (e) {
-                console.error('prefs.set failed', key, e);
-                window.dispatchEvent(new CustomEvent('konbini:prefs-error'));
-            }
+        get: (key) => {
+            const p = loadPrefs();
+            return Object.prototype.hasOwnProperty.call(p, key) ? p[key] : null;
         },
-        remove: (key) => { try {
-            localStorage.removeItem(key);
-        }
-        catch { /* noop */ } },
+        set: (key, value) => { loadPrefs()[key] = value; schedulePrefsFlush(); },
+        remove: (key) => { delete loadPrefs()[key]; schedulePrefsFlush(); },
     },
     aux: {
         read: (pid, name) => NodeProjectService_1.nodeProjectService.readAux(pid, name),

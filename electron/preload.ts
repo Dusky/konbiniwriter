@@ -9,9 +9,71 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import * as path from 'path'
 import * as fs from 'fs/promises'
+import { readFileSync, writeFileSync, renameSync, unlinkSync } from 'fs'
 import { nodeProjectService as svc } from './NodeProjectService'
 import type { KonbiniAPI, RecentEntry } from '../src/shared/types'
 import { wordCount } from '../src/shared/utils'
+
+// ── Preferences (userData/prefs.json) ─────────────────────────────────────────
+// localStorage on the packaged app's file:// origin does not reliably survive an
+// Electron restart, so settings/AI config appeared to "not save". Back prefs
+// with a real file instead. The store layer reads prefs synchronously at
+// construction, so get/set are synchronous over an in-memory cache; writes are
+// debounced and flushed on page hide (and are atomic via tmp+rename).
+
+let _prefs: Record<string, string> | null = null
+let _prefsPath = ''
+let _prefsTimer: ReturnType<typeof setTimeout> | null = null
+
+function prefsFile(): string {
+  if (!_prefsPath) _prefsPath = path.join(ipcRenderer.sendSync('app:userDataSync') as string, 'prefs.json')
+  return _prefsPath
+}
+
+function loadPrefs(): Record<string, string> {
+  if (_prefs) return _prefs
+  let data: Record<string, string> = {}
+  try { data = JSON.parse(readFileSync(prefsFile(), 'utf-8')) } catch { data = {} }
+  // One-time migration from the old localStorage-backed prefs.
+  if (Object.keys(data).length === 0) {
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i)
+        if (k != null) { const v = localStorage.getItem(k); if (v != null) data[k] = v }
+      }
+    } catch { /* localStorage may be unavailable */ }
+    _prefs = data
+    if (Object.keys(data).length > 0) flushPrefs()
+    return _prefs
+  }
+  _prefs = data
+  return _prefs
+}
+
+function flushPrefs(): void {
+  if (!_prefs) return
+  const p = prefsFile()
+  const tmp = `${p}.tmp-${process.pid}`
+  try {
+    writeFileSync(tmp, JSON.stringify(_prefs, null, 2), 'utf-8')
+    renameSync(tmp, p)
+  } catch (e) {
+    try { unlinkSync(tmp) } catch { /* noop */ }
+    console.error('prefs write failed', e)
+    window.dispatchEvent(new CustomEvent('konbini:prefs-error'))
+  }
+}
+
+function schedulePrefsFlush(): void {
+  if (_prefsTimer) clearTimeout(_prefsTimer)
+  _prefsTimer = setTimeout(() => { _prefsTimer = null; flushPrefs() }, 250)
+}
+
+// Never lose the last change if the window closes before the debounce fires.
+window.addEventListener('pagehide', () => {
+  if (_prefsTimer) { clearTimeout(_prefsTimer); _prefsTimer = null }
+  flushPrefs()
+})
 
 // ── Recents (stored in userData/recents.json) ─────────────────────────────────
 
@@ -152,16 +214,12 @@ const api: KonbiniAPI = {
   },
 
   prefs: {
-    get: (key: string) => { try { return localStorage.getItem(key) } catch { return null } },
-    set: (key: string, value: string) => {
-      try {
-        localStorage.setItem(key, value)
-      } catch (e) {
-        console.error('prefs.set failed', key, e)
-        window.dispatchEvent(new CustomEvent('konbini:prefs-error'))
-      }
+    get: (key: string) => {
+      const p = loadPrefs()
+      return Object.prototype.hasOwnProperty.call(p, key) ? p[key] : null
     },
-    remove: (key: string) => { try { localStorage.removeItem(key) } catch { /* noop */ } },
+    set: (key: string, value: string) => { loadPrefs()[key] = value; schedulePrefsFlush() },
+    remove: (key: string) => { delete loadPrefs()[key]; schedulePrefsFlush() },
   },
 
   aux: {

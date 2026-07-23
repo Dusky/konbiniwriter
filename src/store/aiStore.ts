@@ -100,7 +100,7 @@ function initialService(): AIService {
 const INITIAL_SERVICE = initialService()
 
 export const useAIStore = create<AIState>((set) => ({
-  enabled: false,
+  enabled: load(`${SK}:enabled`, 'false') === 'true',
   service: INITIAL_SERVICE,
   // Provider follows the resolved service so the two never disagree on a fresh
   // install (no saved provider → OpenAI-compatible, not Anthropic).
@@ -117,7 +117,7 @@ export const useAIStore = create<AIState>((set) => ({
   openaiKey: load(`${SK}:openaiKey`),
   openaiModel: load(`${SK}:openaiModel`, 'gpt-4o'),
 
-  setEnabled: (enabled) => set({ enabled }),
+  setEnabled: (enabled) => { save(`${SK}:enabled`, enabled ? 'true' : 'false'); set({ enabled }) },
   // Selecting a service also sets the wire-format provider and, for the named
   // OpenAI-compatible services, the endpoint + a starter model (only when the
   // current model is empty or still one of the built-in examples — never
