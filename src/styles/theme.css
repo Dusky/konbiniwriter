@@ -440,6 +440,9 @@ button { font-family: inherit; cursor: default; }
 .modal-body { flex: 1; overflow-y: auto; padding: var(--s4) var(--s5); }
 .modal-foot { display: flex; align-items: center; gap: var(--s2); padding: var(--s3) var(--s5); border-top: 0.5px solid var(--border); }
 .modal-foot .tb-spacer { flex: 1; }
+.modal-x { background: none; border: none; color: var(--text-3); cursor: pointer;
+  font-size: 18px; padding: 0 4px; line-height: 1; }
+.modal-x:hover { color: var(--text); }
 .btn { height: 32px; padding: 0 16px; border-radius: 8px; border: 0.5px solid var(--border-2);
   background: var(--bg-3); color: var(--text); font-size: 12.5px; font-weight: 500; }
 .btn:hover { border-color: var(--border-2); background: var(--bg); }

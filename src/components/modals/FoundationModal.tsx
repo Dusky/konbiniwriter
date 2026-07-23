@@ -312,7 +312,7 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
       <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
         <div className="modal" style={{ maxWidth: 520 }} role="dialog" aria-modal="true" aria-label="Foundation">
           <div className="modal-hd"><h3>Foundation</h3></div>
-          <div className="modal-body" style={{ color: 'var(--text-3)' }}>Enable AI to use the Foundation pipeline.</div>
+          <div className="modal-body dock-empty" style={{ padding: 'var(--s4) var(--s5)' }}>Enable AI to use the Foundation pipeline.</div>
           <div className="modal-foot"><span className="tb-spacer" /><button className="btn" onClick={onClose}>Close</button></div>
         </div>
       </div>
@@ -326,14 +326,14 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
 
       case 'seeds':
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'flex', gap: 8 }}>
+          <div className="fnd-step">
+            <div className="fnd-row">
               <input
+                className="inp"
                 value={seedHints}
                 onChange={(e) => setSeedHints(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && !isBusy && runSeeds()}
                 placeholder="Optional hints — genre, tone, length… (e.g. dark fantasy, 80k words)"
-                style={{ flex: 1, padding: '7px 10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13 }}
               />
               <button className="btn" disabled={isBusy} onClick={runSeeds}>
                 {running === 'seeds' ? 'Generating…' : seeds.length > 0 ? 'Regenerate' : 'Generate seeds'}
@@ -341,19 +341,10 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
             </div>
 
             {seeds.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div className="fnd-seeds">
                 {seeds.map((s, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setSelectedSeed(s)}
-                    style={{
-                      textAlign: 'left', padding: '10px 12px', borderRadius: 'var(--r-md)', cursor: 'pointer',
-                      border: `1px solid ${selectedSeed === s ? 'var(--accent)' : 'var(--border)'}`,
-                      background: selectedSeed === s ? 'var(--sel-bg)' : 'var(--bg-2)',
-                      color: 'var(--text)', fontSize: 13, lineHeight: 1.5,
-                    }}
-                  >
-                    <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--mono)', marginRight: 8 }}>{i + 1}</span>
+                  <button key={i} onClick={() => setSelectedSeed(s)} className={`fnd-seed${selectedSeed === s ? ' on' : ''}`}>
+                    <span className="fnd-seed-n">{i + 1}</span>
                     {s}
                   </button>
                 ))}
@@ -361,15 +352,13 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
             )}
 
             <div>
-              <label style={{ fontSize: 11, color: 'var(--text-3)', display: 'block', marginBottom: 4 }}>
-                Or write your own seed
-              </label>
+              <label className="reg-lbl">Or write your own seed</label>
               <textarea
+                className="ta"
                 value={selectedSeed !== null && !seeds.includes(selectedSeed) ? selectedSeed : seed}
                 onChange={(e) => { setSeed(e.target.value); setSelectedSeed(null) }}
                 rows={2}
                 placeholder="A retired cartographer discovers her old maps are redrawing themselves overnight."
-                style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, lineHeight: 1.5, resize: 'vertical' }}
               />
             </div>
           </div>
@@ -381,11 +370,9 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
         const docStep = DOC_STEPS.find((s) => s.id === currentStep.id)!
         const depMet = currentStep.id === 'concept' ? !!seed.trim() : !!text.concept.trim()
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="fnd-step">
             {seed.trim() && currentStep.id === 'concept' && (
-              <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '6px 10px', background: 'var(--bg-2)', borderRadius: 'var(--r-md)', lineHeight: 1.4 }}>
-                Seed: {seed}
-              </div>
+              <div className="fnd-seedbox">Seed: {seed}</div>
             )}
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button className="btn sm" disabled={isBusy || !depMet} onClick={() => runStep(currentStep.id as DocStepId)}>
@@ -393,11 +380,11 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
               </button>
             </div>
             <textarea
+              className="ta mono"
               value={text[currentStep.id as DocStepId]}
               onChange={(e) => setStep(currentStep.id as DocStepId, e.target.value)}
               rows={12}
               placeholder={!depMet ? (currentStep.id === 'concept' ? 'Enter a seed above first.' : 'Generate the Concept step first.') : 'Click Generate, or write directly here.'}
-              style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 12, lineHeight: 1.55, fontFamily: 'var(--mono)', resize: 'vertical' }}
             />
           </div>
         )
@@ -405,9 +392,9 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
 
       case 'outline':
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text-3)', cursor: 'pointer' }}>
+          <div className="fnd-step">
+            <div className="fnd-row">
+              <label className="fnd-check sm">
                 <input type="checkbox" checked={autoGate} onChange={(e) => setAutoGate(e.target.checked)} />
                 Auto-score &amp; revise
               </label>
@@ -418,8 +405,7 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
                 </button>
               )}
               {text.outline.trim() && (
-                <button className="btn sm" disabled={isBusy} onClick={scaffoldAndDraft}
-                  style={{ background: 'var(--accent)', color: 'var(--accent-fg)', borderColor: 'transparent' }}>
+                <button className="btn sm primary" disabled={isBusy} onClick={scaffoldAndDraft}>
                   {sending ? 'Scaffolding…' : 'Scaffold → draft'}
                 </button>
               )}
@@ -429,7 +415,7 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
             </div>
 
             {gate && (
-              <div style={{ padding: '8px 10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border)', background: 'var(--bg-2)', fontSize: 12, lineHeight: 1.55 }}>
+              <div className="fnd-gate">
                 <span style={{ fontWeight: 600, color: gate.verdict === 'pass' ? 'var(--success)' : 'var(--st-idea)' }}>
                   {gate.overall}/100 · {gate.verdict === 'pass' ? 'pass' : 'needs work'}
                 </span>
@@ -440,20 +426,20 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
             )}
 
             <textarea
+              className="ta mono"
               value={text.outline}
               onChange={(e) => setStep('outline', e.target.value)}
               rows={10}
               placeholder={!text.concept.trim() ? 'Generate the Concept step first.' : 'Click Generate, or write directly here.'}
-              style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 12, lineHeight: 1.55, fontFamily: 'var(--mono)', resize: 'vertical' }}
             />
           </div>
         )
 
       case 'voice':
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 12, color: 'var(--text-3)', flex: 1 }}>
+          <div className="fnd-step">
+            <div className="fnd-row">
+              <span style={{ fontSize: 'var(--t-sm)', color: 'var(--text-3)', flex: 1 }}>
                 Derived from your manuscript prose, or from the concept if no prose exists yet. Injected into every AI call.
               </span>
               <button className="btn sm" disabled={isBusy} onClick={runVoice}>
@@ -464,18 +450,18 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
               </button>
             </div>
             <textarea
+              className="ta mono"
               value={voice}
               onChange={(e) => { setVoice(e.target.value); setVoiceSaved(false) }}
               rows={12}
               placeholder="Click Generate, or paste your own style guide here."
-              style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 12, lineHeight: 1.55, fontFamily: 'var(--mono)', resize: 'vertical' }}
             />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-2)', cursor: 'pointer' }}>
+            <div className="fnd-checks">
+              <label className="fnd-check">
                 <input type="checkbox" checked={addToCodex} onChange={(e) => setAddToCodex(e.target.checked)} />
                 Add cast to Codex when sending to project
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-2)', cursor: 'pointer' }}>
+              <label className="fnd-check">
                 <input type="checkbox" checked={addCanon} onChange={(e) => setAddCanon(e.target.checked)} />
                 Add world to Codex (canon) when sending to project
               </label>
@@ -501,31 +487,22 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
         <div className="modal-hd" style={{ flexDirection: 'column', gap: 10, paddingBottom: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
             <h3 style={{ margin: 0 }}>Foundation</h3>
-            <span style={{ fontSize: 12, color: 'var(--text-3)', marginLeft: 10 }}>{currentStep.sub}</span>
+            <span className="sub">{currentStep.sub}</span>
             <span className="tb-spacer" />
-            <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 18, padding: '0 4px', lineHeight: 1 }}>×</button>
+            <button className="modal-x" onClick={onClose}>×</button>
           </div>
 
           {/* Step dots */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
+          <div className="fnd-dots">
             {WIZARD_STEPS.map((s, i) => (
               <div
                 key={s.id}
                 title={s.title}
-                style={{
-                  height: 6,
-                  width: i === stepIndex ? 24 : 6,
-                  borderRadius: 3,
-                  background: i < stepIndex ? 'var(--accent)' : i === stepIndex ? 'var(--accent)' : 'var(--border-2)',
-                  opacity: i < stepIndex ? 0.45 : 1,
-                  transition: 'all 0.2s ease',
-                  cursor: i < stepIndex ? 'pointer' : 'default',
-                  flexShrink: 0,
-                }}
+                className={`fnd-dot${i < stepIndex ? ' done' : ''}${i === stepIndex ? ' active' : ''}`}
                 onClick={() => { if (i < stepIndex) { setStepIndex(i); setError(null) } }}
               />
             ))}
-            <span style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 4 }}>
+            <span style={{ fontSize: 'var(--t-xs)', color: 'var(--text-3)', marginLeft: 4 }}>
               {currentStep.title} · {stepIndex + 1} of {WIZARD_STEPS.length}
             </span>
           </div>
@@ -534,11 +511,11 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
         {/* Step body */}
         <div className="modal-body" style={{ overflowY: 'auto', flex: 1 }}>
           {renderStep()}
-          {error && <div style={{ marginTop: 10, fontSize: 12, color: 'var(--st-idea)' }}>{error}</div>}
+          {error && <div style={{ marginTop: 10, fontSize: 'var(--t-sm)', color: 'var(--st-idea)' }}>{error}</div>}
         </div>
 
         {/* Navigation footer */}
-        <div className="modal-foot" style={{ gap: 8 }}>
+        <div className="modal-foot">
           {stepIndex > 0 && (
             <button className="btn" disabled={isBusy} onClick={goBack}>← Back</button>
           )}
@@ -554,21 +531,11 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
             </button>
           )}
           {!isLastStep ? (
-            <button
-              className="btn"
-              disabled={isBusy || !canContinue}
-              onClick={goNext}
-              style={{ background: 'var(--accent)', color: 'var(--accent-fg)', borderColor: 'transparent' }}
-            >
+            <button className="btn primary" disabled={isBusy || !canContinue} onClick={goNext}>
               Continue →
             </button>
           ) : (
-            <button
-              className="btn"
-              disabled={isBusy}
-              onClick={sendToProject}
-              style={{ background: 'var(--accent)', color: 'var(--accent-fg)', borderColor: 'transparent' }}
-            >
+            <button className="btn primary" disabled={isBusy} onClick={sendToProject}>
               {sending ? 'Sending…' : hasAnyOutput ? 'Send to project ↗' : 'Done'}
             </button>
           )}

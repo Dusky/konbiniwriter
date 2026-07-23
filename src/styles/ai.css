@@ -491,3 +491,26 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 .reg-grid-ne { display: grid; grid-template-columns: 1fr 70px; gap: 10px; }
 .reg-actions { display: flex; gap: var(--s2); align-items: center; }
 .reg-note { font-size: var(--t-xs); color: var(--text-3); line-height: 1.5; }
+
+/* ── Foundation wizard modal ── */
+.fnd-step { display: flex; flex-direction: column; gap: var(--s3); }
+.fnd-row { display: flex; align-items: center; gap: var(--s2); }
+.fnd-seeds { display: flex; flex-direction: column; gap: var(--s2); }
+.fnd-seed { text-align: left; padding: 10px var(--s3); border-radius: var(--r-md); cursor: pointer;
+  border: 0.5px solid var(--border); background: var(--bg); color: var(--text);
+  font-size: var(--t-base); line-height: 1.5; }
+.fnd-seed:hover { border-color: var(--border-2); }
+.fnd-seed.on { border-color: var(--accent); background: var(--sel-bg); }
+.fnd-seed-n { font-size: var(--t-xs); color: var(--text-3); font-family: var(--mono); margin-right: var(--s2); }
+.fnd-seedbox { font-size: var(--t-sm); color: var(--text-3); padding: 6px 10px; background: var(--bg);
+  border-radius: var(--r-md); line-height: 1.4; }
+.fnd-gate { padding: var(--s2) 10px; border-radius: var(--r-md); border: 0.5px solid var(--border);
+  background: var(--bg); font-size: var(--t-sm); line-height: 1.55; }
+.fnd-checks { display: flex; flex-direction: column; gap: var(--s1); }
+.fnd-check { display: flex; align-items: center; gap: 6px; font-size: var(--t-sm); color: var(--text-2); cursor: pointer; }
+.fnd-check.sm { font-size: var(--t-xs); color: var(--text-3); }
+.fnd-check input { accent-color: var(--accent); }
+.fnd-dots { display: flex; align-items: center; gap: 6px; width: 100%; }
+.fnd-dot { height: 6px; width: 6px; border-radius: 3px; background: var(--border-2); flex-shrink: 0; transition: all .2s ease; }
+.fnd-dot.done { background: var(--accent); opacity: .45; cursor: pointer; }
+.fnd-dot.active { background: var(--accent); width: 24px; }
