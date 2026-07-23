@@ -153,13 +153,16 @@ async function postToken(payload: Record<string, string>): Promise<OAuthTokenRes
   try {
     const res = await fetch(OAUTH_TOKEN_URL, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
       body: JSON.stringify(payload),
     })
-    const data = await res.json().catch(() => ({} as Record<string, unknown>))
+    const text = await res.text()
+    let data: Record<string, unknown> = {}
+    try { data = JSON.parse(text) } catch { /* non-JSON error body */ }
     if (!res.ok) {
-      const err = (data as { error_description?: string; error?: string })
-      return { ok: false, error: err.error_description ?? err.error ?? `HTTP ${res.status}` }
+      const err = data as { error_description?: string; error?: string }
+      const detail = [err.error, err.error_description].filter(Boolean).join(': ')
+      return { ok: false, error: `${detail || text.slice(0, 200) || 'request failed'} (HTTP ${res.status})` }
     }
     const d = data as { access_token?: string; refresh_token?: string; expires_in?: number }
     return { ok: true, accessToken: d.access_token, refreshToken: d.refresh_token, expiresIn: d.expires_in }

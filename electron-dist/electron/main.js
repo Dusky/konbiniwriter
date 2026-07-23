@@ -161,13 +161,19 @@ async function postToken(payload) {
     try {
         const res = await fetch(OAUTH_TOKEN_URL, {
             method: 'POST',
-            headers: { 'content-type': 'application/json' },
+            headers: { 'content-type': 'application/json', accept: 'application/json' },
             body: JSON.stringify(payload),
         });
-        const data = await res.json().catch(() => ({}));
+        const text = await res.text();
+        let data = {};
+        try {
+            data = JSON.parse(text);
+        }
+        catch { /* non-JSON error body */ }
         if (!res.ok) {
             const err = data;
-            return { ok: false, error: err.error_description ?? err.error ?? `HTTP ${res.status}` };
+            const detail = [err.error, err.error_description].filter(Boolean).join(': ');
+            return { ok: false, error: `${detail || text.slice(0, 200) || 'request failed'} (HTTP ${res.status})` };
         }
         const d = data;
         return { ok: true, accessToken: d.access_token, refreshToken: d.refresh_token, expiresIn: d.expires_in };

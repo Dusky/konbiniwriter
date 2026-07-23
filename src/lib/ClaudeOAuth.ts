@@ -27,15 +27,19 @@ function base64url(bytes: Uint8Array): string {
   return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
-export interface PKCE { verifier: string; challenge: string; state: string }
+export interface PKCE { verifier: string; challenge: string }
 
-/** Generate a fresh PKCE verifier/challenge and CSRF state. */
+/**
+ * Generate a fresh PKCE verifier/challenge. The Claude Code OAuth flow uses the
+ * verifier itself as the `state` value (rather than an independent random) — the
+ * token endpoint validates that, so a mismatched state is rejected as a bad
+ * request. We follow that exactly.
+ */
 export async function createPKCE(): Promise<PKCE> {
-  const rand = (n: number) => { const a = new Uint8Array(n); crypto.getRandomValues(a); return a }
-  const verifier = base64url(rand(32))
-  const state = base64url(rand(16))
+  const a = new Uint8Array(32); crypto.getRandomValues(a)
+  const verifier = base64url(a)
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))
-  return { verifier, challenge: base64url(new Uint8Array(digest)), state }
+  return { verifier, challenge: base64url(new Uint8Array(digest)) }
 }
 
 /** Authorization URL to open in the user's browser. */
@@ -48,22 +52,22 @@ export function authorizeUrl(pkce: PKCE): string {
     scope: SCOPES,
     code_challenge: pkce.challenge,
     code_challenge_method: 'S256',
-    state: pkce.state,
+    state: pkce.verifier,
   })
   return `${AUTHORIZE_URL}?${p.toString()}`
 }
 
 /**
  * Exchange the pasted authorization code for tokens and persist them. The code
- * Anthropic displays is `<code>#<state>`; the state half is optional (we fall
- * back to the PKCE state we generated).
+ * Anthropic displays is `<code>#<state>`; the state half echoes the verifier we
+ * sent, so we fall back to it if the user pasted only the code half.
  */
 export async function completeSignIn(pastedCode: string, pkce: PKCE): Promise<{ ok: boolean; error?: string }> {
   const [code, state] = pastedCode.trim().split('#')
   if (!code) return { ok: false, error: 'Paste the authorization code from the browser.' }
   const res = await window.api.oauth.exchange({
     code,
-    state: state || pkce.state,
+    state: state || pkce.verifier,
     verifier: pkce.verifier,
     redirectUri: REDIRECT_URI,
   })
