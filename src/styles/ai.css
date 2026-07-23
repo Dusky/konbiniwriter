@@ -541,3 +541,21 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
   line-height: 1.6; white-space: pre-wrap; color: var(--text-2); margin: 0; }
 .ap-progress-lbl { font-size: var(--t-base); color: var(--text-2); }
 .ap-done { font-size: var(--t-md); color: var(--text); text-align: center; padding: var(--s5) 0; }
+
+/* ── History modal ── */
+.hist-body { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4); min-height: 340px; }
+.hist-timeline { display: flex; flex-direction: column; gap: var(--s1); max-height: 400px; overflow-y: auto; }
+.hist-take { display: flex; gap: var(--s2); margin-bottom: var(--s2); flex-shrink: 0; }
+.hist-banner { display: flex; align-items: center; gap: var(--s2); background: var(--bg-3);
+  border-radius: var(--r-md); padding: var(--s2) var(--s3); margin-bottom: var(--s2);
+  font-size: var(--t-sm); flex-shrink: 0; }
+.hist-banner.err { border: 0.5px solid var(--st-idea); }
+.hist-banner-x { background: none; border: none; cursor: pointer; color: var(--text-3); padding: 0; display: flex; }
+.hist-banner-x:hover { color: var(--text); }
+.hist-day { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-3); margin: var(--s2) 0 var(--s1); }
+.hist-empty { color: var(--text-3); font-size: var(--t-sm); padding: var(--s3) 0; }
+.snap-tag { font-size: 9px; padding: 1px 5px; border-radius: 3px; text-transform: uppercase; letter-spacing: .04em;
+  background: var(--accent-soft); color: var(--text); }
+.snap-tag.auto { background: var(--bg-3); color: var(--text-3); }
+.hist-cmp { display: flex; gap: var(--s1); margin-bottom: var(--s2); }
+.hist-range { font-size: var(--t-xs); color: var(--text-3); margin-bottom: var(--s2); }

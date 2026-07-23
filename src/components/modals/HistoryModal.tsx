@@ -81,7 +81,7 @@ export default function HistoryModal({ onClose }: Props): React.ReactElement {
       <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
         <div className="modal" style={{ maxWidth: 560 }} role="dialog" aria-modal="true" aria-label="Document History">
           <div className="modal-hd"><h3>Document History</h3></div>
-          <div className="modal-body" style={{ color: 'var(--text-3)' }}>Select a document first.</div>
+          <div className="modal-body dock-empty" style={{ padding: 'var(--s4) var(--s5)' }}>Select a document first.</div>
           <div className="modal-foot"><span className="tb-spacer" /><button className="btn" onClick={onClose}>Close</button></div>
         </div>
       </div>
@@ -163,37 +163,29 @@ export default function HistoryModal({ onClose }: Props): React.ReactElement {
   }
 
   const chip = (f: Filter, text: string) => (
-    <button
-      onClick={() => setFilter(f)}
-      style={{
-        padding: '2px 10px', borderRadius: 'var(--r-full)', fontSize: 11, cursor: 'pointer',
-        border: '1px solid var(--border-2)',
-        background: filter === f ? 'var(--accent-soft)' : 'transparent',
-        color: filter === f ? 'var(--text)' : 'var(--text-3)',
-      }}
-    >{text}</button>
+    <button className={`chip${filter === f ? ' on' : ''}`} onClick={() => setFilter(f)}>{text}</button>
   )
 
   return (
     <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" role="dialog" aria-modal="true" aria-label="Document History">
-        <div className="modal-hd" style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+        <div className="modal-hd" style={{ alignItems: 'baseline', gap: 10 }}>
           <h3>Document History</h3>
           <span className="sub">{node.title}</span>
           <span className="tb-spacer" />
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div style={{ display: 'flex', gap: 'var(--s2)' }}>
             {chip('all', 'All')}
             {chip('manual', 'Manual')}
             {chip('auto', 'Auto')}
           </div>
         </div>
-        <div className="modal-body" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, minHeight: 340 }}>
+        <div className="modal-body hist-body">
           {/* Left: timeline */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 400, overflowY: 'auto' }}>
-            <div style={{ display: 'flex', gap: 6, marginBottom: 6, flexShrink: 0 }}>
+          <div className="hist-timeline">
+            <div className="hist-take">
               <input
                 className="inp"
-                style={{ flex: 1, fontSize: 12 }}
+                style={{ flex: 1 }}
                 placeholder="Snapshot name (optional)"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
@@ -204,14 +196,14 @@ export default function HistoryModal({ onClose }: Props): React.ReactElement {
               </button>
             </div>
             {error && (
-              <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-3)', border: '1px solid var(--st-idea)', borderRadius: 'var(--r-md)', padding: '8px 12px', marginBottom: 6, fontSize: 12, flexShrink: 0 }}>
+              <div role="alert" className="hist-banner err">
                 <span style={{ color: 'var(--st-idea)', display: 'flex' }}><Icon name="warning" size={14} /></span>
                 <span style={{ flex: 1, color: 'var(--text)' }}>{error}</span>
-                <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 0, display: 'flex' }}><Icon name="x" size={14} /></button>
+                <button className="hist-banner-x" onClick={() => setError(null)}><Icon name="x" size={14} /></button>
               </div>
             )}
             {confirming && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-3)', borderRadius: 'var(--r-md)', padding: '8px 12px', marginBottom: 6, fontSize: 12, flexShrink: 0 }}>
+              <div className="hist-banner">
                 <span style={{ flex: 1, color: 'var(--text-2)' }}>
                   {confirming.type === 'restore'
                     ? `Restore to version from ${relTime(confirming.snap.takenAt)}? Current text will be auto-saved to history first.`
@@ -222,15 +214,13 @@ export default function HistoryModal({ onClose }: Props): React.ReactElement {
               </div>
             )}
             {visible.length === 0 && (
-              <div style={{ color: 'var(--text-3)', fontSize: 12, padding: '12px 0' }}>
+              <div className="hist-empty">
                 No versions yet. They accrue automatically as you write, or take a manual snapshot.
               </div>
             )}
             {groups.map((g) => (
               <div key={g.label}>
-                <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-3)', margin: '8px 0 4px' }}>
-                  {g.label}
-                </div>
+                <div className="hist-day">{g.label}</div>
                 {g.items.map((snap) => {
                   const isAuto = (snap.kind ?? 'manual') === 'auto'
                   return (
@@ -242,11 +232,7 @@ export default function HistoryModal({ onClose }: Props): React.ReactElement {
                     >
                       <div className="si-main">
                         <div className="si-t" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{
-                            fontSize: 9, padding: '1px 5px', borderRadius: 3, textTransform: 'uppercase', letterSpacing: '0.04em',
-                            background: isAuto ? 'var(--bg-3)' : 'var(--accent-soft)',
-                            color: isAuto ? 'var(--text-3)' : 'var(--text)',
-                          }}>{isAuto ? 'Auto' : 'Saved'}</span>
+                          <span className={`snap-tag${isAuto ? ' auto' : ''}`}>{isAuto ? 'Auto' : 'Saved'}</span>
                           {snap.title || (isAuto ? 'Version' : 'Snapshot')}
                         </div>
                         <div className="si-m">{relTime(snap.takenAt)} · {snap.words} words</div>
@@ -263,29 +249,17 @@ export default function HistoryModal({ onClose }: Props): React.ReactElement {
           {/* Right: diff preview */}
           <div>
             {selected && (
-              <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+              <div className="hist-cmp">
+                <button className={`chip${effectiveMode === 'current' ? ' on' : ''}`} onClick={() => setCompareMode('current')}>vs. current</button>
                 <button
-                  onClick={() => setCompareMode('current')}
-                  style={{
-                    padding: '2px 9px', borderRadius: 'var(--r-full)', fontSize: 11, cursor: 'pointer', border: '1px solid var(--border-2)',
-                    background: effectiveMode === 'current' ? 'var(--accent-soft)' : 'transparent',
-                    color: effectiveMode === 'current' ? 'var(--text)' : 'var(--text-3)',
-                  }}
-                >vs. current</button>
-                <button
+                  className={`chip${effectiveMode === 'previous' ? ' on' : ''}`}
                   onClick={() => setCompareMode('previous')}
                   disabled={!predecessor}
                   title={predecessor ? 'Compare with the previous version' : 'This is the oldest version'}
-                  style={{
-                    padding: '2px 9px', borderRadius: 'var(--r-full)', fontSize: 11, cursor: predecessor ? 'pointer' : 'not-allowed',
-                    border: '1px solid var(--border-2)', opacity: predecessor ? 1 : 0.4,
-                    background: effectiveMode === 'previous' ? 'var(--accent-soft)' : 'transparent',
-                    color: effectiveMode === 'previous' ? 'var(--text)' : 'var(--text-3)',
-                  }}
                 >vs. previous</button>
               </div>
             )}
-            <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 8 }}>
+            <div className="hist-range">
               {selected
                 ? `${oldLabel} (${oldWords}w) → ${newLabel} (${newWords}w)`
                 : 'Select a version to compare with the current text'}
@@ -302,7 +276,7 @@ export default function HistoryModal({ onClose }: Props): React.ReactElement {
           </div>
         </div>
         <div className="modal-foot">
-          <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
+          <span className="hint">
             {snapshots.length} version{snapshots.length !== 1 ? 's' : ''} · auto-saved as you write
           </span>
           <span className="tb-spacer" />
