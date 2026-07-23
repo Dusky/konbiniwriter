@@ -242,7 +242,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
           </Row>
 
           <Row label="Provider">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div className="ai-col">
               <div className="seg" style={{ flexWrap: 'wrap' }}>
                 {(Object.keys(AI_SERVICES) as AIService[]).map((id) => (
                   <button key={id} className={service === id ? 'on' : ''} onClick={() => setService(id)}>
@@ -257,14 +257,13 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
           {service === 'agent' ? (
             <>
               <Row label="Preset">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div className="ai-col">
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {AGENT_PRESETS.map((p) => (
                       <button
                         key={p.label}
-                        className="btn"
+                        className={`btn preset${agentCommand === p.cmd ? ' on' : ''}`}
                         title={p.note}
-                        style={{ fontSize: 12, padding: '4px 10px', background: agentCommand === p.cmd ? 'var(--accent)' : undefined, color: agentCommand === p.cmd ? 'var(--accent-fg)' : undefined, borderColor: agentCommand === p.cmd ? 'transparent' : undefined }}
                         onClick={() => setAgentCommand(p.cmd)}
                       >
                         {p.label}
@@ -272,12 +271,12 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                     ))}
                   </div>
                   <div className="ai-hint">
-                    Claude Code asks before editing files; the <b>auto-edit</b> preset passes the flag that lets it write headlessly. A bare <code style={{ fontFamily: 'var(--mono)' }}>claude -p</code> would only reply.
+                    Claude Code asks before editing files; the <b>auto-edit</b> preset passes the flag that lets it write headlessly. A bare <code className="kbd">claude -p</code> would only reply.
                   </div>
                 </div>
               </Row>
               <Row label="Command">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div className="ai-col">
                   <input
                     value={agentCommand}
                     onChange={(e) => setAgentCommand(e.target.value)}
@@ -291,14 +290,14 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
               </Row>
               <Row label="How it writes">
                 <div className="ai-warn">
-                  <Icon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} /> The local agent edits your project's files <b>directly on disk</b>. Its changes <b>do not go through Changeset review</b> — unlike Konbini's own AI, they apply immediately, not after you approve them. Your safety net is after-the-fact: every save is snapshot-protected and any file the agent changes is backed up to a <code style={{ fontFamily: 'var(--mono)' }}>.conflict</code> file, and Konbini reloads the project when the agent finishes. Point this at a tool you trust.
+                  <Icon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} /> The local agent edits your project's files <b>directly on disk</b>. Its changes <b>do not go through Changeset review</b> — unlike Konbini's own AI, they apply immediately, not after you approve them. Your safety net is after-the-fact: every save is snapshot-protected and any file the agent changes is backed up to a <code className="kbd">.conflict</code> file, and Konbini reloads the project when the agent finishes. Point this at a tool you trust.
                 </div>
               </Row>
             </>
           ) : service === 'claude' ? (
             <>
               <Row label="Sign in with">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div className="ai-col">
                   <div className="seg">
                     <button className={anthropicAuthMode === 'key' ? 'on' : ''} onClick={() => setAnthropicAuthMode('key')}>API key</button>
                     <button className={anthropicAuthMode === 'oauth' ? 'on' : ''} onClick={() => setAnthropicAuthMode('oauth')}>Claude subscription</button>
@@ -313,7 +312,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
 
               {anthropicAuthMode === 'key' ? (
                 <Row label="API Key">
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div className="ai-col">
                     <div style={{ display: 'flex', gap: 8 }}>
                       <input
                         type="password"
@@ -327,8 +326,8 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                         {validating ? 'Checking…' : anthropicKeyValidated ? '✓ Valid' : 'Validate'}
                       </button>
                     </div>
-                    {anthropicKeyError && <div style={{ fontSize: 11, color: 'var(--danger)' }}>{anthropicKeyError}</div>}
-                    {anthropicKeyValidated && <div style={{ fontSize: 11, color: 'var(--success)' }}>Key validated successfully.</div>}
+                    {anthropicKeyError && <div className="msg-err">{anthropicKeyError}</div>}
+                    {anthropicKeyValidated && <div className="msg-ok">Key validated successfully.</div>}
                     <div className="ai-hint">Stored in localStorage only — never written to project files.</div>
                   </div>
                 </Row>
@@ -347,7 +346,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                           {pkce ? 'Reopen sign-in page' : 'Sign in with Claude'}
                         </button>
                         {pkce && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          <div className="ai-col">
                             <div className="ai-hint">
                               Authorize in the browser, then paste the code Anthropic shows you here:
                             </div>
@@ -365,7 +364,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                             </div>
                           </div>
                         )}
-                        {oauthError && <div style={{ fontSize: 11, color: 'var(--danger)' }}>{oauthError}</div>}
+                        {oauthError && <div className="msg-err">{oauthError}</div>}
                       </>
                     )}
                     <div className="ai-hint">Tokens stored in localStorage only — never written to project files.</div>
@@ -387,8 +386,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                       {CUSTOM_PRESETS.map((p) => (
                         <button
                           key={p.label}
-                          className="btn"
-                          style={{ fontSize: 12, padding: '4px 10px', background: openaiBaseUrl === p.url ? 'var(--accent)' : undefined, color: openaiBaseUrl === p.url ? 'var(--accent-fg)' : undefined, borderColor: openaiBaseUrl === p.url ? 'transparent' : undefined }}
+                          className={`btn preset${openaiBaseUrl === p.url ? ' on' : ''}`}
                           onClick={() => { setOpenaiBaseUrl(p.url); setOpenaiModel(p.exampleModel); setOpenaiTested(false) }}
                         >
                           {p.label}
@@ -403,7 +401,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                       placeholder="https://api.openai.com/v1"
                       className="ai-inp mono"
                     />
-                    <div className="ai-hint" style={{ marginTop: 4 }}>Any provider with an OpenAI-compatible <code style={{ fontFamily: 'var(--mono)', background: 'var(--bg-2)', padding: '1px 4px', borderRadius: 3 }}>/chat/completions</code> endpoint.</div>
+                    <div className="ai-hint" style={{ marginTop: 4 }}>Any provider with an OpenAI-compatible <code className="kbd">/chat/completions</code> endpoint.</div>
                   </Row>
                 </>
               ) : (
@@ -438,12 +436,12 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                       {validating ? 'Testing…' : openaiTested ? '✓ OK' : 'Test'}
                     </button>
                   </div>
-                  {openaiTestError && <div style={{ fontSize: 11, color: 'var(--danger)' }}>{openaiTestError}</div>}
-                  {openaiTested && <div style={{ fontSize: 11, color: 'var(--success)' }}>Endpoint reachable.</div>}
+                  {openaiTestError && <div className="msg-err">{openaiTestError}</div>}
+                  {openaiTested && <div className="msg-ok">Endpoint reachable.</div>}
                   {CUSTOM_PRESETS.find((p) => p.url === openaiBaseUrl && !p.keyRequired) && (
                     <div className="ai-hint">
                       Local server — make sure it's running and has CORS enabled{' '}
-                      {openaiBaseUrl.includes('11434') && <>(Ollama: <code style={{ fontFamily: 'var(--mono)', background: 'var(--bg-2)', padding: '1px 4px', borderRadius: 3 }}>OLLAMA_ORIGINS=* ollama serve</code>)</>}.
+                      {openaiBaseUrl.includes('11434') && <>(Ollama: <code className="kbd">OLLAMA_ORIGINS=* ollama serve</code>)</>}.
                     </div>
                   )}
                 </div>
@@ -514,7 +512,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
           </Row>
 
           <Row label="Custom instructions">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div className="ai-col">
               <textarea
                 value={globalInstrDraft}
                 onChange={(e) => setGlobalInstrDraft(e.target.value)}
@@ -530,7 +528,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
           </Row>
 
           <Row label="Project notes">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div className="ai-col">
               <textarea
                 value={projectInstrDraft}
                 onChange={(e) => setProjectInstrDraft(e.target.value)}
@@ -544,7 +542,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                 style={{ background: project ? undefined : 'var(--bg-3)', opacity: project ? 1 : 0.6 }}
               />
               <div className="ai-hint">
-                Saved with this project's <code style={{ fontFamily: 'var(--mono)' }}>.konbini</code> bundle and travels with it. Combined with the global instructions above.
+                Saved with this project's <code className="kbd">.konbini</code> bundle and travels with it. Combined with the global instructions above.
               </div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginTop: 2 }}>
                 <input type="checkbox" checked={aiMemoryEnabled} onChange={(e) => setAiMemoryEnabled(e.target.checked)} style={{ accentColor: 'var(--accent)', width: 15, height: 15 }} />
