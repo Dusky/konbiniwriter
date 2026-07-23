@@ -3,8 +3,9 @@ import { useProjectStore } from '../../store/projectStore'
 import { useShellStore } from '../../store/shellStore'
 import { useAIStore } from '../../store/aiStore'
 import { streamCompletion, type AIMessage } from '../../lib/AIClient'
-import { buildContext, renderContext } from '../../lib/ContextBuilder'
+import { buildContext, renderContext, estimateTokens } from '../../lib/ContextBuilder'
 import ConfirmDialog from '../common/ConfirmDialog'
+import type { Project } from '@shared/types'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -89,6 +90,59 @@ function CopyButton({ text }: { text: string }): React.ReactElement {
   )
 }
 
+// ── Attached files (extra chat context) ──────────────────────────────────────
+
+// Soft cap on tokens contributed by user-attached files, so pinning several
+// long chapters can't blow the model's window. The active document's own
+// context is budgeted separately by ContextBuilder.
+const ATTACH_TOKEN_CAP = 20_000
+
+interface AttachedFile { id: string; title: string; tokens: number; truncated: boolean; included: boolean }
+interface AttachedRender { text: string; totalTokens: number; files: AttachedFile[] }
+
+// Assemble the attached documents into a single prompt section, filling up to
+// ATTACH_TOKEN_CAP in attach order. Files past the cap are marked not-included
+// so the UI can show they were dropped.
+function renderAttachedFiles(project: Project, ids: string[]): AttachedRender {
+  const files: AttachedFile[] = []
+  const chunks: string[] = []
+  let used = 0
+  for (const id of ids) {
+    const node = project.nodes[id]
+    if (!node) continue
+    const content = (project.docs[id]?.content ?? '').trim()
+    if (!content) { files.push({ id, title: node.title, tokens: 0, truncated: false, included: false }); continue }
+    const remaining = ATTACH_TOKEN_CAP - used
+    if (remaining <= 0) { files.push({ id, title: node.title, tokens: estimateTokens(content), truncated: false, included: false }); continue }
+    const full = estimateTokens(content)
+    let body = content
+    let truncated = false
+    if (full > remaining) {
+      body = content.slice(0, Math.max(0, Math.floor(content.length * (remaining / full))))
+      truncated = true
+    }
+    const tokens = estimateTokens(body)
+    used += tokens
+    chunks.push(`## ${node.title}${truncated ? ' (truncated)' : ''}\n${body}`)
+    files.push({ id, title: node.title, tokens, truncated, included: true })
+  }
+  const text = chunks.length ? `The author has attached these files for reference:\n\n${chunks.join('\n\n')}` : ''
+  return { text, totalTokens: used, files }
+}
+
+// Pill styling for a context chip. `auto` marks the active-document chip, which
+// is accent-tinted and has no remove control.
+function chipStyle(auto: boolean): React.CSSProperties {
+  return {
+    display: 'inline-flex', alignItems: 'center', gap: 2,
+    fontSize: 11, padding: '2px 8px', borderRadius: 10, maxWidth: 160,
+    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+    border: '1px solid var(--border-2)',
+    background: auto ? 'var(--accent)' : 'var(--bg-2)',
+    color: auto ? 'var(--accent-fg)' : 'var(--text-2)',
+  }
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function AssistantPanel(): React.ReactElement {
@@ -122,6 +176,20 @@ export default function AssistantPanel(): React.ReactElement {
     ? buildContext(project, mentionIndex, selectedId, 'chat')
     : null
   const hasContext = (contextPacket?.totalTokens ?? 0) > 0
+
+  // User-attached files pinned into the chat context (session-scoped, cleared
+  // when the project changes). The active document is included automatically
+  // above; these are additional references the author chooses.
+  const [attachedIds, setAttachedIds] = useState<string[]>([])
+  useEffect(() => { setAttachedIds([]) }, [project?.id])
+  // The active document is already the automatic context — don't double-count it
+  // if it's also pinned (it stays in attachedIds, just hidden while active).
+  const attached = project
+    ? renderAttachedFiles(project, attachedIds.filter((id) => id !== selectedId))
+    : { text: '', totalTokens: 0, files: [] as AttachedFile[] }
+  const addableDocs = project
+    ? Object.values(project.nodes).filter((n) => n.type !== 'folder' && n.id !== selectedId && !attachedIds.includes(n.id))
+    : []
 
   // Load persisted threads on project mount, with one-time migration from
   // the legacy per-document localStorage keys (`chat:<projectId>:<nodeId>`).
@@ -200,9 +268,10 @@ export default function AssistantPanel(): React.ReactElement {
 
   function buildSystemPrompt(): string {
     const base = 'You are a creative writing assistant. Help the author with story questions, character development, plot, prose, and craft. Be specific and direct.'
-    if (!contextPacket) return base
-    const ctx = renderContext(contextPacket)
-    return ctx ? `${base}\n\n${ctx}` : base
+    const parts = [base]
+    if (contextPacket) { const ctx = renderContext(contextPacket); if (ctx) parts.push(ctx) }
+    if (attached.text) parts.push(attached.text)
+    return parts.join('\n\n')
   }
 
   async function send() {
@@ -311,6 +380,46 @@ export default function AssistantPanel(): React.ReactElement {
           <button className="btn sm" onClick={() => setConfirmClear(true)}>Clear</button>
         )}
       </div>
+
+      {project && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, padding: '6px 14px', borderBottom: '0.5px solid var(--border)', background: 'var(--bg)' }}>
+          <span style={{ fontSize: 11, color: 'var(--text-3)', flexShrink: 0 }}>Context</span>
+          {hasContext && contextLabel && (
+            <span title="Active document — included automatically" style={chipStyle(true)}>
+              {contextLabel}
+            </span>
+          )}
+          {attached.files.map((f) => (
+            <span
+              key={f.id}
+              title={f.included ? `${f.tokens.toLocaleString()} tok${f.truncated ? ' · truncated to fit' : ''}` : 'Skipped — attachment budget full'}
+              style={{ ...chipStyle(false), opacity: f.included ? 1 : 0.5 }}
+            >
+              {f.title}{f.truncated ? ' ✂' : ''}
+              <button
+                className="linkish"
+                onClick={() => setAttachedIds((ids) => ids.filter((x) => x !== f.id))}
+                aria-label={`Remove ${f.title} from context`}
+                title="Remove from context"
+                style={{ display: 'inline-flex', alignItems: 'center', color: 'var(--text-3)', fontSize: 13, lineHeight: 1, marginLeft: 2 }}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+          {addableDocs.length > 0 && (
+            <select
+              value=""
+              onChange={(e) => { if (e.target.value) setAttachedIds((ids) => [...ids, e.target.value]) }}
+              title="Attach another file to the chat context"
+              style={{ fontSize: 11, padding: '2px 6px', borderRadius: 10, border: '1px dashed var(--border-2)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer' }}
+            >
+              <option value="">+ Add file</option>
+              {addableDocs.map((n) => <option key={n.id} value={n.id}>{n.title}</option>)}
+            </select>
+          )}
+        </div>
+      )}
 
       {confirmClear && (
         <ConfirmDialog

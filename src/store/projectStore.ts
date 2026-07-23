@@ -8,6 +8,8 @@ import { statsService } from '../lib/StatsService'
 interface ProjectState {
   project: Project | null
   selectedId: ID | null
+  /** Documents open as editor tabs, in tab order. selectedId is the active tab. */
+  openTabs: ID[]
   splitId: ID | null
   splitOpen: boolean
   view: ViewMode
@@ -36,6 +38,8 @@ interface ProjectState {
 
   // — selection & view —
   selectNode: (id: ID | null) => void
+  /** Close an open editor tab; if it was active, activate a neighbour. */
+  closeTab: (id: ID) => void
   setSplitId: (id: ID | null) => void
   toggleSplit: () => void
   setView: (v: ViewMode) => void
@@ -147,6 +151,7 @@ const EMPTY_INDEX: MentionIndex = { aliasToDocIds: new Map(), docToAliases: new 
 export const useProjectStore = create<ProjectState>((set, get) => ({
   project: null,
   selectedId: null,
+  openTabs: [],
   splitId: null,
   splitOpen: false,
   view: 'editor',
@@ -178,6 +183,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     set({
       project,
       selectedId: null,
+      openTabs: [],
       view: 'editor',
       saveStatus: 'saved',
       renamingId: null,
@@ -204,7 +210,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
   unloadProject: () => {
     useShellStore.getState().setRailPanel('inspector')
-    set({ project: null, selectedId: null, mentionIndex: EMPTY_INDEX, codex: [], debt: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], nodeFuture: [], judgeResults: new Map(), sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, autopilotPreset: [], focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null })
+    set({ project: null, selectedId: null, openTabs: [], mentionIndex: EMPTY_INDEX, codex: [], debt: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], nodeFuture: [], judgeResults: new Map(), sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, autopilotPreset: [], focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null })
   },
 
   selectNode: (id) => set((s) => {
@@ -215,7 +221,23 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const newView = node.type === 'folder'
       ? (s.view === 'editor' ? 'corkboard' : s.view)
       : 'editor'
-    return { selectedId: id, view: newView, cursor: null }
+    // Opening a document surfaces it as a tab (folders don't get tabs).
+    const openTabs = node.type !== 'folder' && !s.openTabs.includes(id)
+      ? [...s.openTabs, id]
+      : s.openTabs
+    return { selectedId: id, view: newView, cursor: null, openTabs }
+  }),
+
+  closeTab: (id) => set((s) => {
+    const idx = s.openTabs.indexOf(id)
+    if (idx === -1) return {}
+    const openTabs = s.openTabs.filter((t) => t !== id)
+    // If the active tab closed, activate its right neighbour (else left, else none).
+    if (s.selectedId === id) {
+      const next = openTabs[idx] ?? openTabs[idx - 1] ?? null
+      return { openTabs, selectedId: next, cursor: null }
+    }
+    return { openTabs }
   }),
 
   setSplitId: (splitId) => set({ splitId }),

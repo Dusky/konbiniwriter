@@ -1,6 +1,7 @@
 import React from 'react'
 import { useProjectStore } from '../../store/projectStore'
 import Editor from './Editor'
+import TabStrip from './TabStrip'
 import Corkboard from '../views/Corkboard'
 import Outliner from '../views/Outliner'
 import Timeline from '../views/Timeline'
@@ -49,6 +50,10 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
     }
   }
 
+  // Open-document tabs belong to the single main editor (the pane that tracks
+  // the global selection). In split mode each pane has its own picker instead.
+  const tabs = !splitOpen ? <TabStrip /> : null
+
   const paneHeader = splitOpen ? (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 8,
@@ -79,6 +84,7 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
   if (!selectedId || !selectedNode) {
     return (
       <div className="main" style={{ display: 'flex', flexDirection: 'column' }}>
+        {tabs}
         {paneHeader}
         <div className="empty-state" style={{ flex: 1 }}>
           <div className="wm">✦</div>
@@ -91,6 +97,7 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
   if (selectedNode.type === 'folder') {
     return (
       <div className="main" style={{ display: 'flex', flexDirection: 'column' }}>
+        {tabs}
         {paneHeader}
         <div className="empty-state" style={{ flex: 1 }}>
           <div className="wm">📁</div>
@@ -112,6 +119,7 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
 
   return (
     <div className="main" style={{ display: 'flex', flexDirection: 'column' }}>
+      {tabs}
       {paneHeader}
       <div className="doc-bar">
         {ancestors.map((a, i) => (
