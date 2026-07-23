@@ -269,6 +269,25 @@ export default function AssistantPanel(): React.ReactElement {
     }
   }, [threads, project?.id, loaded])
 
+  // Write the current threads to disk now, cancelling any pending debounce.
+  const flushChat = React.useCallback(() => {
+    if (!project || !loaded) return
+    if (writeTimerRef.current) { clearTimeout(writeTimerRef.current); writeTimerRef.current = null }
+    window.api.aux.write(project.id, CHAT_FILE, JSON.stringify(threadsRef.current)).catch((e: Error) => useShellStore.getState().setToast('Chat history could not be saved: ' + e.message))
+  }, [project?.id, loaded])
+
+  // Persist immediately whenever a turn finishes (streaming → idle) instead of
+  // waiting out the debounce — so a completed exchange is on disk even if the
+  // app is quit right after.
+  useEffect(() => { if (!streaming) flushChat() }, [streaming, flushChat])
+
+  // Backstop: flush on window/tab close (hard quit skips React unmount).
+  useEffect(() => {
+    const onHide = () => flushChat()
+    window.addEventListener('pagehide', onHide)
+    return () => window.removeEventListener('pagehide', onHide)
+  }, [flushChat])
+
   // Flush any pending write when the project changes or the panel unmounts.
   useEffect(() => () => {
     if (writeTimerRef.current && project) {
