@@ -629,3 +629,20 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 .cs-sign.add { color: oklch(0.68 0.16 150); }
 .cs-ctx { font-family: var(--mono); font-size: var(--t-sm); color: var(--text-3);
   padding: 4px 10px; line-height: 1.5; white-space: pre-wrap; }
+
+/* ── Search modal ── */
+.srch-input { width: 100%; background: var(--bg-2); border: 0.5px solid var(--border-2);
+  border-radius: var(--r-md); padding: 9px var(--s3); font-size: var(--t-md); color: var(--text); outline: none; }
+.srch-input:focus { border-color: var(--accent); }
+.srch-body { max-height: 440px; overflow-y: auto; padding: var(--s2) 0; }
+.srch-empty { color: var(--text-3); text-align: center; padding: var(--s7) 0; font-size: var(--t-base); }
+.srch-doc { margin-bottom: var(--s1); }
+.srch-doc-hd { display: flex; align-items: center; gap: var(--s2); padding: 6px var(--s5); cursor: pointer; }
+.srch-doc-hd.on { background: var(--bg-3); }
+.srch-doc-title { font-size: var(--t-base); font-weight: 600; color: var(--text); }
+.srch-doc-title.match { color: var(--accent); }
+.srch-hit { display: block; width: 100%; text-align: left; border: none; cursor: pointer;
+  padding: 5px 20px 5px 30px; background: transparent; }
+.srch-hit.on { background: var(--bg-2); }
+.srch-hit-txt { font-size: var(--t-sm); color: var(--text-2); line-height: 1.5; font-family: var(--mono); word-break: break-word; }
+.srch-hit-txt mark { background: var(--accent-soft); color: var(--text); border-radius: 2px; padding: 0 1px; }

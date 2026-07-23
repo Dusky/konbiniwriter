@@ -115,40 +115,32 @@ export default function SearchModal({ onClose }: Props): React.ReactElement {
         <div className="modal-hd" style={{ paddingBottom: 0 }}>
           <input
             ref={inputRef}
-            className="search-input"
+            className="srch-input"
             placeholder="Search project…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKey}
-            style={{
-              width: '100%', background: 'var(--bg-2)', border: '1px solid var(--border-2)',
-              borderRadius: 'var(--r-md)', padding: '9px 12px', fontSize: 14, color: 'var(--text)', outline: 'none',
-            }}
           />
         </div>
-        <div ref={listRef} className="modal-body" style={{ maxHeight: 440, overflowY: 'auto', padding: '8px 0' }}>
+        <div ref={listRef} className="modal-body srch-body">
           {query.trim().length < 2 ? (
-            <div style={{ color: 'var(--text-3)', textAlign: 'center', padding: '40px 0', fontSize: 13 }}>
+            <div className="srch-empty">
               Type at least 2 characters · ↑↓ to navigate · ↵ to open
             </div>
           ) : docHits.length === 0 ? (
-            <div style={{ color: 'var(--text-3)', textAlign: 'center', padding: '40px 0', fontSize: 13 }}>
+            <div className="srch-empty">
               No results for "{query.trim()}"
             </div>
           ) : docHits.map((d) => {
             const headerRowIdx = d.matches.length === 0 ? ++rowIdx : -1
             return (
-              <div key={d.nodeId} style={{ marginBottom: 4 }}>
+              <div key={d.nodeId} className="srch-doc">
                 <div
                   data-row={headerRowIdx >= 0 ? headerRowIdx : undefined}
+                  className={`srch-doc-hd${headerRowIdx === active ? ' on' : ''}`}
                   onClick={() => open({ nodeId: d.nodeId, offset: d.matches[0]?.offset ?? 0, len: d.matches.length ? query.trim().length : 0 })}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 8, padding: '6px 20px',
-                    cursor: 'pointer',
-                    background: headerRowIdx === active ? 'var(--bg-3)' : 'transparent',
-                  }}
                 >
-                  <span style={{ fontSize: 13, fontWeight: 600, color: d.titleMatch ? 'var(--accent)' : 'var(--text)' }}>
+                  <span className={`srch-doc-title${d.titleMatch ? ' match' : ''}`}>
                     {d.title}
                   </span>
                   <span className="hint">
@@ -161,17 +153,13 @@ export default function SearchModal({ onClose }: Props): React.ReactElement {
                     <button
                       key={i}
                       data-row={idx}
+                      className={`srch-hit${idx === active ? ' on' : ''}`}
                       onClick={() => open({ nodeId: d.nodeId, offset: m.offset, len: query.trim().length })}
                       onMouseEnter={() => setActive(idx)}
-                      style={{
-                        display: 'block', width: '100%', textAlign: 'left', border: 'none',
-                        padding: '5px 20px 5px 30px', cursor: 'pointer',
-                        background: idx === active ? 'var(--bg-2)' : 'transparent',
-                      }}
                     >
-                      <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5, fontFamily: 'var(--mono)', wordBreak: 'break-word' }}>
+                      <div className="srch-hit-txt">
                         {m.pre}
-                        <mark style={{ background: 'var(--accent-soft)', color: 'var(--text)', borderRadius: 2, padding: '0 1px' }}>{m.mid}</mark>
+                        <mark>{m.mid}</mark>
                         {m.post}
                       </div>
                     </button>
@@ -182,7 +170,7 @@ export default function SearchModal({ onClose }: Props): React.ReactElement {
           })}
         </div>
         <div className="modal-foot">
-          <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
+          <span className="hint">
             {totalMatches > 0 ? `${totalMatches} match${totalMatches !== 1 ? 'es' : ''} in ${docHits.length} doc${docHits.length !== 1 ? 's' : ''}` : ''}
           </span>
           <span className="tb-spacer" />
