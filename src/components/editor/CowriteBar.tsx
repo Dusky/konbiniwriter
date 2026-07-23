@@ -130,145 +130,68 @@ export default function CowriteBar({ docId, selection, selRange, anchorRect, onC
   if (!enabled) return <></>
 
   return (
-    <div style={{ position: 'fixed', top, left, zIndex: 1000 }}>
+    <div className="cw" style={{ top, left }}>
       {/* Button bar */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 4,
-          background: 'var(--bg)',
-          border: '1px solid var(--border-2)',
-          borderRadius: hasPanel ? '8px 8px 0 0' : 8,
-          padding: '4px 6px',
-          boxShadow: 'var(--shadow)',
-        }}
-        onMouseDown={(e) => e.preventDefault()}
-      >
+      <div className={`cw-bar${hasPanel ? ' open' : ''}`} onMouseDown={(e) => e.preventDefault()}>
         {COWRITE_COMMANDS.map((cmd) => (
           <button
             key={cmd.id}
+            className={`cw-cmd${running === cmd.id ? ' on' : ''}${running && running !== cmd.id ? ' dim' : ''}`}
             onClick={() => handleCommand(cmd.id)}
             disabled={running !== null}
-            style={{
-              padding: '3px 10px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
-              background: running === cmd.id ? 'var(--accent)' : 'transparent',
-              color: running === cmd.id ? 'var(--accent-fg)' : 'var(--text)',
-              fontSize: 12, cursor: running ? 'default' : 'pointer',
-              opacity: running && running !== cmd.id ? 0.5 : 1,
-            }}
           >
             {running === cmd.id ? '…' : cmd.label}
           </button>
         ))}
         {running && (
-          <button onClick={handleStop} style={{ padding: '3px 8px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--danger)', fontSize: 12, cursor: 'pointer' }}>
-            Stop
-          </button>
+          <button className="cw-stop" onClick={handleStop}>Stop</button>
         )}
         {error && (
-          <span style={{ fontSize: 11, color: 'var(--danger)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={error}>
-            {error}
-          </span>
+          <span className="cw-err" title={error}>{error}</span>
         )}
         <button
+          className={`cw-temp-btn${showTemp ? ' on' : ''}${tempOverride !== null ? ' set' : ''}`}
           onClick={() => setShowTemp(!showTemp)}
           title="Temperature override"
-          style={{ padding: '3px 7px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)', background: showTemp ? 'var(--bg-2)' : 'transparent', color: tempOverride !== null ? 'var(--accent)' : 'var(--text-3)', fontSize: 11, cursor: 'pointer' }}
         >
           T{tempOverride !== null ? `:${tempOverride.toFixed(2)}` : ''}
         </button>
-        <button onClick={() => { setPicker(null); onClose() }} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 14, padding: '0 2px' }}>×</button>
+        <button className="cw-x" onClick={() => { setPicker(null); onClose() }}>×</button>
       </div>
 
       {/* Temperature slider panel */}
       {showTemp && (
-        <div
-          style={{
-            width: 340,
-            background: 'var(--bg)',
-            border: '1px solid var(--border-2)',
-            borderTop: 'none',
-            borderRadius: picker ? 0 : '0 0 8px 8px',
-            padding: '8px 12px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-          }}
-          onMouseDown={(e) => e.preventDefault()}
-        >
-          <span style={{ fontSize: 11, color: 'var(--text-3)', flexShrink: 0, width: 80 }}>
+        <div className={`cw-panel${picker ? '' : ' last'}`} onMouseDown={(e) => e.preventDefault()}>
+          <span className="cw-temp-lbl">
             {tempOverride !== null ? `T = ${tempOverride.toFixed(2)}` : 'T = prompt default'}
           </span>
           <input
+            className="cw-temp-range"
             type="range"
             min={0}
             max={1}
             step={0.05}
             value={tempOverride ?? 0.7}
             onChange={(e) => setTempOverride(parseFloat(e.target.value))}
-            style={{ flex: 1, accentColor: 'var(--accent)', cursor: 'pointer' }}
           />
-          <button
-            onClick={() => setTempOverride(null)}
-            style={{ fontSize: 11, color: 'var(--text-3)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px' }}
-          >
-            reset
-          </button>
+          <button className="cw-reset" onClick={() => setTempOverride(null)}>reset</button>
         </div>
       )}
 
       {/* Brainstorm picker panel */}
       {picker && (
-        <div
-          style={{
-            width: 340,
-            background: 'var(--bg)',
-            border: '1px solid var(--border-2)',
-            borderTop: 'none',
-            borderRadius: '0 0 8px 8px',
-            boxShadow: 'var(--shadow)',
-            maxHeight: 300,
-            overflowY: 'auto',
-          }}
-          onMouseDown={(e) => e.preventDefault()}
-        >
+        <div className="cw-picker" onMouseDown={(e) => e.preventDefault()}>
           {picker.phase === 'streaming' ? (
-            <div style={{ padding: '10px 12px', fontSize: 12, color: 'var(--text-3)', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
+            <div className="cw-streaming">
               {picker.partial || <em>Generating alternatives…</em>}
             </div>
           ) : (
-            <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div className="cw-alts">
               {picker.alternatives.map((alt, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 8,
-                    background: 'var(--bg-2)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--r-md)',
-                    padding: '8px 10px',
-                  }}
-                >
-                  <span style={{ fontSize: 11, color: 'var(--text-3)', flexShrink: 0, marginTop: 1, fontFamily: 'var(--mono)' }}>{i + 1}</span>
-                  <span style={{ flex: 1, fontSize: 12, lineHeight: 1.55, color: 'var(--text)', whiteSpace: 'pre-wrap' }}>{alt}</span>
-                  <button
-                    onClick={() => handlePick(alt)}
-                    style={{
-                      flexShrink: 0,
-                      padding: '3px 9px',
-                      borderRadius: 'var(--r-sm)',
-                      border: 'none',
-                      background: 'var(--accent)',
-                      color: 'var(--accent-fg)',
-                      fontSize: 11,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Use
-                  </button>
+                <div key={i} className="cw-alt">
+                  <span className="cw-alt-n">{i + 1}</span>
+                  <span className="cw-alt-txt">{alt}</span>
+                  <button className="cw-use" onClick={() => handlePick(alt)}>Use</button>
                 </div>
               ))}
             </div>

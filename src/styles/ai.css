@@ -572,3 +572,40 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 .bon-elo { font-size: var(--t-xs); color: var(--text-3); font-family: var(--mono); }
 .bon-text { max-height: 130px; overflow-y: auto; font-size: var(--t-sm); line-height: 1.55;
   color: var(--text-2); white-space: pre-wrap; background: var(--bg-2); border-radius: var(--r-md); padding: var(--s2) 10px; }
+
+/* ── Co-write floating toolbar ── */
+.cw { position: fixed; z-index: 1000; }
+.cw-bar { display: flex; align-items: center; gap: 4px; background: var(--bg);
+  border: 0.5px solid var(--border-2); border-radius: 8px; padding: 4px 6px; box-shadow: var(--shadow); }
+.cw-bar.open { border-radius: 8px 8px 0 0; }
+.cw-cmd { padding: 3px 10px; border-radius: var(--r-sm); border: 0.5px solid var(--border);
+  background: transparent; color: var(--text); font-size: var(--t-sm); cursor: pointer; }
+.cw-cmd:disabled { cursor: default; }
+.cw-cmd.on { background: var(--accent); color: var(--accent-fg); }
+.cw-cmd.dim { opacity: .5; }
+.cw-stop { padding: 3px 8px; border-radius: var(--r-sm); border: 0.5px solid var(--border);
+  background: transparent; color: var(--danger); font-size: var(--t-sm); cursor: pointer; }
+.cw-err { font-size: var(--t-xs); color: var(--danger); max-width: 200px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.cw-temp-btn { padding: 3px 7px; border-radius: var(--r-sm); border: 0.5px solid var(--border);
+  background: transparent; color: var(--text-3); font-size: var(--t-xs); cursor: pointer; }
+.cw-temp-btn.on { background: var(--bg-2); }
+.cw-temp-btn.set { color: var(--accent); }
+.cw-x { background: none; border: none; color: var(--text-3); cursor: pointer; font-size: 14px; padding: 0 2px; }
+.cw-x:hover { color: var(--text); }
+.cw-panel { width: 340px; background: var(--bg); border: 0.5px solid var(--border-2); border-top: none;
+  padding: var(--s2) var(--s3); display: flex; align-items: center; gap: 10px; }
+.cw-panel.last { border-radius: 0 0 8px 8px; }
+.cw-temp-lbl { font-size: var(--t-xs); color: var(--text-3); flex-shrink: 0; width: 80px; }
+.cw-temp-range { flex: 1; accent-color: var(--accent); cursor: pointer; }
+.cw-reset { font-size: var(--t-xs); color: var(--text-3); background: none; border: none; cursor: pointer; padding: 0 4px; }
+.cw-picker { width: 340px; background: var(--bg); border: 0.5px solid var(--border-2); border-top: none;
+  border-radius: 0 0 8px 8px; box-shadow: var(--shadow); max-height: 300px; overflow-y: auto; }
+.cw-streaming { padding: 10px var(--s3); font-size: var(--t-sm); color: var(--text-3); white-space: pre-wrap; line-height: 1.5; }
+.cw-alts { padding: var(--s2); display: flex; flex-direction: column; gap: 6px; }
+.cw-alt { display: flex; align-items: flex-start; gap: var(--s2); background: var(--bg-2);
+  border: 0.5px solid var(--border); border-radius: var(--r-md); padding: var(--s2) 10px; }
+.cw-alt-n { font-size: var(--t-xs); color: var(--text-3); flex-shrink: 0; margin-top: 1px; font-family: var(--mono); }
+.cw-alt-txt { flex: 1; font-size: var(--t-sm); line-height: 1.55; color: var(--text); white-space: pre-wrap; }
+.cw-use { flex-shrink: 0; padding: 3px 9px; border-radius: var(--r-sm); border: none;
+  background: var(--accent); color: var(--accent-fg); font-size: var(--t-xs); cursor: pointer; }
