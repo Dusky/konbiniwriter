@@ -145,7 +145,7 @@ export default function DebtInboxModal({ onClose }: Props): React.ReactElement {
   return (
     <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" style={{ maxWidth: 680, maxHeight: '88vh', display: 'flex', flexDirection: 'column' }} role="dialog" aria-modal="true" aria-label="Propagation Debt">
-        <div className="modal-hd" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="modal-hd" style={{ gap: 10 }}>
           <h3>Propagation Debt</h3>
           <span className="sub">{openCount} open</span>
           <span className="tb-spacer" />
@@ -171,34 +171,25 @@ export default function DebtInboxModal({ onClose }: Props): React.ReactElement {
           )}
         </div>
 
-        <div className="modal-body" style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="modal-body debt-body">
           {checkResult && (
-            <div style={{ fontSize: 12, color: 'var(--text-2)', padding: '6px 10px', background: 'var(--bg-2)', borderRadius: 'var(--r-md)' }}>
+            <div className="debt-note">
               {checkResult}
             </div>
           )}
           {debt.length === 0 ? (
-            <div style={{ color: 'var(--text-3)', textAlign: 'center', padding: '48px 0', fontSize: 13, lineHeight: 1.6 }}>
+            <div className="debt-empty">
               No propagation debt.<br />
               When you change a Codex fact, scenes that reference that entity are flagged here for review.
             </div>
           ) : debt.map((item) => {
             const allResolved = item.affected.every((a) => a.resolved)
             return (
-              <div
-                key={item.id}
-                style={{
-                  border: '1px solid var(--border)', borderRadius: 'var(--r-md)', padding: '12px 14px',
-                  opacity: allResolved ? 0.55 : 1,
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <span style={{
-                    fontSize: 9, padding: '1px 6px', borderRadius: 3, textTransform: 'uppercase', letterSpacing: '0.05em',
-                    background: LAYER_COLOR[item.layer], color: 'var(--accent-fg)',
-                  }}>{item.layer}</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{item.title}</span>
-                  <span style={{ fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>{item.detail}</span>
+              <div key={item.id} className={`debt-item${allResolved ? ' done' : ''}`}>
+                <div className="debt-hd">
+                  <span className="debt-layer" style={{ background: LAYER_COLOR[item.layer] }}>{item.layer}</span>
+                  <span className="debt-title">{item.title}</span>
+                  <span className="debt-detail">{item.detail}</span>
                   <span style={{ flex: 1 }} />
                   <button
                     className="btn sm"
@@ -207,18 +198,18 @@ export default function DebtInboxModal({ onClose }: Props): React.ReactElement {
                   >{allResolved ? 'Clear' : 'Dismiss'}</button>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div className="debt-affected">
                   {item.affected.map((a) => {
                     const title = project?.nodes[a.docId]?.title ?? '(deleted)'
                     const key = `${item.id}:${a.docId}`
                     return (
-                      <div key={a.docId} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', borderTop: '0.5px solid var(--border)' }}>
+                      <div key={a.docId} className="debt-aff">
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 12, color: a.resolved ? 'var(--text-3)' : 'var(--text)', textDecoration: a.resolved ? 'line-through' : 'none' }}>{title}</div>
+                          <div className={`debt-aff-doc${a.resolved ? ' done' : ''}`}>{title}</div>
                           <div className="hint">{a.note}</div>
                         </div>
                         {a.resolved ? (
-                          <span style={{ fontSize: 11, color: 'var(--st-final)' }}>✓ Resolved</span>
+                          <span className="debt-resolved">✓ Resolved</span>
                         ) : (
                           <>
                             <button className="btn sm" onClick={() => openDoc(a.docId)}>Open</button>
@@ -241,7 +232,7 @@ export default function DebtInboxModal({ onClose }: Props): React.ReactElement {
               </div>
             )
           })}
-          {error && <div style={{ fontSize: 12, color: 'var(--st-idea)' }}>{error}</div>}
+          {error && <div style={{ fontSize: 'var(--t-sm)', color: 'var(--st-idea)' }}>{error}</div>}
         </div>
 
         <div className="modal-foot">
