@@ -69,6 +69,39 @@ function schedulePrefsFlush(): void {
   _prefsTimer = setTimeout(() => { _prefsTimer = null; flushPrefs() }, 250)
 }
 
+// ── Secrets at rest ───────────────────────────────────────────────────────────
+// API keys and OAuth tokens are encrypted (OS keychain via safeStorage in main)
+// before being written to prefs.json. Stored encrypted values carry a marker;
+// plaintext from an older install decrypts to itself and is re-encrypted on next
+// write. If encryption is unavailable (some Linux setups) we fall back to plaintext.
+const SECRET_SUFFIXES = [':anthropicKey', ':openaiKey', ':oauthAccessToken', ':oauthRefreshToken']
+const SAFE_PREFIX = 'safe:v1:'
+let _secretAvail: boolean | null = null
+
+function isSecret(key: string): boolean {
+  return SECRET_SUFFIXES.some((s) => key.endsWith(s))
+}
+function secretAvailable(): boolean {
+  if (_secretAvail === null) {
+    try { _secretAvail = ipcRenderer.sendSync('secret:available') === true } catch { _secretAvail = false }
+  }
+  return _secretAvail
+}
+function encryptSecret(plain: string): string {
+  if (!plain || !secretAvailable()) return plain
+  try {
+    const b64 = ipcRenderer.sendSync('secret:encrypt', plain) as string | null
+    return b64 ? SAFE_PREFIX + b64 : plain
+  } catch { return plain }
+}
+function decryptSecret(stored: string): string {
+  if (!stored.startsWith(SAFE_PREFIX)) return stored
+  try {
+    const plain = ipcRenderer.sendSync('secret:decrypt', stored.slice(SAFE_PREFIX.length)) as string | null
+    return plain ?? ''
+  } catch { return '' }
+}
+
 // Never lose the last change if the window closes before the debounce fires.
 window.addEventListener('pagehide', () => {
   if (_prefsTimer) { clearTimeout(_prefsTimer); _prefsTimer = null }
@@ -216,9 +249,13 @@ const api: KonbiniAPI = {
   prefs: {
     get: (key: string) => {
       const p = loadPrefs()
-      return Object.prototype.hasOwnProperty.call(p, key) ? p[key] : null
+      if (!Object.prototype.hasOwnProperty.call(p, key)) return null
+      return isSecret(key) ? decryptSecret(p[key]) : p[key]
     },
-    set: (key: string, value: string) => { loadPrefs()[key] = value; schedulePrefsFlush() },
+    set: (key: string, value: string) => {
+      loadPrefs()[key] = isSecret(key) ? encryptSecret(value) : value
+      schedulePrefsFlush()
+    },
     remove: (key: string) => { delete loadPrefs()[key]; schedulePrefsFlush() },
   },
 

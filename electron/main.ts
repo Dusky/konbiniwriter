@@ -5,7 +5,7 @@
 //            main lives at <app>/electron-dist/electron/main.js, so the path
 //            climbs two levels up to reach the app-root dist/.
 
-import { app, BrowserWindow, ipcMain, dialog, shell, IpcMainInvokeEvent } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, shell, safeStorage, IpcMainInvokeEvent } from 'electron'
 import * as path from 'path'
 import * as fs from 'fs'
 
@@ -126,6 +126,19 @@ ipcMain.handle('app:env', () => ({
 // Synchronous userData path — the preload needs it before the renderer's stores
 // hydrate their prefs at construction time.
 ipcMain.on('app:userDataSync', (e) => { e.returnValue = app.getPath('userData') })
+
+// ── IPC: secret encryption at rest (safeStorage) ──────────────────────────────
+// API keys and OAuth tokens are encrypted with the OS keychain before they touch
+// prefs.json. Synchronous because the prefs layer hydrates stores at construction.
+ipcMain.on('secret:available', (e) => {
+  try { e.returnValue = safeStorage.isEncryptionAvailable() } catch { e.returnValue = false }
+})
+ipcMain.on('secret:encrypt', (e, plain: string) => {
+  try { e.returnValue = safeStorage.encryptString(plain).toString('base64') } catch { e.returnValue = null }
+})
+ipcMain.on('secret:decrypt', (e, b64: string) => {
+  try { e.returnValue = safeStorage.decryptString(Buffer.from(b64, 'base64')) } catch { e.returnValue = null }
+})
 
 // ── IPC: window controls (for custom titlebar) ────────────────────────────────
 

@@ -114,6 +114,50 @@ function schedulePrefsFlush() {
         clearTimeout(_prefsTimer);
     _prefsTimer = setTimeout(() => { _prefsTimer = null; flushPrefs(); }, 250);
 }
+// ── Secrets at rest ───────────────────────────────────────────────────────────
+// API keys and OAuth tokens are encrypted (OS keychain via safeStorage in main)
+// before being written to prefs.json. Stored encrypted values carry a marker;
+// plaintext from an older install decrypts to itself and is re-encrypted on next
+// write. If encryption is unavailable (some Linux setups) we fall back to plaintext.
+const SECRET_SUFFIXES = [':anthropicKey', ':openaiKey', ':oauthAccessToken', ':oauthRefreshToken'];
+const SAFE_PREFIX = 'safe:v1:';
+let _secretAvail = null;
+function isSecret(key) {
+    return SECRET_SUFFIXES.some((s) => key.endsWith(s));
+}
+function secretAvailable() {
+    if (_secretAvail === null) {
+        try {
+            _secretAvail = electron_1.ipcRenderer.sendSync('secret:available') === true;
+        }
+        catch {
+            _secretAvail = false;
+        }
+    }
+    return _secretAvail;
+}
+function encryptSecret(plain) {
+    if (!plain || !secretAvailable())
+        return plain;
+    try {
+        const b64 = electron_1.ipcRenderer.sendSync('secret:encrypt', plain);
+        return b64 ? SAFE_PREFIX + b64 : plain;
+    }
+    catch {
+        return plain;
+    }
+}
+function decryptSecret(stored) {
+    if (!stored.startsWith(SAFE_PREFIX))
+        return stored;
+    try {
+        const plain = electron_1.ipcRenderer.sendSync('secret:decrypt', stored.slice(SAFE_PREFIX.length));
+        return plain ?? '';
+    }
+    catch {
+        return '';
+    }
+}
 // Never lose the last change if the window closes before the debounce fires.
 window.addEventListener('pagehide', () => {
     if (_prefsTimer) {
@@ -247,9 +291,14 @@ const api = {
     prefs: {
         get: (key) => {
             const p = loadPrefs();
-            return Object.prototype.hasOwnProperty.call(p, key) ? p[key] : null;
+            if (!Object.prototype.hasOwnProperty.call(p, key))
+                return null;
+            return isSecret(key) ? decryptSecret(p[key]) : p[key];
         },
-        set: (key, value) => { loadPrefs()[key] = value; schedulePrefsFlush(); },
+        set: (key, value) => {
+            loadPrefs()[key] = isSecret(key) ? encryptSecret(value) : value;
+            schedulePrefsFlush();
+        },
         remove: (key) => { delete loadPrefs()[key]; schedulePrefsFlush(); },
     },
     aux: {
