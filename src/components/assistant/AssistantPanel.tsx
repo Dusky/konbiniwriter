@@ -158,6 +158,7 @@ function chipStyle(auto: boolean): React.CSSProperties {
 export default function AssistantPanel(): React.ReactElement {
   const project = useProjectStore((s) => s.project)
   const selectedId = useProjectStore((s) => s.selectedId)
+  const selectNode = useProjectStore((s) => s.selectNode)
   const mentionIndex = useProjectStore((s) => s.mentionIndex)
   const chatMaxTokens = useAIStore((s) => s.chatMaxTokens)
   const chatContextMessages = useAIStore((s) => s.chatContextMessages)
@@ -178,6 +179,7 @@ export default function AssistantPanel(): React.ReactElement {
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
   const [showContext, setShowContext] = useState(false)
+  const [showThreads, setShowThreads] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
   const agentAbortRef = useRef<{ abort: () => void } | null>(null)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
@@ -187,6 +189,25 @@ export default function AssistantPanel(): React.ReactElement {
 
   const key = threadKey(selectedId)
   const messages = threads[key] ?? []
+
+  // Every saved chat thread, so switching documents never hides past chats:
+  // opening one navigates to its document (or the project-wide thread).
+  const threadEntries = React.useMemo(() => {
+    return Object.entries(threads)
+      .filter(([, msgs]) => msgs.length > 0)
+      .map(([k, msgs]) => ({
+        key: k,
+        label: k === '__project__' ? 'Project-wide' : (project?.nodes[k]?.title ?? 'Deleted document'),
+        count: msgs.length,
+        preview: stripMemories(msgs[msgs.length - 1]?.content ?? '').replace(/\s+/g, ' ').slice(0, 72),
+      }))
+      .sort((a, b) => (a.key === key ? -1 : b.key === key ? 1 : a.label.localeCompare(b.label)))
+  }, [threads, project, key])
+
+  function openThread(k: string) {
+    selectNode(k === '__project__' ? null : k)
+    setShowThreads(false)
+  }
 
   const node = selectedId && project ? project.nodes[selectedId] : null
   const contextLabel = node?.type !== 'folder' && node?.title
@@ -495,6 +516,16 @@ export default function AssistantPanel(): React.ReactElement {
             </span>
           )}
         </span>
+        {threadEntries.length > 0 && (
+          <button
+            className={`linkish sm${showThreads ? ' on' : ''}`}
+            onClick={() => setShowThreads((v) => !v)}
+            title="Browse saved chats"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+          >
+            <Icon name="clock" size={13} /> Chats ({threadEntries.length})
+          </button>
+        )}
         {contextPacket && (
           <button
             className="linkish sm"
@@ -508,6 +539,20 @@ export default function AssistantPanel(): React.ReactElement {
           <button className="btn sm" onClick={() => setConfirmClear(true)}>Clear</button>
         )}
       </div>
+
+      {showThreads && (
+        <div style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--bg)', maxHeight: 260, overflowY: 'auto' }}>
+          {threadEntries.map((t) => (
+            <button key={t.key} className={`asst-thread${t.key === key ? ' on' : ''}`} onClick={() => openThread(t.key)}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.label}</span>
+                <span className="hint">{t.count} msg{t.count === 1 ? '' : 's'}</span>
+              </div>
+              {t.preview && <div className="hint" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>{t.preview}</div>}
+            </button>
+          ))}
+        </div>
+      )}
 
       {agentActive && (
         <div style={{ padding: '6px 14px', borderBottom: '0.5px solid var(--border)', background: 'oklch(0.22 0.05 20)', fontSize: 11, color: 'var(--st-idea)', lineHeight: 1.4 }}>

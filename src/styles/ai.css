@@ -396,3 +396,10 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 .ai-ta:focus { outline: none; border-color: var(--accent); }
 .ai-warn { padding: var(--s3); border-radius: var(--r-md); border: 1px solid var(--st-idea);
   background: oklch(0.22 0.05 20); font-size: var(--t-sm); color: var(--st-idea); line-height: 1.55; }
+
+/* Saved-chat thread list (assistant header → Chats) */
+.asst-thread { display: block; width: 100%; text-align: left; border: 0; cursor: pointer;
+  background: transparent; color: var(--text); padding: var(--s2) var(--s3);
+  border-bottom: 0.5px solid var(--border); }
+.asst-thread:hover { background: var(--bg-2); }
+.asst-thread.on { background: var(--accent-soft); }
