@@ -18,36 +18,22 @@ function HunkRow({
   onToggle: () => void
 }) {
   return (
-    <div style={{ margin: '6px 0', border: '1px solid var(--border-2)', borderRadius: 'var(--r-md)', overflow: 'hidden' }}>
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 10,
-        padding: '5px 10px', background: 'var(--bg-2)',
-        borderBottom: '0.5px solid var(--border)',
-        fontSize: 11, color: 'var(--text-2)',
-      }}>
+    <div className="cs-hunk">
+      <div className="cs-hunk-hd">
         <span style={{ flex: 1 }}>Hunk {seg.idx + 1}</span>
-        <button
-          onClick={onToggle}
-          style={{
-            padding: '2px 10px', borderRadius: 'var(--r-sm)', border: '1px solid',
-            fontSize: 11, cursor: 'pointer',
-            background: accepted ? 'var(--accent)' : 'transparent',
-            borderColor: accepted ? 'var(--accent)' : 'var(--border-2)',
-            color: accepted ? 'var(--accent-fg)' : 'var(--text-2)',
-          }}
-        >
+        <button className={`cs-hunk-toggle${accepted ? ' on' : ''}`} onClick={onToggle}>
           {accepted ? '✓ Accept' : 'Reject'}
         </button>
       </div>
-      <div style={{ fontFamily: 'var(--mono)', fontSize: 12, lineHeight: 1.6 }}>
+      <div className="cs-lines">
         {seg.del.map((line, i) => (
-          <div key={`d${i}`} style={{ padding: '1px 10px', background: 'color-mix(in oklch, var(--danger) 12%, var(--bg))', color: 'var(--text)', textDecoration: accepted ? 'line-through' : 'none', opacity: accepted ? 0.5 : 1 }}>
-            <span style={{ color: 'var(--danger)', marginRight: 6, userSelect: 'none' }}>−</span>{line || ' '}
+          <div key={`d${i}`} className={`cs-line del${accepted ? ' struck' : ''}`}>
+            <span className="cs-sign del">−</span>{line || ' '}
           </div>
         ))}
         {seg.add.map((line, i) => (
-          <div key={`a${i}`} style={{ padding: '1px 10px', background: 'color-mix(in oklch, oklch(0.60 0.14 150) 12%, var(--bg))', color: 'var(--text)' }}>
-            <span style={{ color: 'oklch(0.68 0.16 150)', marginRight: 6, userSelect: 'none' }}>+</span>{line || ' '}
+          <div key={`a${i}`} className="cs-line add">
+            <span className="cs-sign add">+</span>{line || ' '}
           </div>
         ))}
       </div>
@@ -87,27 +73,24 @@ export default function ChangesetModal({ proposal, onApply, onDiscard }: Props):
         <div className="modal-hd">
           <div>
             <h3 style={{ margin: 0 }}>{proposal.label}</h3>
-            <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 3 }}>
+            <div className="cs-sub">
               {proposal.docTitle} · {nTotal} hunk{nTotal !== 1 ? 's' : ''} · {nAccepted} accepted
             </div>
           </div>
           <span className="tb-spacer" />
           <div style={{ display: 'flex', gap: 6 }}>
-            <button className="btn" onClick={acceptAll} style={{ fontSize: 11 }}>Accept All</button>
-            <button className="btn" onClick={rejectAll} style={{ fontSize: 11 }}>Reject All</button>
+            <button className="btn" onClick={acceptAll}>Accept All</button>
+            <button className="btn" onClick={rejectAll}>Reject All</button>
           </div>
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '10px 20px' }}>
+        <div className="cs-body">
           {segments.map((seg, i) => {
             if (seg.type === 'ctx') {
               const preview = seg.lines.slice(0, 3).join('\n')
               const more = seg.lines.length > 3 ? `\n… (${seg.lines.length - 3} more lines)` : ''
               return (
-                <div key={i} style={{
-                  fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--text-3)',
-                  padding: '4px 10px', lineHeight: 1.5, whiteSpace: 'pre-wrap',
-                }}>
+                <div key={i} className="cs-ctx">
                   {preview + more}
                 </div>
               )
@@ -131,12 +114,7 @@ export default function ChangesetModal({ proposal, onApply, onDiscard }: Props):
           )}
           <span className="tb-spacer" />
           <button className="btn" onClick={onDiscard}>Discard</button>
-          <button
-            className="btn"
-            onClick={handleApply}
-            style={{ background: 'var(--accent)', color: 'var(--accent-fg)', borderColor: 'transparent' }}
-            disabled={nAccepted === 0}
-          >
+          <button className="btn primary" onClick={handleApply} disabled={nAccepted === 0}>
             Apply {nAccepted > 0 ? `${nAccepted} hunk${nAccepted !== 1 ? 's' : ''}` : ''}
           </button>
         </div>
