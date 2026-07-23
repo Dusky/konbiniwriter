@@ -691,3 +691,14 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 .debt-aff-doc { font-size: var(--t-sm); color: var(--text); }
 .debt-aff-doc.done { color: var(--text-3); text-decoration: line-through; }
 .debt-resolved { font-size: var(--t-xs); color: var(--st-final); }
+
+/* ── Batch generator modal ── */
+.bg-gens { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.bg-gen { padding: 10px var(--s3); border-radius: var(--r-md); border: 0.5px solid var(--border-2);
+  background: transparent; text-align: left; cursor: pointer; }
+.bg-gen:hover { border-color: var(--border-2); }
+.bg-gen.on { border-color: var(--accent); background: var(--sel-bg); }
+.bg-gen-title { font-size: var(--t-base); font-weight: 600; color: var(--text); margin-bottom: 2px; }
+.gen-log { background: var(--bg-2); border: 0.5px solid var(--border); border-radius: var(--r-md);
+  padding: 10px var(--s3); max-height: 200px; overflow-y: auto; font-size: var(--t-sm);
+  font-family: var(--mono); line-height: 1.6; white-space: pre-wrap; color: var(--text-2); }

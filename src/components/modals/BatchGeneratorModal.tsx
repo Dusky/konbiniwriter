@@ -128,24 +128,19 @@ export default function BatchGeneratorModal({ onClose }: Props): React.ReactElem
     <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" style={{ maxWidth: 580 }} role="dialog" aria-modal="true" aria-label="Batch Generator">
         <div className="modal-hd"><h3>Batch Generators</h3></div>
-        <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="modal-body stack">
 
           {/* Generator picker */}
           <div>
-            <label style={{ fontSize: 11, color: 'var(--text-3)', display: 'block', marginBottom: 6 }}>Generator</label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+            <label className="reg-lbl">Generator</label>
+            <div className="bg-gens">
               {GENERATORS.map((g) => (
                 <button
                   key={g.id}
+                  className={`bg-gen${gen === g.id ? ' on' : ''}`}
                   onClick={() => setGen(g.id)}
-                  style={{
-                    padding: '10px 14px', borderRadius: 'var(--r-md)', border: '1px solid',
-                    borderColor: gen === g.id ? 'var(--accent)' : 'var(--border-2)',
-                    background: gen === g.id ? 'var(--sel-bg)' : 'transparent',
-                    textAlign: 'left', cursor: 'pointer',
-                  }}
                 >
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{g.label}</div>
+                  <div className="bg-gen-title">{g.label}</div>
                   <div className="hint">{g.desc}</div>
                 </button>
               ))}
@@ -154,12 +149,8 @@ export default function BatchGeneratorModal({ onClose }: Props): React.ReactElem
 
           {/* Target node */}
           <div>
-            <label style={{ fontSize: 11, color: 'var(--text-3)', display: 'block', marginBottom: 6 }}>Target document</label>
-            <select
-              value={targetId}
-              onChange={(e) => setTargetId(e.target.value)}
-              style={{ width: '100%', padding: '7px 10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13 }}
-            >
+            <label className="reg-lbl">Target document</label>
+            <select className="sel" value={targetId} onChange={(e) => setTargetId(e.target.value)}>
               {allNodes.filter((n) => n.type !== 'folder').map((n) => (
                 <option key={n.id} value={n.id}>{n.title}</option>
               ))}
@@ -169,35 +160,31 @@ export default function BatchGeneratorModal({ onClose }: Props): React.ReactElem
           {/* Synopsis override (only if needed) */}
           {selected.needsSynopsis && (
             <div>
-              <label style={{ fontSize: 11, color: 'var(--text-3)', display: 'block', marginBottom: 6 }}>
-                Synopsis / notes <span style={{ opacity: 0.6 }}>(overrides node synopsis)</span>
+              <label className="reg-lbl">
+                Synopsis / notes <span className="muted">(overrides node synopsis)</span>
               </label>
               <textarea
+                className="ta"
                 value={synopsis}
                 onChange={(e) => setSynopsis(e.target.value)}
                 rows={4}
                 placeholder={project.nodes[targetId]?.meta.synopsis || 'Add plot notes, constraints, or tone guidance…'}
-                style={{ width: '100%', padding: '7px 10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, lineHeight: 1.5, resize: 'vertical' }}
               />
             </div>
           )}
 
           {/* Quality gate (chapter drafts only) */}
           {gen === 'chapter-draft' && (
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-2)', cursor: 'pointer' }}>
+            <label className="fnd-check">
               <input type="checkbox" checked={useGate} onChange={(e) => setUseGate(e.target.checked)} />
               Quality gate — score &amp; auto-revise the draft before review
             </label>
           )}
-          {gateStatus && <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>{gateStatus}</div>}
+          {gateStatus && <div className="ap-status">{gateStatus}</div>}
 
           {/* Live output */}
-          {log && (
-            <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', padding: '10px 12px', maxHeight: 200, overflowY: 'auto', fontSize: 12, fontFamily: 'var(--mono)', lineHeight: 1.6, whiteSpace: 'pre-wrap', color: 'var(--text-2)' }}>
-              {log}
-            </div>
-          )}
-          {error && <div style={{ fontSize: 12, color: 'var(--danger)' }}>{error}</div>}
+          {log && <div className="gen-log">{log}</div>}
+          {error && <div style={{ fontSize: 'var(--t-sm)', color: 'var(--danger)' }}>{error}</div>}
         </div>
 
         <div className="modal-foot">
@@ -206,12 +193,7 @@ export default function BatchGeneratorModal({ onClose }: Props): React.ReactElem
           </span>
           <span className="tb-spacer" />
           <button className="btn" onClick={onClose} disabled={running}>Cancel</button>
-          <button
-            className="btn"
-            onClick={handleRun}
-            disabled={running || !targetId}
-            style={{ background: 'var(--accent)', color: 'var(--accent-fg)', borderColor: 'transparent' }}
-          >
+          <button className="btn primary" onClick={handleRun} disabled={running || !targetId}>
             {running ? 'Generating…' : `Run ${selected.label}`}
           </button>
         </div>
