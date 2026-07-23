@@ -462,6 +462,10 @@ class NodeProjectService {
             throw new Error(`Project not open: ${projectId}`);
         return p;
     }
+    /** Public bundle path for the open project (used to run a local agent in it). */
+    bundlePath(projectId) {
+        return this.paths.get(projectId) ?? null;
+    }
     getProject(projectId) {
         const p = this.projects.get(projectId);
         if (!p)

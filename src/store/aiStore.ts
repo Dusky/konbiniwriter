@@ -6,7 +6,7 @@ export type AIProvider = 'anthropic' | 'openai'
 // User-facing BYOK service. Claude speaks the Anthropic wire format; every other
 // service speaks the OpenAI-compatible /chat/completions format. 'custom' is the
 // escape hatch for a free-form endpoint (local servers, Groq, Together, …).
-export type AIService = 'claude' | 'chatgpt' | 'nanogpt' | 'openrouter' | 'custom'
+export type AIService = 'claude' | 'chatgpt' | 'nanogpt' | 'openrouter' | 'custom' | 'agent'
 
 // Konbini is provider-neutral BYOK: every service is a peer. Order here is just
 // the picker order — Claude is one option among many, not the default.
@@ -16,6 +16,9 @@ export const AI_SERVICES: Record<AIService, { label: string; provider: AIProvide
   nanogpt:    { label: 'NanoGPT',    provider: 'openai', url: 'https://nano-gpt.com/api/v1', exampleModel: 'chatgpt-4o-latest' },
   claude:     { label: 'Claude',     provider: 'anthropic' },
   custom:     { label: 'Custom',     provider: 'openai', url: 'https://api.openai.com/v1', exampleModel: 'gpt-4o' },
+  // A local CLI agent (opencode / Claude Code) that edits the project directly.
+  // provider is unused — chat routes to window.api.agent, not the wire APIs.
+  agent:      { label: 'Local agent', provider: 'anthropic' },
 }
 
 /** How Claude (anthropic) authenticates: a pasted API key, or a subscription via OAuth. */
@@ -90,6 +93,10 @@ interface AIState {
   // create, and propose edits across the whole project.
   aiToolsEnabled: boolean
   setAiToolsEnabled: (on: boolean) => void
+
+  // Shell command for the "Local agent" service (runs in the project folder).
+  agentCommand: string
+  setAgentCommand: (cmd: string) => void
 }
 
 const SK = 'konbini:ai'
@@ -214,4 +221,7 @@ export const useAIStore = create<AIState>((set) => ({
 
   aiToolsEnabled: load(`${SK}:aiToolsEnabled`, 'true') !== 'false',
   setAiToolsEnabled: (aiToolsEnabled) => { save(`${SK}:aiToolsEnabled`, aiToolsEnabled ? 'true' : 'false'); set({ aiToolsEnabled }) },
+
+  agentCommand: load(`${SK}:agentCommand`, 'claude -p'),
+  setAgentCommand: (agentCommand) => { save(`${SK}:agentCommand`, agentCommand); set({ agentCommand }) },
 }))

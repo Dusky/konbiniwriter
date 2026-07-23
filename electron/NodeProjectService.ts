@@ -420,6 +420,11 @@ export class NodeProjectService {
     return p
   }
 
+  /** Public bundle path for the open project (used to run a local agent in it). */
+  bundlePath(projectId: string): string | null {
+    return this.paths.get(projectId) ?? null
+  }
+
   private getProject(projectId: string): Project {
     const p = this.projects.get(projectId)
     if (!p) throw new Error(`Project not in cache: ${projectId}`)

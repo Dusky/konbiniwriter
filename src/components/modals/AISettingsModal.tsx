@@ -87,6 +87,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
     customInstructions, setCustomInstructions,
     aiMemoryEnabled, setAiMemoryEnabled,
     aiToolsEnabled, setAiToolsEnabled,
+    agentCommand, setAgentCommand,
   } = useAIStore()
 
   const project = useProjectStore((s) => s.project)
@@ -202,9 +203,11 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
     else setOauthError(res.error ?? 'Sign-in failed.')
   }
 
-  const canEnable = provider === 'anthropic'
-    ? (anthropicAuthMode === 'oauth' ? !!oauthAccessToken : anthropicKeyValidated)
-    : true
+  const canEnable = service === 'agent'
+    ? true
+    : provider === 'anthropic'
+      ? (anthropicAuthMode === 'oauth' ? !!oauthAccessToken : anthropicKeyValidated)
+      : true
 
   return (
     <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -240,7 +243,31 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
             </div>
           </Row>
 
-          {service === 'claude' ? (
+          {service === 'agent' ? (
+            <>
+              <Row label="Command">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <input
+                    value={agentCommand}
+                    onChange={(e) => setAgentCommand(e.target.value)}
+                    placeholder="claude -p"
+                    style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)', boxSizing: 'border-box' }}
+                  />
+                  <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                    Runs in your project folder with the prompt piped to stdin. Examples:{' '}
+                    <code style={{ fontFamily: 'var(--mono)' }}>claude -p</code> ·{' '}
+                    <code style={{ fontFamily: 'var(--mono)' }}>opencode run -</code> ·{' '}
+                    <code style={{ fontFamily: 'var(--mono)' }}>aider --message-file -</code>. Desktop app only.
+                  </div>
+                </div>
+              </Row>
+              <Row label="How it writes">
+                <div style={{ padding: '10px 12px', borderRadius: 6, border: '1px solid var(--st-idea)', background: 'oklch(0.22 0.05 20)', fontSize: 12, color: 'var(--st-idea)', lineHeight: 1.55 }}>
+                  ⚠ The local agent edits your project's files <b>directly on disk</b>. Its changes <b>do not go through Changeset review</b> — unlike Konbini's own AI, they apply immediately, not after you approve them. Your safety net is after-the-fact: every save is snapshot-protected and any file the agent changes is backed up to a <code style={{ fontFamily: 'var(--mono)' }}>.conflict</code> file, and Konbini reloads the project when the agent finishes. Point this at a tool you trust.
+                </div>
+              </Row>
+            </>
+          ) : service === 'claude' ? (
             <>
               <Row label="Sign in with">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

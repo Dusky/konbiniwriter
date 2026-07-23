@@ -162,7 +162,10 @@ export default function AssistantPanel(): React.ReactElement {
   const chatContextMessages = useAIStore((s) => s.chatContextMessages)
   const aiMemoryEnabled = useAIStore((s) => s.aiMemoryEnabled)
   const aiToolsEnabled = useAIStore((s) => s.aiToolsEnabled)
+  const service = useAIStore((s) => s.service)
   const provider = useAIStore((s) => s.provider)
+  const agentCommand = useAIStore((s) => s.agentCommand)
+  const agentActive = service === 'agent'
   const anthropicModel = useAIStore((s) => s.anthropicModel)
   const setAiInstructions = useProjectStore((s) => s.setAiInstructions)
   // Tools run only on Claude (native function-calling); other providers keep the
@@ -175,6 +178,7 @@ export default function AssistantPanel(): React.ReactElement {
   const [streaming, setStreaming] = useState(false)
   const [showContext, setShowContext] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
+  const agentAbortRef = useRef<{ abort: () => void } | null>(null)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
   const threadsRef = useRef<ChatThreads>({})
@@ -324,6 +328,38 @@ export default function AssistantPanel(): React.ReactElement {
       })
     }
 
+    // Local agent path: run the configured CLI agent in the project folder. It
+    // edits files directly on disk; when it finishes we reload the project.
+    if (agentActive) {
+      if (!window.api.agent) {
+        updateLastAssistant((last) => ({ ...last, content: 'The local agent runs only in the Konbini desktop app.', isError: true }))
+        setStreaming(false)
+        return
+      }
+      const handle = window.api.agent.run(
+        { projectId: project.id, command: useAIStore.getState().agentCommand, prompt: text },
+        {
+          onChunk: (chunk) => updateLastAssistant((last) => ({ ...last, content: last.content + chunk })),
+          onDone: async (code) => {
+            updateLastAssistant((last) => ({ ...last, content: last.content || `(agent exited with code ${code})` }))
+            setStreaming(false)
+            try {
+              const loc = useProjectStore.getState().project?.settings.location
+              if (loc) {
+                const reloaded = await window.api.project.open(loc)
+                useProjectStore.getState().loadProject(reloaded)
+                useShellStore.getState().setToast('Agent finished — project reloaded from disk.', 'info')
+              }
+            } catch { /* reload best-effort */ }
+          },
+          onError: (err) => { updateLastAssistant((last) => ({ ...last, content: err, isError: true })); setStreaming(false) },
+          onAbort: () => setStreaming(false),
+        },
+      )
+      agentAbortRef.current = handle
+      return
+    }
+
     // Tool-using path (Claude): the agent can search, read, create, and propose
     // edits across the project. Tool actions route through the reviewable seams.
     if (toolsActive) {
@@ -402,6 +438,8 @@ export default function AssistantPanel(): React.ReactElement {
 
   function stop() {
     abortRef.current?.abort()
+    agentAbortRef.current?.abort()
+    agentAbortRef.current = null
     setStreaming(false)
   }
 
@@ -451,7 +489,13 @@ export default function AssistantPanel(): React.ReactElement {
         )}
       </div>
 
-      {project && (
+      {agentActive && (
+        <div style={{ padding: '6px 14px', borderBottom: '0.5px solid var(--border)', background: 'oklch(0.22 0.05 20)', fontSize: 11, color: 'var(--st-idea)', lineHeight: 1.4 }}>
+          ⚠ Local-agent mode: each message runs <code style={{ fontFamily: 'var(--mono)' }}>{agentCommand}</code> in your project folder and edits files <b>directly</b> — no Changeset review. The project reloads when it finishes.
+        </div>
+      )}
+
+      {!agentActive && project && (
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, padding: '6px 14px', borderBottom: '0.5px solid var(--border)', background: 'var(--bg)' }}>
           <span style={{ fontSize: 11, color: 'var(--text-3)', flexShrink: 0 }}>Context</span>
           {hasContext && contextLabel && (

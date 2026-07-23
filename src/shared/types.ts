@@ -369,6 +369,18 @@ export interface KonbiniAPI {
      */
     streamMessages(input: { token: string; body: unknown }, handlers: OAuthStreamHandlers): { abort: () => void }
   }
+  /**
+   * Run a local CLI agent (opencode, Claude Code, etc.) inside the open project's
+   * folder, streaming its stdout. The agent edits the project's files DIRECTLY on
+   * disk — it does not go through changeset review. Electron only (spawns a
+   * process); absent in the browser build. Returns an abort handle.
+   */
+  agent?: {
+    run(
+      input: { projectId: ID; command: string; prompt: string },
+      handlers: { onChunk: (text: string) => void; onDone: (code: number) => void; onError: (err: string) => void; onAbort?: () => void },
+    ): { abort: () => void }
+  }
   /** Global key-value preference store. Synchronous so stores can hydrate at construction time. */
   prefs: {
     get(key: string): string | null

@@ -44,6 +44,7 @@ const electron_1 = require("electron");
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs/promises"));
 const fs_1 = require("fs");
+const child_process_1 = require("child_process");
 const NodeProjectService_1 = require("./NodeProjectService");
 const utils_1 = require("../src/shared/utils");
 // ── Preferences (userData/prefs.json) ─────────────────────────────────────────
@@ -337,6 +338,48 @@ const api = {
             return () => { electron_1.ipcRenderer.removeListener('shell:maximized', handler); };
         },
         openExternal: (url) => { electron_1.ipcRenderer.invoke('shell:openExternal', url); },
+    },
+    agent: {
+        run: (input, handlers) => {
+            const cwd = NodeProjectService_1.nodeProjectService.bundlePath(input.projectId);
+            if (!cwd) {
+                handlers.onError('Project is not open on disk.');
+                return { abort: () => { } };
+            }
+            // Run the user's command through a shell in the project folder and pipe the
+            // prompt in on stdin, so any CLI agent (opencode, claude, aider…) works.
+            const isWin = process.platform === 'win32';
+            const child = (0, child_process_1.spawn)(isWin ? 'cmd' : 'sh', [isWin ? '/c' : '-c', input.command], {
+                cwd, stdio: ['pipe', 'pipe', 'pipe'],
+            });
+            let settled = false;
+            const finishErr = (msg) => { if (!settled) {
+                settled = true;
+                handlers.onError(msg);
+            } };
+            child.on('error', (e) => finishErr(e.message));
+            child.stdout.on('data', (d) => handlers.onChunk(d.toString()));
+            child.stderr.on('data', (d) => handlers.onChunk(d.toString()));
+            child.on('close', (code) => { if (!settled) {
+                settled = true;
+                handlers.onDone(code ?? 0);
+            } });
+            try {
+                child.stdin.write(input.prompt);
+                child.stdin.end();
+            }
+            catch { /* stdin may be closed */ }
+            return {
+                abort: () => { if (!settled) {
+                    settled = true;
+                    try {
+                        child.kill();
+                    }
+                    catch { /* already gone */ }
+                    handlers.onAbort ? handlers.onAbort() : handlers.onDone(-1);
+                } },
+            };
+        },
     },
     oauth: {
         exchange: (input) => electron_1.ipcRenderer.invoke('oauth:exchange', input),

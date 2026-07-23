@@ -10,6 +10,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import * as path from 'path'
 import * as fs from 'fs/promises'
 import { readFileSync, writeFileSync, renameSync, unlinkSync } from 'fs'
+import { spawn } from 'child_process'
 import { nodeProjectService as svc } from './NodeProjectService'
 import type { KonbiniAPI, RecentEntry } from '../src/shared/types'
 import { wordCount } from '../src/shared/utils'
@@ -296,6 +297,29 @@ const api: KonbiniAPI = {
       return () => { ipcRenderer.removeListener('shell:maximized', handler) }
     },
     openExternal: (url: string) => { ipcRenderer.invoke('shell:openExternal', url) },
+  },
+
+  agent: {
+    run: (input, handlers) => {
+      const cwd = svc.bundlePath(input.projectId)
+      if (!cwd) { handlers.onError('Project is not open on disk.'); return { abort: () => {} } }
+      // Run the user's command through a shell in the project folder and pipe the
+      // prompt in on stdin, so any CLI agent (opencode, claude, aider…) works.
+      const isWin = process.platform === 'win32'
+      const child = spawn(isWin ? 'cmd' : 'sh', [isWin ? '/c' : '-c', input.command], {
+        cwd, stdio: ['pipe', 'pipe', 'pipe'],
+      })
+      let settled = false
+      const finishErr = (msg: string) => { if (!settled) { settled = true; handlers.onError(msg) } }
+      child.on('error', (e) => finishErr(e.message))
+      child.stdout.on('data', (d: Buffer) => handlers.onChunk(d.toString()))
+      child.stderr.on('data', (d: Buffer) => handlers.onChunk(d.toString()))
+      child.on('close', (code) => { if (!settled) { settled = true; handlers.onDone(code ?? 0) } })
+      try { child.stdin.write(input.prompt); child.stdin.end() } catch { /* stdin may be closed */ }
+      return {
+        abort: () => { if (!settled) { settled = true; try { child.kill() } catch { /* already gone */ } handlers.onAbort ? handlers.onAbort() : handlers.onDone(-1) } },
+      }
+    },
   },
 
   oauth: {
