@@ -269,6 +269,7 @@ const api = {
     doc: {
         read: (pid, nid) => NodeProjectService_1.nodeProjectService.readDoc(pid, nid),
         write: (pid, nid, content) => NodeProjectService_1.nodeProjectService.writeDoc(pid, nid, content),
+        onConflict: (cb) => NodeProjectService_1.nodeProjectService.onConflict(cb),
     },
     node: {
         mutate: (pid, op) => NodeProjectService_1.nodeProjectService.mutateNode(pid, op),

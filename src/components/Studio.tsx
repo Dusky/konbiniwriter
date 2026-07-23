@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { useShellStore } from '../store/shellStore'
 import { useProjectStore } from '../store/projectStore'
 import { useAIStore } from '../store/aiStore'
@@ -40,6 +40,16 @@ export default function Studio(): React.ReactElement {
   const focusMode = useProjectStore((s) => s.focusMode)
   const splitOpen = useProjectStore((s) => s.splitOpen)
   const splitId = useProjectStore((s) => s.splitId)
+
+  // External-edit conflicts: another program changed a doc on disk, and our next
+  // save preserved that version as a .conflict backup. Warn so nothing is lost silently.
+  useEffect(() => {
+    const unsub = window.api.doc.onConflict?.((e) => {
+      const title = useProjectStore.getState().project?.nodes[e.nodeId]?.title ?? 'A document'
+      useShellStore.getState().setToast(`"${title}" was edited outside Konbini — that version was saved as ${e.file}, so nothing was lost.`, 'info')
+    })
+    return unsub
+  }, [])
 
   const activeProposalId = useProjectStore((s) => s.activeProposalId)
   const proposals = useProjectStore((s) => s.proposals)

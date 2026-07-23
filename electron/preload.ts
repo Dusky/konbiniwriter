@@ -221,6 +221,7 @@ const api: KonbiniAPI = {
   doc: {
     read: (pid, nid) => svc.readDoc(pid, nid),
     write: (pid, nid, content) => svc.writeDoc(pid, nid, content),
+    onConflict: (cb) => svc.onConflict(cb),
   },
 
   node: {

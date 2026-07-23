@@ -311,6 +311,13 @@ export interface KonbiniAPI {
   doc: {
     read(projectId: ID, nodeId: ID): Promise<string>
     write(projectId: ID, nodeId: ID, content: string): Promise<void>
+    /**
+     * Subscribe to external-edit conflicts: when a doc was changed on disk by
+     * another program and the app's next save preserved that version as a
+     * `.conflict-<ts>.md` backup. Electron only (real files); returns an
+     * unsubscribe fn. Absent on backends without real external writers.
+     */
+    onConflict?(cb: (e: { projectId: ID; nodeId: ID; file: string }) => void): () => void
   }
   node: {
     mutate(projectId: ID, op: NodeOp): Promise<{ rootIds: ID[]; nodes: Record<ID, KNode>; docs: Record<ID, DocBody> }>

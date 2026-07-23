@@ -70,10 +70,33 @@ async function removeFile(dir, ...parts) {
     }
     catch { /* ignore */ }
 }
+async function statMtime(full) {
+    try {
+        return (await fs.stat(full)).mtimeMs;
+    }
+    catch {
+        return 0;
+    }
+}
 // ── Service ───────────────────────────────────────────────────────────────────
 class NodeProjectService {
     projects = new Map();
     paths = new Map(); // projectId → bundle dir
+    knownMtime = new Map(); // `${projectId}:${nodeId}` → last mtime we read/wrote
+    conflictListeners = new Set();
+    /** Subscribe to external-edit conflicts (a .conflict backup was written). */
+    onConflict(cb) {
+        this.conflictListeners.add(cb);
+        return () => { this.conflictListeners.delete(cb); };
+    }
+    emitConflict(e) {
+        for (const cb of this.conflictListeners) {
+            try {
+                cb(e);
+            }
+            catch { /* ignore */ }
+        }
+    }
     // ── Open ────────────────────────────────────────────────────────────────────
     async open(bundlePath) {
         const manifestText = await readText(bundlePath, 'project.json');
@@ -83,6 +106,7 @@ class NodeProjectService {
         for (const nodeId of Object.keys(project.docs)) {
             const content = await readText(bundlePath, 'docs', `${nodeId}.md`);
             project.docs[nodeId] = { content: content ?? '', snapshots: project.docs[nodeId]?.snapshots ?? [] };
+            this.knownMtime.set(`${project.id}:${nodeId}`, await statMtime(path.join(bundlePath, 'docs', `${nodeId}.md`)));
         }
         this.paths.set(project.id, bundlePath);
         this.projects.set(project.id, project);
@@ -118,14 +142,36 @@ class NodeProjectService {
     }
     // ── Doc ─────────────────────────────────────────────────────────────────────
     async readDoc(projectId, nodeId) {
-        return (await readText(this.getPath(projectId), 'docs', `${nodeId}.md`)) ?? '';
+        const p = this.getPath(projectId);
+        const content = (await readText(p, 'docs', `${nodeId}.md`)) ?? '';
+        this.knownMtime.set(`${projectId}:${nodeId}`, await statMtime(path.join(p, 'docs', `${nodeId}.md`)));
+        return content;
     }
     async writeDoc(projectId, nodeId, content) {
         const p = this.getPath(projectId);
+        const full = path.join(p, 'docs', `${nodeId}.md`);
+        const key = `${projectId}:${nodeId}`;
+        // Conflict guard: if the file changed on disk since we last read/wrote it,
+        // an external editor (git, Dropbox, vim…) touched it. Preserve that version
+        // as a .conflict backup before overwriting, so nothing is silently lost.
+        const known = this.knownMtime.get(key) ?? 0;
+        if (known) {
+            const cur = await statMtime(full);
+            if (cur > known + 1) {
+                const onDisk = await readText(p, 'docs', `${nodeId}.md`);
+                if (onDisk != null && onDisk !== content) {
+                    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    const file = `${nodeId}.conflict-${stamp}.md`;
+                    await writeText(p, onDisk, 'docs', file).catch(() => { });
+                    this.emitConflict({ projectId, nodeId, file });
+                }
+            }
+        }
         await writeText(p, content, 'docs', `${nodeId}.md`);
         const proj = this.projects.get(projectId);
         if (proj?.docs[nodeId])
             proj.docs[nodeId].content = content;
+        this.knownMtime.set(key, await statMtime(full));
     }
     // ── Node mutations ───────────────────────────────────────────────────────────
     async mutateNode(projectId, op) {
