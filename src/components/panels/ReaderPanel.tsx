@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react'
 import { useProjectStore } from '../../store/projectStore'
 import { streamCompletion } from '../../lib/AIClient'
 import { agentRegistry, promptRegistry } from '../../lib/PromptRegistry'
+import Icon from '../common/Icon'
 
 // A persona is derived from a registry 'reader' agent + its system-prompt — both
 // editable (Prompt Registry for the instructions; the agent for model/temp).
@@ -157,9 +158,9 @@ export default function ReaderPanel(): React.ReactElement {
               title={p.description}
             >
               {p.emoji} {p.name}
-              {res?.status === 'streaming' && <span style={{ fontSize: 10, color: 'var(--st-prog)' }}>●</span>}
-              {res?.status === 'done' && <span style={{ fontSize: 10, color: 'var(--st-final)' }}>✓</span>}
-              {res?.status === 'error' && <span style={{ fontSize: 10, color: 'var(--st-idea)' }}>!</span>}
+              {res?.status === 'streaming' && <span style={{ width: 6, height: 6, borderRadius: 'var(--r-full)', background: 'var(--st-prog)', animation: 'pulse 1s infinite' }} />}
+              {res?.status === 'done' && <Icon name="check" size={12} style={{ color: 'var(--st-final)' }} />}
+              {res?.status === 'error' && <Icon name="warning" size={12} style={{ color: 'var(--st-idea)' }} />}
             </button>
           )
         })}
@@ -185,8 +186,9 @@ export default function ReaderPanel(): React.ReactElement {
             {activeVerdict?.score != null && (
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '4px 10px', borderRadius: 'var(--r-lg)', background: 'var(--bg-2)', fontSize: 12 }}>
                 <span style={{ fontFamily: 'var(--mono)', fontWeight: 600, color: 'var(--text)' }}>{activeVerdict.score}/100</span>
-                <span style={{ color: activeVerdict.keep ? 'var(--st-final)' : 'var(--st-idea)' }}>
-                  {activeVerdict.keep ? '✓ would keep reading' : '✕ would put it down'}
+                <span style={{ color: activeVerdict.keep ? 'var(--st-final)' : 'var(--st-idea)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <Icon name={activeVerdict.keep ? 'check' : 'x'} size={13} />
+                  {activeVerdict.keep ? 'would keep reading' : 'would put it down'}
                 </span>
               </div>
             )}
