@@ -6,6 +6,7 @@
 //            climbs two levels up to reach the app-root dist/.
 
 import { app, BrowserWindow, ipcMain, dialog, shell, safeStorage, IpcMainInvokeEvent } from 'electron'
+import { autoUpdater } from 'electron-updater'
 import * as path from 'path'
 import * as fs from 'fs'
 
@@ -110,6 +111,17 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
+
+  // Auto-update: check GitHub Releases on launch and download/notify in the
+  // background. Packaged builds only (dev has no update metadata); best-effort.
+  if (app.isPackaged) {
+    autoUpdater.autoDownload = true
+    autoUpdater.on('error', (err) => console.error('autoUpdater error:', err?.message ?? err))
+    autoUpdater.on('update-downloaded', (info) => {
+      win?.webContents.send('shell:update-ready', info?.version ?? '')
+    })
+    autoUpdater.checkForUpdatesAndNotify().catch((e) => console.error('update check failed:', e))
+  }
 })
 
 app.on('window-all-closed', () => {

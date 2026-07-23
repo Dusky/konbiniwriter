@@ -40,6 +40,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
+const electron_updater_1 = require("electron-updater");
 const path = __importStar(require("path"));
 const DEV = process.env.ELECTRON_DEV === '1' || !electron_1.app.isPackaged;
 // Linux routinely opens Electron to a black window — in the packaged AppImage
@@ -130,6 +131,16 @@ electron_1.app.whenReady().then(() => {
         if (electron_1.BrowserWindow.getAllWindows().length === 0)
             createWindow();
     });
+    // Auto-update: check GitHub Releases on launch and download/notify in the
+    // background. Packaged builds only (dev has no update metadata); best-effort.
+    if (electron_1.app.isPackaged) {
+        electron_updater_1.autoUpdater.autoDownload = true;
+        electron_updater_1.autoUpdater.on('error', (err) => console.error('autoUpdater error:', err?.message ?? err));
+        electron_updater_1.autoUpdater.on('update-downloaded', (info) => {
+            win?.webContents.send('shell:update-ready', info?.version ?? '');
+        });
+        electron_updater_1.autoUpdater.checkForUpdatesAndNotify().catch((e) => console.error('update check failed:', e));
+    }
 });
 electron_1.app.on('window-all-closed', () => {
     if (process.platform !== 'darwin')
