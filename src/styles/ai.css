@@ -522,3 +522,22 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 .kbd { font-family: var(--mono); background: var(--bg-2); padding: 1px 4px; border-radius: 3px; }
 .msg-ok { font-size: var(--t-xs); color: var(--success); }
 .msg-err { font-size: var(--t-xs); color: var(--danger); }
+
+/* ── Autopilot modal ── */
+.ap-body { display: flex; flex-direction: column; gap: var(--s3); }
+.ap-resume { border: 0.5px solid var(--accent); background: var(--sel-bg); border-radius: var(--r-md);
+  padding: 10px var(--s3); display: flex; align-items: center; gap: 10px; }
+.ap-resume-txt { flex: 1; font-size: var(--t-base); color: var(--text); }
+.ap-cap { display: flex; align-items: center; gap: var(--s2); font-size: var(--t-sm); color: var(--text-2); }
+.ap-cap .dim { color: var(--text-3); }
+.ap-scenes { max-height: 280px; overflow-y: auto; border: 0.5px solid var(--border-2);
+  border-radius: var(--r-md); background: var(--bg-2); }
+.ap-scene { display: flex; align-items: center; gap: var(--s2); padding: 6px 10px;
+  cursor: pointer; border-bottom: 0.5px solid var(--border); font-size: var(--t-base); color: var(--text); }
+.ap-scene input { accent-color: var(--accent); }
+.ap-status { font-size: var(--t-xs); color: var(--text-3); font-family: var(--mono); }
+.ap-stream { height: 200px; overflow-y: auto; background: var(--bg-2); border: 0.5px solid var(--border);
+  border-radius: var(--r-md); padding: 10px var(--s3); font-size: var(--t-sm); font-family: var(--mono);
+  line-height: 1.6; white-space: pre-wrap; color: var(--text-2); margin: 0; }
+.ap-progress-lbl { font-size: var(--t-base); color: var(--text-2); }
+.ap-done { font-size: var(--t-md); color: var(--text); text-align: center; padding: var(--s5) 0; }

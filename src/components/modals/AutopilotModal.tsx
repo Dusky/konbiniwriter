@@ -374,26 +374,22 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
 
         {phase === 'config' && (
           <>
-            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="modal-body ap-body">
               {/* Resume banner */}
               {resumable && (
-                <div style={{ border: '1px solid var(--accent)', background: 'var(--sel-bg)', borderRadius: 'var(--r-md)', padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ flex: 1, fontSize: 13, color: 'var(--text)' }}>
+                <div className="ap-resume">
+                  <div className="ap-resume-txt">
                     <strong>Unfinished run</strong> — {resumeRemaining} of {resumable.queue.length} scene{resumable.queue.length === 1 ? '' : 's'} left.
                   </div>
                   <button className="btn sm" onClick={() => setAutopilotRun(null)}>Discard</button>
-                  <button className="btn sm" onClick={handleResume} style={{ background: 'var(--accent)', color: 'var(--accent-fg)', borderColor: 'transparent' }}>Resume</button>
+                  <button className="btn sm primary" onClick={handleResume}>Resume</button>
                 </div>
               )}
 
               {/* Prompt selector */}
               <div>
-                <label style={{ fontSize: 11, color: 'var(--text-3)', display: 'block', marginBottom: 6 }}>Prompt</label>
-                <select
-                  value={promptId}
-                  onChange={(e) => setPromptId(e.target.value)}
-                  style={{ width: '100%', padding: '7px 10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13 }}
-                >
+                <label className="reg-lbl">Prompt</label>
+                <select className="sel" value={promptId} onChange={(e) => setPromptId(e.target.value)}>
                   {allPrompts.map((p) => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
@@ -402,12 +398,12 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
 
               {/* Quality gate + reader gate (drafting prompts only) */}
               {gateEligible && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-2)', cursor: 'pointer' }}>
+                <div className="ai-col">
+                  <label className="fnd-check">
                     <input type="checkbox" checked={useGate} onChange={(e) => setUseGate(e.target.checked)} />
                     Quality gate — score &amp; auto-revise each draft before review
                   </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-2)', cursor: 'pointer' }}>
+                  <label className="fnd-check">
                     <input type="checkbox" checked={useReaderGate} onChange={(e) => setUseReaderGate(e.target.checked)} />
                     Reader gate — run reader panel, revise if engagement score &lt; 65
                   </label>
@@ -415,56 +411,43 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
               )}
 
               {/* Spend cap */}
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-2)' }}>
+              <label className="ap-cap">
                 Spend cap
-                <span style={{ color: 'var(--text-3)' }}>$</span>
+                <span className="dim">$</span>
                 <input
+                  className="inp mono"
+                  style={{ width: 80 }}
                   type="number" min={0} step={0.5}
                   value={spendCapUSD || ''}
                   onChange={(e) => setSpendCap(Math.max(0, parseFloat(e.target.value) || 0))}
                   placeholder="0 = none"
-                  style={{ width: 80, padding: '5px 8px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)' }}
                 />
-                <span style={{ color: 'var(--text-3)' }}>halts the run when crossed</span>
+                <span className="dim">halts the run when crossed</span>
               </label>
               {spendCapUSD > 0 && estimate?.cost != null && estimate.cost > spendCapUSD && (
-                <div style={{ fontSize: 11, color: 'var(--st-idea)' }}>
+                <div style={{ fontSize: 'var(--t-xs)', color: 'var(--st-idea)' }}>
                   Estimated ~{formatUSD(estimate.cost)} exceeds the {formatUSD(spendCapUSD)} cap — the run will stop partway.
                 </div>
               )}
 
               {/* Node checklist */}
               <div>
-                <label style={{ fontSize: 11, color: 'var(--text-3)', display: 'block', marginBottom: 6 }}>
+                <label className="reg-lbl">
                   Scenes ({checkedIds.length} of {nodeList.length} selected)
                 </label>
-                <div style={{ maxHeight: 280, overflowY: 'auto', border: '1px solid var(--border-2)', borderRadius: 'var(--r-md)', background: 'var(--bg-2)' }}>
+                <div className="ap-scenes">
                   {nodeList.map(({ id, depth }) => (
-                    <label
-                      key={id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        paddingLeft: 10 + depth * 16,
-                        paddingRight: 10,
-                        paddingTop: 6,
-                        paddingBottom: 6,
-                        cursor: 'pointer',
-                        borderBottom: '1px solid var(--border)',
-                        fontSize: 13,
-                      }}
-                    >
+                    <label key={id} className="ap-scene" style={{ paddingLeft: 10 + depth * 16 }}>
                       <input
                         type="checkbox"
                         checked={checked[id] ?? false}
                         onChange={(e) => setChecked((prev) => ({ ...prev, [id]: e.target.checked }))}
                       />
-                      <span style={{ color: 'var(--text)' }}>{project.nodes[id]?.title ?? id}</span>
+                      <span>{project.nodes[id]?.title ?? id}</span>
                     </label>
                   ))}
                   {nodeList.length === 0 && (
-                    <div style={{ padding: '12px 14px', color: 'var(--text-3)', fontSize: 13 }}>No scenes found.</div>
+                    <div className="dock-empty" style={{ padding: '12px 14px' }}>No scenes found.</div>
                   )}
                 </div>
               </div>
@@ -478,12 +461,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
               </span>
               <span className="tb-spacer" />
               <button className="btn" onClick={onClose}>Cancel</button>
-              <button
-                className="btn"
-                onClick={handleRun}
-                disabled={!canRun}
-                style={{ background: 'var(--accent)', color: 'var(--accent-fg)', borderColor: 'transparent' }}
-              >
+              <button className="btn primary" onClick={handleRun} disabled={!canRun}>
                 Run {checkedIds.length} scene{checkedIds.length !== 1 ? 's' : ''}
               </button>
             </div>
@@ -492,61 +470,29 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
 
         {phase === 'running' && (
           <>
-            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="modal-body ap-body">
               {/* Progress label */}
-              <div style={{ fontSize: 13, color: 'var(--text-2)' }}>
+              <div className="ap-progress-lbl">
                 Scene {currentIndex + 1} of {totalCount} — <strong>{currentNodeTitle}</strong>
               </div>
-              {gateStatus && <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>{gateStatus}</div>}
-              {readerGateStatus && <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>{readerGateStatus}</div>}
-              <div className="hint">Spent this run: <strong style={{ fontFamily: 'var(--mono)' }}>{formatUSD(Math.max(0, spendUSD - runStartSpend.current))}</strong></div>
+              {gateStatus && <div className="ap-status">{gateStatus}</div>}
+              {readerGateStatus && <div className="ap-status">{readerGateStatus}</div>}
+              <div className="hint">Spent this run: <strong className="mono">{formatUSD(Math.max(0, spendUSD - runStartSpend.current))}</strong></div>
 
               {/* Progress bar */}
-              <div style={{ height: 6, background: 'var(--bg-3)', borderRadius: 3, overflow: 'hidden' }}>
-                <div
-                  style={{
-                    height: '100%',
-                    width: `${(currentIndex / totalCount) * 100}%`,
-                    background: 'var(--accent)',
-                    borderRadius: 3,
-                    transition: 'width 0.3s ease',
-                  }}
-                />
-              </div>
+              <div className="meter"><i style={{ width: `${(currentIndex / totalCount) * 100}%` }} /></div>
 
-              {pipelineError && <div style={{ color: 'var(--st-idea)', fontSize: 12, marginTop: 8 }}>{pipelineError}</div>}
+              {pipelineError && <div style={{ color: 'var(--st-idea)', fontSize: 'var(--t-sm)', marginTop: 'var(--s2)' }}>{pipelineError}</div>}
 
               {/* Streaming output */}
-              <pre
-                ref={streamBoxRef}
-                style={{
-                  height: 200,
-                  overflowY: 'auto',
-                  background: 'var(--bg-2)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--r-md)',
-                  padding: '10px 12px',
-                  fontSize: 12,
-                  fontFamily: 'var(--mono)',
-                  lineHeight: 1.6,
-                  whiteSpace: 'pre-wrap',
-                  color: 'var(--text-2)',
-                  margin: 0,
-                }}
-              >
+              <pre ref={streamBoxRef} className="ap-stream">
                 {streamText || 'Generating…'}
               </pre>
             </div>
 
             <div className="modal-foot">
               <span className="tb-spacer" />
-              <button
-                className="btn"
-                onClick={handleStop}
-                style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}
-              >
-                Stop
-              </button>
+              <button className="btn danger" onClick={handleStop}>Stop</button>
             </div>
           </>
         )}
@@ -554,12 +500,12 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
         {phase === 'done' && (
           <>
             <div className="modal-body">
-              <div style={{ fontSize: 14, color: 'var(--text)', textAlign: 'center', padding: '20px 0' }}>
+              <div className="ap-done">
                 {capHit
                   ? <>Stopped — spend cap of {formatUSD(spendCapUSD)} reached.</>
                   : 'All scenes processed.'}
                 <br />
-                <span style={{ fontSize: 12, color: 'var(--text-3)' }}>Spent this run: {formatUSD(Math.max(0, spendUSD - runStartSpend.current))}</span>
+                <span style={{ fontSize: 'var(--t-sm)', color: 'var(--text-3)' }}>Spent this run: {formatUSD(Math.max(0, spendUSD - runStartSpend.current))}</span>
               </div>
             </div>
             <div className="modal-foot">
@@ -567,9 +513,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
               <span className="tb-spacer" />
               <button className="btn" onClick={onClose}>Close</button>
               {resumable && (
-                <button className="btn" onClick={handleResume} style={{ background: 'var(--accent)', color: 'var(--accent-fg)', borderColor: 'transparent' }}>
-                  Resume
-                </button>
+                <button className="btn primary" onClick={handleResume}>Resume</button>
               )}
             </div>
           </>

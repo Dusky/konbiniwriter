@@ -450,6 +450,8 @@ button { font-family: inherit; cursor: default; }
 .btn.primary:hover { filter: brightness(1.08); }
 .btn.ghost { background: transparent; border-color: transparent; color: var(--text-2); }
 .btn.ghost:hover { background: var(--bg-3); }
+.btn.danger { border-color: var(--danger); color: var(--danger); background: transparent; }
+.btn.danger:hover { background: color-mix(in oklch, var(--danger) 12%, transparent); }
 
 .snap-item { display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 9px;
   border: 0.5px solid var(--border); margin-bottom: 8px; }
