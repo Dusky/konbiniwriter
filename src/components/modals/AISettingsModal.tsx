@@ -5,6 +5,7 @@ import { promptRegistry } from '../../lib/PromptRegistry'
 import { streamCompletion } from '../../lib/AIClient'
 import { formatUSD } from '../../lib/Pricing'
 import { createPKCE, authorizeUrl, completeSignIn, type PKCE } from '../../lib/ClaudeOAuth'
+import Icon from '../common/Icon'
 
 const ANTHROPIC_MODELS = [
   { id: 'claude-fable-5',   label: 'Claude Fable 5 (most capable)' },
@@ -72,9 +73,9 @@ async function testOpenAIEndpoint(baseUrl: string, apiKey: string, model: string
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '12px 0', borderBottom: '0.5px solid var(--border)' }}>
-      <span style={{ flex: '0 0 120px', fontSize: 13, color: 'var(--text-2)', paddingTop: 6 }}>{label}</span>
-      <div style={{ flex: 1 }}>{children}</div>
+    <div className="ai-row">
+      <span className="lbl">{label}</span>
+      <div className="ctl">{children}</div>
     </div>
   )
 }
@@ -249,7 +250,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                   </button>
                 ))}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text-3)' }}>Bring your own key for any provider — keys stay in localStorage, never in project files.</div>
+              <div className="ai-hint">Bring your own key for any provider — keys stay in localStorage, never in project files.</div>
             </div>
           </Row>
 
@@ -270,7 +271,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                       </button>
                     ))}
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                  <div className="ai-hint">
                     Claude Code asks before editing files; the <b>auto-edit</b> preset passes the flag that lets it write headlessly. A bare <code style={{ fontFamily: 'var(--mono)' }}>claude -p</code> would only reply.
                   </div>
                 </div>
@@ -283,14 +284,14 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                     placeholder="claude -p --permission-mode acceptEdits"
                     style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)', boxSizing: 'border-box' }}
                   />
-                  <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                  <div className="ai-hint">
                     Runs in your project folder with the prompt piped to stdin. Pick a preset above or edit freely. Desktop app only.
                   </div>
                 </div>
               </Row>
               <Row label="How it writes">
-                <div style={{ padding: '10px 12px', borderRadius: 6, border: '1px solid var(--st-idea)', background: 'oklch(0.22 0.05 20)', fontSize: 12, color: 'var(--st-idea)', lineHeight: 1.55 }}>
-                  ⚠ The local agent edits your project's files <b>directly on disk</b>. Its changes <b>do not go through Changeset review</b> — unlike Konbini's own AI, they apply immediately, not after you approve them. Your safety net is after-the-fact: every save is snapshot-protected and any file the agent changes is backed up to a <code style={{ fontFamily: 'var(--mono)' }}>.conflict</code> file, and Konbini reloads the project when the agent finishes. Point this at a tool you trust.
+                <div className="ai-warn">
+                  <Icon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} /> The local agent edits your project's files <b>directly on disk</b>. Its changes <b>do not go through Changeset review</b> — unlike Konbini's own AI, they apply immediately, not after you approve them. Your safety net is after-the-fact: every save is snapshot-protected and any file the agent changes is backed up to a <code style={{ fontFamily: 'var(--mono)' }}>.conflict</code> file, and Konbini reloads the project when the agent finishes. Point this at a tool you trust.
                 </div>
               </Row>
             </>
@@ -302,7 +303,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                     <button className={anthropicAuthMode === 'key' ? 'on' : ''} onClick={() => setAnthropicAuthMode('key')}>API key</button>
                     <button className={anthropicAuthMode === 'oauth' ? 'on' : ''} onClick={() => setAnthropicAuthMode('oauth')}>Claude subscription</button>
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                  <div className="ai-hint">
                     {anthropicAuthMode === 'oauth'
                       ? 'Uses your Claude Pro/Max subscription via OAuth. Requests are branded as Claude Code (a system prefix Anthropic requires for subscription tokens), which can affect some prompts.'
                       : 'Bring your own Anthropic API key — billed per token, no prompt restrictions.'}
@@ -328,7 +329,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                     </div>
                     {anthropicKeyError && <div style={{ fontSize: 11, color: 'var(--danger)' }}>{anthropicKeyError}</div>}
                     {anthropicKeyValidated && <div style={{ fontSize: 11, color: 'var(--success)' }}>Key validated successfully.</div>}
-                    <div style={{ fontSize: 11, color: 'var(--text-3)' }}>Stored in localStorage only — never written to project files.</div>
+                    <div className="ai-hint">Stored in localStorage only — never written to project files.</div>
                   </div>
                 </Row>
               ) : (
@@ -347,7 +348,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                         </button>
                         {pkce && (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                            <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                            <div className="ai-hint">
                               Authorize in the browser, then paste the code Anthropic shows you here:
                             </div>
                             <div style={{ display: 'flex', gap: 8 }}>
@@ -367,7 +368,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                         {oauthError && <div style={{ fontSize: 11, color: 'var(--danger)' }}>{oauthError}</div>}
                       </>
                     )}
-                    <div style={{ fontSize: 11, color: 'var(--text-3)' }}>Tokens stored in localStorage only — never written to project files.</div>
+                    <div className="ai-hint">Tokens stored in localStorage only — never written to project files.</div>
                   </div>
                 </Row>
               )}
@@ -402,7 +403,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                       placeholder="https://api.openai.com/v1"
                       style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)', boxSizing: 'border-box' }}
                     />
-                    <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-3)' }}>Any provider with an OpenAI-compatible <code style={{ fontFamily: 'var(--mono)', background: 'var(--bg-2)', padding: '1px 4px', borderRadius: 3 }}>/chat/completions</code> endpoint.</div>
+                    <div className="ai-hint" style={{ marginTop: 4 }}>Any provider with an OpenAI-compatible <code style={{ fontFamily: 'var(--mono)', background: 'var(--bg-2)', padding: '1px 4px', borderRadius: 3 }}>/chat/completions</code> endpoint.</div>
                   </Row>
                 </>
               ) : (
@@ -419,7 +420,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                     placeholder={service === 'custom' ? 'Optional — leave blank for local servers' : `${AI_SERVICES[service].label} API key`}
                     style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)', boxSizing: 'border-box' }}
                   />
-                  <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                  <div className="ai-hint">
                     Stored in localStorage only.{service === 'custom' ? ' Leave blank for Ollama / LM Studio.' : ''}
                   </div>
                 </div>
@@ -440,7 +441,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                   {openaiTestError && <div style={{ fontSize: 11, color: 'var(--danger)' }}>{openaiTestError}</div>}
                   {openaiTested && <div style={{ fontSize: 11, color: 'var(--success)' }}>Endpoint reachable.</div>}
                   {CUSTOM_PRESETS.find((p) => p.url === openaiBaseUrl && !p.keyRequired) && (
-                    <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                    <div className="ai-hint">
                       Local server — make sure it's running and has CORS enabled{' '}
                       {openaiBaseUrl.includes('11434') && <>(Ollama: <code style={{ fontFamily: 'var(--mono)', background: 'var(--bg-2)', padding: '1px 4px', borderRadius: 3 }}>OLLAMA_ORIGINS=* ollama serve</code>)</>}.
                     </div>
@@ -467,7 +468,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                   }}
                   style={{ width: 90, padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)' }}
                 />
-                <span style={{ fontSize: 11, color: 'var(--text-3)' }}>per response — bump for long-form answers, lower for speed</span>
+                <span className="ai-hint">per response — bump for long-form answers, lower for speed</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <label style={{ fontSize: 12, color: 'var(--text-2)', flex: '0 0 110px' }}>Context messages</label>
@@ -483,7 +484,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                   }}
                   style={{ width: 90, padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)' }}
                 />
-                <span style={{ fontSize: 11, color: 'var(--text-3)' }}>recent messages sent per turn — 0 = send full history</span>
+                <span className="ai-hint">recent messages sent per turn — 0 = send full history</span>
               </div>
             </div>
           </Row>
@@ -506,7 +507,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                   </div>
                 ))}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+              <div className="ai-hint">
                 Tokens of manuscript context sent per AI call, by feature. Defaults are sized for long-context models: inline 16k · chat 48k · batch 48k · autopilot 100k. Lower these for small local models.
               </div>
             </div>
@@ -520,9 +521,9 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                 onBlur={() => { if (globalInstrDraft !== customInstructions) setCustomInstructions(globalInstrDraft) }}
                 placeholder="Give the AI a persona, tone, or standing preferences — applied across every project. e.g. “Write in a spare, Hemingwayesque register. Never use the word ‘palpable’.”"
                 rows={4}
-                style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, lineHeight: 1.5, resize: 'vertical', boxSizing: 'border-box' }}
+                className="ai-ta"
               />
-              <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+              <div className="ai-hint">
                 The AI's personality and standing notes for <b>all</b> projects — read on every chat and inline co-write. Konbini's CLAUDE.md, global scope.
               </div>
             </div>
@@ -539,16 +540,17 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                   ? 'Facts and directives the AI should remember about THIS book — canon, character quirks, timeline rules, what to avoid.'
                   : 'Open a project to add its notes.'}
                 rows={4}
-                style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: project ? 'var(--bg-2)' : 'var(--bg-3)', color: 'var(--text)', fontSize: 13, lineHeight: 1.5, resize: 'vertical', boxSizing: 'border-box', opacity: project ? 1 : 0.6 }}
+                className="ai-ta"
+                style={{ background: project ? undefined : 'var(--bg-3)', opacity: project ? 1 : 0.6 }}
               />
-              <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+              <div className="ai-hint">
                 Saved with this project's <code style={{ fontFamily: 'var(--mono)' }}>.konbini</code> bundle and travels with it. Combined with the global instructions above.
               </div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginTop: 2 }}>
                 <input type="checkbox" checked={aiMemoryEnabled} onChange={(e) => setAiMemoryEnabled(e.target.checked)} style={{ accentColor: 'var(--accent)', width: 15, height: 15 }} />
                 <span style={{ fontSize: 12 }}>Let the assistant save memories to these notes</span>
               </label>
-              <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+              <div className="ai-hint">
                 When on, the chat assistant appends durable facts you share (canon, character details, style rules) here on its own — each one flagged in the conversation and fully editable above.
               </div>
             </div>
@@ -560,7 +562,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                 <input type="checkbox" checked={aiToolsEnabled} onChange={(e) => setAiToolsEnabled(e.target.checked)} style={{ accentColor: 'var(--accent)', width: 15, height: 15 }} />
                 <span style={{ fontSize: 13 }}>Let the assistant use tools <span style={{ color: 'var(--text-3)' }}>(Claude only)</span></span>
               </label>
-              <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+              <div className="ai-hint">
                 On Claude, the chat can search the manuscript, read the outline, open documents, create new documents, and propose edits across the whole project. Proposed edits are queued in Changeset for your review — never written directly.
               </div>
             </div>
@@ -581,7 +583,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                 </button>
                 {voiceError && <span style={{ fontSize: 11, color: 'var(--danger)' }}>{voiceError}</span>}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text-3)' }}>Gathers prose from compiled documents and re-derives the style guide. Saved automatically.</div>
+              <div className="ai-hint">Gathers prose from compiled documents and re-derives the style guide. Saved automatically.</div>
             </div>
           </Row>
 
@@ -590,7 +592,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
               <input type="checkbox" checked={slopAutoRun} onChange={(e) => setSlopAutoRun(e.target.checked)} style={{ accentColor: 'var(--accent)', width: 15, height: 15 }} />
               <span style={{ fontSize: 13 }}>Auto-run after 30s idle</span>
             </label>
-            <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-3)' }}>Automatically flag clichés and weak prose 30 seconds after you stop typing. Keyboard shortcut: ⌥P.</div>
+            <div className="ai-hint" style={{ marginTop: 4 }}>Automatically flag clichés and weak prose 30 seconds after you stop typing. Keyboard shortcut: ⌥P.</div>
           </Row>
 
           <Row label="Session usage">
@@ -606,11 +608,11 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
                 <button className="btn" style={{ fontSize: 12, padding: '3px 10px' }} disabled={spendCalls === 0} onClick={resetSpend}>Reset</button>
               </div>
               {spendUnpriced > 0 && (
-                <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                <div className="ai-hint">
                   {spendUnpriced} call{spendUnpriced === 1 ? '' : 's'} on a model with no known price — excluded from the dollar total.
                 </div>
               )}
-              <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+              <div className="ai-hint">
                 Estimated from this session's API usage (resets on reload). List prices; your actual billing may differ.
               </div>
             </div>
