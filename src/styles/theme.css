@@ -102,6 +102,9 @@
 [data-density="compact"]  { --row-h: 22px; --row-pad: 3px; --row-font: 12px; --indent: 13px; }
 [data-density="roomy"]    { --row-h: 33px; --row-pad: 8px; --row-font: 13.5px; --indent: 18px; }
 
+/* Small helper/caption text — the repeated 11px muted line, one class. */
+.hint { font-size: var(--t-xs); color: var(--text-3); line-height: 1.5; }
+
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
 body {

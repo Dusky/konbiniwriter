@@ -471,7 +471,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
             </div>
 
             <div className="modal-foot">
-              <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
+              <span className="hint">
                 {estimate
                   ? <>Est. {estimate.cost != null ? `~${formatUSD(estimate.cost)}` : '— (unpriced model)'} · ~{Math.round((estimate.inTok + estimate.outTok) / 1000)}k tokens{(gateOn || readerGateOn) ? ` incl.${gateOn ? ' quality' : ''}${gateOn && readerGateOn ? ' +' : ''}${readerGateOn ? ' reader' : ''} gate` : ''}</>
                   : 'Results open in Changeset Review'}
@@ -499,7 +499,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
               </div>
               {gateStatus && <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>{gateStatus}</div>}
               {readerGateStatus && <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>{readerGateStatus}</div>}
-              <div style={{ fontSize: 11, color: 'var(--text-3)' }}>Spent this run: <strong style={{ fontFamily: 'var(--mono)' }}>{formatUSD(Math.max(0, spendUSD - runStartSpend.current))}</strong></div>
+              <div className="hint">Spent this run: <strong style={{ fontFamily: 'var(--mono)' }}>{formatUSD(Math.max(0, spendUSD - runStartSpend.current))}</strong></div>
 
               {/* Progress bar */}
               <div style={{ height: 6, background: 'var(--bg-3)', borderRadius: 3, overflow: 'hidden' }}>
@@ -563,7 +563,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
               </div>
             </div>
             <div className="modal-foot">
-              {resumable && <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{resumeRemaining} scene{resumeRemaining === 1 ? '' : 's'} left</span>}
+              {resumable && <span className="hint">{resumeRemaining} scene{resumeRemaining === 1 ? '' : 's'} left</span>}
               <span className="tb-spacer" />
               <button className="btn" onClick={onClose}>Close</button>
               {resumable && (

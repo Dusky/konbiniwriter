@@ -202,7 +202,7 @@ export default function BestOfModal({ onClose }: Props): React.ReactElement {
             </div>
 
             <div className="modal-foot">
-              <span style={{ fontSize: 11, color: 'var(--text-3)' }}>The winner opens in Changeset Review.</span>
+              <span className="hint">The winner opens in Changeset Review.</span>
               <span className="tb-spacer" />
               {phase === 'generating' || phase === 'ranking' ? (
                 <button className="btn" onClick={stop}>Stop</button>

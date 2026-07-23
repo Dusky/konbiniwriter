@@ -146,7 +146,7 @@ export default function BatchGeneratorModal({ onClose }: Props): React.ReactElem
                   }}
                 >
                   <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{g.label}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{g.desc}</div>
+                  <div className="hint">{g.desc}</div>
                 </button>
               ))}
             </div>
@@ -201,7 +201,7 @@ export default function BatchGeneratorModal({ onClose }: Props): React.ReactElem
         </div>
 
         <div className="modal-foot">
-          <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
+          <span className="hint">
             Result opens in Changeset Review
           </span>
           <span className="tb-spacer" />

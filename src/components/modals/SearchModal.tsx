@@ -151,7 +151,7 @@ export default function SearchModal({ onClose }: Props): React.ReactElement {
                   <span style={{ fontSize: 13, fontWeight: 600, color: d.titleMatch ? 'var(--accent)' : 'var(--text)' }}>
                     {d.title}
                   </span>
-                  <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                  <span className="hint">
                     {d.total > 0 ? `${d.total} match${d.total !== 1 ? 'es' : ''}` : 'title'}
                   </span>
                 </div>

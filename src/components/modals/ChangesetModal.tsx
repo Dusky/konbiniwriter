@@ -125,7 +125,7 @@ export default function ChangesetModal({ proposal, onApply, onDiscard }: Props):
 
         <div className="modal-foot">
           {proposal.costEstimateCents != null && (
-            <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
+            <span className="hint">
               ~${(proposal.costEstimateCents / 100).toFixed(3)}
             </span>
           )}

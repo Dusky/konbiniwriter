@@ -215,7 +215,7 @@ export default function DebtInboxModal({ onClose }: Props): React.ReactElement {
                       <div key={a.docId} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', borderTop: '0.5px solid var(--border)' }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 12, color: a.resolved ? 'var(--text-3)' : 'var(--text)', textDecoration: a.resolved ? 'line-through' : 'none' }}>{title}</div>
-                          <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{a.note}</div>
+                          <div className="hint">{a.note}</div>
                         </div>
                         {a.resolved ? (
                           <span style={{ fontSize: 11, color: 'var(--st-final)' }}>✓ Resolved</span>
@@ -245,7 +245,7 @@ export default function DebtInboxModal({ onClose }: Props): React.ReactElement {
         </div>
 
         <div className="modal-foot">
-          <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
+          <span className="hint">
             Draft fix routes through changeset review — nothing is rewritten without your approval.
           </span>
           <span className="tb-spacer" />

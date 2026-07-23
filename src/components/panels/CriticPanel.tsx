@@ -135,7 +135,7 @@ export default function CriticPanel(): React.ReactElement {
 
             {notes.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-3)' }}>Notes ({selectedCount} of {notes.length} selected for revision)</div>
+                <div className="hint">Notes ({selectedCount} of {notes.length} selected for revision)</div>
                 {notes.map((nt, i) => (
                   <label key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', padding: '8px 10px', cursor: 'pointer', opacity: nt.on ? 1 : 0.55 }}>
                     <input type="checkbox" checked={nt.on} onChange={() => toggle(i)} style={{ marginTop: 3, accentColor: 'var(--accent)' }} />
