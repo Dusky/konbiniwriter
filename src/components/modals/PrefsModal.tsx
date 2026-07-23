@@ -26,9 +26,9 @@ function Seg<T extends string>({ options, value, onChange }: {
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '10px 0', borderBottom: '0.5px solid var(--border)' }}>
-      <span style={{ flex: '0 0 130px', fontSize: 13, color: 'var(--text-2)' }}>{label}</span>
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>{children}</div>
+    <div className="pref-row">
+      <span className="pref-row-lbl">{label}</span>
+      <div className="pref-row-ctl">{children}</div>
     </div>
   )
 }
@@ -103,35 +103,31 @@ export default function PrefsModal({ onClose }: Props): React.ReactElement {
 
           <Row label="Editor Size">
             <input
+              className="pref-range"
               type="range"
               min={14}
               max={22}
               value={editorSize}
               onChange={(e) => setEditorSize(Number(e.target.value))}
-              style={{ flex: 1 }}
             />
-            <span style={{ width: 36, textAlign: 'right', fontSize: 12, color: 'var(--text-2)', fontFamily: 'var(--mono)' }}>
-              {editorSize}px
-            </span>
+            <span className="pref-num">{editorSize}px</span>
           </Row>
 
           <Row label="Editor Width">
             <input
+              className="pref-range"
               type="range"
               min={560}
               max={960}
               step={40}
               value={editorColWidth}
               onChange={(e) => setEditorColWidth(Number(e.target.value))}
-              style={{ flex: 1 }}
             />
-            <span style={{ width: 42, textAlign: 'right', fontSize: 12, color: 'var(--text-2)', fontFamily: 'var(--mono)' }}>
-              {editorColWidth}px
-            </span>
+            <span className="pref-num" style={{ width: 42 }}>{editorColWidth}px</span>
           </Row>
 
           <Row label="Accent">
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <div className="pref-swatches">
               {[
                 { label: 'Violet', hue: 300 },
                 { label: 'Blue',   hue: 250 },
@@ -144,16 +140,10 @@ export default function PrefsModal({ onClose }: Props): React.ReactElement {
                 return (
                   <button
                     key={hue}
+                    className={`pref-swatch${active ? ' on' : ''}`}
                     title={label}
                     onClick={() => setAccent(color)}
-                    style={{
-                      width: 24, height: 24, borderRadius: '50%',
-                      background: color,
-                      border: active ? '2px solid var(--text)' : '2px solid transparent',
-                      outline: active ? '2px solid var(--bg)' : 'none',
-                      outlineOffset: -4,
-                      cursor: 'pointer', padding: 0,
-                    }}
+                    style={{ background: color }}
                   />
                 )
               })}
@@ -161,24 +151,24 @@ export default function PrefsModal({ onClose }: Props): React.ReactElement {
           </Row>
 
           <Row label="Typewriter scroll">
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <label className="pref-check">
               <input
                 type="checkbox"
                 checked={typewriterMode}
                 onChange={(e) => setTypewriterMode(e.target.checked)}
               />
-              <span style={{ fontSize: 13, color: 'var(--text-2)' }}>Keep cursor at 40% from top while typing</span>
+              <span>Keep cursor at 40% from top while typing</span>
             </label>
           </Row>
 
           <Row label="Auto-history">
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <label className="pref-check">
               <input
                 type="checkbox"
                 checked={autoVersion}
                 onChange={(e) => setAutoVersion(e.target.checked)}
               />
-              <span style={{ fontSize: 13, color: 'var(--text-2)' }}>Auto-save versions as you write</span>
+              <span>Auto-save versions as you write</span>
             </label>
           </Row>
 
@@ -198,6 +188,8 @@ export default function PrefsModal({ onClose }: Props): React.ReactElement {
           {project && (
             <Row label="Word Goal">
               <input
+                className="inp mono"
+                style={{ width: 100 }}
                 type="number"
                 min={0}
                 value={targetDraft}
@@ -205,9 +197,8 @@ export default function PrefsModal({ onClose }: Props): React.ReactElement {
                 onChange={(e) => setTargetDraft(e.target.value)}
                 onBlur={(e) => commitTarget(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') commitTarget(targetDraft) }}
-                style={{ width: 100, padding: '5px 8px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)' }}
               />
-              <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--text-3)' }}>words (project target)</span>
+              <span style={{ marginLeft: 'var(--s2)', fontSize: 'var(--t-sm)', color: 'var(--text-3)' }}>words (project target)</span>
             </Row>
           )}
 

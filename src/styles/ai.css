@@ -702,3 +702,16 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 .gen-log { background: var(--bg-2); border: 0.5px solid var(--border); border-radius: var(--r-md);
   padding: 10px var(--s3); max-height: 200px; overflow-y: auto; font-size: var(--t-sm);
   font-family: var(--mono); line-height: 1.6; white-space: pre-wrap; color: var(--text-2); }
+
+/* ── Preferences modal ── */
+.pref-row { display: flex; align-items: center; gap: var(--s4); padding: 10px 0; border-bottom: 0.5px solid var(--border); }
+.pref-row-lbl { flex: 0 0 130px; font-size: var(--t-base); color: var(--text-2); }
+.pref-row-ctl { flex: 1; display: flex; align-items: center; }
+.pref-range { flex: 1; accent-color: var(--accent); }
+.pref-num { width: 36px; text-align: right; font-size: var(--t-sm); color: var(--text-2); font-family: var(--mono); }
+.pref-check { display: flex; align-items: center; gap: var(--s2); cursor: pointer; }
+.pref-check span { font-size: var(--t-base); color: var(--text-2); }
+.pref-check input { accent-color: var(--accent); }
+.pref-swatches { display: flex; gap: var(--s2); flex-wrap: wrap; }
+.pref-swatch { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
+.pref-swatch.on { border-color: var(--text); outline: 2px solid var(--bg); outline-offset: -4px; }
