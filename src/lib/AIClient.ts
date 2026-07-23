@@ -1,5 +1,6 @@
 import { useAIStore } from '../store/aiStore'
 import { sseLines, sseFlush, type SSEBuffer } from './sse'
+import { getValidAccessToken, CLAUDE_CODE_SYSTEM, OAUTH_BETA } from './ClaudeOAuth'
 
 export interface TokenUsage {
   inputTokens: number
@@ -66,8 +67,18 @@ export async function streamCompletion(
   }
 
   if (provider === 'anthropic') {
+    // Subscription (OAuth) auth: fetch a valid bearer token (refreshing if
+    // needed) and route the request through the Claude Code branded path.
+    let oauthToken: string | undefined
+    if (store.anthropicAuthMode === 'oauth') {
+      oauthToken = (await getValidAccessToken()) ?? undefined
+      if (!oauthToken) {
+        callbacks.onError(new Error('Claude subscription not signed in — sign in again under AI Settings'))
+        return
+      }
+    }
     await streamAnthropic(
-      { apiKey: store.anthropicKey, model, messages, maxTokens: opts.maxTokens ?? 4096, temperature: opts.temperature ?? 0.7, systemPrompt: opts.systemPrompt, signal: opts.signal },
+      { apiKey: store.anthropicKey, oauthToken, model, messages, maxTokens: opts.maxTokens ?? 4096, temperature: opts.temperature ?? 0.7, systemPrompt: opts.systemPrompt, signal: opts.signal },
       wrapped,
     )
   } else {
@@ -85,9 +96,10 @@ export async function streamCompletion(
 const NO_SAMPLING_PARAMS = /fable-5|mythos|opus-4-[78]|sonnet-5/i
 
 async function streamAnthropic(
-  opts: { apiKey: string; model: string; messages: AIMessage[]; maxTokens: number; temperature: number; systemPrompt?: string; signal?: AbortSignal },
+  opts: { apiKey: string; oauthToken?: string; model: string; messages: AIMessage[]; maxTokens: number; temperature: number; systemPrompt?: string; signal?: AbortSignal },
   cb: StreamCallbacks,
 ): Promise<void> {
+  const oauth = !!opts.oauthToken
   const body: Record<string, unknown> = {
     model: opts.model,
     max_tokens: opts.maxTokens,
@@ -99,20 +111,30 @@ async function streamAnthropic(
   // manuscript context repeats across calls (chat turns, reader personas,
   // gate rounds), so cache reads cut its cost ~90%. Prefixes below the
   // model's cacheable minimum silently don't cache — no size gate needed.
-  if (opts.systemPrompt) {
-    body.system = [{ type: 'text', text: opts.systemPrompt, cache_control: { type: 'ephemeral' } }]
+  // Subscription tokens require the first system block to identify as Claude
+  // Code, or the API rejects the request; Konbini's own system prompt follows.
+  const sysBlocks: Record<string, unknown>[] = []
+  if (oauth) sysBlocks.push({ type: 'text', text: CLAUDE_CODE_SYSTEM })
+  if (opts.systemPrompt) sysBlocks.push({ type: 'text', text: opts.systemPrompt, cache_control: { type: 'ephemeral' } })
+  if (sysBlocks.length) body.system = sysBlocks
+
+  const headers: Record<string, string> = {
+    'anthropic-version': '2023-06-01',
+    'anthropic-dangerous-direct-browser-access': 'true',
+    'content-type': 'application/json',
+  }
+  if (oauth) {
+    headers['authorization'] = `Bearer ${opts.oauthToken}`
+    headers['anthropic-beta'] = OAUTH_BETA
+  } else {
+    headers['x-api-key'] = opts.apiKey
   }
 
   let res: Response
   try {
     res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: {
-        'x-api-key': opts.apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-        'content-type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(body),
       signal: opts.signal,
     })

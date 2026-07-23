@@ -181,6 +181,12 @@ const api: KonbiniAPI = {
       ipcRenderer.on('shell:maximized', handler)
       return () => { ipcRenderer.removeListener('shell:maximized', handler) }
     },
+    openExternal: (url: string) => { ipcRenderer.invoke('shell:openExternal', url) },
+  },
+
+  oauth: {
+    exchange: (input) => ipcRenderer.invoke('oauth:exchange', input),
+    refresh: (input) => ipcRenderer.invoke('oauth:refresh', input),
   },
 }
 

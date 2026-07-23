@@ -3,7 +3,7 @@
 // Electron migration: this file is replaced by the contextBridge preload.
 // Every component already calls window.api — nothing else changes.
 
-import type { KonbiniAPI, Project } from '@shared/types'
+import type { KonbiniAPI, Project, OAuthTokenResult } from '@shared/types'
 import { isFileSystemAccessSupported, browserProjectService } from './BrowserProjectService'
 import { isOPFSSupported, opfsProjectService } from './OPFSProjectService'
 import { recentsService } from './RecentsService'
@@ -110,7 +110,45 @@ const api: KonbiniAPI = {
     close: () => window.close(),
     isMaximized: async () => false,
     onMaximizeChange: () => () => {},
+    openExternal: (url) => { window.open(url, '_blank', 'noopener,noreferrer') },
   },
+
+  // Claude OAuth token endpoint. Called directly here (best-effort — the browser
+  // build is subject to the endpoint's CORS policy); the Electron preload proxies
+  // it through the main process instead. See ClaudeOAuth.ts.
+  oauth: {
+    exchange: (input) => postToken({
+      grant_type: 'authorization_code',
+      code: input.code,
+      state: input.state,
+      client_id: OAUTH_CLIENT_ID,
+      redirect_uri: input.redirectUri,
+      code_verifier: input.verifier,
+    }),
+    refresh: (input) => postToken({
+      grant_type: 'refresh_token',
+      refresh_token: input.refreshToken,
+      client_id: OAUTH_CLIENT_ID,
+    }),
+  },
+}
+
+const OAUTH_CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e'
+const OAUTH_TOKEN_URL = 'https://console.anthropic.com/v1/oauth/token'
+
+async function postToken(payload: Record<string, string>): Promise<OAuthTokenResult> {
+  try {
+    const res = await fetch(OAUTH_TOKEN_URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) return { ok: false, error: data?.error_description ?? data?.error ?? `HTTP ${res.status}` }
+    return { ok: true, accessToken: data.access_token, refreshToken: data.refresh_token, expiresIn: data.expires_in }
+  } catch (e) {
+    return { ok: false, error: (e as Error).message }
+  }
 }
 
 // Expose globally so all components can call window.api unchanged.
