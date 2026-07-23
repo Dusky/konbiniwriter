@@ -1,6 +1,7 @@
 import React from 'react'
 import { useShellStore, type RailPanel } from '../../store/shellStore'
 import { useAIStore } from '../../store/aiStore'
+import Icon from '../common/Icon'
 import Inspector from '../inspector/Inspector'
 import AssistantPanel from '../assistant/AssistantPanel'
 import CodexPanel from '../panels/CodexPanel'
@@ -38,7 +39,7 @@ export default function RightRail(): React.ReactElement {
           </button>
         ))}
         <span style={{ flex: 1 }} />
-        <button className="rail-close" onClick={() => setRailPanel(null)} title="Close panel" aria-label="Close panel">✕</button>
+        <button className="rail-close" onClick={() => setRailPanel(null)} title="Close panel" aria-label="Close panel"><Icon name="x" size={14} /></button>
       </div>
       <div className="rail-body">
         {railPanel === 'codex' ? <CodexPanel />

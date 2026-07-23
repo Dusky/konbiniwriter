@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useProjectStore, descendants } from '../../store/projectStore'
 import { wordCount } from '@shared/utils'
+import Icon from '../common/Icon'
 import type { CompileFormat } from '@shared/types'
 
 interface Props { onClose: () => void }
@@ -127,9 +128,9 @@ export default function CompileModal({ onClose }: Props): React.ReactElement {
         </div>
         {error && (
           <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-3)', border: '1px solid var(--st-idea)', borderRadius: 6, padding: '8px 14px', margin: '0 0 2px', fontSize: 12 }}>
-            <span style={{ color: 'var(--st-idea)' }}>⚠</span>
+            <span style={{ color: 'var(--st-idea)', display: 'flex' }}><Icon name="warning" size={14} /></span>
             <span style={{ flex: 1, color: 'var(--text)' }}>{error}</span>
-            <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 0 }}>✕</button>
+            <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 0, display: 'flex' }}><Icon name="x" size={14} /></button>
           </div>
         )}
         <div className="modal-body" style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 16, minHeight: 340 }}>

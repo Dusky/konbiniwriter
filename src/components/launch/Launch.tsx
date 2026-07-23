@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useShellStore } from '../../store/shellStore'
 import { useProjectStore } from '../../store/projectStore'
 import { relTime, fmtWords } from '@shared/utils'
+import Icon from '../common/Icon'
 import NewProjectModal from '../modals/NewProjectModal'
 import CommandPalette from '../modals/CommandPalette'
 import ShortcutsModal from '../modals/ShortcutsModal'
@@ -83,11 +84,11 @@ export default function Launch(): React.ReactElement {
             )}
             <div className="ll-actions">
               <button className="ll-btn primary" onClick={() => setModal('new-project')}>
-                <span className="llb-ic">✦</span>
+                <span className="llb-ic"><Icon name="plus" /></span>
                 <span><b>New Project</b><small>Start writing something new</small></span>
               </button>
               <button className="ll-btn" onClick={doOpen} disabled={opening}>
-                <span className="llb-ic">{opening ? '…' : '⊕'}</span>
+                <span className="llb-ic">{opening ? '…' : <Icon name="folder-open" />}</span>
                 <span><b>{opening ? 'Opening…' : 'Open Project'}</b><small>{opening ? 'Reading manuscript files' : 'Browse for a .konbini folder'}</small></span>
               </button>
             </div>
@@ -129,7 +130,7 @@ export default function Launch(): React.ReactElement {
                     className="recent-x"
                     title="Remove from recents"
                     onClick={(e) => handleRemoveRecent(e, r.id)}
-                  >✕</button>
+                  ><Icon name="x" size={13} /></button>
                 </div>
               ))
             )}

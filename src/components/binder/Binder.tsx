@@ -3,6 +3,7 @@ import { useProjectStore, flattenVisible, subtreeWordCount, isDescendant } from 
 import { useShellStore } from '../../store/shellStore'
 import ContextMenu, { type MenuItem } from '../common/ContextMenu'
 import ConfirmDialog from '../common/ConfirmDialog'
+import Icon from '../common/Icon'
 import { STATUS_META, fmtWords } from '@shared/utils'
 import type { ID, NodeType } from '@shared/types'
 
@@ -191,7 +192,7 @@ export default function Binder(): React.ReactElement {
 
                 {/* Icon */}
                 <span className="tw-icon">
-                  {node.type === 'folder' ? '📁' : node.type === 'scene' ? '📄' : '📝'}
+                  <Icon name={node.type === 'folder' ? 'folder' : node.type === 'scene' ? 'document' : 'edit'} />
                 </span>
 
                 {/* Label / rename input */}
@@ -234,11 +235,11 @@ export default function Binder(): React.ReactElement {
           const parentId = selectedId && project.nodes[selectedId]?.type === 'folder' ? selectedId : null
           mutate({ type: 'create', parentId, nodeType: 'document' })
         }}>+</button>
-        <button className="icon-btn" title="New Folder (⌘⌥N)" onClick={() => mutate({ type: 'create', parentId: null, nodeType: 'folder' })}>📁</button>
+        <button className="icon-btn" title="New Folder (⌘⌥N)" onClick={() => mutate({ type: 'create', parentId: null, nodeType: 'folder' })}><Icon name="folder" /></button>
         <button className="icon-btn" title="Undo (⌘Z)" disabled={!canUndo} onClick={() => undoMutation()}>↶</button>
         <button className="icon-btn" title="Redo (⌘⇧Z)" disabled={!canRedo} onClick={() => redoMutation()}>↷</button>
         <span style={{ flex: 1 }} />
-        <button className="icon-btn" title="Delete / Trash" onClick={() => selectedId && mutate({ type: 'trash', id: selectedId })}>🗑</button>
+        <button className="icon-btn" title="Delete / Trash" onClick={() => selectedId && mutate({ type: 'trash', id: selectedId })}><Icon name="trash" /></button>
       </div>
 
       {ctx && (

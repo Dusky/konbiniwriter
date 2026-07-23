@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react'
 import { useShellStore, type Toast as ToastItem } from '../../store/shellStore'
+import Icon from './Icon'
 
 function ToastCard({ toast }: { toast: ToastItem }): React.ReactElement {
   const clearToast = useShellStore((s) => s.clearToast)
@@ -27,15 +28,15 @@ function ToastCard({ toast }: { toast: ToastItem }): React.ReactElement {
         animation: 'toast-in 0.15s ease',
       }}
     >
-      <span style={{ color: borderColor, fontSize: 15, lineHeight: 1 }}>
-        {toast.type === 'error' ? '⚠' : toast.type === 'success' ? '✓' : 'ℹ'}
+      <span style={{ color: borderColor, display: 'flex' }}>
+        <Icon name={toast.type === 'error' ? 'warning' : toast.type === 'success' ? 'check' : 'info'} size={16} />
       </span>
       <span style={{ flex: 1 }}>{toast.message}</span>
       <button
         onClick={() => clearToast(toast.id)}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 0, fontSize: 14, lineHeight: 1 }}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 0, display: 'flex' }}
         aria-label="Dismiss"
-      >✕</button>
+      ><Icon name="x" size={15} /></button>
     </div>
   )
 }

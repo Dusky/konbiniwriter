@@ -3,6 +3,7 @@ import { useShellStore } from '../../store/shellStore'
 import { useProjectStore } from '../../store/projectStore'
 import { useAIStore } from '../../store/aiStore'
 import ContextMenu from '../common/ContextMenu'
+import Icon from '../common/Icon'
 
 export default function Toolbar(): React.ReactElement {
   const layout = useShellStore((s) => s.layout)
@@ -54,7 +55,7 @@ export default function Toolbar(): React.ReactElement {
         <button className={view === 'editor'    ? 'on' : ''} onClick={() => setView('editor')}    title="Editor (⌘1)">Editor</button>
         <button className={view === 'corkboard' ? 'on' : ''} onClick={() => setView('corkboard')} title="Corkboard (⌘2)">Corkboard</button>
         <button className={view === 'outliner'  ? 'on' : ''} onClick={() => setView('outliner')}  title="Outliner (⌘3)">Outliner</button>
-        <button className={view === 'timeline'  ? 'on' : ''} onClick={() => setView('timeline')}  title="Timeline (⌘4)">≋ Timeline</button>
+        <button className={view === 'timeline'  ? 'on' : ''} onClick={() => setView('timeline')}  title="Timeline (⌘4)">Timeline</button>
       </div>
 
       <div className="tb-sep" />
@@ -173,7 +174,7 @@ export default function Toolbar(): React.ReactElement {
               setAiMenu({ x: r.left, y: r.bottom + 4 })
             }}
           >
-            <span className="ai-spark">✦</span> AI ▾
+            <span className="ai-spark"><Icon name="sparkle" size={13} /></span> AI <Icon name="chevron-down" size={12} style={{ opacity: 0.7 }} />
             {(debtOpen > 0 || slopCount > 0) && <span className="ai-dot" />}
           </button>
           <button className="tb-btn" title="AI Settings" onClick={() => setModal('ai-settings')} style={{ color: 'var(--accent)' }}>
@@ -209,7 +210,7 @@ export default function Toolbar(): React.ReactElement {
         </>
       ) : (
         <button className="tb-btn ai-enable" title="Enable AI (⌘⇧A)" onClick={() => setModal('ai-settings')}>
-          <span className="ai-spark">✦</span> AI
+          <span className="ai-spark"><Icon name="sparkle" size={13} /></span> AI
         </button>
       )}
     </div>
