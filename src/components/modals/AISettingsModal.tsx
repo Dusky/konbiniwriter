@@ -85,6 +85,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
     spendInputTokens, spendOutputTokens, spendUSD, spendCalls, spendUnpriced, resetSpend,
     slopAutoRun, setSlopAutoRun,
     customInstructions, setCustomInstructions,
+    aiMemoryEnabled, setAiMemoryEnabled,
   } = useAIStore()
 
   const project = useProjectStore((s) => s.project)
@@ -487,6 +488,13 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
               />
               <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
                 Saved with this project's <code style={{ fontFamily: 'var(--mono)' }}>.konbini</code> bundle and travels with it. Combined with the global instructions above.
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginTop: 2 }}>
+                <input type="checkbox" checked={aiMemoryEnabled} onChange={(e) => setAiMemoryEnabled(e.target.checked)} style={{ accentColor: 'var(--accent)', width: 15, height: 15 }} />
+                <span style={{ fontSize: 12 }}>Let the assistant save memories to these notes</span>
+              </label>
+              <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                When on, the chat assistant appends durable facts you share (canon, character details, style rules) here on its own — each one flagged in the conversation and fully editable above.
               </div>
             </div>
           </Row>

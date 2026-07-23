@@ -5,6 +5,7 @@ import { useAIStore } from '../../store/aiStore'
 import { streamCompletion, type AIMessage } from '../../lib/AIClient'
 import { buildContext, renderContext, estimateTokens } from '../../lib/ContextBuilder'
 import { composeCustomInstructions } from '../../lib/CustomInstructions'
+import { MEMORY_INSTRUCTION, extractMemories, stripMemories, appendMemories } from '../../lib/AiMemory'
 import ConfirmDialog from '../common/ConfirmDialog'
 import type { Project } from '@shared/types'
 
@@ -12,6 +13,8 @@ interface Message {
   role: 'user' | 'assistant'
   content: string
   isError?: boolean
+  /** Durable notes this reply saved to project memory (for the UI indicator). */
+  memories?: string[]
 }
 
 type ChatThreads = Record<string, Message[]>
@@ -152,6 +155,8 @@ export default function AssistantPanel(): React.ReactElement {
   const mentionIndex = useProjectStore((s) => s.mentionIndex)
   const chatMaxTokens = useAIStore((s) => s.chatMaxTokens)
   const chatContextMessages = useAIStore((s) => s.chatContextMessages)
+  const aiMemoryEnabled = useAIStore((s) => s.aiMemoryEnabled)
+  const setAiInstructions = useProjectStore((s) => s.setAiInstructions)
 
   const [threads, setThreads] = useState<ChatThreads>({})
   const [loaded, setLoaded] = useState(false)
@@ -272,6 +277,9 @@ export default function AssistantPanel(): React.ReactElement {
     const parts = [base]
     const custom = composeCustomInstructions()
     if (custom) parts.push(custom)
+    // Only let the assistant save memories when enabled and a project is open
+    // to receive them.
+    if (aiMemoryEnabled && project) parts.push(MEMORY_INSTRUCTION)
     if (contextPacket) { const ctx = renderContext(contextPacket); if (ctx) parts.push(ctx) }
     if (attached.text) parts.push(attached.text)
     return parts.join('\n\n')
@@ -319,7 +327,14 @@ export default function AssistantPanel(): React.ReactElement {
           updateLastAssistant((last) => ({ ...last, content: last.content + chunk }))
         },
         onDone: (full) => {
-          updateLastAssistant((last) => ({ ...last, content: full }))
+          const memories = aiMemoryEnabled && project ? extractMemories(full) : []
+          const clean = memories.length ? stripMemories(full) : full
+          updateLastAssistant((last) => ({ ...last, content: clean, memories: memories.length ? memories : undefined }))
+          if (memories.length) {
+            const cur = (useProjectStore.getState().project?.settings.aiInstructions as string | undefined) ?? ''
+            setAiInstructions(appendMemories(cur, memories))
+            useShellStore.getState().setToast(`Saved ${memories.length} note${memories.length > 1 ? 's' : ''} to project memory`, 'success')
+          }
           setStreaming(false)
         },
         onError: (err) => {
@@ -484,12 +499,23 @@ export default function AssistantPanel(): React.ReactElement {
                           <div className="thinking"><i /><i /><i /></div>
                         )
                         : msg.role === 'assistant'
-                          ? <MdText text={msg.content} />
+                          ? <MdText text={stripMemories(msg.content)} />
                           : <span style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</span>}
                       {isStreamingThis && !isThinking && (
                         <span style={{ opacity: 0.6, animation: 'pulse 1s infinite' }}>▌</span>
                       )}
                     </div>
+                    {msg.role === 'assistant' && msg.memories && msg.memories.length > 0 && (
+                      <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 2, fontSize: 11, color: 'var(--text-3)' }}>
+                        {msg.memories.map((m, mi) => (
+                          <div key={mi} style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                            <span style={{ color: 'var(--accent)', flexShrink: 0 }}>✦</span>
+                            <span>Remembered: {m}</span>
+                          </div>
+                        ))}
+                        <span style={{ color: 'var(--text-3)', opacity: 0.8 }}>Saved to project notes — edit or remove in AI Settings.</span>
+                      </div>
+                    )}
                     {msg.role === 'assistant' && msg.content && !isStreamingThis && (
                       <CopyButton text={msg.content} />
                     )}

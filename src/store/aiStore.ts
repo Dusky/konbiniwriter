@@ -81,6 +81,10 @@ interface AIState {
   // Global custom instructions / persona applied to every project's AI.
   customInstructions: string
   setCustomInstructions: (text: string) => void
+
+  // When on, the chat assistant may append durable memories to project notes.
+  aiMemoryEnabled: boolean
+  setAiMemoryEnabled: (on: boolean) => void
 }
 
 const SK = 'konbini:ai'
@@ -199,4 +203,7 @@ export const useAIStore = create<AIState>((set) => ({
 
   customInstructions: load(`${SK}:customInstructions`),
   setCustomInstructions: (customInstructions) => { save(`${SK}:customInstructions`, customInstructions); set({ customInstructions }) },
+
+  aiMemoryEnabled: load(`${SK}:aiMemoryEnabled`, 'true') !== 'false',
+  setAiMemoryEnabled: (aiMemoryEnabled) => { save(`${SK}:aiMemoryEnabled`, aiMemoryEnabled ? 'true' : 'false'); set({ aiMemoryEnabled }) },
 }))
