@@ -413,7 +413,7 @@ export default function CodexPanel(): React.ReactElement {
               </div>
             </div>
           ) : (
-            <div className="dock-body" style={{ padding: 'var(--s4)', color: 'var(--text-3)', fontSize: 'var(--t-base)' }}>
+            <div className="dock-body dock-empty">
               {scanError ? <span style={{ color: 'var(--danger)' }}>{scanError}</span> : 'Select or create an entry.'}
             </div>
           )}

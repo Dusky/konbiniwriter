@@ -116,50 +116,45 @@ export default function CriticPanel(): React.ReactElement {
       </div>
 
       {!aiEnabled ? (
-        <div className="dock-body" style={{ padding: 16, color: 'var(--text-3)', fontSize: 13 }}>Enable AI to run a critique.</div>
+        <div className="dock-body dock-empty">Enable AI to run a critique.</div>
       ) : !isDoc ? (
-        <div className="dock-body" style={{ padding: 16, color: 'var(--text-3)', fontSize: 13 }}>Select a document in the binder to critique.</div>
+        <div className="dock-body dock-empty">Select a document in the binder to critique.</div>
       ) : (
         <>
-          <div className="dock-body" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ fontSize: 13, color: 'var(--text-2)' }}>
-              Target: <strong style={{ color: 'var(--text)' }}>{node!.title}</strong>
-              {!hasContent && <span style={{ color: 'var(--text-3)' }}> — empty document</span>}
+          <div className="dock-body crit-body">
+            <div className="crit-target">
+              Target: <strong>{node!.title}</strong>
+              {!hasContent && <span className="muted"> — empty document</span>}
             </div>
 
-            {assessment && (
-              <div style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text)', background: 'var(--bg)', borderLeft: '3px solid var(--accent)', borderRadius: 'var(--r-md)', padding: '10px 12px' }}>
-                {assessment}
-              </div>
-            )}
+            {assessment && <div className="crit-assess">{assessment}</div>}
 
             {notes.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div className="crit-notes">
                 <div className="hint">Notes ({selectedCount} of {notes.length} selected for revision)</div>
                 {notes.map((nt, i) => (
-                  <label key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', padding: '8px 10px', cursor: 'pointer', opacity: nt.on ? 1 : 0.55 }}>
-                    <input type="checkbox" checked={nt.on} onChange={() => toggle(i)} style={{ marginTop: 3, accentColor: 'var(--accent)' }} />
-                    <div style={{ fontSize: 13, lineHeight: 1.5 }}>
-                      <div style={{ color: 'var(--text)' }}>{nt.issue}</div>
-                      {nt.suggestion && <div style={{ color: 'var(--text-3)', marginTop: 2 }}>→ {nt.suggestion}</div>}
+                  <label key={i} className={`crit-note${nt.on ? '' : ' off'}`}>
+                    <input type="checkbox" checked={nt.on} onChange={() => toggle(i)} />
+                    <div className="crit-note-body">
+                      <div>{nt.issue}</div>
+                      {nt.suggestion && <div className="fix">→ {nt.suggestion}</div>}
                     </div>
                   </label>
                 ))}
               </div>
             )}
 
-            {critiquing && <div style={{ fontSize: 13, color: 'var(--text-2)', textAlign: 'center', padding: '16px 0' }}>Reading the scene…</div>}
-            {done && <div style={{ fontSize: 12, color: 'var(--st-final)' }}>Revision queued — review it in Changeset Review.</div>}
-            {error && <div style={{ fontSize: 12, color: 'var(--st-idea)' }}>{error}</div>}
+            {critiquing && <div className="crit-loading">Reading the scene…</div>}
+            {done && <div style={{ fontSize: 'var(--t-sm)', color: 'var(--st-final)' }}>Revision queued — review it in Changeset Review.</div>}
+            {error && <div style={{ fontSize: 'var(--t-sm)', color: 'var(--st-idea)' }}>{error}</div>}
           </div>
 
-          <div style={{ flex: 'none', display: 'flex', flexWrap: 'wrap', gap: 8, padding: '10px 12px', borderTop: '0.5px solid var(--border)' }}>
+          <div className="crit-foot">
             <button className="btn sm" onClick={critique} disabled={busy || !hasContent}>
               {critiquing ? 'Critiquing…' : notes.length ? 'Re-critique' : 'Critique'}
             </button>
             {notes.length > 0 && (
-              <button className="btn sm" onClick={draftRevision} disabled={busy || selectedCount === 0}
-                style={{ background: 'var(--accent)', color: 'var(--accent-fg)', borderColor: 'transparent' }}>
+              <button className="btn sm primary" onClick={draftRevision} disabled={busy || selectedCount === 0}>
                 {drafting ? 'Revising…' : 'Draft revision →'}
               </button>
             )}
