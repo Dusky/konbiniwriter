@@ -395,10 +395,10 @@ button { font-family: inherit; cursor: default; }
   color: color-mix(in oklch, var(--comp-text) 55%, transparent); opacity: 0; transition: opacity .2s;
   font-variant-numeric: tabular-nums; }
 .comp:hover .comp-foot { opacity: 1; }
-.comp-exit { position: absolute; top: 16px; right: 20px; opacity: 0; transition: opacity .2s;
-  border: 0.5px solid color-mix(in oklch, var(--comp-text) 30%, transparent); background: transparent;
-  color: var(--comp-text); border-radius: 7px; padding: 6px 12px; font-size: 12px; }
-.comp:hover .comp-exit { opacity: .9; }
+/* In-flow as the last item of .comp-top (hover-revealed with the bar). It used
+   to be position:absolute and overlapped the Focus button. */
+.comp-exit { border: 0.5px solid color-mix(in oklch, var(--comp-text) 30%, transparent); background: transparent;
+  color: var(--comp-text); border-radius: var(--r-md); padding: 6px 12px; font-size: 12px; cursor: pointer; }
 
 /* ── modal ───────────────────────────────────────────────────────────────── */
 .modal-bg { position: fixed; inset: 0; z-index: 1100; background: rgba(0,0,0,.55);
