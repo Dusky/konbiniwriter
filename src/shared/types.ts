@@ -57,6 +57,7 @@ export interface ProjectSettings {
   codex?: CodexEntry[]       // stored as JSON, typed at load time
   debt?: DebtItem[]          // propagation-debt inbox (persisted with project)
   voiceFingerprint?: string  // foundation: prose style guide, injected as context
+  aiInstructions?: string    // per-project AI instructions & notes (CLAUDE.md analog)
   autopilotRun?: AutopilotRunState | null  // in-progress autopilot run, for resume
   [k: string]: unknown
 }

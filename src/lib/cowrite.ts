@@ -11,6 +11,7 @@ import type { MentionIndex } from './MentionIndex'
 import { promptRegistry } from './PromptRegistry'
 import { createProposal } from './ProposalService'
 import { buildContext, renderContext } from './ContextBuilder'
+import { composeCustomInstructions } from './CustomInstructions'
 import { streamCompletion } from './AIClient'
 
 export type CowriteCommand = 'rewrite' | 'expand' | 'tighten' | 'describe' | 'brainstorm'
@@ -47,7 +48,7 @@ export function streamBrainstorm(opts: {
     if (signal) signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
     streamCompletion(
       [{ role: 'user', content: rendered }],
-      { model: template.model, maxTokens: template.maxTokens, temperature: temperatureOverride ?? template.temperature, signal },
+      { model: template.model, maxTokens: template.maxTokens, temperature: temperatureOverride ?? template.temperature, systemPrompt: composeCustomInstructions() || undefined, signal },
       {
         onChunk: (c) => { partial += c; onChunk?.(partial) },
         onDone: resolve,
@@ -84,7 +85,7 @@ export function runCowrite(opts: {
 
     streamCompletion(
       [{ role: 'user', content: rendered }],
-      { model: template.model, maxTokens: template.maxTokens, temperature: temperatureOverride ?? template.temperature, signal },
+      { model: template.model, maxTokens: template.maxTokens, temperature: temperatureOverride ?? template.temperature, systemPrompt: composeCustomInstructions() || undefined, signal },
       {
         onChunk: () => {},
         onDone: (full) => resolve(createProposal({

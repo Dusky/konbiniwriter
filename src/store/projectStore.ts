@@ -89,6 +89,7 @@ interface ProjectState {
   // — project settings —
   setProjectWordTarget: (target: number | undefined) => void
   setVoiceFingerprint: (text: string) => void
+  setAiInstructions: (text: string) => void
   setAutopilotRun: (run: import('@shared/types').AutopilotRunState | null) => void
 
   // — judge scores (keyed by nodeId) —
@@ -454,6 +455,14 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const updated = { ...p, settings: { ...p.settings, voiceFingerprint: text } }
     set({ project: updated })
     window.api.settings.save(p.id, { voiceFingerprint: text }).catch(console.error)
+  },
+
+  setAiInstructions: (text) => {
+    const p = get().project
+    if (!p) return
+    const updated = { ...p, settings: { ...p.settings, aiInstructions: text } }
+    set({ project: updated })
+    window.api.settings.save(p.id, { aiInstructions: text }).catch(console.error)
   },
 
   setAutopilotRun: (run) => {

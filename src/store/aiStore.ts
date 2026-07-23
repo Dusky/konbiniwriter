@@ -77,6 +77,10 @@ interface AIState {
 
   slopAutoRun: boolean
   setSlopAutoRun: (on: boolean) => void
+
+  // Global custom instructions / persona applied to every project's AI.
+  customInstructions: string
+  setCustomInstructions: (text: string) => void
 }
 
 const SK = 'konbini:ai'
@@ -192,4 +196,7 @@ export const useAIStore = create<AIState>((set) => ({
 
   slopAutoRun: load(`${SK}:slopAutoRun`, 'false') === 'true',
   setSlopAutoRun: (slopAutoRun) => { save(`${SK}:slopAutoRun`, slopAutoRun ? 'true' : 'false'); set({ slopAutoRun }) },
+
+  customInstructions: load(`${SK}:customInstructions`),
+  setCustomInstructions: (customInstructions) => { save(`${SK}:customInstructions`, customInstructions); set({ customInstructions }) },
 }))

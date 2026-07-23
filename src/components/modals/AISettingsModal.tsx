@@ -84,11 +84,20 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
     contextBudgets, setContextBudget,
     spendInputTokens, spendOutputTokens, spendUSD, spendCalls, spendUnpriced, resetSpend,
     slopAutoRun, setSlopAutoRun,
+    customInstructions, setCustomInstructions,
   } = useAIStore()
 
   const project = useProjectStore((s) => s.project)
   const setVoiceFingerprint = useProjectStore((s) => s.setVoiceFingerprint)
   const voiceFingerprint = (project?.settings.voiceFingerprint as string | undefined) ?? ''
+  const setAiInstructions = useProjectStore((s) => s.setAiInstructions)
+  const projectInstructions = (project?.settings.aiInstructions as string | undefined) ?? ''
+
+  // Draft state so we persist on blur, not on every keystroke (project notes
+  // write the manifest; global notes write prefs).
+  const [globalInstrDraft, setGlobalInstrDraft] = useState(customInstructions)
+  const [projectInstrDraft, setProjectInstrDraft] = useState(projectInstructions)
+  useEffect(() => { setProjectInstrDraft(projectInstructions) }, [project?.id])
 
   const [voiceRefreshing, setVoiceRefreshing] = useState(false)
   const [voiceRefreshed, setVoiceRefreshed] = useState(false)
@@ -443,6 +452,41 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
                 Tokens of manuscript context sent per AI call, by feature. Defaults are sized for long-context models: inline 16k · chat 48k · batch 48k · autopilot 100k. Lower these for small local models.
+              </div>
+            </div>
+          </Row>
+
+          <Row label="Custom instructions">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <textarea
+                value={globalInstrDraft}
+                onChange={(e) => setGlobalInstrDraft(e.target.value)}
+                onBlur={() => { if (globalInstrDraft !== customInstructions) setCustomInstructions(globalInstrDraft) }}
+                placeholder="Give the AI a persona, tone, or standing preferences — applied across every project. e.g. “Write in a spare, Hemingwayesque register. Never use the word ‘palpable’.”"
+                rows={4}
+                style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text)', fontSize: 13, lineHeight: 1.5, resize: 'vertical', boxSizing: 'border-box' }}
+              />
+              <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                The AI's personality and standing notes for <b>all</b> projects — read on every chat and inline co-write. Konbini's CLAUDE.md, global scope.
+              </div>
+            </div>
+          </Row>
+
+          <Row label="Project notes">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <textarea
+                value={projectInstrDraft}
+                onChange={(e) => setProjectInstrDraft(e.target.value)}
+                onBlur={() => { if (project && projectInstrDraft !== projectInstructions) setAiInstructions(projectInstrDraft) }}
+                disabled={!project}
+                placeholder={project
+                  ? 'Facts and directives the AI should remember about THIS book — canon, character quirks, timeline rules, what to avoid.'
+                  : 'Open a project to add its notes.'}
+                rows={4}
+                style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border-2)', background: project ? 'var(--bg-2)' : 'var(--bg-3)', color: 'var(--text)', fontSize: 13, lineHeight: 1.5, resize: 'vertical', boxSizing: 'border-box', opacity: project ? 1 : 0.6 }}
+              />
+              <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                Saved with this project's <code style={{ fontFamily: 'var(--mono)' }}>.konbini</code> bundle and travels with it. Combined with the global instructions above.
               </div>
             </div>
           </Row>

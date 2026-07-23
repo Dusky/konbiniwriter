@@ -4,6 +4,7 @@ import { useShellStore } from '../../store/shellStore'
 import { useAIStore } from '../../store/aiStore'
 import { streamCompletion, type AIMessage } from '../../lib/AIClient'
 import { buildContext, renderContext, estimateTokens } from '../../lib/ContextBuilder'
+import { composeCustomInstructions } from '../../lib/CustomInstructions'
 import ConfirmDialog from '../common/ConfirmDialog'
 import type { Project } from '@shared/types'
 
@@ -269,6 +270,8 @@ export default function AssistantPanel(): React.ReactElement {
   function buildSystemPrompt(): string {
     const base = 'You are a creative writing assistant. Help the author with story questions, character development, plot, prose, and craft. Be specific and direct.'
     const parts = [base]
+    const custom = composeCustomInstructions()
+    if (custom) parts.push(custom)
     if (contextPacket) { const ctx = renderContext(contextPacket); if (ctx) parts.push(ctx) }
     if (attached.text) parts.push(attached.text)
     return parts.join('\n\n')
