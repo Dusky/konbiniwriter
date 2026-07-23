@@ -11,21 +11,45 @@ import * as fs from 'fs'
 
 const DEV = process.env.ELECTRON_DEV === '1' || !app.isPackaged
 
-// Linux packaged builds — the AppImage most of all — routinely open to a black
-// window. The renderer HTML loads fine (so did-fail-load never fires), but the
-// Chromium GPU process can't initialize under the host's driver (llvmpipe / VMs)
-// or the SUID sandbox is blocked by the distro's unprivileged-user-namespace
-// lockdown (Ubuntu 23.10+, 24.04). Either way compositing silently fails and
-// the window shows only its backgroundColor. Disabling hardware acceleration
-// and the GPU/SUID sandbox keeps the renderer painting. Linux-only; macOS and
-// Windows are untouched. Allow an escape hatch for users who want the GPU path.
-if (process.platform === 'linux' && process.env.KONBINI_ENABLE_GPU !== '1') {
-  app.disableHardwareAcceleration()
+// Linux routinely opens Electron to a black window — in the packaged AppImage
+// and in constrained dev/container environments alike. Two independent causes,
+// so two independent guards (macOS and Windows are untouched):
+if (process.platform === 'linux') {
+  // (1) Shared memory + sandbox. A missing/too-small /dev/shm (containers,
+  // sandboxed desktops) makes Chromium's shm allocation fatal — fall back to a
+  // temp dir. And the SUID sandbox is blocked by many distros' unprivileged-
+  // user-namespace lockdown (Ubuntu 23.10+, 24.04), which crashes the renderer.
+  // These aren't GPU-related, so they always apply.
+  app.commandLine.appendSwitch('disable-dev-shm-usage')
   app.commandLine.appendSwitch('no-sandbox')
-  app.commandLine.appendSwitch('disable-gpu-sandbox')
+
+  // (2) GPU compositing. When the GPU process can't initialize under the host's
+  // driver (llvmpipe / VMs) the window paints only its backgroundColor — the
+  // renderer HTML loads, so did-fail-load never fires. Disabling hardware
+  // acceleration and the GPU sandbox keeps it painting. Escape hatch for users
+  // who want the GPU path: KONBINI_ENABLE_GPU=1.
+  if (process.env.KONBINI_ENABLE_GPU !== '1') {
+    app.disableHardwareAcceleration()
+    app.commandLine.appendSwitch('disable-gpu-sandbox')
+  }
 }
 
 let win: BrowserWindow | null = null
+
+// Shown in dev when http://localhost:5173 refuses the connection — i.e. the
+// Vite server isn't up yet. electron:dev only compiles + launches Electron.
+const DEV_SERVER_DOWN_PAGE =
+  'data:text/html,' +
+  encodeURIComponent(
+    `<body style="margin:0;height:100vh;display:grid;place-items:center;background:#1a1a1f;color:#e6e6ea;font:15px/1.6 system-ui,sans-serif">
+      <div style="max-width:34rem;padding:2rem;text-align:center">
+        <h2 style="margin:0 0 .5rem">Vite dev server isn't running</h2>
+        <p style="color:#a0a0aa;margin:0 0 1rem">The desktop shell loaded, but nothing is serving <code>http://localhost:5173</code>.</p>
+        <p style="margin:0">Start it in a separate terminal, then relaunch:</p>
+        <pre style="background:#26262e;padding:.75rem 1rem;border-radius:8px;display:inline-block;margin:.75rem 0 0">npm run dev</pre>
+      </div>
+    </body>`,
+  )
 
 function createWindow(): void {
   win = new BrowserWindow({
@@ -44,11 +68,17 @@ function createWindow(): void {
     },
   })
 
-  // Surface a failed load instead of blanking silently (open devtools so the
-  // error is visible in a packaged build).
+  // Surface a failed load instead of blanking silently. In dev, a refused
+  // connection almost always means the Vite server isn't running (electron:dev
+  // does not start it) — show that as a page rather than a black void. In a
+  // packaged build, pop devtools so the error is at least inspectable.
   win.webContents.on('did-fail-load', (_e, code, desc, url) => {
     console.error(`Renderer failed to load (${code} ${desc}): ${url}`)
-    win?.webContents.openDevTools()
+    if (DEV && url.startsWith('http://localhost:5173')) {
+      win?.loadURL(DEV_SERVER_DOWN_PAGE)
+    } else {
+      win?.webContents.openDevTools()
+    }
   })
 
   // A crashed/killed renderer paints nothing but the window backgroundColor —
