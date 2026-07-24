@@ -53,10 +53,13 @@
 .ai-empty .ae-actions { margin-top: 20px; display: flex; gap: 8px; }
 
 /* ════ TABBED RIGHT RAIL (Inspector / Chat / Codex / Readers / Critic) ═════ */
-.body.rail-open { grid-template-columns: minmax(180px, var(--binder-w, 264px)) minmax(0, 1fr) minmax(300px, 340px); }
-.body.rail-open.no-binder { grid-template-columns: 0 minmax(0, 1fr) minmax(300px, 340px); }
-.body.rail-wide { grid-template-columns: minmax(180px, var(--binder-w, 264px)) minmax(0, 1fr) minmax(360px, 460px); }
-.body.rail-wide.no-binder { grid-template-columns: 0 minmax(0, 1fr) minmax(360px, 460px); }
+/* Rail width follows the drag-resizer (--insp-w); the min is a per-panel floor
+   so a narrow saved width can't crush the codex, while the editor (1fr) always
+   keeps priority. */
+.body.rail-open { grid-template-columns: minmax(180px, var(--binder-w, 264px)) minmax(0, 1fr) minmax(240px, var(--insp-w, 340px)); }
+.body.rail-open.no-binder { grid-template-columns: 0 minmax(0, 1fr) minmax(240px, var(--insp-w, 340px)); }
+.body.rail-wide { grid-template-columns: minmax(180px, var(--binder-w, 264px)) minmax(0, 1fr) minmax(320px, var(--insp-w, 420px)); }
+.body.rail-wide.no-binder { grid-template-columns: 0 minmax(0, 1fr) minmax(320px, var(--insp-w, 420px)); }
 .rail { position: relative; min-width: 0; z-index: 5; background: var(--bg-2); border-left: 0.5px solid var(--border-2);
   display: flex; flex-direction: column; overflow: hidden; }
 .rail-tabs { flex: none; display: flex; align-items: stretch; height: 38px; padding: 0 4px;

@@ -42,6 +42,17 @@
   font-weight: 600; color: var(--text-2); border-bottom: 0.5px solid var(--border); letter-spacing: .02em; }
 .lr-list { flex: 1; overflow-y: auto; padding: 12px; }
 .lr-empty { color: var(--text-3); text-align: center; padding: 60px 0; font-size: 13px; line-height: 1.7; }
+.lr-empty-starts { padding: 8px 4px; }
+.lr-empty-hd { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-3);
+  font-weight: 600; padding: 6px 10px 12px; }
+.lr-starts { display: flex; flex-direction: column; gap: 8px; }
+.lr-start { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 11px;
+  border: 0.5px solid var(--border-2); background: var(--bg-2); color: var(--text); text-align: left; }
+.lr-start:hover { border-color: var(--accent); background: var(--bg-3); }
+.lr-start-glyph { font-family: var(--mono); font-size: 22px; color: var(--accent); width: 26px; text-align: center; flex: none; }
+.lr-start-main { display: flex; flex-direction: column; min-width: 0; }
+.lr-start-label { font-size: 14px; font-weight: 600; }
+.lr-start-desc { font-size: 11.5px; color: var(--text-3); margin-top: 1px; line-height: 1.4; }
 .recent-row { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 11px; cursor: pointer; position: relative; }
 .recent-row:hover { background: var(--bg-2); }
 .recent-spine { width: 5px; align-self: stretch; min-height: 38px; border-radius: 3px; flex: none; }

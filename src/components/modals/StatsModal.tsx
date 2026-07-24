@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { statsService } from '../../lib/StatsService'
+import Icon from '../common/Icon'
 
 interface Props { onClose: () => void }
 
@@ -30,9 +31,11 @@ export default function StatsModal({ onClose }: Props): React.ReactElement {
           <div className="stats-chips">
             {[
               { label: 'Today', value: todayWords.toLocaleString() + ' words' },
-              { label: 'Streak', value: streak > 0 ? `🔥 ${streak}-day` : '—' },
+              { label: 'Streak', value: streak > 0
+                ? <><Icon name="flame" size={13} style={{ color: 'var(--warn)', verticalAlign: '-2px' }} /> {streak}-day</>
+                : '—' },
               { label: 'All-time', value: allTime.toLocaleString() + ' words' },
-            ].map(chip => (
+            ].map((chip: { label: string; value: React.ReactNode }) => (
               <div key={chip.label} className="stats-chip">
                 <div className="stats-chip-l">{chip.label}</div>
                 <div className="stats-chip-v">{chip.value}</div>

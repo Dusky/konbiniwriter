@@ -5,7 +5,7 @@
 
 :root {
   --accent: oklch(0.64 0.11 300);
-  --editor-font: 'IBM Plex Mono', ui-monospace, monospace;
+  --editor-font: 'Spectral', Georgia, ui-serif, serif;
   --editor-size: 17px;
 
   --ui-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
@@ -27,8 +27,8 @@
   --bg-2:      oklch(0.198 0.006 285);
   --bg-3:      oklch(0.232 0.007 285);
   --sidebar:   oklch(0.150 0.006 285);
-  --editor-bg: oklch(0.172 0.005 285);
-  --titlebar:  oklch(0.132 0.006 285);
+  --editor-bg: oklch(0.195 0.005 285);
+  --titlebar:  oklch(0.150 0.006 285);
   --text:      oklch(0.918 0.006 285);
   --text-2:    oklch(0.660 0.006 285);
   --text-3:    oklch(0.470 0.006 285);
@@ -70,7 +70,7 @@
   --bg-3:      oklch(0.925 0.004 90);
   --sidebar:   oklch(0.945 0.003 90);
   --editor-bg: oklch(0.992 0.002 90);
-  --titlebar:  oklch(0.915 0.004 90);
+  --titlebar:  oklch(0.945 0.003 90);
   --text:      oklch(0.245 0.008 285);
   --text-2:    oklch(0.480 0.008 285);
   --text-3:    oklch(0.620 0.006 285);
@@ -157,14 +157,9 @@ button { font-family: inherit; cursor: default; }
 [data-theme="dark"] .light { box-shadow: inset 0 0 0 0.5px rgba(0,0,0,.25); }
 .titlebar .proj { display: flex; align-items: center; gap: 8px; margin: 0 auto;
   font-size: 12.5px; color: var(--text-2); font-weight: 500; }
-.titlebar .proj b { color: var(--text); font-weight: 600; }
-.titlebar .proj .wm { font-family: var(--mono); font-size: 10px; letter-spacing: .18em;
-  color: var(--accent); border: 1px solid color-mix(in oklch, var(--accent) 45%, transparent);
-  padding: 1px 6px; border-radius: 4px; text-transform: uppercase; }
-.save-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11px;
-  color: var(--text-3); min-width: 96px; justify-content: flex-end; }
-.save-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--st-final); }
-.save-pill.saving .save-dot { background: var(--st-prog); animation: pulse 1s infinite; }
+.titlebar .proj b { color: var(--text); font-weight: 600; font-size: var(--t-base); letter-spacing: .01em; }
+.titlebar .proj .wm { font-family: var(--mono); font-size: 10px; letter-spacing: .22em;
+  color: var(--accent); text-transform: uppercase; opacity: .9; }
 @keyframes pulse { 50% { opacity: .3; } }
 @keyframes toast-in { from { opacity: 0; transform: translateX(-50%) translateY(8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 
@@ -534,7 +529,7 @@ html, body, #root { margin: 0; height: 100%; overflow: hidden; }
 /* Frameless window drag region */
 .titlebar { -webkit-app-region: drag; }
 .titlebar button, .titlebar .tb-btn, .titlebar .seg,
-.titlebar .icon-btn, .titlebar .save-pill, .titlebar .win-controls { -webkit-app-region: no-drag; }
+.titlebar .icon-btn, .titlebar .win-controls { -webkit-app-region: no-drag; }
 
 /* Launch-screen drag strip (so the frameless window is movable from launch) */
 .win-bar { position: absolute; top: 0; left: 0; right: 0; height: 32px; display: flex;
@@ -580,7 +575,13 @@ html, body, #root { margin: 0; height: 100%; overflow: hidden; }
 .cm-quote { color: var(--hl-quote); font-style: italic; }
 .cm-link { color: var(--hl-link); }
 .cm-code { color: var(--hl-code); font-family: var(--mono); }
-.cm-wikilink { color: var(--hl-link); border-bottom: 1px solid color-mix(in oklch, var(--hl-link) 45%, transparent); }
+/* live-preview: heading line sizes (em-based so --editor-size scales them) and
+   wikilink chips. Set by livePreview.ts. */
+.cm-lp-h1 { font-size: 1.5em; }
+.cm-lp-h2 { font-size: 1.25em; }
+.cm-lp-h3 { font-size: 1.1em; }
+.cm-wikilink-chip { color: var(--hl-link); background: var(--accent-soft);
+  border-radius: var(--r-sm); padding: 0 3px; }
 /* focus mode */
 .cm-focus-dim { color: var(--dim) !important; }
 

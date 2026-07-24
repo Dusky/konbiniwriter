@@ -6,6 +6,7 @@ import { defaultKeymap, historyKeymap, history, indentWithTab } from '@codemirro
 import { keymap } from '@codemirror/view'
 import { search, searchKeymap } from '@codemirror/search'
 import { tags } from '@lezer/highlight'
+import { livePreview } from './livePreview'
 
 // ── Markdown highlight style — maps lezer tags → CSS classes ─────────────────
 export const markdownHighlight = HighlightStyle.define([
@@ -25,29 +26,6 @@ export const markdownHighlight = HighlightStyle.define([
   { tag: tags.meta,                    class: 'cm-mk' },
   { tag: tags.punctuation,             class: 'cm-mk' },
 ])
-
-// ── Wikilink decoration [[...]] ────────────────────────────────────────────────
-const wikilinkRE = /\[\[([^\]]+)\]\]/g
-
-const wikilinkPlugin = ViewPlugin.fromClass(class {
-  decorations: ReturnType<typeof Decoration.set>
-  constructor(view: EditorView) { this.decorations = this.build(view) }
-  update(update: ViewUpdate) { if (update.docChanged || update.viewportChanged) this.decorations = this.build(update.view) }
-  build(view: EditorView) {
-    const builder = new RangeSetBuilder<Decoration>()
-    for (const { from, to } of view.visibleRanges) {
-      const text = view.state.doc.sliceString(from, to)
-      let m: RegExpExecArray | null
-      wikilinkRE.lastIndex = 0
-      while ((m = wikilinkRE.exec(text)) !== null) {
-        const start = from + m.index
-        const end = start + m[0].length
-        builder.add(start, end, Decoration.mark({ class: 'cm-wikilink' }))
-      }
-    }
-    return builder.finish()
-  }
-}, { decorations: (v) => v.decorations })
 
 // ── Focus mode: dim all lines except current paragraph ───────────────────────
 export const focusModeEffect = StateEffect.define<boolean>()
@@ -144,10 +122,8 @@ export const konbiniTheme = EditorView.theme({
   '&.cm-focused .cm-selectionBackground': { background: 'var(--accent-soft)' },
   '.cm-gutters': { display: 'none' },
   '.cm-activeLine': { background: 'transparent' },
-  // heading size bumps (applied via HighlightStyle class + these rules)
-  '.cm-h1': { fontSize: '1.35em' },
-  '.cm-h2': { fontSize: '1.18em' },
-  '.cm-h3': { fontSize: '1.06em' },
+  // Heading sizing is done per-line by livePreview (.cm-lp-h*) so it doesn't
+  // compound with the span-level heading classes.
 })
 
 // ── Assembled extension set ───────────────────────────────────────────────────
@@ -161,7 +137,7 @@ export function konbiniExtensions(
     keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
     markdown(),
     syntaxHighlighting(markdownHighlight),
-    wikilinkPlugin,
+    livePreview,
     focusModeField,
     focusModePlugin,
     slopField,

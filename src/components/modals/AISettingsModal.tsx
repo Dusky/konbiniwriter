@@ -5,6 +5,7 @@ import { promptRegistry } from '../../lib/PromptRegistry'
 import { streamCompletion } from '../../lib/AIClient'
 import { formatUSD } from '../../lib/Pricing'
 import { createPKCE, authorizeUrl, completeSignIn, type PKCE } from '../../lib/ClaudeOAuth'
+import { kbd } from '../../lib/kbd'
 import Icon from '../common/Icon'
 
 const ANTHROPIC_MODELS = [
@@ -590,7 +591,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
               <input type="checkbox" checked={slopAutoRun} onChange={(e) => setSlopAutoRun(e.target.checked)} style={{ accentColor: 'var(--accent)', width: 15, height: 15 }} />
               <span style={{ fontSize: 13 }}>Auto-run after 30s idle</span>
             </label>
-            <div className="ai-hint" style={{ marginTop: 4 }}>Automatically flag clichés and weak prose 30 seconds after you stop typing. Keyboard shortcut: ⌥P.</div>
+            <div className="ai-hint" style={{ marginTop: 4 }}>Automatically flag clichés and weak prose 30 seconds after you stop typing. Keyboard shortcut: {kbd('alt+p')}.</div>
           </Row>
 
           <Row label="Session usage">

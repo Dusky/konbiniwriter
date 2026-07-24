@@ -7,18 +7,18 @@ import { isDocx, docxToText } from '../../lib/docxImport'
 
 const IMPORTABLE = /\.(md|markdown|mdown|txt|text|docx)$/i
 
-const TEMPLATES: { id: TemplateId; glyph: string; label: string; desc: string }[] = [
+export const TEMPLATES: { id: TemplateId; glyph: string; label: string; desc: string }[] = [
   { id: 'novel',       glyph: '冊', label: 'Novel',       desc: 'Three-act structure with chapter/scene hierarchy.' },
   { id: 'blank',       glyph: '□',  label: 'Blank',       desc: 'A single empty document to start freely.' },
   { id: 'screenplay',  glyph: '幕', label: 'Screenplay',  desc: 'Acts and scenes in standard script format.' },
   { id: 'nonfiction',  glyph: '頁', label: 'Non-fiction', desc: 'Chapters and sections for long-form non-fiction.' },
 ]
 
-interface Props { onClose: () => void }
+interface Props { onClose: () => void; initialTemplate?: TemplateId }
 
-export default function NewProjectModal({ onClose }: Props): React.ReactElement {
+export default function NewProjectModal({ onClose, initialTemplate }: Props): React.ReactElement {
   const [title, setTitle] = useState('Untitled Project')
-  const [template, setTemplate] = useState<TemplateId>('novel')
+  const [template, setTemplate] = useState<TemplateId>(initialTemplate ?? 'novel')
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 

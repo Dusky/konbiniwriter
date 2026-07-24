@@ -8,6 +8,7 @@ import { useAutosave } from '../../hooks/useAutosave'
 import { useAIStore } from '../../store/aiStore'
 import CowriteBar from './CowriteBar'
 import ContextMenu, { type MenuItem } from '../common/ContextMenu'
+import Icon from '../common/Icon'
 import { COWRITE_COMMANDS, type CowriteCommand } from '../../lib/cowrite'
 import { promptRegistry } from '../../lib/PromptRegistry'
 import { streamCompletion } from '../../lib/AIClient'
@@ -560,8 +561,10 @@ export default function Editor({ docId }: Props): React.ReactElement {
               border: '1px solid var(--border)',
               background: 'var(--bg-2)', color: 'var(--text)',
               cursor: 'pointer', fontSize: 13,
+              display: 'inline-flex', alignItems: 'center',
             }}
-          >✕</button>
+            aria-label="Close find bar"
+          ><Icon name="x" size={14} /></button>
         </div>
       )}
       <div ref={containerRef} style={{ flex: 1, minHeight: 0 }} />

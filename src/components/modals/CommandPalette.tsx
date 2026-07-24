@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react'
 import { useShellStore } from '../../store/shellStore'
 import { useProjectStore } from '../../store/projectStore'
 import { useAIStore } from '../../store/aiStore'
+import { kbd } from '../../lib/kbd'
 import type { ModalId, NodeType } from '@shared/types'
 
 interface Command {
@@ -85,45 +86,45 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
 
     const cmds: Command[] = [
       // Edit
-      { id: 'undo', label: 'Undo Tree Change', section: 'Edit', hint: '⌘Z', run: () => proj.undoMutation() },
-      { id: 'redo', label: 'Redo Tree Change', section: 'Edit', hint: '⌘⇧Z', run: () => proj.redoMutation() },
+      { id: 'undo', label: 'Undo Tree Change', section: 'Edit', hint: kbd('mod+z'), run: () => proj.undoMutation() },
+      { id: 'redo', label: 'Redo Tree Change', section: 'Edit', hint: kbd('mod+shift+z'), run: () => proj.redoMutation() },
       // Views
-      { id: 'view-editor', label: 'View: Editor', section: 'View', hint: '⌘1', run: () => proj.setView('editor') },
-      { id: 'view-corkboard', label: 'View: Corkboard', section: 'View', hint: '⌘2', run: () => proj.setView('corkboard') },
-      { id: 'view-outliner', label: 'View: Outliner', section: 'View', hint: '⌘3', run: () => proj.setView('outliner') },
-      { id: 'view-timeline', label: 'View: Timeline', section: 'View', hint: '⌘4', run: () => proj.setView('timeline') },
+      { id: 'view-editor', label: 'View: Editor', section: 'View', hint: kbd('mod+1'), run: () => proj.setView('editor') },
+      { id: 'view-corkboard', label: 'View: Corkboard', section: 'View', hint: kbd('mod+2'), run: () => proj.setView('corkboard') },
+      { id: 'view-outliner', label: 'View: Outliner', section: 'View', hint: kbd('mod+3'), run: () => proj.setView('outliner') },
+      { id: 'view-timeline', label: 'View: Timeline', section: 'View', hint: kbd('mod+4'), run: () => proj.setView('timeline') },
       // Layout / modes
-      { id: 'toggle-binder', label: 'Toggle Binder', section: 'Layout', hint: '⌘⌥B', run: () => shell.toggleBinder() },
-      { id: 'toggle-insp', label: 'Toggle Inspector', section: 'Layout', hint: '⌘⌥I', run: () => shell.toggleRailPanel('inspector') },
-      { id: 'split', label: 'Toggle Split Editor', section: 'Layout', hint: '⌘\\', run: () => proj.toggleSplit() },
-      { id: 'focus', label: `Focus Mode: ${proj.focusMode ? 'Off' : 'On'}`, section: 'Layout', hint: '⌘⌥O', run: () => proj.setFocusMode(!useProjectStore.getState().focusMode) },
-      { id: 'composition', label: 'Composition Mode', section: 'Layout', hint: '⌘⌥C', run: () => proj.setCompositionMode(true) },
+      { id: 'toggle-binder', label: 'Toggle Binder', section: 'Layout', hint: kbd('mod+alt+b'), run: () => shell.toggleBinder() },
+      { id: 'toggle-insp', label: 'Toggle Inspector', section: 'Layout', hint: kbd('mod+alt+i'), run: () => shell.toggleRailPanel('inspector') },
+      { id: 'split', label: 'Toggle Split Editor', section: 'Layout', hint: kbd('mod+\\'), run: () => proj.toggleSplit() },
+      { id: 'focus', label: `Focus Mode: ${proj.focusMode ? 'Off' : 'On'}`, section: 'Layout', hint: kbd('mod+alt+o'), run: () => proj.setFocusMode(!useProjectStore.getState().focusMode) },
+      { id: 'composition', label: 'Composition Mode', section: 'Layout', hint: kbd('mod+alt+c'), run: () => proj.setCompositionMode(true) },
       { id: 'typewriter', label: `Typewriter Scroll: ${shell.typewriterMode ? 'Off' : 'On'}`, section: 'Layout', run: () => shell.setTypewriterMode(!useShellStore.getState().typewriterMode) },
-      { id: 'theme', label: `Theme: switch to ${shell.theme === 'dark' ? 'Light' : 'Dark'}`, section: 'Layout', hint: '⌘⌥T', run: () => shell.setTheme(useShellStore.getState().theme === 'dark' ? 'light' : 'dark') },
+      { id: 'theme', label: `Theme: switch to ${shell.theme === 'dark' ? 'Light' : 'Dark'}`, section: 'Layout', hint: kbd('mod+alt+t'), run: () => shell.setTheme(useShellStore.getState().theme === 'dark' ? 'light' : 'dark') },
       // Create
-      { id: 'new-doc', label: 'New Document', section: 'Create', hint: '⌘⇧D', run: () => createNode('document') },
-      { id: 'new-scene', label: 'New Scene', section: 'Create', hint: '⌘⇧N', run: () => createNode('scene') },
-      { id: 'new-folder', label: 'New Folder', section: 'Create', hint: '⌘⌥N', run: () => createNode('folder') },
+      { id: 'new-doc', label: 'New Document', section: 'Create', hint: kbd('mod+shift+d'), run: () => createNode('document') },
+      { id: 'new-scene', label: 'New Scene', section: 'Create', hint: kbd('mod+shift+n'), run: () => createNode('scene') },
+      { id: 'new-folder', label: 'New Folder', section: 'Create', hint: kbd('mod+alt+n'), run: () => createNode('folder') },
       // Project tools
       { id: 'history', label: 'Document History…', section: 'Document', run: openModal('history') },
-      { id: 'snapshot', label: 'Take Snapshot…', section: 'Document', hint: '⌘⇧S', run: openModal('history') },
-      { id: 'search', label: 'Search Project…', section: 'Project', hint: '⌘⇧F', run: openModal('search') },
-      { id: 'compile', label: 'Compile / Export…', section: 'Project', hint: '⌘⇧E', run: openModal('compile') },
+      { id: 'snapshot', label: 'Take Snapshot…', section: 'Document', hint: kbd('mod+shift+s'), run: openModal('history') },
+      { id: 'search', label: 'Search Project…', section: 'Project', hint: kbd('mod+shift+f'), run: openModal('search') },
+      { id: 'compile', label: 'Compile / Export…', section: 'Project', hint: kbd('mod+shift+e'), run: openModal('compile') },
       { id: 'stats', label: 'Writing Stats…', section: 'Project', run: openModal('stats') },
-      { id: 'prefs', label: 'Preferences…', section: 'Project', hint: '⌘,', run: openModal('prefs') },
+      { id: 'prefs', label: 'Preferences…', section: 'Project', hint: kbd('mod+,'), run: openModal('prefs') },
     ]
 
     if (aiEnabled) {
       cmds.push(
-        { id: 'ai-codex', label: 'Codex…', section: 'AI', hint: '⌘⇧K', run: () => shell.setRailPanel('codex') },
+        { id: 'ai-codex', label: 'Codex…', section: 'AI', hint: kbd('mod+shift+k'), run: () => shell.setRailPanel('codex') },
         { id: 'ai-debt', label: 'Propagation Debt…', section: 'AI', run: openModal('debt') },
-        { id: 'ai-chat', label: 'AI Chat…', section: 'AI', hint: '⌘⇧A', run: () => shell.setRailPanel('assistant') },
-        { id: 'ai-reader', label: 'Reader Panel…', section: 'AI', hint: '⌘⇧R', run: () => shell.setRailPanel('reader') },
+        { id: 'ai-chat', label: 'AI Chat…', section: 'AI', hint: kbd('mod+shift+a'), run: () => shell.setRailPanel('assistant') },
+        { id: 'ai-reader', label: 'Reader Panel…', section: 'AI', hint: kbd('mod+shift+r'), run: () => shell.setRailPanel('reader') },
         { id: 'ai-foundation', label: 'Foundation (seed → world → cast)…', section: 'AI', run: openModal('foundation') },
-        { id: 'ai-batch', label: 'Batch Generators…', section: 'AI', hint: '⌘⇧G', run: openModal('batch-generator') },
+        { id: 'ai-batch', label: 'Batch Generators…', section: 'AI', hint: kbd('mod+shift+g'), run: openModal('batch-generator') },
         { id: 'ai-bestof', label: 'Best of N (variant tournament)…', section: 'AI', run: openModal('bestof') },
         { id: 'ai-critic', label: 'Critic (professor critique + revision)…', section: 'AI', run: () => shell.setRailPanel('critic') },
-        { id: 'ai-autopilot', label: 'Autopilot…', section: 'AI', hint: '⌘⇧P', run: openModal('autopilot') },
+        { id: 'ai-autopilot', label: 'Autopilot…', section: 'AI', hint: kbd('mod+shift+p'), run: openModal('autopilot') },
         { id: 'ai-prompts', label: 'Prompt Registry…', section: 'AI', run: openModal('prompt-registry') },
         { id: 'ai-settings', label: 'AI Settings…', section: 'AI', run: openModal('ai-settings') },
       )
@@ -132,10 +133,10 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
     }
 
     cmds.push(
-      { id: 'shortcuts', label: 'Keyboard Shortcuts…', section: 'Help', hint: '⌘/', run: openModal('shortcuts') },
+      { id: 'shortcuts', label: 'Keyboard Shortcuts…', section: 'Help', hint: kbd('mod+/'), run: openModal('shortcuts') },
       { id: 'about', label: 'About Konbini…', section: 'Help', run: openModal('about') },
       {
-        id: 'close-project', label: 'Close Project', section: 'Project', hint: '⌘W',
+        id: 'close-project', label: 'Close Project', section: 'Project', hint: kbd('mod+w'),
         run: () => {
           const p = useProjectStore.getState().project
           if (!p) return

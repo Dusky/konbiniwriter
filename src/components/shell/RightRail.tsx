@@ -28,7 +28,9 @@ export default function RightRail(): React.ReactElement {
 
   return (
     <div className="rail">
-      <SidebarResizer edge="left" cssVar="--insp-w" prefKey="pref:inspWidth" min={220} max={560} fallback={286} />
+      <SidebarResizer edge="left" cssVar="--insp-w" prefKey="pref:inspWidth"
+        min={railPanel === 'codex' ? 320 : 240} max={560}
+        fallback={railPanel === 'codex' ? 420 : 340} />
       <div className="rail-tabs">
         {tabs.map((t) => (
           <button

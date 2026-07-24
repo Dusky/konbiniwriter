@@ -69,7 +69,7 @@ export const useShellStore = create<ShellState>((set) => ({
     return d
   })(),
   editorFont: (() => {
-    const f = (window.api.prefs.get('pref:editorFont') as EditorFont) || 'mono'
+    const f = (window.api.prefs.get('pref:editorFont') as EditorFont) || 'serif'
     document.documentElement.style.setProperty('--editor-font', FONT_MAP[f])
     return f
   })(),

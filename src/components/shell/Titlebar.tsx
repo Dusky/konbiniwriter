@@ -2,10 +2,10 @@ import React from 'react'
 import { useShellStore } from '../../store/shellStore'
 import { useProjectStore } from '../../store/projectStore'
 import WindowControls from './WindowControls'
+import Icon from '../common/Icon'
 
 export default function Titlebar(): React.ReactElement {
   const project = useProjectStore((s) => s.project)
-  const saveStatus = useProjectStore((s) => s.saveStatus)
   const setScreen = useShellStore((s) => s.setScreen)
   const unloadProject = useProjectStore((s) => s.unloadProject)
   const setRecents = useShellStore((s) => s.setRecents)
@@ -24,12 +24,8 @@ export default function Titlebar(): React.ReactElement {
         {project && <b>{project.title}</b>}
       </div>
       <span style={{ flex: 1 }} />
-      <div className={`save-pill${saveStatus === 'saving' ? ' saving' : ''}`}>
-        {saveStatus === 'saving' && <><span className="save-dot" />Saving…</>}
-        {saveStatus === 'saved' && <><span className="save-dot" />Saved</>}
-      </div>
-      <button className="tb-btn" title="Close project — back to projects" onClick={handleClose} style={{ marginLeft: 6 }}>
-        ✕ Close project
+      <button className="tb-btn" title="Close project — back to projects" onClick={handleClose} style={{ marginLeft: 6, gap: 6 }}>
+        <Icon name="x" size={13} /> Close project
       </button>
       <WindowControls />
     </div>

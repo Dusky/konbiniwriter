@@ -1,5 +1,7 @@
 import React from 'react'
 import { useProjectStore } from '../../store/projectStore'
+import { useShellStore } from '../../store/shellStore'
+import { kbd } from '../../lib/kbd'
 import Editor from './Editor'
 import TabStrip from './TabStrip'
 import Icon from '../common/Icon'
@@ -19,6 +21,18 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
   const view = useProjectStore((s) => s.view)
   const selectNode = useProjectStore((s) => s.selectNode)
   const setSplitId = useProjectStore((s) => s.setSplitId)
+  const applyMutation = useProjectStore((s) => s.applyMutation)
+  const setRenamingId = useProjectStore((s) => s.setRenamingId)
+  const setModal = useShellStore((s) => s.setModal)
+
+  const createFirstDoc = async () => {
+    const p = useProjectStore.getState().project
+    if (!p) return
+    const result = await window.api.node.mutate(p.id, { type: 'create', parentId: null, nodeType: 'document' })
+    applyMutation(result)
+    const newId = Object.values(result.nodes).find((n) => n.ext['_newId'])?.id
+    if (newId) { selectNode(newId); setRenamingId(newId) }
+  }
 
   // The effective docId for this pane
   const selectedId = nodeId !== undefined ? nodeId : storeSelectedId
@@ -88,8 +102,22 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
         {tabs}
         {paneHeader}
         <div className="empty-state" style={{ flex: 1 }}>
-          <div className="wm"><Icon name="sparkle" /></div>
-          <div className="big">Select a document to write</div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div className="wm"><Icon name="sparkle" /></div>
+            <div className="big">Pick up where you left off</div>
+            <p style={{ color: 'var(--text-3)', fontSize: 13, margin: '4px 0 0' }}>
+              Choose a document in the binder, or start a new one.
+            </p>
+            <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+              <button className="btn primary" onClick={createFirstDoc}>
+                <Icon name="plus" size={14} style={{ marginRight: 6, verticalAlign: '-2px' }} />
+                New document <span style={{ opacity: 0.7, marginLeft: 6 }}>{kbd('mod+shift+d')}</span>
+              </button>
+              <button className="btn" onClick={() => setModal('command-palette')}>
+                Command palette <span style={{ opacity: 0.7, marginLeft: 6 }}>{kbd('mod+k')}</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     )
