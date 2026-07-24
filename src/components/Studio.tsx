@@ -147,6 +147,7 @@ export default function Studio(): React.ReactElement {
 
       {activeProposal && (
         <ChangesetModal
+          key={activeProposal.id}
           proposal={activeProposal}
           onApply={async (content, accepted) => {
             if (!project) return
@@ -170,6 +171,11 @@ export default function Studio(): React.ReactElement {
             const snap = await window.api.snapshot.take(project.id, activeProposal.docId, `Before ${activeProposal.label}`)
             addSnapshot(activeProposal.docId, snap)
             updateContent(activeProposal.docId, resolvedContent)
+            // Persist the applied content directly. updateContent only touches the
+            // store; disk otherwise relies on the target doc's autosave, which only
+            // runs for the *active* editor — so a proposal applied to a doc that
+            // isn't open (find-&-replace, debt fixes, batch) would never reach disk.
+            await window.api.doc.write(project.id, activeProposal.docId, resolvedContent)
             resolveProposal(activeProposal.id, 'applied')
             // If this proposal was reconciling a debt item, applying it closes
             // that affected document.
