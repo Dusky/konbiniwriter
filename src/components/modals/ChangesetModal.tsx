@@ -90,14 +90,14 @@ export default function ChangesetModal({ proposal, onApply, onDiscard }: Props):
               const preview = seg.lines.slice(0, 3).join('\n')
               const more = seg.lines.length > 3 ? `\n… (${seg.lines.length - 3} more lines)` : ''
               return (
-                <div key={i} className="cs-ctx">
+                <div key={`ctx-${i}`} className="cs-ctx">
                   {preview + more}
                 </div>
               )
             }
             return (
               <HunkRow
-                key={seg.idx}
+                key={`hunk-${seg.idx}`}
                 seg={seg}
                 accepted={accepted.has(seg.idx)}
                 onToggle={() => toggleHunk(seg.idx)}

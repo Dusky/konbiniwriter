@@ -675,6 +675,19 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 .srch-hit.on { background: var(--bg-2); }
 .srch-hit-txt { font-size: var(--t-sm); color: var(--text-2); line-height: 1.5; font-family: var(--mono); word-break: break-word; }
 .srch-hit-txt mark { background: var(--accent-soft); color: var(--text); border-radius: 2px; padding: 0 1px; }
+/* replace row + options */
+.srch-replace-row { display: flex; align-items: center; gap: 6px; padding-bottom: var(--s3); }
+.srch-replace { flex: 1; min-width: 0; }
+.srch-opt { flex: none; height: 34px; min-width: 34px; padding: 0 8px; border: 0.5px solid var(--border-2);
+  border-radius: var(--r-md); background: var(--bg-2); color: var(--text-3); font-size: var(--t-sm);
+  font-family: var(--mono); cursor: pointer; }
+.srch-opt:hover { color: var(--text-2); }
+.srch-opt.on { background: var(--accent-soft); color: var(--text); border-color: var(--accent); }
+.srch-doc-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.srch-doc-replace { flex: none; border: 0.5px solid var(--border-2); background: transparent; color: var(--text-3);
+  font-size: var(--t-xs); border-radius: var(--r-sm); padding: 2px 8px; cursor: pointer; opacity: 0; }
+.srch-doc-hd:hover .srch-doc-replace { opacity: 1; }
+.srch-doc-replace:hover { color: var(--text); border-color: var(--accent); background: var(--accent-soft); }
 
 /* ── Stats modal ── */
 .stats-chips { display: flex; gap: var(--s3); margin-bottom: var(--s5); }
