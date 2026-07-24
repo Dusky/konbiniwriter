@@ -133,3 +133,43 @@ export const scriveningsGuard = EditorState.changeFilter.of((tr) => {
 })
 
 export const scriveningsExtensions = [sepField, scriveningsAtomic, scriveningsGuard]
+
+// ── Buffer ↔ scene mapping (for AI cowrite / beat inside the combined buffer) ──
+// Locate the clean-content [from,to) of each scene in the live buffer by the
+// (always-intact) token positions, mirroring extractSegments' newline stripping.
+export interface SegBound { sceneId: string; from: number; to: number }
+
+export function segmentBounds(buffer: string, ids: string[]): SegBound[] {
+  if (ids.length === 0) return []
+  const tokens: number[] = []
+  for (let c = 0, idx = 0; (idx = buffer.indexOf(SEP_TOKEN, c)) !== -1; c = idx + SEP_TOKEN.length) tokens.push(idx)
+  if (tokens.length !== ids.length - 1) return [] // buffer/model out of sync
+  const last = ids.length - 1
+  const out: SegBound[] = []
+  for (let i = 0; i < ids.length; i++) {
+    let from = i === 0 ? 0 : tokens[i - 1] + SEP_TOKEN.length
+    let to = i === last ? buffer.length : tokens[i]
+    if (i > 0 && buffer[from] === '\n') from += 1            // '\n' after the previous token
+    if (i < last && to > 0 && buffer[to - 1] === '\n') to -= 1 // '\n' before the next token
+    out.push({ sceneId: ids[i], from, to })
+  }
+  return out
+}
+
+/** Map a buffer position to a scene + offset within that scene's content. */
+export function sceneAtPos(buffer: string, ids: string[], pos: number): { sceneId: string; offset: number } | null {
+  const bounds = segmentBounds(buffer, ids)
+  if (bounds.length === 0) return null
+  for (const b of bounds) if (pos >= b.from && pos <= b.to) return { sceneId: b.sceneId, offset: pos - b.from }
+  // In a divider/structural gap → snap to the nearest scene boundary.
+  for (const b of bounds) if (pos < b.from) return { sceneId: b.sceneId, offset: 0 }
+  const lastB = bounds[bounds.length - 1]
+  return { sceneId: lastB.sceneId, offset: lastB.to - lastB.from }
+}
+
+/** Map a buffer range to a scene-local range, or null if it spans scenes/dividers. */
+export function sceneRangeForRange(buffer: string, ids: string[], from: number, to: number): { sceneId: string; from: number; to: number } | null {
+  const bounds = segmentBounds(buffer, ids)
+  const b = bounds.find((s) => from >= s.from && to <= s.to)
+  return b ? { sceneId: b.sceneId, from: from - b.from, to: to - b.from } : null
+}
