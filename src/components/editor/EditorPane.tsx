@@ -4,6 +4,7 @@ import { useShellStore } from '../../store/shellStore'
 import { kbd } from '../../lib/kbd'
 import Editor from './Editor'
 import Scrivenings from './Scrivenings'
+import EditorBar from './EditorBar'
 import TabStrip from './TabStrip'
 import Icon from '../common/Icon'
 import Corkboard from '../views/Corkboard'
@@ -141,6 +142,7 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
               <Scrivenings key={selectedId} folderId={selectedId} />
             </div>
           </div>
+          <EditorBar nodeId={selectedId} scrivenings />
         </div>
       )
     }
@@ -188,6 +190,7 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
           <Editor key={selectedId} docId={selectedId} />
         </div>
       </div>
+      <EditorBar nodeId={selectedId} />
     </div>
   )
 }

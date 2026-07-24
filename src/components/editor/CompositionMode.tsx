@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useCallback } from 'react'
 import { EditorView } from '@codemirror/view'
-import { EditorState } from '@codemirror/state'
+import { EditorState, Compartment } from '@codemirror/state'
 import { focusModeEffect, konbiniExtensions } from './extensions'
+import { livePreview } from './livePreview'
 import { useProjectStore } from '../../store/projectStore'
+import { useShellStore } from '../../store/shellStore'
 import { useAutosave } from '../../hooks/useAutosave'
 import { wordCount, charCount } from '@shared/utils'
 
@@ -24,6 +26,8 @@ export default function CompositionMode(): React.ReactElement {
   const [theme, setTheme] = React.useState(THEMES[1])
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
+  const livePreviewCompartment = useRef(new Compartment())
+  const livePreviewOn = useShellStore((s) => s.livePreview)
 
   const content = selectedId && project ? (project.docs[selectedId]?.content ?? '') : ''
   const docNode = selectedId && project ? project.nodes[selectedId] : null
@@ -40,7 +44,10 @@ export default function CompositionMode(): React.ReactElement {
     if (!containerRef.current || !selectedId) return
     const state = EditorState.create({
       doc: content,
-      extensions: konbiniExtensions(handleChange),
+      extensions: [
+        ...konbiniExtensions(handleChange),
+        livePreviewCompartment.current.of(livePreviewOn ? livePreview : []),
+      ],
     })
     const view = new EditorView({
       state,
@@ -66,6 +73,10 @@ export default function CompositionMode(): React.ReactElement {
   useEffect(() => {
     viewRef.current?.dispatch({ effects: focusModeEffect.of(focusMode) })
   }, [focusMode])
+
+  useEffect(() => {
+    viewRef.current?.dispatch({ effects: livePreviewCompartment.current.reconfigure(livePreviewOn ? livePreview : []) })
+  }, [livePreviewOn])
 
   // Escape exits composition mode
   useEffect(() => {

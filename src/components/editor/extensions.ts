@@ -156,7 +156,6 @@ export function konbiniExtensions(
     keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
     markdown(),
     syntaxHighlighting(markdownHighlight),
-    livePreview,
     focusModeField,
     focusModePlugin,
     slopField,

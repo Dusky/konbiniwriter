@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useCallback, useState } from 'react'
 import { EditorView } from '@codemirror/view'
 import { EditorState, Compartment } from '@codemirror/state'
 import { focusModeEffect, konbiniExtensions, makeTypewriterPlugin, setSlopSpansEffect, type SlopSpan } from './extensions'
+import { livePreview } from './livePreview'
 import { useProjectStore } from '../../store/projectStore'
 import { useShellStore } from '../../store/shellStore'
 import { useAutosave } from '../../hooks/useAutosave'
@@ -27,6 +28,7 @@ export default function Editor({ docId }: Props): React.ReactElement {
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const typewriterCompartment = useRef(new Compartment())
+  const livePreviewCompartment = useRef(new Compartment())
 
   const project = useProjectStore((s) => s.project)
   const updateContent = useProjectStore((s) => s.updateContent)
@@ -40,6 +42,7 @@ export default function Editor({ docId }: Props): React.ReactElement {
   const pendingReveal = useProjectStore((s) => s.pendingReveal)
   const setPendingReveal = useProjectStore((s) => s.setPendingReveal)
   const typewriterMode = useShellStore((s) => s.typewriterMode)
+  const livePreviewOn = useShellStore((s) => s.livePreview)
   const setModal = useShellStore((s) => s.setModal)
 
   const content = project?.docs[docId]?.content ?? ''
@@ -262,6 +265,7 @@ export default function Editor({ docId }: Props): React.ReactElement {
       doc: content,
       extensions: [
         ...konbiniExtensions(handleChange, handleCursor),
+        livePreviewCompartment.current.of(livePreviewOn ? livePreview : []),
         typewriterCompartment.current.of(typewriterMode ? makeTypewriterPlugin() : []),
       ],
     })
@@ -468,6 +472,15 @@ export default function Editor({ docId }: Props): React.ReactElement {
       effects: typewriterCompartment.current.reconfigure(typewriterMode ? makeTypewriterPlugin() : []),
     })
   }, [typewriterMode])
+
+  // Sync render mode (live preview vs raw markdown) into CM6 compartment
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+    view.dispatch({
+      effects: livePreviewCompartment.current.reconfigure(livePreviewOn ? livePreview : []),
+    })
+  }, [livePreviewOn])
 
   return (
     <div style={{ height: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }} onMouseUp={handleMouseUp} onMouseMove={handleMouseMove} onMouseLeave={() => setWikilinkTip(null)} onContextMenu={handleContextMenu}>
