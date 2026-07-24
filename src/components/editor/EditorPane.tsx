@@ -1,8 +1,9 @@
 import React from 'react'
-import { useProjectStore } from '../../store/projectStore'
+import { useProjectStore, descendants } from '../../store/projectStore'
 import { useShellStore } from '../../store/shellStore'
 import { kbd } from '../../lib/kbd'
 import Editor from './Editor'
+import Scrivenings from './Scrivenings'
 import TabStrip from './TabStrip'
 import Icon from '../common/Icon'
 import Corkboard from '../views/Corkboard'
@@ -124,6 +125,25 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
   }
 
   if (selectedNode.type === 'folder') {
+    const hasScenes = descendants(project, selectedId).some((id) => project.nodes[id]?.type !== 'folder')
+    // Scrivenings: edit all of a folder's scenes as one continuous document.
+    // (Main pane only in v1; split panes keep the placeholder.)
+    if (hasScenes && !splitOpen) {
+      return (
+        <div className="main" style={{ display: 'flex', flexDirection: 'column' }}>
+          {tabs}
+          <div className="doc-bar">
+            <span className="crumb"><Icon name="folder" style={{ verticalAlign: '-2px', marginRight: 4 }} /><b>{selectedNode.title}</b></span>
+            <span className="crumb" style={{ marginLeft: 8 }}>Scrivenings</span>
+          </div>
+          <div className="editor-wrap" style={{ flex: 1, minHeight: 0 }}>
+            <div className="editor-col">
+              <Scrivenings key={selectedId} folderId={selectedId} />
+            </div>
+          </div>
+        </div>
+      )
+    }
     return (
       <div className="main" style={{ display: 'flex', flexDirection: 'column' }}>
         {tabs}
@@ -131,7 +151,9 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
         <div className="empty-state" style={{ flex: 1 }}>
           <div className="wm"><Icon name="folder" /></div>
           <div className="big">{selectedNode.title}</div>
-          <p style={{ color: 'var(--text-3)', fontSize: 13 }}>Switch to Corkboard or Outliner to see children</p>
+          <p style={{ color: 'var(--text-3)', fontSize: 13 }}>
+            {hasScenes ? 'Switch to Corkboard or Outliner to see children' : 'This folder has no documents yet'}
+          </p>
         </div>
       </div>
     )

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react'
-import { EditorView, ViewPlugin } from '@codemirror/view'
+import { EditorView } from '@codemirror/view'
 import { EditorState, Compartment } from '@codemirror/state'
-import { focusModeEffect, konbiniExtensions, setSlopSpansEffect, type SlopSpan } from './extensions'
+import { focusModeEffect, konbiniExtensions, makeTypewriterPlugin, setSlopSpansEffect, type SlopSpan } from './extensions'
 import { useProjectStore } from '../../store/projectStore'
 import { useShellStore } from '../../store/shellStore'
 import { useAutosave } from '../../hooks/useAutosave'
@@ -18,24 +18,6 @@ import { streamCompletion } from '../../lib/AIClient'
 // appears otherwise). Flip to 'always' to show the custom menu on every
 // right-click.
 const EDITOR_MENU_MODE: 'selection' | 'always' = 'selection'
-
-function makeTypewriterPlugin() {
-  return ViewPlugin.fromClass(class {
-    update(update: import('@codemirror/view').ViewUpdate) {
-      if (!update.docChanged && !update.selectionSet) return
-      const view = update.view
-      const coords = view.coordsAtPos(view.state.selection.main.head)
-      if (!coords) return
-      const scrollEl = view.scrollDOM
-      const editorRect = scrollEl.getBoundingClientRect()
-      const relTop = coords.top - editorRect.top
-      if (relTop > editorRect.height * 0.4) {
-        const targetScrollTop = scrollEl.scrollTop + relTop - editorRect.height * 0.4
-        scrollEl.scrollTo({ top: targetScrollTop, behavior: 'smooth' })
-      }
-    }
-  })
-}
 
 interface Props {
   docId: string
