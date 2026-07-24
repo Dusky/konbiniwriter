@@ -160,7 +160,7 @@ export type NodeOp =
 
 export type ProposalCommand =
   | 'lineedit' | 'rewrite' | 'expand' | 'tighten' | 'describe' | 'brainstorm'
-  | 'chat' | 'draft' | 'foundation' | 'revision' | 'batch'
+  | 'chat' | 'draft' | 'foundation' | 'revision' | 'batch' | 'beat'
 
 export type ProposalStatus = 'pending' | 'applied' | 'discarded'
 

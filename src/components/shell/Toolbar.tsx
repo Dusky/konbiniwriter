@@ -161,6 +161,7 @@ export default function Toolbar(): React.ReactElement {
                 { label: 'Codex', action: () => setRailPanel('codex') },
                 { label: 'Prompt Registry', action: () => setModal('prompt-registry') },
                 { label: 'Draft', header: true },
+                { label: `Generate beat — inline (${kbd('mod+j')})`, action: () => window.dispatchEvent(new CustomEvent('konbini:generate-beat')) },
                 { label: 'Chat', action: () => setRailPanel('assistant') },
                 { label: 'Generate — cast, beats, chapter', action: () => setModal('batch-generator') },
                 { label: slopRunning ? 'Slop Proof — running…' : slopCount > 0 ? `Slop Proof — ${slopCount} flagged` : 'Slop Proof', disabled: slopRunning, action: () => (window as unknown as Record<string, () => void>).__konbiniRunProof?.() },

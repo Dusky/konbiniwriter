@@ -8,8 +8,11 @@ import { useShellStore } from '../../store/shellStore'
 import { useAutosave } from '../../hooks/useAutosave'
 import { useAIStore } from '../../store/aiStore'
 import CowriteBar from './CowriteBar'
+import BeatBox from './BeatBox'
 import ContextMenu, { type MenuItem } from '../common/ContextMenu'
 import Icon from '../common/Icon'
+import { createProposal } from '../../lib/ProposalService'
+import { BEAT_PROMPT_ID } from '../../lib/beat'
 import { COWRITE_COMMANDS, type CowriteCommand } from '../../lib/cowrite'
 import { promptRegistry } from '../../lib/PromptRegistry'
 import { streamCompletion } from '../../lib/AIClient'
@@ -44,10 +47,12 @@ export default function Editor({ docId }: Props): React.ReactElement {
   const typewriterMode = useShellStore((s) => s.typewriterMode)
   const livePreviewOn = useShellStore((s) => s.livePreview)
   const setModal = useShellStore((s) => s.setModal)
+  const queueProposal = useProjectStore((s) => s.queueProposal)
 
   const content = project?.docs[docId]?.content ?? ''
 
   const [cowrite, setCowrite] = useState<{ selection: string; selRange: { from: number; to: number }; anchorRect: DOMRect; autoRun?: CowriteCommand } | null>(null)
+  const [beat, setBeat] = useState<{ anchorRect: DOMRect; cursor: number; preceding: string } | null>(null)
   const [editorMenu, setEditorMenu] = useState<{ x: number; y: number; hasSelection: boolean } | null>(null)
   const [wikilinkTip, setWikilinkTip] = useState<{ title: string; synopsis: string; preview: string; x: number; y: number } | null>(null)
 
@@ -119,6 +124,52 @@ export default function Editor({ docId }: Props): React.ReactElement {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [runProof])
+
+  // Open the beat generator at the cursor (⌘/Ctrl+J).
+  const openBeat = useCallback(() => {
+    const view = viewRef.current
+    if (!view || !aiEnabled) return
+    const head = view.state.selection.main.head
+    const coords = view.coordsAtPos(head)
+    const rect = coords
+      ? new DOMRect(coords.left, coords.top, 0, coords.bottom - coords.top)
+      : new DOMRect(200, 200, 0, 16)
+    const preceding = view.state.doc.sliceString(Math.max(0, head - 1500), head)
+    setBeat({ anchorRect: rect, cursor: head, preceding })
+  }, [aiEnabled])
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j' && !e.shiftKey && !e.altKey) {
+        if (!aiEnabled) return
+        e.preventDefault()
+        openBeat()
+      }
+    }
+    const evt = () => openBeat()
+    window.addEventListener('keydown', handler)
+    window.addEventListener('konbini:generate-beat', evt)
+    return () => { window.removeEventListener('keydown', handler); window.removeEventListener('konbini:generate-beat', evt) }
+  }, [aiEnabled, openBeat])
+
+  // Insert an accepted beat as a reviewable proposal at the captured cursor.
+  const insertBeat = useCallback((text: string, description: string) => {
+    if (!project) return
+    const from = beat?.cursor ?? viewRef.current?.state.selection.main.head ?? 0
+    queueProposal(createProposal({
+      docId,
+      docTitle: project.nodes[docId]?.title ?? 'Document',
+      command: 'beat',
+      label: `Beat: ${description.slice(0, 40)}${description.length > 40 ? '…' : ''}`,
+      group: 'cowrite',
+      original: '',
+      proposed: text,
+      promptId: BEAT_PROMPT_ID,
+      scope: 'selection',
+      selRange: { from, to: from },
+    }))
+    setBeat(null)
+  }, [project, docId, beat, queueProposal])
 
   // Focus restore after a modal closes (dispatched from Studio).
   useEffect(() => {
@@ -583,6 +634,15 @@ export default function Editor({ docId }: Props): React.ReactElement {
           anchorRect={cowrite.anchorRect}
           autoRun={cowrite.autoRun}
           onClose={() => setCowrite(null)}
+        />
+      )}
+      {beat && (
+        <BeatBox
+          docId={docId}
+          preceding={beat.preceding}
+          anchorRect={beat.anchorRect}
+          onClose={() => setBeat(null)}
+          onInsert={insertBeat}
         />
       )}
       {editorMenu && (
