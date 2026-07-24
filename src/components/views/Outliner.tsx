@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useProjectStore, flattenVisible } from '../../store/projectStore'
 import { STATUS_META, LABEL_META, wordCount } from '@shared/utils'
 import ContextMenu from '../common/ContextMenu'
+import Icon from '../common/Icon'
 import { useNodeMenu } from '../common/useNodeMenu'
 
 export default function Outliner(): React.ReactElement {
@@ -57,7 +58,7 @@ export default function Outliner(): React.ReactElement {
                 >
                   <td>
                     <div className="o-title" style={{ paddingLeft: depth * 16 }}>
-                      <span>{node.type === 'folder' ? '📁' : node.type === 'scene' ? '📄' : '📝'}</span>
+                      <Icon name={node.type === 'folder' ? 'folder' : node.type === 'scene' ? 'document' : 'sticky-note'} />
                       {node.title}
                     </div>
                   </td>

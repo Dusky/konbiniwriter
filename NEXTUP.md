@@ -66,3 +66,9 @@ in the Studio titlebar and on a draggable Launch-screen strip (`.win-bar`).
 - CI release workflow + app icon in place (`.github/workflows/release.yml`).
 - Electron-specific features (window controls, file paths) best verified via
   `npm run dev` + `npm run electron:dev`.
+- **Theme-switch repaint:** a UI-polish session flagged the top chrome
+  (titlebar/toolbar/binder/statusbar) possibly keeping stale colors on a live
+  Dark↔Light toggle. Re-checked after that pass in headless Chromium — chrome
+  recolors immediately with no reload (computed styles *and* pixels correct), so
+  it did not reproduce. Watch for it in a real browser; if seen, force a repaint
+  on `.studio` when `data-theme` flips.

@@ -5,6 +5,7 @@ import ContextMenu, { type MenuItem } from '../common/ContextMenu'
 import ConfirmDialog from '../common/ConfirmDialog'
 import Icon from '../common/Icon'
 import SidebarResizer from '../common/SidebarResizer'
+import { kbd } from '../../lib/kbd'
 import { STATUS_META, fmtWords } from '@shared/utils'
 import type { ID, NodeType } from '@shared/types'
 
@@ -233,13 +234,13 @@ export default function Binder(): React.ReactElement {
 
       {/* Footer add buttons */}
       <div className="binder-foot">
-        <button className="icon-btn" title="New Document (⌘⇧D)" onClick={() => {
+        <button className="icon-btn" title={`New Document (${kbd('mod+shift+d')})`} onClick={() => {
           const parentId = selectedId && project.nodes[selectedId]?.type === 'folder' ? selectedId : null
           mutate({ type: 'create', parentId, nodeType: 'document' })
-        }}>+</button>
-        <button className="icon-btn" title="New Folder (⌘⌥N)" onClick={() => mutate({ type: 'create', parentId: null, nodeType: 'folder' })}><Icon name="folder" /></button>
-        <button className="icon-btn" title="Undo (⌘Z)" disabled={!canUndo} onClick={() => undoMutation()}>↶</button>
-        <button className="icon-btn" title="Redo (⌘⇧Z)" disabled={!canRedo} onClick={() => redoMutation()}>↷</button>
+        }}><Icon name="plus" /></button>
+        <button className="icon-btn" title={`New Folder (${kbd('mod+alt+n')})`} onClick={() => mutate({ type: 'create', parentId: null, nodeType: 'folder' })}><Icon name="folder" /></button>
+        <button className="icon-btn" title={`Undo (${kbd('mod+z')})`} disabled={!canUndo} onClick={() => undoMutation()}><Icon name="undo" /></button>
+        <button className="icon-btn" title={`Redo (${kbd('mod+shift+z')})`} disabled={!canRedo} onClick={() => redoMutation()}><Icon name="redo" /></button>
         <span style={{ flex: 1 }} />
         <button className="icon-btn" title="Delete / Trash" onClick={() => selectedId && mutate({ type: 'trash', id: selectedId })}><Icon name="trash" /></button>
       </div>

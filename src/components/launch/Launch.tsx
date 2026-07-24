@@ -3,14 +3,14 @@ import { useShellStore } from '../../store/shellStore'
 import { useProjectStore } from '../../store/projectStore'
 import { relTime, fmtWords } from '@shared/utils'
 import Icon from '../common/Icon'
-import NewProjectModal from '../modals/NewProjectModal'
+import NewProjectModal, { TEMPLATES } from '../modals/NewProjectModal'
 import CommandPalette from '../modals/CommandPalette'
 import ShortcutsModal from '../modals/ShortcutsModal'
 import AboutModal from '../modals/AboutModal'
 import WindowControls from '../shell/WindowControls'
 import { isFileSystemAccessSupported } from '../../lib/BrowserProjectService'
 import { isOPFSSupported } from '../../lib/OPFSProjectService'
-import type { RecentEntry } from '@shared/types'
+import type { RecentEntry, TemplateId } from '@shared/types'
 
 export default function Launch(): React.ReactElement {
   const recents = useShellStore((s) => s.recents)
@@ -21,6 +21,7 @@ export default function Launch(): React.ReactElement {
   const loadProject = useProjectStore((s) => s.loadProject)
   const [openErr, setOpenErr] = useState<string | null>(null)
   const [opening, setOpening] = useState(false)
+  const [seedTemplate, setSeedTemplate] = useState<TemplateId>('novel')
 
   const finish = (project: Awaited<ReturnType<typeof window.api.project.open>>) => {
     loadProject(project)
@@ -106,8 +107,23 @@ export default function Launch(): React.ReactElement {
           <div className="lr-head">Recent Projects</div>
           <div className="lr-list">
             {recents.length === 0 ? (
-              <div className="lr-empty">
-                No recent projects yet.<br />Create or open one to get started.
+              <div className="lr-empty-starts">
+                <div className="lr-empty-hd">No recent projects yet — start from a template</div>
+                <div className="lr-starts">
+                  {TEMPLATES.map((t) => (
+                    <button
+                      key={t.id}
+                      className="lr-start"
+                      onClick={() => { setSeedTemplate(t.id); setModal('new-project') }}
+                    >
+                      <span className="lr-start-glyph">{t.glyph}</span>
+                      <span className="lr-start-main">
+                        <span className="lr-start-label">{t.label}</span>
+                        <span className="lr-start-desc">{t.desc}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : (
               recents.map((r) => (
@@ -139,7 +155,7 @@ export default function Launch(): React.ReactElement {
       </div>
 
       {modal === 'new-project' && (
-        <NewProjectModal onClose={() => setModal(null)} />
+        <NewProjectModal onClose={() => setModal(null)} initialTemplate={seedTemplate} />
       )}
       {modal === 'command-palette' && <CommandPalette onClose={() => setModal(null)} />}
       {modal === 'shortcuts' && <ShortcutsModal onClose={() => setModal(null)} />}

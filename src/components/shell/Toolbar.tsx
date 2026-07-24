@@ -4,6 +4,7 @@ import { useProjectStore } from '../../store/projectStore'
 import { useAIStore } from '../../store/aiStore'
 import ContextMenu from '../common/ContextMenu'
 import Icon from '../common/Icon'
+import { kbd } from '../../lib/kbd'
 
 export default function Toolbar(): React.ReactElement {
   const layout = useShellStore((s) => s.layout)
@@ -36,15 +37,12 @@ export default function Toolbar(): React.ReactElement {
       <div className="tb-group">
         <button
           className={`tb-btn${layout.binder ? ' on' : ''}`}
-          title="Toggle Binder (⌘⌥B)"
+          title={`Toggle Binder (${kbd('mod+alt+b')})`}
           aria-label="Toggle Binder"
           aria-pressed={layout.binder}
           onClick={toggleBinder}
         >
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
-            <rect x="2" y="2" width="4" height="12" rx="1" />
-            <rect x="8" y="2" width="6" height="12" rx="1" />
-          </svg>
+          <Icon name="panel-left" />
         </button>
       </div>
 
@@ -52,10 +50,10 @@ export default function Toolbar(): React.ReactElement {
 
       {/* View segmented control */}
       <div className="seg">
-        <button className={view === 'editor'    ? 'on' : ''} onClick={() => setView('editor')}    title="Editor (⌘1)">Editor</button>
-        <button className={view === 'corkboard' ? 'on' : ''} onClick={() => setView('corkboard')} title="Corkboard (⌘2)">Corkboard</button>
-        <button className={view === 'outliner'  ? 'on' : ''} onClick={() => setView('outliner')}  title="Outliner (⌘3)">Outliner</button>
-        <button className={view === 'timeline'  ? 'on' : ''} onClick={() => setView('timeline')}  title="Timeline (⌘4)">Timeline</button>
+        <button className={view === 'editor'    ? 'on' : ''} onClick={() => setView('editor')}    title={`Editor (${kbd('mod+1')})`}>Editor</button>
+        <button className={view === 'corkboard' ? 'on' : ''} onClick={() => setView('corkboard')} title={`Corkboard (${kbd('mod+2')})`}>Corkboard</button>
+        <button className={view === 'outliner'  ? 'on' : ''} onClick={() => setView('outliner')}  title={`Outliner (${kbd('mod+3')})`}>Outliner</button>
+        <button className={view === 'timeline'  ? 'on' : ''} onClick={() => setView('timeline')}  title={`Timeline (${kbd('mod+4')})`}>Timeline</button>
       </div>
 
       <div className="tb-sep" />
@@ -63,54 +61,41 @@ export default function Toolbar(): React.ReactElement {
       <div className="tb-group">
         <button
           className={`tb-btn${splitOpen ? ' on' : ''}`}
-          title="Split Editor (⌘\)"
+          title={`Split Editor (${kbd('mod+\\')})`}
           aria-label="Split Editor"
           aria-pressed={splitOpen}
           onClick={toggleSplit}
         >
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
-            <rect x="1" y="2" width="6" height="12" rx="1" />
-            <rect x="9" y="2" width="6" height="12" rx="1" />
-          </svg>
+          <Icon name="columns" />
         </button>
         <button
           className={`tb-btn${focusMode ? ' on' : ''}`}
-          title="Focus Mode (⌘⌥O)"
+          title={`Focus Mode (${kbd('mod+alt+o')})`}
           aria-label="Focus Mode"
           aria-pressed={focusMode}
           onClick={() => setFocusMode(!focusMode)}
         >
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
-            <circle cx="8" cy="8" r="2.5" />
-            <path d="M2 8h1.5M12.5 8H14M8 2v1.5M8 12.5V14" />
-          </svg>
+          <Icon name="focus" />
         </button>
         <button
           className="tb-btn"
-          title="Composition Mode (⌘⌥C)"
+          title={`Composition Mode (${kbd('mod+alt+c')})`}
           aria-label="Composition Mode"
           onClick={() => setCompositionMode(true)}
         >
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
-            <path d="M2 2h12v12H2z" /><path d="M5 5h6M5 8h6M5 11h3" />
-          </svg>
+          <Icon name="notebook" />
         </button>
       </div>
 
       <div className="tb-spacer" />
 
       <div className="tb-group">
-        <button className="tb-btn" title="Take Snapshot (⌘⇧S)" onClick={() => setModal('history')}>
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
-            <path d="M8 3v6M5 6l3 3 3-3" />
-            <path d="M3 11h10" />
-          </svg>
+        <button className="tb-btn" title={`Take Snapshot (${kbd('mod+shift+s')})`} onClick={() => setModal('history')}>
+          <Icon name="history" />
           Snapshot
         </button>
-        <button className="tb-btn" title="Compile (⌘⇧E)" onClick={() => setModal('compile')}>
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
-            <path d="M4 2h8v12H4z" /><path d="M6 5h4M6 8h4M6 11h2" />
-          </svg>
+        <button className="tb-btn" title={`Compile (${kbd('mod+shift+e')})`} onClick={() => setModal('compile')}>
+          <Icon name="file-output" />
           Compile
         </button>
       </div>
@@ -120,44 +105,29 @@ export default function Toolbar(): React.ReactElement {
       <div className="tb-group">
         <button
           className={`tb-btn${railPanel === 'inspector' ? ' on' : ''}`}
-          title="Toggle Inspector (⌘⌥I)"
+          title={`Toggle Inspector (${kbd('mod+alt+i')})`}
           aria-label="Toggle Inspector"
           aria-pressed={railPanel === 'inspector'}
           onClick={() => toggleRailPanel('inspector')}
         >
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
-            <rect x="10" y="2" width="4" height="12" rx="1" />
-            <rect x="2" y="2" width="6" height="12" rx="1" />
-          </svg>
+          <Icon name="panel-right" />
         </button>
       </div>
 
       <div className="tb-sep" />
 
       <div className="tb-group">
-        <button className="tb-btn" title="Find & Replace (⌘H)" aria-label="Find and Replace" onClick={() => window.dispatchEvent(new CustomEvent('konbini:toggle-find'))}>
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
-            <circle cx="6.5" cy="6.5" r="4" />
-            <path d="M9.5 9.5L13 13" strokeLinecap="round" />
-            <path d="M5 6.5h3M6.5 5v3" strokeLinecap="round" />
-          </svg>
+        <button className="tb-btn" title={`Find & Replace (${kbd('mod+h')})`} aria-label="Find and Replace" onClick={() => window.dispatchEvent(new CustomEvent('konbini:toggle-find'))}>
+          <Icon name="text-search" />
         </button>
-        <button className="tb-btn" title="Search Project (⌘⇧F)" onClick={() => setModal('search')}>
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
-            <circle cx="6.5" cy="6.5" r="4" />
-            <path d="M9.5 9.5L13 13" strokeLinecap="round" />
-          </svg>
+        <button className="tb-btn" title={`Search Project (${kbd('mod+shift+f')})`} aria-label="Search Project" onClick={() => setModal('search')}>
+          <Icon name="search" />
         </button>
-        <button className="tb-btn" title="Writing Stats" onClick={() => setModal('stats')}>
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
-            <path d="M2 13V8M6 13V5M10 13V9M14 13V3" strokeLinecap="round" />
-          </svg>
+        <button className="tb-btn" title="Writing Stats" aria-label="Writing Stats" onClick={() => setModal('stats')}>
+          <Icon name="chart" />
         </button>
-        <button className="tb-btn" title="Preferences (⌘,)" onClick={() => setModal('prefs')}>
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
-            <circle cx="8" cy="8" r="1.5" />
-            <path d="M8 2v1.5M8 12.5V14M2 8h1.5M12.5 8H14M3.5 3.5l1 1M11.5 11.5l1 1M3.5 12.5l1-1M11.5 4.5l1-1" />
-          </svg>
+        <button className="tb-btn" title={`Preferences (${kbd('mod+,')})`} aria-label="Preferences" onClick={() => setModal('prefs')}>
+          <Icon name="settings" />
         </button>
       </div>
 
@@ -177,11 +147,8 @@ export default function Toolbar(): React.ReactElement {
             <span className="ai-spark"><Icon name="sparkle" size={13} /></span> AI <Icon name="chevron-down" size={12} style={{ opacity: 0.7 }} />
             {(debtOpen > 0 || slopCount > 0) && <span className="ai-dot" />}
           </button>
-          <button className="tb-btn" title="AI Settings" onClick={() => setModal('ai-settings')} style={{ color: 'var(--accent)' }}>
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
-              <circle cx="8" cy="8" r="1.5" />
-              <path d="M8 2v1.5M8 12.5V14M2 8h1.5M12.5 8H14M3.5 3.5l1 1M11.5 11.5l1 1M3.5 12.5l1-1M11.5 4.5l1-1" />
-            </svg>
+          <button className="tb-btn" title="AI Settings" aria-label="AI Settings" onClick={() => setModal('ai-settings')} style={{ color: 'var(--accent)' }}>
+            <Icon name="settings-2" />
           </button>
           {aiMenu && (
             <ContextMenu
@@ -194,6 +161,7 @@ export default function Toolbar(): React.ReactElement {
                 { label: 'Codex', action: () => setRailPanel('codex') },
                 { label: 'Prompt Registry', action: () => setModal('prompt-registry') },
                 { label: 'Draft', header: true },
+                { label: `Generate beat — inline (${kbd('mod+j')})`, action: () => window.dispatchEvent(new CustomEvent('konbini:generate-beat')) },
                 { label: 'Chat', action: () => setRailPanel('assistant') },
                 { label: 'Generate — cast, beats, chapter', action: () => setModal('batch-generator') },
                 { label: slopRunning ? 'Slop Proof — running…' : slopCount > 0 ? `Slop Proof — ${slopCount} flagged` : 'Slop Proof', disabled: slopRunning, action: () => (window as unknown as Record<string, () => void>).__konbiniRunProof?.() },
@@ -209,7 +177,7 @@ export default function Toolbar(): React.ReactElement {
           )}
         </>
       ) : (
-        <button className="tb-btn ai-enable" title="Enable AI (⌘⇧A)" onClick={() => setModal('ai-settings')}>
+        <button className="tb-btn ai-enable" title={`Enable AI (${kbd('mod+shift+a')})`} onClick={() => setModal('ai-settings')}>
           <span className="ai-spark"><Icon name="sparkle" size={13} /></span> AI
         </button>
       )}

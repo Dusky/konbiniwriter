@@ -53,10 +53,13 @@
 .ai-empty .ae-actions { margin-top: 20px; display: flex; gap: 8px; }
 
 /* ════ TABBED RIGHT RAIL (Inspector / Chat / Codex / Readers / Critic) ═════ */
-.body.rail-open { grid-template-columns: minmax(180px, var(--binder-w, 264px)) minmax(0, 1fr) minmax(300px, 340px); }
-.body.rail-open.no-binder { grid-template-columns: 0 minmax(0, 1fr) minmax(300px, 340px); }
-.body.rail-wide { grid-template-columns: minmax(180px, var(--binder-w, 264px)) minmax(0, 1fr) minmax(360px, 460px); }
-.body.rail-wide.no-binder { grid-template-columns: 0 minmax(0, 1fr) minmax(360px, 460px); }
+/* Rail width follows the drag-resizer (--insp-w); the min is a per-panel floor
+   so a narrow saved width can't crush the codex, while the editor (1fr) always
+   keeps priority. */
+.body.rail-open { grid-template-columns: minmax(180px, var(--binder-w, 264px)) minmax(0, 1fr) minmax(240px, var(--insp-w, 340px)); }
+.body.rail-open.no-binder { grid-template-columns: 0 minmax(0, 1fr) minmax(240px, var(--insp-w, 340px)); }
+.body.rail-wide { grid-template-columns: minmax(180px, var(--binder-w, 264px)) minmax(0, 1fr) minmax(320px, var(--insp-w, 420px)); }
+.body.rail-wide.no-binder { grid-template-columns: 0 minmax(0, 1fr) minmax(320px, var(--insp-w, 420px)); }
 .rail { position: relative; min-width: 0; z-index: 5; background: var(--bg-2); border-left: 0.5px solid var(--border-2);
   display: flex; flex-direction: column; overflow: hidden; }
 .rail-tabs { flex: none; display: flex; align-items: stretch; height: 38px; padding: 0 4px;
@@ -572,6 +575,32 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 .bon-elo { font-size: var(--t-xs); color: var(--text-3); font-family: var(--mono); }
 .bon-text { max-height: 130px; overflow-y: auto; font-size: var(--t-sm); line-height: 1.55;
   color: var(--text-2); white-space: pre-wrap; background: var(--bg-2); border-radius: var(--r-md); padding: var(--s2) 10px; }
+
+/* ── Beat generator (inline "write the next beat" popover) ── */
+.beat-scrim { position: fixed; inset: 0; z-index: 940; }
+.beat-box { position: fixed; z-index: 950; display: flex; flex-direction: column; gap: 8px;
+  background: var(--bg-2); border: 0.5px solid var(--border-2); border-radius: 12px;
+  box-shadow: var(--shadow); padding: 12px; }
+.beat-hd { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--text); }
+.beat-hd .ai-spark { color: var(--accent); display: inline-flex; }
+.beat-x { border: 0; background: transparent; color: var(--text-3); cursor: pointer; display: inline-flex; padding: 2px; border-radius: 4px; }
+.beat-x:hover { background: var(--bg-3); color: var(--text); }
+.beat-desc { width: 100%; resize: vertical; min-height: 56px; background: var(--bg); border: 0.5px solid var(--border-2);
+  border-radius: 8px; padding: 8px 10px; color: var(--text); font-family: var(--ui-font); font-size: 13px; line-height: 1.5; outline: none; }
+.beat-desc:focus { border-color: var(--accent); }
+.beat-controls { display: flex; gap: 6px; }
+.beat-sel { flex: 1; min-width: 0; appearance: none; background: var(--bg); border: 0.5px solid var(--border-2);
+  border-radius: 7px; padding: 6px 8px; color: var(--text); font-family: var(--ui-font); font-size: 12px; outline: none; }
+.beat-sel:focus { border-color: var(--accent); }
+.beat-style-text { width: 100%; background: var(--bg); border: 0.5px solid var(--border-2); border-radius: 7px;
+  padding: 6px 8px; color: var(--text); font-family: var(--ui-font); font-size: 12px; outline: none; }
+.beat-style-text:focus { border-color: var(--accent); }
+.beat-preview { max-height: 220px; overflow-y: auto; background: var(--bg); border: 0.5px solid var(--border);
+  border-radius: 8px; padding: 10px 12px; font-family: var(--editor-font); font-size: 13px; line-height: 1.6;
+  color: var(--text-2); white-space: pre-wrap; }
+.beat-preview em { color: var(--text-3); }
+.beat-err { font-size: 12px; color: var(--danger); padding: 2px 2px; }
+.beat-foot { display: flex; align-items: center; gap: 6px; }
 
 /* ── Co-write floating toolbar ── */
 .cw { position: fixed; z-index: 1000; }

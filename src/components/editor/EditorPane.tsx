@@ -1,6 +1,10 @@
 import React from 'react'
-import { useProjectStore } from '../../store/projectStore'
+import { useProjectStore, descendants } from '../../store/projectStore'
+import { useShellStore } from '../../store/shellStore'
+import { kbd } from '../../lib/kbd'
 import Editor from './Editor'
+import Scrivenings from './Scrivenings'
+import EditorBar from './EditorBar'
 import TabStrip from './TabStrip'
 import Icon from '../common/Icon'
 import Corkboard from '../views/Corkboard'
@@ -19,6 +23,18 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
   const view = useProjectStore((s) => s.view)
   const selectNode = useProjectStore((s) => s.selectNode)
   const setSplitId = useProjectStore((s) => s.setSplitId)
+  const applyMutation = useProjectStore((s) => s.applyMutation)
+  const setRenamingId = useProjectStore((s) => s.setRenamingId)
+  const setModal = useShellStore((s) => s.setModal)
+
+  const createFirstDoc = async () => {
+    const p = useProjectStore.getState().project
+    if (!p) return
+    const result = await window.api.node.mutate(p.id, { type: 'create', parentId: null, nodeType: 'document' })
+    applyMutation(result)
+    const newId = Object.values(result.nodes).find((n) => n.ext['_newId'])?.id
+    if (newId) { selectNode(newId); setRenamingId(newId) }
+  }
 
   // The effective docId for this pane
   const selectedId = nodeId !== undefined ? nodeId : storeSelectedId
@@ -88,14 +104,48 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
         {tabs}
         {paneHeader}
         <div className="empty-state" style={{ flex: 1 }}>
-          <div className="wm"><Icon name="sparkle" /></div>
-          <div className="big">Select a document to write</div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div className="wm"><Icon name="sparkle" /></div>
+            <div className="big">Pick up where you left off</div>
+            <p style={{ color: 'var(--text-3)', fontSize: 13, margin: '4px 0 0' }}>
+              Choose a document in the binder, or start a new one.
+            </p>
+            <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+              <button className="btn primary" onClick={createFirstDoc}>
+                <Icon name="plus" size={14} style={{ marginRight: 6, verticalAlign: '-2px' }} />
+                New document <span style={{ opacity: 0.7, marginLeft: 6 }}>{kbd('mod+shift+d')}</span>
+              </button>
+              <button className="btn" onClick={() => setModal('command-palette')}>
+                Command palette <span style={{ opacity: 0.7, marginLeft: 6 }}>{kbd('mod+k')}</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     )
   }
 
   if (selectedNode.type === 'folder') {
+    const hasScenes = descendants(project, selectedId).some((id) => project.nodes[id]?.type !== 'folder')
+    // Scrivenings: edit all of a folder's scenes as one continuous document.
+    // (Main pane only in v1; split panes keep the placeholder.)
+    if (hasScenes && !splitOpen) {
+      return (
+        <div className="main" style={{ display: 'flex', flexDirection: 'column' }}>
+          {tabs}
+          <div className="doc-bar">
+            <span className="crumb"><Icon name="folder" style={{ verticalAlign: '-2px', marginRight: 4 }} /><b>{selectedNode.title}</b></span>
+            <span className="crumb" style={{ marginLeft: 8 }}>Scrivenings</span>
+          </div>
+          <div className="editor-wrap" style={{ flex: 1, minHeight: 0 }}>
+            <div className="editor-col">
+              <Scrivenings key={selectedId} folderId={selectedId} />
+            </div>
+          </div>
+          <EditorBar nodeId={selectedId} scrivenings />
+        </div>
+      )
+    }
     return (
       <div className="main" style={{ display: 'flex', flexDirection: 'column' }}>
         {tabs}
@@ -103,7 +153,9 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
         <div className="empty-state" style={{ flex: 1 }}>
           <div className="wm"><Icon name="folder" /></div>
           <div className="big">{selectedNode.title}</div>
-          <p style={{ color: 'var(--text-3)', fontSize: 13 }}>Switch to Corkboard or Outliner to see children</p>
+          <p style={{ color: 'var(--text-3)', fontSize: 13 }}>
+            {hasScenes ? 'Switch to Corkboard or Outliner to see children' : 'This folder has no documents yet'}
+          </p>
         </div>
       </div>
     )
@@ -138,6 +190,7 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
           <Editor key={selectedId} docId={selectedId} />
         </div>
       </div>
+      <EditorBar nodeId={selectedId} />
     </div>
   )
 }

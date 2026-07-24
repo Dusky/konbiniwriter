@@ -5,6 +5,7 @@ import { promptRegistry } from '../../lib/PromptRegistry'
 import { streamCompletion } from '../../lib/AIClient'
 import { formatUSD } from '../../lib/Pricing'
 import { createPKCE, authorizeUrl, completeSignIn, type PKCE } from '../../lib/ClaudeOAuth'
+import { kbd } from '../../lib/kbd'
 import Icon from '../common/Icon'
 
 const ANTHROPIC_MODELS = [
@@ -91,6 +92,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
     anthropicKey, setAnthropicKey, anthropicModel, setAnthropicModel,
     anthropicKeyValidated, anthropicKeyError, setAnthropicKeyValidated,
     openaiBaseUrl, setOpenaiBaseUrl, openaiKey, setOpenaiKey, openaiModel, setOpenaiModel,
+    savedModels, addSavedModel, removeSavedModel,
     chatMaxTokens, setChatMaxTokens, chatContextMessages, setChatContextMessages,
     contextBudgets, setContextBudget,
     spendInputTokens, spendOutputTokens, spendUSD, spendCalls, spendUnpriced, resetSpend,
@@ -150,6 +152,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
 
   const [maxTokensDraft, setMaxTokensDraft] = useState(String(chatMaxTokens))
   const [contextMsgsDraft, setContextMsgsDraft] = useState(String(chatContextMessages))
+  const [modelDraft, setModelDraft] = useState('')
 
   const BUDGET_FEATURES: { id: string; label: string; default: number }[] = [
     { id: 'inline',     label: 'Inline rewrite',  default: 16_000 },
@@ -487,6 +490,37 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
             </div>
           </Row>
 
+          <Row label="Generation models">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input
+                  className="ai-inp mono"
+                  style={{ flex: 1 }}
+                  placeholder="e.g. claude-opus-4-8 or gpt-4o"
+                  value={modelDraft}
+                  onChange={(e) => setModelDraft(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && modelDraft.trim()) { addSavedModel(modelDraft); setModelDraft('') } }}
+                />
+                <button className="btn" disabled={!modelDraft.trim()} onClick={() => { addSavedModel(modelDraft); setModelDraft('') }}>Add</button>
+              </div>
+              {savedModels.length > 0 ? (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {savedModels.map((m) => (
+                    <span key={m} className="chip on" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'default' }}>
+                      <span className="mono">{m}</span>
+                      <button onClick={() => removeSavedModel(m)} title="Remove" aria-label={`Remove ${m}`}
+                        style={{ border: 0, background: 'transparent', color: 'inherit', cursor: 'pointer', lineHeight: 1, padding: 0 }}>
+                        <Icon name="x" size={12} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <span className="ai-hint">Add the models you draft with — the beat generator (⌘J) picks from this list. Empty = use your active model.</span>
+              )}
+            </div>
+          </Row>
+
           <Row label="Context budgets">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px' }}>
@@ -590,7 +624,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
               <input type="checkbox" checked={slopAutoRun} onChange={(e) => setSlopAutoRun(e.target.checked)} style={{ accentColor: 'var(--accent)', width: 15, height: 15 }} />
               <span style={{ fontSize: 13 }}>Auto-run after 30s idle</span>
             </label>
-            <div className="ai-hint" style={{ marginTop: 4 }}>Automatically flag clichés and weak prose 30 seconds after you stop typing. Keyboard shortcut: ⌥P.</div>
+            <div className="ai-hint" style={{ marginTop: 4 }}>Automatically flag clichés and weak prose 30 seconds after you stop typing. Keyboard shortcut: {kbd('alt+p')}.</div>
           </Row>
 
           <Row label="Session usage">

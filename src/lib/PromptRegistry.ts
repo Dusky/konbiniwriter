@@ -132,6 +132,42 @@ Generate 5 distinct alternatives or continuations for this passage. Each should 
     modifiedAt: ISO(),
   },
   {
+    id: 'builtin:generate:beat',
+    name: 'Generate Beat',
+    description: 'Write the next beat of prose from a short description, in the manuscript voice.',
+    feature: 'inline',
+    model: 'claude-opus-4-8',
+    temperature: 0.8,
+    maxTokens: 2000,
+    template: `You are a novelist continuing a manuscript in its established voice and tense.
+
+<context>
+{{context}}
+</context>
+
+<preceding_text>
+{{preceding}}
+</preceding_text>
+
+Write the next beat, continuing directly from the preceding text.
+
+Beat to write: {{description}}
+Length: {{length}}
+Style: {{style}}
+
+Return only the new prose — no headings, no commentary, no surrounding quotes.`,
+    variables: [
+      { name: 'context', description: 'Manuscript context (codex, voice, siblings)' },
+      { name: 'preceding', description: 'Text immediately before the cursor' },
+      { name: 'description', description: 'What the beat should cover' },
+      { name: 'length', description: 'Desired length phrasing' },
+      { name: 'style', description: 'Desired style phrasing' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
     id: 'builtin:evaluation:slop',
     name: 'Slop Scorer',
     description: 'Flag overused phrases, clichés, and AI-sounding constructions in prose.',

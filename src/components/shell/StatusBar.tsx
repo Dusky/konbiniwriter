@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useProjectStore, subtreeWordCount } from '../../store/projectStore'
+import { useProjectStore, subtreeWordCount, descendants } from '../../store/projectStore'
 import { useShellStore } from '../../store/shellStore'
 import { statsService } from '../../lib/StatsService'
 import { wordCount, charCount } from '@shared/utils'
@@ -21,6 +21,14 @@ export default function StatusBar(): React.ReactElement {
 
   const docWords = wordCount(docContent)
   const docChars = charCount(docContent)
+
+  // Folder in Editor view = Scrivenings: report the whole subtree instead of a
+  // single doc (a folder has no content of its own).
+  const isFolderScriv = view === 'editor' && selectedNode?.type === 'folder' && !!selectedId && !!project
+  const scrivWords = isFolderScriv ? subtreeWordCount(project!, selectedId!) : 0
+  const scrivScenes = isFolderScriv
+    ? descendants(project!, selectedId!).filter((id) => project!.nodes[id]?.type !== 'folder').length
+    : 0
 
   // Project total excludes the Trash subtree — discarded work shouldn't count.
   const totalWords = project
@@ -52,12 +60,15 @@ export default function StatusBar(): React.ReactElement {
       {selectedNode?.type !== 'folder' && docWords > 0 && (
         <span><b>{docWords}</b> words · <b>{docChars}</b> chars</span>
       )}
+      {isFolderScriv && (
+        <span><b>{scrivWords.toLocaleString()}</b> words · <b>{scrivScenes}</b> {scrivScenes === 1 ? 'scene' : 'scenes'}</span>
+      )}
       {selectedNode?.type !== 'folder' && (selectedNode?.meta.target ?? 0) > 0 && (
         <span style={{ color: Math.min(1, docWords / selectedNode!.meta.target) >= 1 ? 'var(--st-final)' : 'var(--text-3)' }}>
           <b>{Math.round(Math.min(1, docWords / selectedNode!.meta.target) * 100)}%</b> of {selectedNode!.meta.target.toLocaleString()}
         </span>
       )}
-      {view === 'editor' && selectedNode?.type !== 'folder' && cursor && (
+      {view === 'editor' && (selectedNode?.type !== 'folder' || isFolderScriv) && cursor && (
         <span style={{ color: 'var(--text-3)' }}>
           Ln <b>{cursor.line}</b>, Col <b>{cursor.col}</b>
         </span>

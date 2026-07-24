@@ -56,6 +56,11 @@ interface AIState {
   setOpenaiKey: (key: string) => void
   setOpenaiModel: (model: string) => void
 
+  // — user-managed list of model ids offered in the beat generator —
+  savedModels: string[]
+  addSavedModel: (model: string) => void
+  removeSavedModel: (model: string) => void
+
   // — chat generation params —
   chatMaxTokens: number
   chatContextMessages: number   // messages sent to API per turn; 0 = all
@@ -136,8 +141,21 @@ export const useAIStore = create<AIState>((set) => ({
   openaiBaseUrl: load(`${SK}:openaiBaseUrl`, 'https://api.openai.com/v1'),
   openaiKey: load(`${SK}:openaiKey`),
   openaiModel: load(`${SK}:openaiModel`, 'gpt-4o'),
+  savedModels: (() => { try { return JSON.parse(load(`${SK}:savedModels`, '[]')) as string[] } catch { return [] } })(),
 
   setEnabled: (enabled) => { save(`${SK}:enabled`, enabled ? 'true' : 'false'); set({ enabled }) },
+  addSavedModel: (model) => set((s) => {
+    const m = model.trim()
+    if (!m || s.savedModels.includes(m)) return s
+    const savedModels = [...s.savedModels, m]
+    save(`${SK}:savedModels`, JSON.stringify(savedModels))
+    return { savedModels }
+  }),
+  removeSavedModel: (model) => set((s) => {
+    const savedModels = s.savedModels.filter((x) => x !== model)
+    save(`${SK}:savedModels`, JSON.stringify(savedModels))
+    return { savedModels }
+  }),
   // Selecting a service also sets the wire-format provider and, for the named
   // OpenAI-compatible services, the endpoint + a starter model (only when the
   // current model is empty or still one of the built-in examples — never
