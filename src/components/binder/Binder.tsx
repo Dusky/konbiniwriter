@@ -87,9 +87,12 @@ export default function Binder(): React.ReactElement {
 
   // ── Drag & Drop ──────────────────────────────────────────────────────────
 
-  const calcDropPos = (e: React.DragEvent, id: ID): DropPos => {
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    const ratio = (e.clientY - rect.top) / rect.height
+  // Takes a already-measured rect + pointer Y rather than the event: React nulls
+  // out a synthetic event's `currentTarget` once the handler returns, and a
+  // setState updater callback runs later (twice under StrictMode), so reading the
+  // event in there threw inside React's reducer and unmounted the whole tree.
+  const calcDropPos = (rect: DOMRect, clientY: number, id: ID): DropPos => {
+    const ratio = rect.height > 0 ? (clientY - rect.top) / rect.height : 0.5
     const node = project.nodes[id]
     if (ratio < 0.33) return 'before'
     if (ratio > 0.67 || node?.type !== 'folder') return 'after'
@@ -101,7 +104,11 @@ export default function Binder(): React.ReactElement {
     if (!drag) return
     if (id === drag.dragId) return
     if (isDescendant(project, drag.dragId, id)) return
-    setDrag((d) => d ? { ...d, overId: id, dropPos: calcDropPos(e, id) } : d)
+    // Measure eagerly, while the event is still live.
+    const el = e.currentTarget as HTMLElement | null
+    if (!el) return
+    const dropPos = calcDropPos(el.getBoundingClientRect(), e.clientY, id)
+    setDrag((d) => d ? { ...d, overId: id, dropPos } : d)
   }
 
   const onDrop = async (e: React.DragEvent, targetId: ID) => {
@@ -176,7 +183,12 @@ export default function Binder(): React.ReactElement {
                 onClick={() => { if (renamingId !== id) selectNode(id) }}
                 onContextMenu={(e) => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, id }) }}
                 draggable
-                onDragStart={() => setDrag({ dragId: id, overId: null, dropPos: null })}
+                onDragStart={(e) => {
+                  // Firefox refuses to start a drag unless data is set.
+                  e.dataTransfer.setData('text/plain', id)
+                  e.dataTransfer.effectAllowed = 'move'
+                  setDrag({ dragId: id, overId: null, dropPos: null })
+                }}
                 onDragOver={(e) => onDragOver(e, id)}
                 onDrop={(e) => onDrop(e, id)}
                 onDragEnd={() => setDrag(null)}
