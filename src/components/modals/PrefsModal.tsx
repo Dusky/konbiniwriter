@@ -3,6 +3,7 @@ import { useShellStore, type Density, type EditorFont } from '../../store/shellS
 import { useProjectStore } from '../../store/projectStore'
 import { BUILTIN_THEMES } from '../../lib/theme'
 import ModalShell from '../common/ModalShell'
+import Icon from '../common/Icon'
 
 interface Props { onClose: () => void; embedded?: boolean }
 
@@ -60,6 +61,8 @@ export default function PrefsModal({ onClose, embedded }: Props): React.ReactEle
   const setAccent = useShellStore((s) => s.setAccent)
 
   const project = useProjectStore((s) => s.project)
+  const dictionary = useProjectStore((s) => s.dictionary)
+  const removeDictionaryWord = useProjectStore((s) => s.removeDictionaryWord)
   const setProjectWordTarget = useProjectStore((s) => s.setProjectWordTarget)
   const wordTarget = project?.settings?.wordTarget
   const [targetDraft, setTargetDraft] = useState(wordTarget?.toString() ?? '')
@@ -217,6 +220,36 @@ export default function PrefsModal({ onClose, embedded }: Props): React.ReactEle
                 onKeyDown={(e) => { if (e.key === 'Enter') commitTarget(targetDraft) }}
               />
               <span style={{ marginLeft: 'var(--s2)', fontSize: 'var(--t-sm)', color: 'var(--text-3)' }}>words (project target)</span>
+            </Row>
+          )}
+
+          {project && (
+            <Row label="Dictionary">
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {dictionary.length === 0 ? (
+                  <div style={{ fontSize: 'var(--t-sm)', color: 'var(--text-3)' }}>
+                    Empty. Right-click a flagged name in the editor to add it.
+                  </div>
+                ) : (
+                  <div className="kw-tokens" style={{ border: 'none', padding: 0 }}>
+                    {dictionary.map((w) => (
+                      <span key={w} className="kw-tok">
+                        <span className="kw-tok-name" style={{ cursor: 'default' }}>{w}</span>
+                        <button
+                          className="kw-tok-x"
+                          aria-label={`Remove ${w} from the dictionary`}
+                          title="Remove"
+                          onClick={() => removeDictionaryWord(w)}
+                        ><Icon name="x" size={11} /></button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div style={{ fontSize: 'var(--t-xs)', color: 'var(--text-3)', marginTop: 'var(--s2)' }}>
+                  Words Konbini treats as correctly spelled in this project. Codex
+                  names and document titles already count — these are extras.
+                </div>
+              </div>
             </Row>
           )}
 

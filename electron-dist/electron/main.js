@@ -159,6 +159,12 @@ electron_1.ipcMain.handle('app:env', () => ({
     userData: electron_1.app.getPath('userData'),
     platform: process.platform,
 }));
+// ── IPC: spellchecker dictionary ──────────────────────────────────────────────
+// The renderer can't reach the spellchecker's dictionary itself. On platforms
+// that use the OS dictionary (macOS) these return false and there is nothing
+// further to do — Konbini's own name check covers that case (shared/dictionary.ts).
+electron_1.ipcMain.handle('spell:add', (e, word) => e.sender.session.addWordToSpellCheckerDictionary(word));
+electron_1.ipcMain.handle('spell:remove', (e, word) => e.sender.session.removeWordFromSpellCheckerDictionary(word));
 // Synchronous userData path — the preload needs it before the renderer's stores
 // hydrate their prefs at construction time.
 electron_1.ipcMain.on('app:userDataSync', (e) => { e.returnValue = electron_1.app.getPath('userData'); });

@@ -277,6 +277,14 @@ const api: KonbiniAPI = {
     run: (pid, rid, ids, fmt) => svc.compile(pid, rid, ids, fmt),
   },
 
+  spell: {
+    // Electron's session owns the spellchecker dictionary. Fire-and-forget:
+    // on platforms that defer to the OS dictionary (macOS) the main process
+    // reports it did nothing, and there is nothing useful to say about that.
+    addWord: (word: string) => { void ipcRenderer.invoke('spell:add', word) },
+    removeWord: (word: string) => { void ipcRenderer.invoke('spell:remove', word) },
+  },
+
   prefs: {
     get: (key: string) => {
       const p = loadPrefs()

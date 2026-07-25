@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useCallback, useState } from 'react'
+import React, { useEffect, useRef, useCallback, useMemo, useState } from 'react'
 import { EditorView } from '@codemirror/view'
 import { EditorState, Compartment } from '@codemirror/state'
-import { focusModeEffect, konbiniExtensions, makeTypewriterPlugin, setSlopSpansEffect, setCommentSpansEffect, commentField, type SlopSpan, type CommentSpan } from './extensions'
+import { focusModeEffect, konbiniExtensions, makeTypewriterPlugin, setSlopSpansEffect, setCommentSpansEffect, commentField, setNameSlipsEffect, nameSlipField, type SlopSpan, type CommentSpan, type NameSlipSpan } from './extensions'
 import { anchoredFor, type Comment } from '@shared/comments'
+import { buildVocabulary, findNameSlips } from '@shared/dictionary'
 import { livePreview } from './livePreview'
 import { useProjectStore } from '../../store/projectStore'
 import { useShellStore } from '../../store/shellStore'
@@ -65,12 +66,21 @@ export default function Editor({ docId }: Props): React.ReactElement {
   const addComment = useProjectStore((s) => s.addComment)
   const remapComment = useProjectStore((s) => s.remapComment)
   const setFocusedComment = useProjectStore((s) => s.setFocusedComment)
+  const codex = useProjectStore((s) => s.codex)
+  const dictionary = useProjectStore((s) => s.dictionary)
+  const addDictionaryWord = useProjectStore((s) => s.addDictionaryWord)
 
   const content = project?.docs[docId]?.content ?? ''
 
+  // Codex names, aliases, and document titles are all project vocabulary.
+  const vocabulary = useMemo(
+    () => buildVocabulary(project, codex, dictionary),
+    [project, codex, dictionary],
+  )
+
   const [cowrite, setCowrite] = useState<{ selection: string; selRange: { from: number; to: number }; anchorRect: DOMRect; autoRun?: CowriteCommand } | null>(null)
   const [beat, setBeat] = useState<{ anchorRect: DOMRect; cursor: number; preceding: string } | null>(null)
-  const [editorMenu, setEditorMenu] = useState<{ x: number; y: number; hasSelection: boolean } | null>(null)
+  const [editorMenu, setEditorMenu] = useState<{ x: number; y: number; hasSelection: boolean; slip: NameSlipSpan | null } | null>(null)
   const [wikilinkTip, setWikilinkTip] = useState<{ title: string; synopsis: string; preview: string; x: number; y: number } | null>(null)
 
   // Find & Replace state
@@ -254,6 +264,41 @@ export default function Editor({ docId }: Props): React.ReactElement {
     view.dispatch({ effects: setCommentSpansEffect.of(next) })
   }, [comments, content, docId])
 
+  // ── Name slips ─────────────────────────────────────────────────────────────
+
+  // Recomputed after typing settles rather than on every keystroke: the token
+  // under the caret is half-written most of the time, and flagging it as a
+  // mistake while the writer is still typing it is pure noise.
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+    if (!vocabulary.length) {
+      if (view.state.field(nameSlipField).length) view.dispatch({ effects: setNameSlipsEffect.of([]) })
+      return
+    }
+    const t = setTimeout(() => {
+      const v = viewRef.current
+      if (!v) return
+      const slips = findNameSlips(v.state.doc.toString(), vocabulary)
+      v.dispatch({ effects: setNameSlipsEffect.of(slips) })
+    }, 600)
+    return () => clearTimeout(t)
+  }, [content, docId, vocabulary])
+
+  /** The name slip under a document position, if any. */
+  const slipAt = useCallback((pos: number): NameSlipSpan | null => {
+    const view = viewRef.current
+    if (!view) return null
+    return view.state.field(nameSlipField).find((s) => pos >= s.from && pos <= s.to) ?? null
+  }, [])
+
+  const fixSlip = useCallback((slip: NameSlipSpan) => {
+    const view = viewRef.current
+    if (!view) return
+    view.dispatch({ changes: { from: slip.from, to: slip.to, insert: slip.suggestion } })
+    view.focus()
+  }, [])
+
   const addCommentAtSelection = useCallback(() => {
     const view = viewRef.current
     if (!view) return
@@ -363,8 +408,14 @@ export default function Editor({ docId }: Props): React.ReactElement {
     setCowrite({ selection, selRange: { from: selFrom, to: selTo }, anchorRect: rect, autoRun: cmd })
   }, [])
 
-  const editorMenuItems = useCallback((hasSelection: boolean): MenuItem[] => {
+  const editorMenuItems = useCallback((hasSelection: boolean, slip: NameSlipSpan | null): MenuItem[] => {
     const items: MenuItem[] = []
+    // A misspelled name is the reason the menu was opened; put it first.
+    if (slip) {
+      items.push({ label: `Change to “${slip.suggestion}”`, action: () => fixSlip(slip) })
+      items.push({ label: `Add “${slip.word}” to Dictionary`, action: () => addDictionaryWord(slip.word) })
+      items.push({ label: '---', action: () => {} })
+    }
     if (hasSelection) {
       items.push({ label: 'Cut', action: doCut }, { label: 'Copy', action: doCopy })
     }
@@ -381,19 +432,22 @@ export default function Editor({ docId }: Props): React.ReactElement {
     items.push({ label: '---', action: () => {} })
     items.push({ label: 'History & Snapshots', action: () => setRailPanel('history') })
     return items
-  }, [aiEnabled, doCut, doCopy, doPaste, doSelectAll, startCowrite, setRailPanel, addCommentAtSelection])
+  }, [aiEnabled, doCut, doCopy, doPaste, doSelectAll, startCowrite, setRailPanel, addCommentAtSelection, fixSlip, addDictionaryWord])
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     const view = viewRef.current
     if (!view) return
     const sel = view.state.selection.main
     const hasSelection = sel.from !== sel.to
+    const pos = view.posAtCoords({ x: e.clientX, y: e.clientY })
+    const slip = pos === null ? null : slipAt(pos)
     // In 'selection' mode, fall through to the browser's native menu (which
-    // carries spellcheck suggestions) when nothing is selected.
-    if (EDITOR_MENU_MODE === 'selection' && !hasSelection) return
+    // carries spellcheck suggestions) when nothing is selected — unless we have
+    // something better to offer, i.e. a name we know is misspelled.
+    if (EDITOR_MENU_MODE === 'selection' && !hasSelection && !slip) return
     e.preventDefault()
-    setEditorMenu({ x: e.clientX, y: e.clientY, hasSelection })
-  }, [])
+    setEditorMenu({ x: e.clientX, y: e.clientY, hasSelection, slip })
+  }, [slipAt])
 
   // Mount / remount when docId changes
   useEffect(() => {
@@ -744,7 +798,7 @@ export default function Editor({ docId }: Props): React.ReactElement {
         <ContextMenu
           x={editorMenu.x}
           y={editorMenu.y}
-          items={editorMenuItems(editorMenu.hasSelection)}
+          items={editorMenuItems(editorMenu.hasSelection, editorMenu.slip)}
           onClose={() => setEditorMenu(null)}
         />
       )}

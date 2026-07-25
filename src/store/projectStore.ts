@@ -47,6 +47,8 @@ interface ProjectState {
   /** Comment the rail should scroll to and flash — cleared once consumed. */
   focusedCommentId: ID | null
   collections: Collection[]
+  /** Words the writer has marked correct for this project. */
+  dictionary: string[]
   slopSpans: import('../components/editor/extensions').SlopSpan[]
   slopRunning: boolean
   nodeHistory: Array<{ rootIds: ID[]; nodes: Record<ID, KNode> }>
@@ -129,6 +131,10 @@ interface ProjectState {
   saveCollection: (name: string, query: NodeQuery) => ID | null
   renameCollection: (id: ID, name: string) => void
   deleteCollection: (id: ID) => void
+
+  // — project dictionary —
+  addDictionaryWord: (word: string) => void
+  removeDictionaryWord: (word: string) => void
 
   // — propagation debt —
   raiseDebt: (item: DebtItem) => void
@@ -288,6 +294,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   comments: [],
   focusedCommentId: null,
   collections: [],
+  dictionary: [],
   binderQuery: {},
   activeCollectionId: null,
   slopSpans: [],
@@ -323,6 +330,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       comments: (project.settings.comments as Comment[] | undefined) ?? [],
       focusedCommentId: null,
       collections: (project.settings.collections as Collection[] | undefined) ?? [],
+      dictionary: (project.settings.dictionary as string[] | undefined) ?? [],
       binderQuery: {},
       activeCollectionId: null,
       proposals: [],
@@ -349,7 +357,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   unloadProject: () => {
     flushCommentSave()   // don't drop a debounced anchor update on close
     useShellStore.getState().setRailPanel('inspector')
-    set({ project: null, selectedId: null, openTabs: [], openViewTabs: [], activeViewTab: null, mentionIndex: EMPTY_INDEX, codex: [], debt: [], comments: [], focusedCommentId: null, collections: [], binderQuery: {}, activeCollectionId: null, proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], nodeFuture: [], judgeResults: new Map(), slopResults: new Map(), voiceResults: new Map(), qualityHistory: [], sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, autopilotPreset: [], focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null })
+    set({ project: null, selectedId: null, openTabs: [], openViewTabs: [], activeViewTab: null, mentionIndex: EMPTY_INDEX, codex: [], debt: [], comments: [], focusedCommentId: null, collections: [], dictionary: [], binderQuery: {}, activeCollectionId: null, proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], nodeFuture: [], judgeResults: new Map(), slopResults: new Map(), voiceResults: new Map(), qualityHistory: [], sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, autopilotPreset: [], focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null })
   },
 
   selectNode: (id) => set((s) => {
@@ -665,6 +673,29 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     return s.activeCollectionId === id
       ? { collections, binderQuery: {}, activeCollectionId: null }
       : { collections }
+  }),
+
+  // Adding a word is how a false positive gets silenced forever, so it has to
+  // be cheap and permanent. The native spellchecker is told too, where the
+  // platform allows it (Electron); in the browser there is no such hook, and
+  // the word still counts for Konbini's own name check.
+  addDictionaryWord: (word) => set((s) => {
+    const w = word.trim()
+    if (!w || !s.project) return {}
+    if (s.dictionary.some((x) => x.toLowerCase() === w.toLowerCase())) return {}
+    const dictionary = [...s.dictionary, w].sort((a, b) => a.localeCompare(b))
+    window.api.settings.save(s.project.id, { dictionary }).catch(console.error)
+    window.api.spell?.addWord(w)
+    return { dictionary }
+  }),
+
+  removeDictionaryWord: (word) => set((s) => {
+    if (!s.project) return {}
+    const dictionary = s.dictionary.filter((x) => x.toLowerCase() !== word.toLowerCase())
+    if (dictionary.length === s.dictionary.length) return {}
+    window.api.settings.save(s.project.id, { dictionary }).catch(console.error)
+    window.api.spell?.removeWord(word)
+    return { dictionary }
   }),
 
   raiseDebt: (item) => set((s) => {

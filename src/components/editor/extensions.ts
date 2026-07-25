@@ -162,6 +162,52 @@ const commentPlugin = ViewPlugin.fromClass(class {
   }
 }, { decorations: (v) => v.decorations })
 
+// ── Name slips ────────────────────────────────────────────────────────────────
+//
+// Tokens that look like a misspelling of a name the project knows (see
+// shared/dictionary.ts). Rendered distinctly from slop: this is a factual
+// "that isn't how you spell her name", not a judgement about the prose.
+
+export interface NameSlipSpan { from: number; to: number; word: string; suggestion: string }
+
+export const setNameSlipsEffect = StateEffect.define<NameSlipSpan[]>()
+
+export const nameSlipField = StateField.define<NameSlipSpan[]>({
+  create: () => [],
+  update(spans, tr) {
+    for (const e of tr.effects) if (e.is(setNameSlipsEffect)) return e.value
+    // Cleared on edit and recomputed once typing settles, rather than mapped:
+    // the token under the caret is mid-word while you type, and underlining a
+    // half-typed name as a mistake is a nuisance.
+    if (tr.docChanged) return []
+    return spans
+  },
+})
+
+const nameSlipPlugin = ViewPlugin.fromClass(class {
+  decorations: ReturnType<typeof Decoration.set>
+  constructor(view: EditorView) { this.decorations = this.build(view) }
+  update(update: ViewUpdate) {
+    if (update.docChanged || update.transactions.some((t) => t.effects.some((e) => e.is(setNameSlipsEffect)))) {
+      this.decorations = this.build(update.view)
+    }
+  }
+  build(view: EditorView) {
+    const spans = view.state.field(nameSlipField)
+    if (!spans.length) return Decoration.none
+    const builder = new RangeSetBuilder<Decoration>()
+    const len = view.state.doc.length
+    for (const s of [...spans].sort((a, b) => a.from - b.from)) {
+      if (s.from >= s.to || s.to > len) continue
+      builder.add(s.from, s.to, Decoration.mark({
+        class: 'cm-nameslip',
+        attributes: { title: `Did you mean “${s.suggestion}”?`, 'data-slip': s.word },
+      }))
+    }
+    return builder.finish()
+  }
+}, { decorations: (v) => v.decorations })
+
 // ── Typewriter scroll: keep the caret near 40% from the top ──────────────────
 export function makeTypewriterPlugin() {
   return ViewPlugin.fromClass(class {
@@ -200,6 +246,15 @@ export const konbiniTheme = EditorView.theme({
     borderBottom: '1px solid color-mix(in oklch, var(--accent) 45%, transparent)',
     cursor: 'pointer',
   },
+  // A name slip is a fact, not an opinion: dotted, in the warning hue, and
+  // distinct from slop's wavy underline.
+  '.cm-nameslip': {
+    textDecoration: 'underline dotted',
+    textDecorationThickness: '2px',
+    textUnderlineOffset: '2px',
+    textDecorationColor: 'oklch(0.70 0.14 60)',
+    cursor: 'help',
+  },
   '.cm-comment-done': {
     background: 'transparent',
     borderBottom: '1px dotted var(--border-2)',
@@ -231,6 +286,8 @@ export function konbiniExtensions(
     slopPlugin,
     commentField,
     commentPlugin,
+    nameSlipField,
+    nameSlipPlugin,
     konbiniTheme,
     EditorView.lineWrapping,
     ...(onChange || onCursor || onCommentSpans ? [EditorView.updateListener.of((u) => {

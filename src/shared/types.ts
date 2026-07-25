@@ -54,6 +54,7 @@ export interface ProjectSettings {
   debt?: DebtItem[]          // propagation-debt inbox (persisted with project)
   comments?: Comment[]       // margin notes anchored to spans of prose (sidecar)
   collections?: Collection[]  // saved binder queries
+  dictionary?: string[]      // words the writer marked correct (project vocabulary)
   voiceFingerprint?: string  // foundation: prose style guide, injected as context
   aiInstructions?: string    // per-project AI instructions & notes (CLAUDE.md analog)
   autopilotRun?: AutopilotRunState | null  // in-progress autopilot run, for resume
@@ -421,6 +422,19 @@ export interface KonbiniAPI {
       input: { projectId: ID; command: string; prompt: string },
       handlers: { onChunk: (text: string) => void; onDone: (code: number) => void; onError: (err: string) => void; onAbort?: () => void },
     ): { abort: () => void }
+  }
+  /**
+   * The platform's own spellchecker dictionary.
+   *
+   * Absent in the browser: a web page can ask for squiggles but cannot add a
+   * word to the dictionary behind them, so there is nothing honest to
+   * implement. Present in Electron, where the session exposes it — though on
+   * platforms that defer to the OS dictionary (macOS) the add is a no-op there
+   * too. Konbini's own name check (shared/dictionary.ts) works either way.
+   */
+  spell?: {
+    addWord(word: string): void
+    removeWord(word: string): void
   }
   /** Global key-value preference store. Synchronous so stores can hydrate at construction time. */
   prefs: {
