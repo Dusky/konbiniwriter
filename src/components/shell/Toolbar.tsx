@@ -117,7 +117,15 @@ export default function Toolbar(): React.ReactElement {
       <div className="tb-sep" />
 
       <div className="tb-group">
-        <button className="tb-btn" title={`Find & Replace (${kbd('mod+h')})`} aria-label="Find and Replace" onClick={() => window.dispatchEvent(new CustomEvent('konbini:toggle-find'))}>
+        <button className="tb-btn" title={`Find & Replace (${kbd('mod+h')})`} aria-label="Find and Replace" onClick={() => {
+          // The inline find bar lives inside a mounted document Editor. When the
+          // main pane is anything else (empty state, a folder/Scrivenings view,
+          // or corkboard/outliner/timeline) nothing listens, so fall back to the
+          // project-wide search — always a working find & replace.
+          const canInlineFind = view === 'editor' && selectedNode && selectedNode.type !== 'folder'
+          if (canInlineFind) window.dispatchEvent(new CustomEvent('konbini:toggle-find'))
+          else setModal('search')
+        }}>
           <Icon name="text-search" />
         </button>
         <button className="tb-btn" title={`Search Project (${kbd('mod+shift+f')})`} aria-label="Search Project" onClick={() => setModal('search')}>
