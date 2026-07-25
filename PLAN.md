@@ -483,10 +483,13 @@ merge + preserve-both is the right weight.
 1. ✅ Extract the triplicated `applyOp` into one shared `shared/nodeOps.ts`
    (an I/O adapter per backend) — otherwise rev/timestamp bumps drift 3 ways.
 2. ✅ Per-node `modified` + Lamport `rev` on `KNode`; `schemaVersion` 2 + migration.
-3. 🔲 Split codex/debt out of `settings`.
-4. 🔲 Device ID + sync log (to identify the common ancestor).
-5. 🔲 Generalize `.conflict` from "external edit" to "sync divergence" + a
-   resolution surface.
+3. ✅ Split codex/debt out of `settings` into `codex.json` / `debt.json` sidecars.
+4. ✅ Device ID + sync log (`SyncService`, device-local in prefs — deliberately
+   NOT in the bundle, which is the thing being synced) + the transport-agnostic
+   merge engine in `shared/sync.ts` (`reconcileDoc`, `mergeNodes`, `planMerge`).
+5. 🔶 `conflictFileName()` matches the existing convention and `planMerge`
+   returns the text to preserve; still to do is writing those files during a
+   real sync and surfacing them for resolution.
 
 **Build order:** Tier 0 + the merge engine first — ships value with no backend,
 forces the merge/conflict work every later tier reuses, and is fully testable
