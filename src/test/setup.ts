@@ -16,8 +16,16 @@ const prefs = {
   },
 }
 
+const noop = async () => {}
+
 const api = {
   prefs,
+  // Persistence seams the stores write through. Tests don't assert on these;
+  // they exist so a store action never throws on an undefined namespace.
+  codex: { save: noop },
+  debt: { save: noop },
+  settings: { save: noop },
+  aux: { read: async () => null, write: noop, remove: noop },
   shell: {
     platform: 'linux' as const,
     minimize() {},

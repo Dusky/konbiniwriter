@@ -16,6 +16,7 @@ import { uid, wordCount, isValidAuxName } from '@shared/utils'
 import { buildProjectFromTemplate } from '@shared/templates'
 import { buildProjectFromDocs } from '@shared/importer'
 import { applyNodeOp, migrateProject } from '@shared/nodeOps'
+import { serializeManifest, serializeCodex, serializeDebt, adoptSidecars, CODEX_FILE, DEBT_FILE } from '@shared/bundle'
 
 export function isOPFSSupported(): boolean {
   return typeof navigator !== 'undefined' && 'storage' in navigator && typeof (navigator.storage as any).getDirectory === 'function'
@@ -97,6 +98,13 @@ export class OPFSProjectService {
     // Upgrade an older bundle once, on open, so the file on disk stops
     // lagging what we hold in memory.
     const didMigrate = migrateProject(project)
+    // Codex/debt live in sidecar files so sync can merge them apart from
+    // the manifest; older bundles still carry them inline.
+    const owesSidecars = adoptSidecars(
+      project,
+      await readText(bundleHandle, CODEX_FILE),
+      await readText(bundleHandle, DEBT_FILE),
+    )
 
     // Eagerly load all doc content
     for (const nodeId of Object.keys(project.docs)) {
@@ -106,7 +114,11 @@ export class OPFSProjectService {
 
     this.handles.set(project.id, bundleHandle)
     this.projects.set(project.id, project)
-    if (didMigrate) await this.writeManifest(bundleHandle, project)
+    if (didMigrate || owesSidecars) {
+      await writeText(bundleHandle, serializeCodex(project.settings.codex ?? []), CODEX_FILE)
+      await writeText(bundleHandle, serializeDebt(project.settings.debt ?? []), DEBT_FILE)
+      await this.writeManifest(bundleHandle, project)
+    }
     return project
   }
 
@@ -327,7 +339,16 @@ export class OPFSProjectService {
     const p = this.getProject(projectId)
     p.settings.codex = entries
     p.modified = new Date().toISOString()
-    await this.writeManifest(h, p)
+    // Sidecar write only — the codex is no longer part of the manifest.
+    await writeText(h, serializeCodex(entries), CODEX_FILE)
+  }
+
+  async saveDebt(projectId: string, items: import('@shared/types').DebtItem[]): Promise<void> {
+    const h = this.getHandle(projectId)
+    const p = this.getProject(projectId)
+    p.settings.debt = items
+    p.modified = new Date().toISOString()
+    await writeText(h, serializeDebt(items), DEBT_FILE)
   }
 
   // ── Aux files ─────────────────────────────────────────────────────────────
@@ -351,13 +372,7 @@ export class OPFSProjectService {
   }
 
   private async writeManifest(h: FileSystemDirectoryHandle, project: Project): Promise<void> {
-    const slim = {
-      ...project,
-      docs: Object.fromEntries(
-        Object.entries(project.docs).map(([k, v]) => [k, { snapshots: v.snapshots.map(s => ({ ...s, content: '' })) }])
-      ),
-    }
-    await writeText(h, JSON.stringify(slim, null, 2), 'project.json')
+    await writeText(h, serializeManifest(project), 'project.json')
   }
 
   private descendants(p: Project, id: string): string[] {

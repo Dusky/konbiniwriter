@@ -302,6 +302,9 @@ const api = {
     codex: {
         save: (pid, entries) => NodeProjectService_1.nodeProjectService.saveCodex(pid, entries),
     },
+    debt: {
+        save: (pid, items) => NodeProjectService_1.nodeProjectService.saveDebt(pid, items),
+    },
     settings: {
         save: (pid, patch) => NodeProjectService_1.nodeProjectService.saveSettings(pid, patch),
     },

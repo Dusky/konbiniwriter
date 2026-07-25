@@ -338,6 +338,9 @@ export interface KonbiniAPI {
   codex: {
     save(projectId: ID, entries: CodexEntry[]): Promise<void>
   }
+  debt: {
+    save(projectId: ID, items: DebtItem[]): Promise<void>
+  }
   settings: {
     save(projectId: ID, patch: Partial<ProjectSettings>): Promise<void>
   }

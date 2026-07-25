@@ -42,6 +42,7 @@ const utils_1 = require("../src/shared/utils");
 const templates_1 = require("../src/shared/templates");
 const importer_1 = require("../src/shared/importer");
 const nodeOps_1 = require("../src/shared/nodeOps");
+const bundle_1 = require("../src/shared/bundle");
 // ── FS helpers ────────────────────────────────────────────────────────────────
 async function readText(dir, ...parts) {
     try {
@@ -108,6 +109,9 @@ class NodeProjectService {
         // Upgrade an older bundle once, on open, so the file on disk stops
         // lagging what we hold in memory.
         const didMigrate = (0, nodeOps_1.migrateProject)(project);
+        // Codex/debt live in sidecar files so sync can merge them apart from
+        // the manifest; older bundles still carry them inline.
+        const owesSidecars = (0, bundle_1.adoptSidecars)(project, await readText(bundlePath, bundle_1.CODEX_FILE), await readText(bundlePath, bundle_1.DEBT_FILE));
         for (const nodeId of Object.keys(project.docs)) {
             const content = await readText(bundlePath, 'docs', `${nodeId}.md`);
             project.docs[nodeId] = { content: content ?? '', snapshots: project.docs[nodeId]?.snapshots ?? [] };
@@ -115,8 +119,11 @@ class NodeProjectService {
         }
         this.paths.set(project.id, bundlePath);
         this.projects.set(project.id, project);
-        if (didMigrate)
+        if (didMigrate || owesSidecars) {
+            await writeText(bundlePath, (0, bundle_1.serializeCodex)(project.settings.codex ?? []), bundle_1.CODEX_FILE);
+            await writeText(bundlePath, (0, bundle_1.serializeDebt)(project.settings.debt ?? []), bundle_1.DEBT_FILE);
             await this.writeManifest(bundlePath, project);
+        }
         return project;
     }
     // ── Create ──────────────────────────────────────────────────────────────────
@@ -314,7 +321,15 @@ class NodeProjectService {
         const proj = this.getProject(projectId);
         proj.settings.codex = entries;
         proj.modified = new Date().toISOString();
-        await this.writeManifest(dir, proj);
+        // Sidecar write only — the codex is no longer part of the manifest.
+        await writeText(dir, (0, bundle_1.serializeCodex)(entries), bundle_1.CODEX_FILE);
+    }
+    async saveDebt(projectId, items) {
+        const dir = this.getPath(projectId);
+        const proj = this.getProject(projectId);
+        proj.settings.debt = items;
+        proj.modified = new Date().toISOString();
+        await writeText(dir, (0, bundle_1.serializeDebt)(items), bundle_1.DEBT_FILE);
     }
     // ── Aux files ─────────────────────────────────────────────────────────────
     async readAux(projectId, name) {
@@ -353,11 +368,7 @@ class NodeProjectService {
         return p;
     }
     async writeManifest(dir, project) {
-        const slim = {
-            ...project,
-            docs: Object.fromEntries(Object.entries(project.docs).map(([k, v]) => [k, { snapshots: v.snapshots.map(s => ({ ...s, content: '' })) }])),
-        };
-        await writeText(dir, JSON.stringify(slim, null, 2), 'project.json');
+        await writeText(dir, (0, bundle_1.serializeManifest)(project), 'project.json');
     }
     descendants(proj, id) {
         const acc = [];

@@ -473,7 +473,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     // Supersede any existing unresolved item from the same source + title
     // (re-editing the same fact updates the open item instead of stacking).
     const debt = [item, ...s.debt.filter((d) => !(d.source === item.source && d.title === item.title))]
-    if (s.project) window.api.settings.save(s.project.id, { debt }).catch(console.error)
+    if (s.project) window.api.debt.save(s.project.id, debt).catch(console.error)
     return { debt }
   }),
   resolveDebtAffected: (debtId, docId) => set((s) => {
@@ -482,12 +482,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         ? { ...d, affected: d.affected.map((a) => a.docId === docId ? { ...a, resolved: true } : a) }
         : d
     )
-    if (s.project) window.api.settings.save(s.project.id, { debt }).catch(console.error)
+    if (s.project) window.api.debt.save(s.project.id, debt).catch(console.error)
     return { debt }
   }),
   dismissDebt: (debtId) => set((s) => {
     const debt = s.debt.filter((d) => d.id !== debtId)
-    if (s.project) window.api.settings.save(s.project.id, { debt }).catch(console.error)
+    if (s.project) window.api.debt.save(s.project.id, debt).catch(console.error)
     return { debt }
   }),
 

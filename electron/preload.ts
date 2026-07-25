@@ -257,6 +257,9 @@ const api: KonbiniAPI = {
   codex: {
     save: (pid, entries) => svc.saveCodex(pid, entries),
   },
+  debt: {
+    save: (pid, items) => svc.saveDebt(pid, items),
+  },
 
   settings: {
     save: (pid, patch) => svc.saveSettings(pid, patch),
