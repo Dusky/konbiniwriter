@@ -5,7 +5,7 @@ import type { Project, KNode, DocBody, ID } from '@shared/types'
 function doc(id: ID, title: string, content: string): [KNode, DocBody] {
   return [
     { id, type: 'document', title, parentId: null, childIds: [], expanded: false,
-      meta: { label: 'none', status: 'todo', synopsis: '', target: 0, includeInCompile: true }, ext: {} },
+      meta: { label: 'none', status: 'todo', synopsis: '', target: 0, includeInCompile: true }, ext: {}, rev: 1, modified: '2024-01-01T00:00:00.000Z' },
     { content, snapshots: [] },
   ]
 }
@@ -15,7 +15,7 @@ function makeProject(entries: Array<[KNode, DocBody]>): Project {
   const docs: Record<ID, DocBody> = {}
   for (const [node, body] of entries) { nodes[node.id] = node; docs[node.id] = body }
   return {
-    schemaVersion: 1, id: `proj-${Math.random()}`, title: 'T', created: '', modified: '',
+    schemaVersion: 2, id: `proj-${Math.random()}`, title: 'T', created: '', modified: '',
     rootIds: Object.keys(nodes), trashId: 'trash', nodes, docs, settings: { location: '' },
   } as Project
 }

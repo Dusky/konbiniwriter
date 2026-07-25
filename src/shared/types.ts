@@ -26,7 +26,7 @@ export type ModalId =
 // ── Project ───────────────────────────────────────────────────────────────────
 
 export interface Project {
-  schemaVersion: 1
+  schemaVersion: 2
   id: ID
   title: string
   created: ISO
@@ -99,6 +99,15 @@ export interface KNode {
   expanded: boolean
   meta: DocMeta
   ext: Record<string, unknown>
+  /**
+   * Lamport revision — one past the highest rev seen in the project when this
+   * node last changed. Cross-device sync merges the node tree per-node rather
+   * than whole-file, and compares by `rev` because wall clocks skew between
+   * machines. Backfilled to 1 when migrating a schemaVersion-1 bundle.
+   */
+  rev: number
+  /** ISO time this node last changed. Display + tiebreak only; `rev` decides. */
+  modified: ISO
 }
 
 export interface DocMeta {

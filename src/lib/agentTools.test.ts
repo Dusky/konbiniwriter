@@ -4,7 +4,7 @@ import type { Project, KNode, DocBody, ID } from '@shared/types'
 
 function node(id: ID, type: KNode['type'], title: string, parentId: ID | null, childIds: ID[] = []): KNode {
   return { id, type, title, parentId, childIds, expanded: false,
-    meta: { label: 'none', status: 'todo', synopsis: '', target: 0, includeInCompile: type !== 'folder' }, ext: {} }
+    meta: { label: 'none', status: 'todo', synopsis: '', target: 0, includeInCompile: type !== 'folder' }, ext: {}, rev: 1, modified: '2024-01-01T00:00:00.000Z' }
 }
 
 function project(): Project {
@@ -18,7 +18,7 @@ function project(): Project {
     ch1: { content: 'Reiko opened the shutter at dawn.', snapshots: [] },
     loose: { content: 'Before everything, there was the harbor.', snapshots: [] },
   }
-  return { schemaVersion: 1, id: 'p', title: 'T', created: '', modified: '',
+  return { schemaVersion: 2, id: 'p', title: 'T', created: '', modified: '',
     rootIds: ['part', 'loose', 'trash'], trashId: 'trash', nodes, docs, settings: { location: '' } } as Project
 }
 

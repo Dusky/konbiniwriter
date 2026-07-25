@@ -19,6 +19,8 @@ function makeNode(id, type, title, parentId, metaOverrides) {
             ...metaOverrides,
         },
         ext: {},
+        rev: 1,
+        modified: new Date().toISOString(),
     };
 }
 function buildProjectFromTemplate(title, template, location) {
@@ -194,7 +196,7 @@ All-night convenience stores accumulate their own urban legends. The night shift
         rootIds = [bookId, trashId];
     }
     return {
-        schemaVersion: 1,
+        schemaVersion: 2,
         id,
         title,
         created: now,

@@ -19,6 +19,8 @@ function makeNode(id: ID, type: KNode['type'], title: string, parentId: ID | nul
       ...metaOverrides,
     },
     ext: {},
+    rev: 1,
+    modified: new Date().toISOString(),
   }
 }
 
@@ -71,7 +73,7 @@ export function buildProjectFromDocs(title: string, location: string, inputs: Im
   rootIds.push(trashId)
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id,
     title,
     created: now,

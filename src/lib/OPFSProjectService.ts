@@ -15,6 +15,7 @@ import type { Project, KNode, DocBody, NodeOp, Snapshot, ID, ImportDoc, CompileF
 import { uid, wordCount, isValidAuxName } from '@shared/utils'
 import { buildProjectFromTemplate } from '@shared/templates'
 import { buildProjectFromDocs } from '@shared/importer'
+import { applyNodeOp, migrateProject } from '@shared/nodeOps'
 
 export function isOPFSSupported(): boolean {
   return typeof navigator !== 'undefined' && 'storage' in navigator && typeof (navigator.storage as any).getDirectory === 'function'
@@ -93,6 +94,9 @@ export class OPFSProjectService {
     if (!manifestText) throw new Error('Not a Konbini project (no project.json)')
 
     const project: Project = JSON.parse(manifestText)
+    // Upgrade an older bundle once, on open, so the file on disk stops
+    // lagging what we hold in memory.
+    const didMigrate = migrateProject(project)
 
     // Eagerly load all doc content
     for (const nodeId of Object.keys(project.docs)) {
@@ -102,6 +106,7 @@ export class OPFSProjectService {
 
     this.handles.set(project.id, bundleHandle)
     this.projects.set(project.id, project)
+    if (didMigrate) await this.writeManifest(bundleHandle, project)
     return project
   }
 
@@ -181,110 +186,23 @@ export class OPFSProjectService {
 
   // ── Node mutations ────────────────────────────────────────────────────────
 
+  /** The only platform-specific half of a node op: doc-file writes and deletes. */
+  private nodeIO(h: FileSystemDirectoryHandle) {
+    return {
+      writeDoc: (nodeId: ID, content: string) => writeText(h, content, 'docs', `${nodeId}.md`),
+      removeDoc: (nodeId: ID) => removeFile(h, 'docs', `${nodeId}.md`),
+    }
+  }
+
   async mutateNode(projectId: string, op: NodeOp): Promise<{ rootIds: ID[]; nodes: Record<ID, KNode>; docs: Record<ID, DocBody> }> {
     const h = this.getHandle(projectId)
     const p = this.getProject(projectId)
-    await this.applyOp(p, op, h)
+    await applyNodeOp(p, op, this.nodeIO(h))
     p.modified = new Date().toISOString()
     await this.writeManifest(h, p)
     return { rootIds: p.rootIds, nodes: p.nodes, docs: p.docs }
   }
 
-  private async applyOp(p: Project, op: NodeOp, h: FileSystemDirectoryHandle): Promise<void> {
-    switch (op.type) {
-      case 'create': {
-        const id = uid(op.nodeType)
-        p.nodes[id] = {
-          id, type: op.nodeType,
-          title: op.title ?? (op.nodeType === 'folder' ? 'New Folder' : op.nodeType === 'scene' ? 'New Scene' : 'New Document'),
-          parentId: op.parentId, childIds: [], expanded: op.nodeType === 'folder',
-          meta: { label: op.nodeType === 'scene' ? 'scene' : 'none', status: 'todo', synopsis: '', target: 0, includeInCompile: op.nodeType !== 'folder' },
-          ext: { _newId: id },
-        }
-        if (op.nodeType !== 'folder') {
-          p.docs[id] = { content: '', snapshots: [] }
-          await writeText(h, '', 'docs', `${id}.md`)
-        }
-        if (op.parentId == null) {
-          p.rootIds.splice(op.atIndex ?? p.rootIds.length, 0, id)
-        } else {
-          const parent = p.nodes[op.parentId]
-          parent.childIds.splice(op.atIndex ?? parent.childIds.length, 0, id)
-          parent.expanded = true
-        }
-        break
-      }
-      case 'rename':
-        if (p.nodes[op.id]) p.nodes[op.id].title = op.title
-        break
-      case 'setProjectTitle':
-        p.title = op.title
-        break
-      case 'move': {
-        const node = p.nodes[op.id]
-        if (!node || op.id === op.newParentId) break
-        if (op.newParentId != null && this.descendants(p, op.id).includes(op.newParentId)) break
-        if (node.parentId == null) p.rootIds = p.rootIds.filter(x => x !== op.id)
-        else { const old = p.nodes[node.parentId]; if (old) old.childIds = old.childIds.filter(x => x !== op.id) }
-        node.parentId = op.newParentId
-        if (op.newParentId == null) p.rootIds.splice(op.atIndex, 0, op.id)
-        else { const np = p.nodes[op.newParentId]; if (np) { np.childIds.splice(op.atIndex, 0, op.id); np.expanded = true } }
-        break
-      }
-      case 'duplicate': {
-        const cloneRec = async (srcId: string, parentId: string | null): Promise<string> => {
-          const src = p.nodes[srcId]
-          const nid = uid(src.type)
-          p.nodes[nid] = { ...src, id: nid, parentId, childIds: [], title: src.title + ' copy', meta: { ...src.meta }, ext: { ...src.ext } }
-          if (p.docs[srcId]) {
-            const content = p.docs[srcId].content
-            p.docs[nid] = { content, snapshots: [] }
-            await writeText(h, content, 'docs', `${nid}.md`)
-          }
-          p.nodes[nid].childIds = await Promise.all(src.childIds.map(c => cloneRec(c, nid)))
-          return nid
-        }
-        const src = p.nodes[op.id]
-        const newId = await cloneRec(op.id, src.parentId)
-        if (src.parentId == null) { const i = p.rootIds.indexOf(op.id); p.rootIds.splice(i + 1, 0, newId) }
-        else { const par = p.nodes[src.parentId]; const i = par.childIds.indexOf(op.id); par.childIds.splice(i + 1, 0, newId) }
-        break
-      }
-      case 'trash': {
-        const node = p.nodes[op.id]
-        if (!node || !p.trashId || node.parentId === p.trashId) break
-        if (node.parentId == null) p.rootIds = p.rootIds.filter(x => x !== op.id)
-        else { const old = p.nodes[node.parentId]; if (old) old.childIds = old.childIds.filter(x => x !== op.id) }
-        node.parentId = p.trashId
-        p.nodes[p.trashId].childIds.push(op.id)
-        p.nodes[p.trashId].expanded = true
-        break
-      }
-      case 'delete': {
-        const kill = [op.id, ...this.descendants(p, op.id)]
-        const node = p.nodes[op.id]
-        if (!node) break
-        if (node.parentId == null) p.rootIds = p.rootIds.filter(x => x !== op.id)
-        else { const old = p.nodes[node.parentId]; if (old) old.childIds = old.childIds.filter(x => x !== op.id) }
-        for (const k of kill) {
-          await removeFile(h, 'docs', `${k}.md`)
-          delete p.nodes[k]; delete p.docs[k]
-        }
-        break
-      }
-      case 'updateMeta':
-        if (p.nodes[op.id]) p.nodes[op.id].meta = { ...p.nodes[op.id].meta, ...op.patch }
-        break
-      case 'setExpanded':
-        if (p.nodes[op.id]) p.nodes[op.id].expanded = op.expanded
-        break
-      case 'setTree':
-        // Undo/redo: replace the whole tree; docs are left untouched.
-        p.rootIds = op.rootIds
-        p.nodes = op.nodes
-        break
-    }
-  }
 
   // ── Snapshots ─────────────────────────────────────────────────────────────
 

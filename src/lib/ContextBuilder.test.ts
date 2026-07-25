@@ -20,14 +20,14 @@ function makeNode(id: string, partial: Partial<KNode> = {}): KNode {
     childIds: [],
     expanded: true,
     meta: { ...baseMeta },
-    ext: {},
+    ext: {}, rev: 1, modified: '2024-01-01T00:00:00.000Z',
     ...partial,
   }
 }
 
 function makeProject(overrides: Partial<Project> = {}): Project {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: 'proj1',
     title: 'Test Project',
     created: new Date().toISOString(),

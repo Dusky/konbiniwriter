@@ -439,9 +439,58 @@ weak spots, voice-drift vs. the fingerprint, tracked across drafts so a writer c
   ("▲ +3.4 over N passes") so you watch the draft improve.
 
 ### 5.3 Cross-device sync & backup 🔲  *(retention — biggest infra lift)*
-Optional, keeps "your data is yours": E2E-encrypted or git-backed sync of the
-`.konbini` bundle so a novel isn't trapped on one machine. Conflict handling reuses
-the existing `.conflict` backup convention. Do after 5.1/5.2 prove value.
+
+**The hard part is the manifest, not the transport.** The bundle is
+`project.json` + `docs/<nodeId>.md` + `snapshots/` + `aux/*.json`.
+
+- Prose already syncs perfectly: one `.md` per stable node ID, so two devices
+  editing different scenes never conflict. Free from the format.
+- `project.json` is the problem: one blob holding the node tree **and** settings
+  **and** codex **and** debt, with only a project-level `modified` and **no
+  per-node timestamp**. Whole-file last-writer-wins silently eats structural
+  work (rename a chapter on the laptop + add a character on the desktop → one is
+  lost). This is what 5.3 must actually solve.
+
+**Transport — three tiers, each shippable alone; one shared merge engine.**
+1. **Tier 0 — safe under an external syncer** (Dropbox/iCloud/Syncthing). Works
+   today *by accident* and unsafely (those do whole-file LWW). Zero infra.
+2. **Tier 1 — git remote.** Plain text; user owns everything; free history.
+   Electron-first (browsers need isomorphic-git + a CORS proxy).
+3. **Tier 2 — hosted, E2E-encrypted.** The subscription, and the *only* option
+   that works on OPFS (Firefox/Safari), where there's no folder to point at.
+
+**Merge design**
+- **Prose:** per-document three-way merge — snapshots give us the common
+  ancestor. If it won't apply cleanly, write the existing
+  `<id>.conflict-<stamp>.md` and resolve through the changeset review UI.
+  Never lose a word.
+- **Manifest:** node-wise, not whole-file. Union by ID, newest-wins per node,
+  tombstones so deletes don't resurrect. Tractable only because node IDs are
+  stable and never reused (invariant 6).
+- **Codex/debt:** move out of `settings` into their own files, or merge by
+  entry ID — today they're collateral damage in every manifest conflict.
+- **`aux/*`:** merge by key, newest wins. Derived data, low stakes.
+- **Snapshot before applying any remote change** — same invariant as the AI
+  proposal pipeline, extended to sync.
+
+**Not CRDTs.** They'd change the on-disk representation, breaking "open the
+`.md` in any editor" (philosophy 2), and they solve real-time co-editing, which
+a solo novelist doesn't have. The real failure is "I forgot to sync before
+writing on the other machine" — a divergent-version problem. Per-file 3-way
+merge + preserve-both is the right weight.
+
+**Prerequisites (needed regardless of transport)**
+1. ✅ Extract the triplicated `applyOp` into one shared `shared/nodeOps.ts`
+   (an I/O adapter per backend) — otherwise rev/timestamp bumps drift 3 ways.
+2. ✅ Per-node `modified` + Lamport `rev` on `KNode`; `schemaVersion` 2 + migration.
+3. 🔲 Split codex/debt out of `settings`.
+4. 🔲 Device ID + sync log (to identify the common ancestor).
+5. 🔲 Generalize `.conflict` from "external edit" to "sync divergence" + a
+   resolution surface.
+
+**Build order:** Tier 0 + the merge engine first — ships value with no backend,
+forces the merge/conflict work every later tier reuses, and is fully testable
+offline by simulating two divergent bundles.
 
 ### 5.4 Frictionless import 🔲  *(companion to 5.1 — lowers switching cost)*
 Beyond the current `.docx`/folder import: Scrivener `.scriv`, Google-Docs export,

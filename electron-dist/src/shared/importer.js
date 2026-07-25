@@ -19,6 +19,8 @@ function makeNode(id, type, title, parentId, metaOverrides) {
             ...metaOverrides,
         },
         ext: {},
+        rev: 1,
+        modified: new Date().toISOString(),
     };
 }
 const TITLE_EXT = /\.(md|markdown|mdown|txt|text)$/i;
@@ -70,7 +72,7 @@ function buildProjectFromDocs(title, location, inputs) {
     }
     rootIds.push(trashId);
     return {
-        schemaVersion: 1,
+        schemaVersion: 2,
         id,
         title,
         created: now,

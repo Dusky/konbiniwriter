@@ -24,6 +24,8 @@ function makeNode(
       ...metaOverrides,
     },
     ext: {},
+    rev: 1,
+    modified: new Date().toISOString(),
   }
 }
 
@@ -208,7 +210,7 @@ All-night convenience stores accumulate their own urban legends. The night shift
   }
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id,
     title,
     created: now,
