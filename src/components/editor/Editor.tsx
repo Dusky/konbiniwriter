@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react'
 import { EditorView } from '@codemirror/view'
 import { EditorState, Compartment } from '@codemirror/state'
-import { focusModeEffect, konbiniExtensions, makeTypewriterPlugin, setSlopSpansEffect, type SlopSpan } from './extensions'
+import { focusModeEffect, konbiniExtensions, makeTypewriterPlugin, setSlopSpansEffect, setCommentSpansEffect, commentField, type SlopSpan, type CommentSpan } from './extensions'
+import { anchoredFor, type Comment } from '@shared/comments'
 import { livePreview } from './livePreview'
 import { useProjectStore } from '../../store/projectStore'
 import { useShellStore } from '../../store/shellStore'
@@ -22,6 +23,18 @@ import { streamCompletion } from '../../lib/AIClient'
 // appears otherwise). Flip to 'always' to show the custom menu on every
 // right-click.
 const EDITOR_MENU_MODE: 'selection' | 'always' = 'selection'
+
+/**
+ * The comment highlights a document should be showing right now.
+ *
+ * Orphaned comments are excluded: their stored offsets no longer describe any
+ * real span, so there is nothing honest to paint.
+ */
+function commentSpansFor(comments: Comment[], docId: string, content: string): CommentSpan[] {
+  return anchoredFor(comments, docId, content)
+    .filter((c) => !c.orphaned && c.live.to > c.live.from)
+    .map((c) => ({ id: c.id, from: c.live.from, to: c.live.to, resolved: c.resolved }))
+}
 
 interface Props {
   docId: string
@@ -48,6 +61,10 @@ export default function Editor({ docId }: Props): React.ReactElement {
   const livePreviewOn = useShellStore((s) => s.livePreview)
   const setRailPanel = useShellStore((s) => s.setRailPanel)
   const queueProposal = useProjectStore((s) => s.queueProposal)
+  const comments = useProjectStore((s) => s.comments)
+  const addComment = useProjectStore((s) => s.addComment)
+  const remapComment = useProjectStore((s) => s.remapComment)
+  const setFocusedComment = useProjectStore((s) => s.setFocusedComment)
 
   const content = project?.docs[docId]?.content ?? ''
 
@@ -206,6 +223,73 @@ export default function Editor({ docId }: Props): React.ReactElement {
     [setCursor]
   )
 
+  // ── Comments ───────────────────────────────────────────────────────────────
+
+  // CodeMirror has already mapped these anchors through the change; push the
+  // new positions (and the text they now cover) back to the store. A span that
+  // collapsed to nothing is skipped deliberately: leaving the old quote in
+  // place lets `reanchor` mark the comment orphaned instead of silently
+  // re-pointing it at whatever text moved into those offsets.
+  const handleCommentSpans = useCallback((spans: CommentSpan[]) => {
+    const view = viewRef.current
+    if (!view) return
+    const doc = view.state.doc
+    for (const s of spans) {
+      if (s.from >= s.to) continue
+      remapComment(s.id, { from: s.from, to: s.to, quote: doc.sliceString(s.from, s.to) })
+    }
+  }, [remapComment])
+
+  // Keep the editor's highlights in step with the store. This only covers
+  // *changes*; the initial set is seeded by the mount effect below, which runs
+  // after this one and is the first point at which a view exists.
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+    const next = commentSpansFor(comments, docId, content)
+    const cur = view.state.field(commentField)
+    const same = cur.length === next.length && cur.every((s, i) =>
+      s.id === next[i].id && s.from === next[i].from && s.to === next[i].to && s.resolved === next[i].resolved)
+    if (same) return
+    view.dispatch({ effects: setCommentSpansEffect.of(next) })
+  }, [comments, content, docId])
+
+  const addCommentAtSelection = useCallback(() => {
+    const view = viewRef.current
+    if (!view) return
+    const { from, to } = view.state.selection.main
+    if (from === to) {
+      useShellStore.getState().setToast('Select the text you want to comment on.')
+      return
+    }
+    const id = addComment({ docId, from, to, body: '' })
+    if (!id) return
+    setRailPanel('comments')
+    setFocusedComment(id)
+  }, [docId, addComment, setRailPanel, setFocusedComment])
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'm') {
+        e.preventDefault()
+        addCommentAtSelection()
+      }
+    }
+    const evt = () => addCommentAtSelection()
+    window.addEventListener('keydown', handler)
+    window.addEventListener('konbini:add-comment', evt)
+    return () => { window.removeEventListener('keydown', handler); window.removeEventListener('konbini:add-comment', evt) }
+  }, [addCommentAtSelection])
+
+  // Clicking a highlighted span surfaces its note in the rail.
+  const handleCommentClick = useCallback((e: React.MouseEvent) => {
+    const el = (e.target as HTMLElement | null)?.closest?.('[data-comment-id]')
+    const id = el?.getAttribute('data-comment-id')
+    if (!id) return
+    setRailPanel('comments')
+    setFocusedComment(id)
+  }, [setRailPanel, setFocusedComment])
+
   // Show co-write bar on mouseup if there's a selection and AI is enabled
   const handleMouseUp = useCallback(() => {
     if (!aiEnabled) return
@@ -286,6 +370,10 @@ export default function Editor({ docId }: Props): React.ReactElement {
     }
     items.push({ label: 'Paste', action: () => { void doPaste() } })
     if (!hasSelection) items.push({ label: 'Select All', action: doSelectAll })
+    if (hasSelection) {
+      items.push({ label: '---', action: () => {} })
+      items.push({ label: 'Add Comment', action: addCommentAtSelection })
+    }
     if (aiEnabled && hasSelection) {
       items.push({ label: '---', action: () => {} })
       for (const c of COWRITE_COMMANDS) items.push({ label: c.label, action: () => startCowrite(c.id) })
@@ -293,7 +381,7 @@ export default function Editor({ docId }: Props): React.ReactElement {
     items.push({ label: '---', action: () => {} })
     items.push({ label: 'History & Snapshots', action: () => setRailPanel('history') })
     return items
-  }, [aiEnabled, doCut, doCopy, doPaste, doSelectAll, startCowrite, setRailPanel])
+  }, [aiEnabled, doCut, doCopy, doPaste, doSelectAll, startCowrite, setRailPanel, addCommentAtSelection])
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     const view = viewRef.current
@@ -314,7 +402,7 @@ export default function Editor({ docId }: Props): React.ReactElement {
     const state = EditorState.create({
       doc: content,
       extensions: [
-        ...konbiniExtensions(handleChange, handleCursor),
+        ...konbiniExtensions(handleChange, handleCursor, handleCommentSpans),
         livePreviewCompartment.current.of(livePreviewOn ? livePreview : []),
         typewriterCompartment.current.of(typewriterMode ? makeTypewriterPlugin() : []),
       ],
@@ -322,6 +410,12 @@ export default function Editor({ docId }: Props): React.ReactElement {
 
     const view = new EditorView({ state, parent: containerRef.current })
     viewRef.current = view
+
+    // Seed comment highlights for the document just opened. The sync effect
+    // above can't do it: React runs effects in declaration order, so it fires
+    // while viewRef is still null and then won't re-run until a dep changes.
+    const initialSpans = commentSpansFor(useProjectStore.getState().comments, docId, content)
+    if (initialSpans.length) view.dispatch({ effects: setCommentSpansEffect.of(initialSpans) })
 
     // Focus the editor and publish the initial cursor position
     view.focus()
@@ -533,7 +627,7 @@ export default function Editor({ docId }: Props): React.ReactElement {
   }, [livePreviewOn])
 
   return (
-    <div style={{ height: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }} onMouseUp={handleMouseUp} onMouseMove={handleMouseMove} onMouseLeave={() => setWikilinkTip(null)} onContextMenu={handleContextMenu}>
+    <div style={{ height: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }} onMouseUp={handleMouseUp} onMouseMove={handleMouseMove} onMouseLeave={() => setWikilinkTip(null)} onContextMenu={handleContextMenu} onClick={handleCommentClick}>
       {findReplaceOpen && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px',

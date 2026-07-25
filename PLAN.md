@@ -526,6 +526,72 @@ only has to move bytes and hand a bundle in.
 
 ---
 
+## Phase 6 — The obvious missing pieces 🔲
+
+Gaps a writer hits on day one that have nothing to do with AI or services.
+Ordered by how much each changes what the app *is*.
+
+### 6.1 Anchored comments ✅
+Margin notes attached to a span of prose — the markup layer the studio was
+missing, and the natural home for AI critique (which currently lands in a panel
+disconnected from the sentence it's about).
+
+- `shared/comments.ts` — schema + the anchoring rules. Anchors carry the quoted
+  text, not just offsets, because offsets go stale silently whenever the
+  document changes while closed (snapshot restore, applied proposal, sync merge,
+  external editor). `reanchor` re-locates by quote and picks the occurrence
+  nearest the old position; when the quote is gone it marks the comment
+  **orphaned** rather than pointing it at whatever text now occupies those
+  offsets. Showing a note beside the wrong sentence is worse than detaching it.
+- **Two mechanisms, different failures.** CodeMirror maps anchors through every
+  change while the doc is open — the only thing that can survive a rewrite of
+  the quoted text. `reanchor` is the recovery path for everything else.
+- `comments.json` sidecar at the bundle root (with codex/debt — primary content,
+  not the disposable `aux/` tier), so sync can merge notes independently of the
+  manifest. Writer-initiated changes persist immediately; anchor drift (which
+  fires on nearly every keystroke) is debounced and flushed on close.
+- Comments rail panel: quote + note + resolve/edit/delete, orphans shown
+  distinctly, click a highlight to focus its note and vice versa. ⌘⇧M, editor
+  context menu, command palette.
+- Deleting a node purges its comments centrally in `applyMutation` — the one
+  place every structural mutation lands. Trashing keeps them (the node lives on).
+- Fixed along the way: `Studio` forced the rail back to Inspector with AI off
+  using a hand-written allowlist of non-AI panels, which made any newly added
+  non-AI panel unreachable. Now derived from `shell/railTabs.ts`, shared with the
+  tab strip.
+
+### 6.2 Keywords + Collections 🔲
+The binder can be browsed but never queried. Keyword field on `KNode`, editor in
+the Inspector, and saved Collections (saved searches) — "every scene with Mira,
+POV Alex, status Draft, under 1,500 words". `labelColor` exists but only paints
+corkboard cards. This is what stops the binder falling out of the writer's head
+around 40k words.
+
+### 6.3 Per-project spelling dictionary 🔲
+The editor delegates to native browser spellcheck, so invented names squiggle
+forever with no persistent "add to dictionary". Cheap, and the Codex already
+knows every proper noun in the book, so the dictionary can seed itself.
+
+### 6.4 Read-aloud proofing 🔲
+Web Speech API — no dependency, no key, no service. Sentence highlight, rate and
+voice control, play-from-cursor. Highest-yield revision technique there is, and
+it pairs directly with the anti-slop dashboard.
+
+### 6.5 Deadline math 🔲
+`wordTarget`, streaks and session counts already exist; there's no "finish by
+Nov 1 → 1,840 words/day, you're 3 days behind". Arithmetic and a progress bar.
+
+### 6.6 Character rename completion 🔲
+Find & replace rewrites `[[Mira]]` in prose but not the node's own title, so
+renaming a character leaves the binder stale. One reviewable, snapshot-protected
+operation that does both.
+
+### 6.7 Footnotes / endnotes 🔲
+Narrower, and currently *lossy*: `rtf.ts` discards Scrivener footnotes on import.
+The DOCX/EPUB builders could carry them.
+
+---
+
 ## Electron packaging (any phase, when needed)
 
 1. `src/preload/index.ts` — `contextBridge.exposeInMainWorld('api', { ... })` with the same `KonbiniAPI` interface

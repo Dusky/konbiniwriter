@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { useShellStore } from './shellStore'
 import type { Project, KNode, DocBody, DocMeta, NodeType, ViewMode, SaveStatus, Snapshot, ID, Proposal, CodexEntry, DebtItem, ProjectSettings } from '@shared/types'
+import type { Comment, CommentOrigin } from '@shared/comments'
+import { trimAnchor } from '@shared/comments'
 import { uid, wordCount } from '@shared/utils'
 import { type MentionIndex, buildIndex, updateIndex } from '../lib/MentionIndex'
 import type { JudgeResult, QualityPoint } from '../lib/judge'
@@ -40,6 +42,9 @@ interface ProjectState {
   activeProposalId: ID | null
   codex: CodexEntry[]
   debt: DebtItem[]
+  comments: Comment[]
+  /** Comment the rail should scroll to and flash — cleared once consumed. */
+  focusedCommentId: ID | null
   slopSpans: import('../components/editor/extensions').SlopSpan[]
   slopRunning: boolean
   nodeHistory: Array<{ rootIds: ID[]; nodes: Record<ID, KNode> }>
@@ -96,6 +101,19 @@ interface ProjectState {
   // — codex —
   upsertCodexEntry: (entry: CodexEntry) => void
   deleteCodexEntry: (id: ID) => void
+
+  // — comments (margin notes anchored to spans of prose) —
+  /** Create a comment on a range; returns its id. Quote is taken from `content`. */
+  addComment: (input: {
+    docId: ID; from: number; to: number; body: string
+    author?: string; origin?: CommentOrigin; agentId?: string
+  }) => ID | null
+  editComment: (id: ID, body: string) => void
+  /** Move a comment's anchor — used by the editor as the writer edits around it. */
+  remapComment: (id: ID, anchor: { from: number; to: number; quote: string }) => void
+  toggleCommentResolved: (id: ID) => void
+  deleteComment: (id: ID) => void
+  setFocusedComment: (id: ID | null) => void
 
   // — propagation debt —
   raiseDebt: (item: DebtItem) => void
@@ -181,6 +199,43 @@ export function isDescendant(project: Project, ancestorId: ID, targetId: ID): bo
   return descendants(project, ancestorId).includes(targetId)
 }
 
+// ── comment persistence ──────────────────────────────────────────────────────
+//
+// Two write paths on purpose. Creating, editing, resolving, or deleting a
+// comment is the writer acting, and lands immediately. Re-anchoring is the
+// comment following text the writer is typing around — that fires on nearly
+// every keystroke, so it's coalesced. Worst case on a hard crash mid-debounce
+// is a stale offset, which `reanchor` recovers from on the next open; the
+// comment itself is never at risk.
+
+const COMMENT_SAVE_DEBOUNCE_MS = 400
+let commentSaveTimer: ReturnType<typeof setTimeout> | null = null
+let pendingCommentSave: { projectId: ID; comments: Comment[] } | null = null
+
+/** Write whatever comment state is queued, now. */
+export function flushCommentSave(): void {
+  if (commentSaveTimer) { clearTimeout(commentSaveTimer); commentSaveTimer = null }
+  const p = pendingCommentSave
+  pendingCommentSave = null
+  if (!p) return
+  window.api.comments.save(p.projectId, p.comments).catch((e: Error) => {
+    useShellStore.getState().setToast('Comments could not be saved: ' + e.message)
+  })
+}
+
+/** Persist now (writer-initiated change). */
+function persistComments(projectId: ID, comments: Comment[]): void {
+  pendingCommentSave = { projectId, comments }
+  flushCommentSave()
+}
+
+/** Persist soon, collapsing a burst into one write (anchor drift). */
+function persistCommentsSoon(projectId: ID, comments: Comment[]): void {
+  pendingCommentSave = { projectId, comments }
+  if (commentSaveTimer) clearTimeout(commentSaveTimer)
+  commentSaveTimer = setTimeout(flushCommentSave, COMMENT_SAVE_DEBOUNCE_MS)
+}
+
 // ── store ────────────────────────────────────────────────────────────────────
 
 const EMPTY_INDEX: MentionIndex = { aliasToDocIds: new Map(), docToAliases: new Map() }
@@ -204,6 +259,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   activeProposalId: null,
   codex: [],
   debt: [],
+  comments: [],
+  focusedCommentId: null,
   slopSpans: [],
   slopRunning: false,
   nodeHistory: [],
@@ -234,6 +291,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       mentionIndex: buildIndex(project.docs),
       codex: (project.settings.codex as CodexEntry[] | undefined) ?? [],
       debt: (project.settings.debt as DebtItem[] | undefined) ?? [],
+      comments: (project.settings.comments as Comment[] | undefined) ?? [],
+      focusedCommentId: null,
       proposals: [],
       activeProposalId: null,
       nodeHistory: [],
@@ -256,8 +315,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     })
   },
   unloadProject: () => {
+    flushCommentSave()   // don't drop a debounced anchor update on close
     useShellStore.getState().setRailPanel('inspector')
-    set({ project: null, selectedId: null, openTabs: [], openViewTabs: [], activeViewTab: null, mentionIndex: EMPTY_INDEX, codex: [], debt: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], nodeFuture: [], judgeResults: new Map(), slopResults: new Map(), voiceResults: new Map(), qualityHistory: [], sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, autopilotPreset: [], focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null })
+    set({ project: null, selectedId: null, openTabs: [], openViewTabs: [], activeViewTab: null, mentionIndex: EMPTY_INDEX, codex: [], debt: [], comments: [], focusedCommentId: null, proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], nodeFuture: [], judgeResults: new Map(), slopResults: new Map(), voiceResults: new Map(), qualityHistory: [], sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, autopilotPreset: [], focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null })
   },
 
   selectNode: (id) => set((s) => {
@@ -344,8 +404,14 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     if (!s.project) return {}
     const snapshot = { rootIds: s.project.rootIds, nodes: s.project.nodes }
     const history = [...s.nodeHistory, snapshot].slice(-50)
+    // A node deleted outright takes its comments with it. This is the single
+    // place every structural mutation lands, so purging here covers all the
+    // delete call sites at once. Trashing keeps the node in the tree, so
+    // trashed documents deliberately keep their notes.
+    const comments = s.comments.filter((c) => nodes[c.docId])
+    if (comments.length !== s.comments.length) persistComments(s.project.id, comments)
     // A fresh mutation invalidates the redo stack.
-    return { project: { ...s.project, rootIds, nodes, docs }, nodeHistory: history, nodeFuture: [] }
+    return { project: { ...s.project, rootIds, nodes, docs }, nodeHistory: history, nodeFuture: [], comments }
   }),
 
   // Undo/redo move whole-tree snapshots between the past/future stacks and
@@ -468,6 +534,66 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     })
     return { codex }
   }),
+
+  addComment: ({ docId, from, to, body, author = 'You', origin = 'author', agentId }) => {
+    const s = get()
+    if (!s.project) return null
+    const content = s.project.docs[docId]?.content ?? ''
+    // Anchor to the trimmed span: a comment that starts on leading whitespace
+    // drifts the moment the paragraph reflows.
+    const span = trimAnchor(content, from, to)
+    const now = new Date().toISOString()
+    const comment: Comment = {
+      id: uid('cm'),
+      docId,
+      anchor: { from: span.from, to: span.to, quote: content.slice(span.from, span.to) },
+      body,
+      author,
+      origin,
+      ...(agentId ? { agentId } : {}),
+      createdAt: now,
+      modifiedAt: now,
+      resolved: false,
+    }
+    set({ comments: [...s.comments, comment] })
+    persistComments(s.project.id, [...s.comments, comment])
+    return comment.id
+  },
+
+  editComment: (id, body) => set((s) => {
+    const comments = s.comments.map((c) =>
+      c.id === id ? { ...c, body, modifiedAt: new Date().toISOString() } : c)
+    if (s.project) persistComments(s.project.id, comments)
+    return { comments }
+  }),
+
+  // Position-only update: the writer edited around (or inside) the span and the
+  // editor mapped the anchor forward. Deliberately does NOT touch modifiedAt —
+  // moving with the text isn't the writer revising the note.
+  remapComment: (id, anchor) => set((s) => {
+    const before = s.comments.find((c) => c.id === id)
+    if (!before) return {}
+    const { from, to, quote } = before.anchor
+    if (from === anchor.from && to === anchor.to && quote === anchor.quote) return {}
+    const comments = s.comments.map((c) => c.id === id ? { ...c, anchor } : c)
+    if (s.project) persistCommentsSoon(s.project.id, comments)
+    return { comments }
+  }),
+
+  toggleCommentResolved: (id) => set((s) => {
+    const comments = s.comments.map((c) =>
+      c.id === id ? { ...c, resolved: !c.resolved, modifiedAt: new Date().toISOString() } : c)
+    if (s.project) persistComments(s.project.id, comments)
+    return { comments }
+  }),
+
+  deleteComment: (id) => set((s) => {
+    const comments = s.comments.filter((c) => c.id !== id)
+    if (s.project) persistComments(s.project.id, comments)
+    return { comments, focusedCommentId: s.focusedCommentId === id ? null : s.focusedCommentId }
+  }),
+
+  setFocusedComment: (focusedCommentId) => set({ focusedCommentId }),
 
   raiseDebt: (item) => set((s) => {
     // Supersede any existing unresolved item from the same source + title

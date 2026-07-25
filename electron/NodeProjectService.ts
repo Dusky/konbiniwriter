@@ -9,13 +9,14 @@ import { uid, wordCount, isValidAuxName } from '../src/shared/utils'
 import { buildProjectFromTemplate } from '../src/shared/templates'
 import { buildProjectFromDocs } from '../src/shared/importer'
 import { applyNodeOp, migrateProject } from '../src/shared/nodeOps'
-import { serializeManifest, serializeCodex, serializeDebt, adoptSidecars, CODEX_FILE, DEBT_FILE } from '../src/shared/bundle'
+import { serializeManifest, serializeCodex, serializeDebt, serializeComments, adoptSidecars, CODEX_FILE, DEBT_FILE, COMMENTS_FILE } from '../src/shared/bundle'
 import { conflictFileName } from '../src/shared/sync'
 import type {
   Project, KNode, DocBody, NodeOp, Snapshot, ID, ImportDoc,
   CompileFormat, CompileResult, CodexEntry, DebtItem, ProjectSettings, TemplateId,
   SyncBundle, SyncMerged,
 } from '../src/shared/types'
+import type { Comment } from '../src/shared/comments'
 
 // ── FS helpers ────────────────────────────────────────────────────────────────
 
@@ -78,12 +79,13 @@ export class NodeProjectService {
     // Upgrade an older bundle once, on open, so the file on disk stops
     // lagging what we hold in memory.
     const didMigrate = migrateProject(project)
-    // Codex/debt live in sidecar files so sync can merge them apart from
-    // the manifest; older bundles still carry them inline.
+    // Codex/debt/comments live in sidecar files so sync can merge them apart
+    // from the manifest; older bundles still carry codex and debt inline.
     const owesSidecars = adoptSidecars(
       project,
       await readText(bundlePath, CODEX_FILE),
       await readText(bundlePath, DEBT_FILE),
+      await readText(bundlePath, COMMENTS_FILE),
     )
 
     for (const nodeId of Object.keys(project.docs)) {
@@ -332,6 +334,14 @@ export class NodeProjectService {
     proj.settings.debt = items
     proj.modified = new Date().toISOString()
     await writeText(dir, serializeDebt(items), DEBT_FILE)
+  }
+
+  async saveComments(projectId: string, comments: Comment[]): Promise<void> {
+    const dir = this.getPath(projectId)
+    const proj = this.getProject(projectId)
+    proj.settings.comments = comments
+    proj.modified = new Date().toISOString()
+    await writeText(dir, serializeComments(comments), COMMENTS_FILE)
   }
 
   // ── Aux files ─────────────────────────────────────────────────────────────

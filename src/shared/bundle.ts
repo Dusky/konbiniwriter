@@ -4,23 +4,26 @@
 //     project.json   manifest: node tree, rootIds, settings
 //     codex.json     story bible (sidecar)
 //     debt.json      propagation-debt inbox (sidecar)
+//     comments.json  margin notes, anchored to spans of prose (sidecar)
 //     docs/<id>.md   prose, one file per node
 //     snapshots/     version history
 //     aux/*.json     derived caches (quality, slop, voice, chat)
 //
-// Codex and debt are *sidecars*, not part of the manifest, for two reasons:
-// cross-device sync can then merge them independently instead of losing one
-// device's character edits to the other's chapter rename; and they sit at the
-// bundle root rather than under aux/ because they're primary content a writer
-// would be horrified to lose — aux/ is the disposable-cache tier.
+// Codex, debt, and comments are *sidecars*, not part of the manifest, for two
+// reasons: cross-device sync can then merge them independently instead of
+// losing one device's character edits to the other's chapter rename; and they
+// sit at the bundle root rather than under aux/ because they're primary content
+// a writer would be horrified to lose — aux/ is the disposable-cache tier.
 //
 // Pure: imported by both the renderer and Electron main.
 
 import type { Project, CodexEntry, DebtItem } from './types'
+import type { Comment } from './comments'
 
 export const MANIFEST_FILE = 'project.json'
 export const CODEX_FILE = 'codex.json'
 export const DEBT_FILE = 'debt.json'
+export const COMMENTS_FILE = 'comments.json'
 
 /**
  * The manifest exactly as it should be persisted: doc bodies dropped (prose
@@ -29,8 +32,8 @@ export const DEBT_FILE = 'debt.json'
  */
 export function slimManifest(project: Project): unknown {
   // Deliberately pulled out of settings — see the sidecar note above.
-  const { codex: _codex, debt: _debt, ...settings } = project.settings
-  void _codex; void _debt
+  const { codex: _codex, debt: _debt, comments: _comments, ...settings } = project.settings
+  void _codex; void _debt; void _comments
   return {
     ...project,
     settings,
@@ -59,14 +62,16 @@ function parseArray<T>(raw: string | null): T[] | null {
 
 export const serializeCodex = (entries: CodexEntry[]): string => JSON.stringify(entries, null, 2)
 export const serializeDebt = (items: DebtItem[]): string => JSON.stringify(items, null, 2)
+export const serializeComments = (comments: Comment[]): string => JSON.stringify(comments, null, 2)
 
 /**
  * Fold the sidecars back into the in-memory project after reading the manifest.
  *
- * The app model still carries codex/debt on `settings`, so nothing above the
- * storage layer had to change — only where the bytes live. Older bundles that
- * still have them inline in the manifest are adopted as-is; the returned flag
- * says a sidecar write is owed, so open() can upgrade the bundle once.
+ * The app model still carries these collections on `settings`, so nothing above
+ * the storage layer had to change — only where the bytes live. Older bundles
+ * that still have codex/debt inline in the manifest are adopted as-is; the
+ * returned flag says a sidecar write is owed, so open() can upgrade the bundle
+ * once. Comments were never inline, so a missing file just means none yet.
  *
  * @returns true when the bundle predates the sidecar split and should be rewritten.
  */
@@ -74,6 +79,7 @@ export function adoptSidecars(
   project: Project,
   codexRaw: string | null,
   debtRaw: string | null,
+  commentsRaw: string | null = null,
 ): boolean {
   const codex = parseArray<CodexEntry>(codexRaw)
   const debt = parseArray<DebtItem>(debtRaw)
@@ -83,6 +89,7 @@ export function adoptSidecars(
 
   project.settings.codex = codex ?? inlineCodex ?? []
   project.settings.debt = debt ?? inlineDebt ?? []
+  project.settings.comments = parseArray<Comment>(commentsRaw) ?? []
 
   // Owed a migration if either collection had content only in the manifest.
   const codexNeedsMove = codex == null && !!inlineCodex?.length

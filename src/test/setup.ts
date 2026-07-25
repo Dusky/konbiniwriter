@@ -24,6 +24,7 @@ const api = {
   // they exist so a store action never throws on an undefined namespace.
   codex: { save: noop },
   debt: { save: noop },
+  comments: { save: noop },
   settings: { save: noop },
   aux: { read: async () => null, write: noop, remove: noop },
   shell: {

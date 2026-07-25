@@ -110,9 +110,9 @@ class NodeProjectService {
         // Upgrade an older bundle once, on open, so the file on disk stops
         // lagging what we hold in memory.
         const didMigrate = (0, nodeOps_1.migrateProject)(project);
-        // Codex/debt live in sidecar files so sync can merge them apart from
-        // the manifest; older bundles still carry them inline.
-        const owesSidecars = (0, bundle_1.adoptSidecars)(project, await readText(bundlePath, bundle_1.CODEX_FILE), await readText(bundlePath, bundle_1.DEBT_FILE));
+        // Codex/debt/comments live in sidecar files so sync can merge them apart
+        // from the manifest; older bundles still carry codex and debt inline.
+        const owesSidecars = (0, bundle_1.adoptSidecars)(project, await readText(bundlePath, bundle_1.CODEX_FILE), await readText(bundlePath, bundle_1.DEBT_FILE), await readText(bundlePath, bundle_1.COMMENTS_FILE));
         for (const nodeId of Object.keys(project.docs)) {
             const content = await readText(bundlePath, 'docs', `${nodeId}.md`);
             project.docs[nodeId] = { content: content ?? '', snapshots: project.docs[nodeId]?.snapshots ?? [] };
@@ -331,6 +331,13 @@ class NodeProjectService {
         proj.settings.debt = items;
         proj.modified = new Date().toISOString();
         await writeText(dir, (0, bundle_1.serializeDebt)(items), bundle_1.DEBT_FILE);
+    }
+    async saveComments(projectId, comments) {
+        const dir = this.getPath(projectId);
+        const proj = this.getProject(projectId);
+        proj.settings.comments = comments;
+        proj.modified = new Date().toISOString();
+        await writeText(dir, (0, bundle_1.serializeComments)(comments), bundle_1.COMMENTS_FILE);
     }
     // ── Aux files ─────────────────────────────────────────────────────────────
     async readAux(projectId, name) {

@@ -31,7 +31,7 @@ function normalizeEditorBar(items: EditorBarItem[]): EditorBarItem[] {
   return out
 }
 /** The single panel shown in the tabbed right rail (null = rail closed). */
-export type RailPanel = 'inspector' | 'assistant' | 'codex' | 'reader' | 'critic' | 'history' | null
+export type RailPanel = 'inspector' | 'comments' | 'assistant' | 'codex' | 'reader' | 'critic' | 'history' | null
 
 export interface Toast { message: string; type: 'error' | 'info' | 'success'; id: number }
 

@@ -12,7 +12,7 @@ import { buildProjectFromTemplate } from '@shared/templates'
 import { buildProjectFromDocs } from '@shared/importer'
 import { handleStore } from './HandleStore'
 import { applyNodeOp, migrateProject } from '@shared/nodeOps'
-import { serializeManifest, serializeCodex, serializeDebt, adoptSidecars, CODEX_FILE, DEBT_FILE } from '@shared/bundle'
+import { serializeManifest, serializeCodex, serializeDebt, serializeComments, adoptSidecars, CODEX_FILE, DEBT_FILE, COMMENTS_FILE } from '@shared/bundle'
 import { conflictFileName } from '@shared/sync'
 
 // FSA permission methods aren't in the base DOM lib types yet.
@@ -149,12 +149,13 @@ export class BrowserProjectService {
     // Upgrade an older bundle once, on open, so the file on disk stops
     // lagging what we hold in memory.
     const didMigrate = migrateProject(project)
-    // Codex/debt live in sidecar files so sync can merge them apart from
-    // the manifest; older bundles still carry them inline.
+    // Codex/debt/comments live in sidecar files so sync can merge them apart
+    // from the manifest; older bundles still carry codex and debt inline.
     const owesSidecars = adoptSidecars(
       project,
       await readText(bundleHandle, CODEX_FILE),
       await readText(bundleHandle, DEBT_FILE),
+      await readText(bundleHandle, COMMENTS_FILE),
     )
 
     // Eagerly load all doc content
@@ -496,6 +497,14 @@ export class BrowserProjectService {
     p.settings.debt = items
     p.modified = new Date().toISOString()
     await writeText(h, serializeDebt(items), DEBT_FILE)
+  }
+
+  async saveComments(projectId: string, comments: import('@shared/comments').Comment[]): Promise<void> {
+    const h = this.getHandle(projectId)
+    const p = this.getProject(projectId)
+    p.settings.comments = comments
+    p.modified = new Date().toISOString()
+    await writeText(h, serializeComments(comments), COMMENTS_FILE)
   }
 
   // ── Aux files ─────────────────────────────────────────────────────────────

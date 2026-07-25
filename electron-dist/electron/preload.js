@@ -305,6 +305,9 @@ const api = {
     debt: {
         save: (pid, items) => NodeProjectService_1.nodeProjectService.saveDebt(pid, items),
     },
+    comments: {
+        save: (pid, comments) => NodeProjectService_1.nodeProjectService.saveComments(pid, comments),
+    },
     sync: {
         probe: (pid) => NodeProjectService_1.nodeProjectService.probe(pid),
         readBundle: (pid) => NodeProjectService_1.nodeProjectService.readBundle(pid),

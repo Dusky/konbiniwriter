@@ -105,6 +105,63 @@ const slopPlugin = ViewPlugin.fromClass(class {
   }
 }, { decorations: (v) => v.decorations })
 
+// ── Comment anchors ───────────────────────────────────────────────────────────
+//
+// The editor is the only place a comment anchor can be maintained *exactly*:
+// CodeMirror maps every stored position through each change, so a comment
+// survives the writer rewriting the sentence it's attached to. Outside the
+// editor, `reanchor` recovers positions from the quoted text (see
+// shared/comments.ts) — good, but it can't follow a rewrite.
+//
+// Ranges are held as plain numbers rather than a RangeSet because they have to
+// travel back out to the store, which knows nothing about CodeMirror.
+
+export interface CommentSpan { id: string; from: number; to: number; resolved: boolean }
+
+export const setCommentSpansEffect = StateEffect.define<CommentSpan[]>()
+
+export const commentField = StateField.define<CommentSpan[]>({
+  create: () => [],
+  update(spans, tr) {
+    for (const e of tr.effects) if (e.is(setCommentSpansEffect)) return e.value
+    if (!tr.docChanged) return spans
+    // assoc: `from` sticks to the text after it, `to` to the text before, so
+    // typing at either edge extends the surrounding prose, not the comment.
+    return spans.map((s) => ({
+      ...s,
+      from: tr.changes.mapPos(s.from, 1),
+      to: tr.changes.mapPos(s.to, -1),
+    }))
+  },
+})
+
+const commentPlugin = ViewPlugin.fromClass(class {
+  decorations: ReturnType<typeof Decoration.set>
+  constructor(view: EditorView) { this.decorations = this.build(view) }
+  update(update: ViewUpdate) {
+    if (update.docChanged || update.state.field(commentField) !== update.startState.field(commentField)) {
+      this.decorations = this.build(update.view)
+    }
+  }
+  build(view: EditorView) {
+    const spans = view.state.field(commentField)
+    if (!spans.length) return Decoration.none
+    const builder = new RangeSetBuilder<Decoration>()
+    const len = view.state.doc.length
+    // A resolved comment keeps a faint mark so the writer can still find it.
+    const sorted = [...spans]
+      .filter((s) => s.from < s.to && s.to <= len)
+      .sort((a, b) => a.from - b.from || a.to - b.to)
+    for (const s of sorted) {
+      builder.add(s.from, s.to, Decoration.mark({
+        class: `cm-comment${s.resolved ? ' cm-comment-done' : ''}`,
+        attributes: { 'data-comment-id': s.id },
+      }))
+    }
+    return builder.finish()
+  }
+}, { decorations: (v) => v.decorations })
+
 // ── Typewriter scroll: keep the caret near 40% from the top ──────────────────
 export function makeTypewriterPlugin() {
   return ViewPlugin.fromClass(class {
@@ -137,6 +194,16 @@ export const konbiniTheme = EditorView.theme({
   '.cm-slop-high': { textDecorationColor: 'oklch(0.65 0.18 20)' },
   '.cm-slop-medium': { textDecorationColor: 'oklch(0.70 0.14 60)' },
   '.cm-slop-low': { textDecorationColor: 'oklch(0.65 0.08 260)' },
+  // Comments read as a highlighter pass over the prose, not as an error.
+  '.cm-comment': {
+    background: 'color-mix(in oklch, var(--accent) 16%, transparent)',
+    borderBottom: '1px solid color-mix(in oklch, var(--accent) 45%, transparent)',
+    cursor: 'pointer',
+  },
+  '.cm-comment-done': {
+    background: 'transparent',
+    borderBottom: '1px dotted var(--border-2)',
+  },
   '.cm-selectionBackground': { background: 'var(--accent-soft)' },
   '&.cm-focused .cm-selectionBackground': { background: 'var(--accent-soft)' },
   '.cm-gutters': { display: 'none' },
@@ -149,6 +216,8 @@ export const konbiniTheme = EditorView.theme({
 export function konbiniExtensions(
   onChange?: (content: string) => void,
   onCursor?: (line: number, col: number) => void,
+  /** Fires after a change has moved comment anchors, so they can be persisted. */
+  onCommentSpans?: (spans: CommentSpan[]) => void,
 ) {
   return [
     history(),
@@ -160,10 +229,16 @@ export function konbiniExtensions(
     focusModePlugin,
     slopField,
     slopPlugin,
+    commentField,
+    commentPlugin,
     konbiniTheme,
     EditorView.lineWrapping,
-    ...(onChange || onCursor ? [EditorView.updateListener.of((u) => {
+    ...(onChange || onCursor || onCommentSpans ? [EditorView.updateListener.of((u) => {
       if (onChange && u.docChanged) onChange(u.state.doc.toString())
+      if (onCommentSpans && u.docChanged) {
+        const spans = u.state.field(commentField)
+        if (spans.length) onCommentSpans(spans)
+      }
       if (onCursor && (u.selectionSet || u.docChanged)) {
         const head = u.state.selection.main.head
         const line = u.state.doc.lineAt(head)

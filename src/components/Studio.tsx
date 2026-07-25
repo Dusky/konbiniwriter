@@ -8,6 +8,7 @@ import Toolbar from './shell/Toolbar'
 import StatusBar from './shell/StatusBar'
 import Binder from './binder/Binder'
 import RightRail from './shell/RightRail'
+import { isAIPanel } from './shell/railTabs'
 import EditorPane from './editor/EditorPane'
 import CompositionMode from './editor/CompositionMode'
 import CompileModal from './modals/CompileModal'
@@ -88,8 +89,9 @@ export default function Studio(): React.ReactElement {
 
   React.useEffect(() => {
     // AI turned off while an AI panel was docked — fall back to the inspector.
-    // Inspector and History are non-AI panels, so they're allowed with AI off.
-    if (!aiEnabled && railPanel && railPanel !== 'inspector' && railPanel !== 'history') setRailPanel('inspector')
+    // Which panels count as AI lives in railTabs, beside the tab strip, so a
+    // new non-AI panel can't be silently locked out here.
+    if (!aiEnabled && isAIPanel(railPanel)) setRailPanel('inspector')
   }, [aiEnabled, railPanel, setRailPanel])
 
   // Keyboard-first: closing any modal hands focus back to the editor so the

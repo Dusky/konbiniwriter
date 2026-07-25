@@ -102,6 +102,38 @@
 .crit-foot { flex: none; display: flex; flex-wrap: wrap; gap: var(--s2);
   padding: 10px var(--s3); border-top: 0.5px solid var(--border); }
 
+/* ── Comments panel ── */
+.cmt-list { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s3); }
+.cmt { border: 0.5px solid var(--border); border-radius: var(--r-md);
+  padding: var(--s2) 10px; cursor: pointer; background: var(--bg-2);
+  transition: border-color var(--dur-1) var(--ease), opacity var(--dur-1) var(--ease); }
+.cmt:hover { border-color: var(--border-2); }
+.cmt.focus { border-color: var(--accent); }
+.cmt.done { opacity: .55; }
+.cmt.orphan { border-style: dashed; }
+/* The quoted prose is the comment's subject line — set in the reading face so
+   it reads as manuscript, not as UI chrome. */
+.cmt-quote { font-family: var(--editor-font); font-size: var(--t-sm); line-height: 1.45;
+  color: var(--text-2); border-left: 2px solid var(--accent); padding-left: var(--s2);
+  margin-bottom: var(--s2); }
+.cmt.done .cmt-quote { border-left-color: var(--border-2); }
+.cmt.orphan .cmt-quote { border-left-color: var(--border-2); }
+.cmt-orphan-note { font-family: inherit; font-style: italic; color: var(--text-3); }
+.cmt-body { font-size: var(--t-base); line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+.cmt-input { width: 100%; resize: vertical; min-height: 54px; font: inherit;
+  font-size: var(--t-base); line-height: 1.5; color: var(--text);
+  background: var(--bg); border: 0.5px solid var(--border-2); border-radius: var(--r-sm);
+  padding: var(--s2); outline: none; }
+.cmt-input:focus { border-color: var(--accent); }
+.cmt-foot { display: flex; align-items: center; gap: 2px; margin-top: var(--s2); }
+.cmt-who { font-size: var(--t-xs); color: var(--text-3); }
+.cmt-who.ai { color: var(--accent); }
+.cmt-act { display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: var(--r-sm); border: none;
+  background: transparent; color: var(--text-3); cursor: pointer;
+  transition: color var(--dur-1) var(--ease), background var(--dur-1) var(--ease); }
+.cmt-act:hover { color: var(--text); background: var(--bg-3); }
+
 /* ── Codex panel ── */
 .cdx-list { flex: 0 0 38%; display: flex; flex-direction: column;
   border-bottom: 0.5px solid var(--border); overflow: hidden; }

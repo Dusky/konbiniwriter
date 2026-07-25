@@ -23,6 +23,7 @@ const SHORTCUTS = [
       ['Find in Document', 'mod+f'],
       ['Find & Replace', 'mod+h'],
       ['Search Project', 'mod+shift+f'],
+      ['Add Comment', 'mod+shift+m'],
     ],
   },
   {

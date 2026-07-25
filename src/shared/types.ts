@@ -2,6 +2,8 @@
 // shared/types.ts — canonical data model. Imported by main AND renderer.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import type { Comment } from './comments'
+
 export type ID = string
 export type ISO = string
 
@@ -49,6 +51,7 @@ export interface ProjectSettings {
   wordTarget?: number        // project-level word-count goal
   codex?: CodexEntry[]       // stored as JSON, typed at load time
   debt?: DebtItem[]          // propagation-debt inbox (persisted with project)
+  comments?: Comment[]       // margin notes anchored to spans of prose (sidecar)
   voiceFingerprint?: string  // foundation: prose style guide, injected as context
   aiInstructions?: string    // per-project AI instructions & notes (CLAUDE.md analog)
   autopilotRun?: AutopilotRunState | null  // in-progress autopilot run, for resume
@@ -362,6 +365,9 @@ export interface KonbiniAPI {
   }
   debt: {
     save(projectId: ID, items: DebtItem[]): Promise<void>
+  }
+  comments: {
+    save(projectId: ID, comments: Comment[]): Promise<void>
   }
   settings: {
     save(projectId: ID, patch: Partial<ProjectSettings>): Promise<void>
