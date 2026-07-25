@@ -150,6 +150,13 @@ export async function buildDocx(opts: DocxOptions): Promise<Uint8Array> {
     }],
   })
 
+  // Packer.toBuffer only works in Node (it asks JSZip for a nodebuffer);
+  // browsers must use toBlob. Branch so this shared builder returns a
+  // Uint8Array on both platforms.
+  if (typeof window !== 'undefined') {
+    const blob = await Packer.toBlob(doc)
+    return new Uint8Array(await blob.arrayBuffer())
+  }
   const buf = await Packer.toBuffer(doc)
   return new Uint8Array(buf as unknown as ArrayBuffer)
 }

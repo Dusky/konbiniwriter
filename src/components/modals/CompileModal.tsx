@@ -9,7 +9,9 @@ interface Props { onClose: () => void }
 export default function CompileModal({ onClose }: Props): React.ReactElement {
   const project = useProjectStore((s) => s.project)
   const selectedId = useProjectStore((s) => s.selectedId)
+  const updateProjectSettings = useProjectStore((s) => s.updateProjectSettings)
 
+  const [author, setAuthor] = useState(project?.settings.author ?? '')
   const [rootId, setRootId] = useState<string>('')
   const [included, setIncluded] = useState<Set<string>>(new Set())
   const [format, setFormat] = useState<CompileFormat>('markdown')
@@ -66,40 +68,78 @@ export default function CompileModal({ onClose }: Props): React.ReactElement {
   const toggleInclude = (id: string) =>
     setIncluded((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next })
 
+  // Gather included docs in binder order as {title, content} chapters.
+  const gatherChapters = (): Array<{ title: string; content: string }> => {
+    const out: Array<{ title: string; content: string }> = []
+    const walk = (id: string) => {
+      const node = project.nodes[id]
+      if (!node) return
+      if (node.type !== 'folder' && included.has(id)) {
+        const content = project.docs[id]?.content?.trim() ?? ''
+        if (content) out.push({ title: node.title, content })
+      }
+      node.childIds.forEach(walk)
+    }
+    if (rootId) walk(rootId)
+    return out
+  }
+
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const inline = (s: string) => esc(s)
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>')
+    .replace(/_([^_]+)_/g, '<em>$1</em>')
+
   const handlePrint = () => {
     const title = project.title
-    const mdToHtml = (md: string): string => {
-      return md
-        .split('\n')
-        .map((line) => {
-          if (line.startsWith('### ')) return `<h3>${line.slice(4)}</h3>`
-          if (line.startsWith('## ')) return `<h2>${line.slice(3)}</h2>`
-          if (line.startsWith('# ')) return `<h1>${line.slice(2)}</h1>`
-          if (line.trim() === '') return '<br>'
-          return line
-        })
-        .join('\n')
-        .replace(/\n<br>\n/g, '</p><p>')
-    }
-    const htmlBody = `<p>${mdToHtml(preview)}</p>`
+    const chapters = gatherChapters()
+    const chapterHtml = chapters.map((ch) => {
+      const lines = ch.content.split('\n')
+      let first = true
+      const body = lines.map((raw) => {
+        const t = raw.trim()
+        if (!first && /^#\s+/.test(t) && t.replace(/^#\s+/, '') === ch.title) return ''
+        if (t === '') return ''
+        first = false
+        if (/^(-{3,}|\*{3,}|#)\s*$/.test(t)) return '<p class="scene">#</p>'
+        return `<p>${inline(t.replace(/^#{1,6}\s+/, ''))}</p>`
+      }).filter(Boolean).join('\n')
+      return `<section class="chapter"><h2>${esc(ch.title)}</h2>${body}</section>`
+    }).join('\n')
+
+    const titlePage = `<section class="titlepage"><h1>${esc(title)}</h1>${author ? `<p class="byline">${esc(author)}</p>` : ''}</section>`
     const newWin = window.open('', '_blank')
     if (!newWin) { setError('Pop-ups are blocked. Allow pop-ups for this site, then try again.'); return }
-    newWin.document.write(`<html><head><title>${title}</title>
-<style>body { font-family: Georgia, serif; max-width: 600px; margin: 40px auto; line-height: 1.8; } h1,h2,h3 { margin-top: 2em; }</style>
-</head><body>${htmlBody}</body></html>`)
+    newWin.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title>
+<style>
+  @page { size: 6in 9in; margin: 0.75in 0.7in; }
+  html, body { margin: 0; }
+  body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-height: 1.5; color: #111; }
+  .titlepage { height: 90vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; page-break-after: always; }
+  .titlepage h1 { font-size: 26pt; font-weight: 600; margin: 0 0 0.4in; letter-spacing: 0.01em; }
+  .byline { font-size: 13pt; font-style: italic; color: #333; }
+  .chapter { page-break-before: always; }
+  .chapter h2 { font-size: 16pt; font-weight: 600; text-align: center; margin: 1.6in 0 0.5in; }
+  .chapter p { margin: 0; text-indent: 1.6em; text-align: justify; orphans: 2; widows: 2; }
+  .chapter h2 + p, .scene + p { text-indent: 0; }
+  .scene { text-indent: 0 !important; text-align: center; margin: 0.9em 0; letter-spacing: 0.3em; }
+</style></head><body>${titlePage}${chapterHtml}</body></html>`)
     newWin.document.close()
-    setTimeout(() => { newWin.print(); newWin.close() }, 500)
+    setTimeout(() => { newWin.print(); newWin.close() }, 400)
     onClose()
   }
 
   const handleCompile = async () => {
     if (!rootId || compiling) return
+    // Persist the current author so the backend (which reads project.settings)
+    // uses it even if the field wasn't blurred.
+    updateProjectSettings({ author: author.trim() || undefined })
     if (format === 'print') { handlePrint(); return }
     setCompiling(true)
     try {
       const result = await window.api.compile.run(project.id, rootId, [...included], format)
       const mimeType =
-        format === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        format === 'docx' || format === 'shunn' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
         : format === 'epub' ? 'application/epub+zip'
         : 'text/markdown'
       const blob = new Blob([new Uint8Array(result.blob)], { type: mimeType })
@@ -161,13 +201,30 @@ export default function CompileModal({ onClose }: Props): React.ReactElement {
           {/* Right: format + preview */}
           <div className="cmp-right">
             <div>
+              <div className="cmp-lbl">Author</div>
+              <input
+                className="inp"
+                style={{ width: '100%' }}
+                placeholder="Your name (used on the title page & metadata)"
+                value={author}
+                onChange={(e) => setAuthor(e.target.value)}
+                onBlur={() => updateProjectSettings({ author: author.trim() || undefined })}
+              />
+            </div>
+            <div>
               <div className="cmp-lbl">Format</div>
-              <div className="seg" style={{ display: 'inline-flex' }}>
-                <button className={format === 'markdown' ? 'on' : ''} onClick={() => setFormat('markdown')}>Markdown</button>
-                <button className={format === 'docx' ? 'on' : ''} onClick={() => setFormat('docx')}>Word (.docx)</button>
+              <div className="seg" style={{ display: 'inline-flex', flexWrap: 'wrap' }}>
+                <button className={format === 'docx' ? 'on' : ''} onClick={() => setFormat('docx')} title="Readable manuscript layout">Word (.docx)</button>
+                <button className={format === 'shunn' ? 'on' : ''} onClick={() => setFormat('shunn')} title="Standard manuscript format for agent/editor submission">Manuscript (Shunn)</button>
                 <button className={format === 'epub' ? 'on' : ''} onClick={() => setFormat('epub')}>EPUB</button>
                 <button className={format === 'print' ? 'on' : ''} onClick={() => setFormat('print')}>Print / PDF</button>
+                <button className={format === 'markdown' ? 'on' : ''} onClick={() => setFormat('markdown')}>Markdown</button>
               </div>
+              {format === 'shunn' && (
+                <div style={{ fontSize: 'var(--t-sm)', color: 'var(--text-3)', marginTop: 6, lineHeight: 1.5 }}>
+                  Courier 12pt, double-spaced, word-count title page, running header — the format agents expect.
+                </div>
+              )}
             </div>
             <div style={{ flex: 1 }}>
               <div className="cmp-lbl">Preview</div>
@@ -182,6 +239,7 @@ export default function CompileModal({ onClose }: Props): React.ReactElement {
             {compiling ? 'Compiling…'
             : format === 'print' ? 'Print / PDF'
             : format === 'epub' ? 'Export .epub'
+            : format === 'shunn' ? 'Export manuscript'
             : format === 'docx' ? 'Export .docx'
             : 'Export .md'}
           </button>

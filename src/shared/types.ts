@@ -11,7 +11,7 @@ export type LabelId = 'none' | 'scene' | 'chapter' | 'note' | 'character' | 'ide
 export type TemplateId = 'blank' | 'novel' | 'screenplay' | 'nonfiction'
 export type ViewMode = 'editor' | 'corkboard' | 'outliner' | 'timeline'
 export type SaveStatus = 'saved' | 'saving' | 'unsaved' | 'error'
-export type CompileFormat = 'markdown' | 'docx' | 'print' | 'epub'
+export type CompileFormat = 'markdown' | 'docx' | 'shunn' | 'print' | 'epub'
 export type ModalId =
   | 'new-project'
   | 'open-project'

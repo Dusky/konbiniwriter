@@ -357,6 +357,8 @@ export class OPFSProjectService {
       const { buildEpub } = await import('@shared/epubBuilder')
       const blob = await buildEpub({
         title: p.title,
+        author: p.settings.author,
+        language: p.settings.language,
         chapters: chapters.map((c, i) => ({
           id: `ch_${String(i + 1).padStart(4, '0')}`,
           title: c.title,
@@ -365,16 +367,15 @@ export class OPFSProjectService {
       })
       return { blob, filename: `${projectTitle}.epub`, format: 'epub' }
     }
-    const combined = chapters.map(c => c.content).join('\n\n---\n\n')
-    const { Document, Paragraph, TextRun, Packer } = await import('docx')
-    const paras = combined.split('\n').map(line => {
-      const h = line.match(/^(#{1,3})\s+(.+)$/)
-      if (h) return new Paragraph({ text: h[2], heading: h[1].length === 1 ? 'Heading1' : h[1].length === 2 ? 'Heading2' : 'Heading3' })
-      return new Paragraph({ children: [new TextRun(line)] })
+    const { buildDocx } = await import('@shared/docxBuilder')
+    const blob = await buildDocx({
+      title: p.title,
+      author: p.settings.author,
+      style: format === 'shunn' ? 'shunn' : 'manuscript',
+      chapters: chapters.map(c => ({ title: c.title, markdown: c.content })),
     })
-    const doc = new Document({ sections: [{ children: paras }] })
-    const blob = await Packer.toBuffer(doc)
-    return { blob: new Uint8Array(blob as unknown as ArrayBuffer), filename: `${projectTitle}.docx`, format: 'docx' }
+    const suffix = format === 'shunn' ? '.manuscript.docx' : '.docx'
+    return { blob, filename: `${projectTitle}${suffix}`, format }
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

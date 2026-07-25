@@ -404,7 +404,7 @@ shape: the app + local writing stays free, BYOK means we never resell tokens, so
 the paid tiers are **sync, publish-grade export, and the premium AI revision
 loop**. Built one at a time, each shippable on its own.
 
-### 5.1 Publish-grade export 🔲  *(first — concrete, low-risk, ships value)*
+### 5.1 Publish-grade export ✅  *(EPUB author/metadata, Shunn + manuscript DOCX, book-layout print; cover image + paged page-numbers deferred)*
 Turn "drafting toy" into "I shipped my novel." Extends the existing Compile
 pipeline; **no new document-mutation path** (export is read-only over the bundle).
 - **EPUB 3** — spine from the binder order, per-chapter XHTML, generated TOC/nav,

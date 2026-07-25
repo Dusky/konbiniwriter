@@ -401,6 +401,8 @@ class NodeProjectService {
             const { buildEpub } = await Promise.resolve().then(() => __importStar(require('../src/shared/epubBuilder')));
             const blob = await buildEpub({
                 title: proj.title,
+                author: proj.settings.author,
+                language: proj.settings.language,
                 chapters: chapters.map((c, i) => ({
                     id: `ch_${String(i + 1).padStart(4, '0')}`,
                     title: c.title,
@@ -409,17 +411,15 @@ class NodeProjectService {
             });
             return { blob, filename: `${projectTitle}.epub`, format: 'epub' };
         }
-        const combined = chapters.map(c => c.content).join('\n\n---\n\n');
-        const { Document, Paragraph, TextRun, Packer } = await Promise.resolve().then(() => __importStar(require('docx')));
-        const paras = combined.split('\n').map(line => {
-            const h = line.match(/^(#{1,3})\s+(.+)$/);
-            if (h)
-                return new Paragraph({ text: h[2], heading: h[1].length === 1 ? 'Heading1' : h[1].length === 2 ? 'Heading2' : 'Heading3' });
-            return new Paragraph({ children: [new TextRun(line)] });
+        const { buildDocx } = await Promise.resolve().then(() => __importStar(require('../src/shared/docxBuilder')));
+        const blob = await buildDocx({
+            title: proj.title,
+            author: proj.settings.author,
+            style: format === 'shunn' ? 'shunn' : 'manuscript',
+            chapters: chapters.map(c => ({ title: c.title, markdown: c.content })),
         });
-        const doc = new Document({ sections: [{ children: paras }] });
-        const blob = await Packer.toBuffer(doc);
-        return { blob: new Uint8Array(blob), filename: `${projectTitle}.docx`, format: 'docx' };
+        const suffix = format === 'shunn' ? '.manuscript.docx' : '.docx';
+        return { blob, filename: `${projectTitle}${suffix}`, format };
     }
     // ── Settings / Codex ─────────────────────────────────────────────────────────
     async saveSettings(projectId, patch) {

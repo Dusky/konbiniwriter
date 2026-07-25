@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { useShellStore } from './shellStore'
-import type { Project, KNode, DocBody, DocMeta, NodeType, ViewMode, SaveStatus, Snapshot, ID, Proposal, CodexEntry, DebtItem } from '@shared/types'
+import type { Project, KNode, DocBody, DocMeta, NodeType, ViewMode, SaveStatus, Snapshot, ID, Proposal, CodexEntry, DebtItem, ProjectSettings } from '@shared/types'
 import { uid, wordCount } from '@shared/utils'
 import { type MentionIndex, buildIndex, updateIndex } from '../lib/MentionIndex'
 import { statsService } from '../lib/StatsService'
@@ -108,6 +108,8 @@ interface ProjectState {
 
   // — project settings —
   setProjectWordTarget: (target: number | undefined) => void
+  /** Merge a patch into project settings (persisted). For book metadata etc. */
+  updateProjectSettings: (patch: Partial<ProjectSettings>) => void
   setVoiceFingerprint: (text: string) => void
   setAiInstructions: (text: string) => void
   setAutopilotRun: (run: import('@shared/types').AutopilotRunState | null) => void
@@ -491,6 +493,13 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const updated = { ...p, settings: { ...p.settings, wordTarget: target } }
     set({ project: updated })
     window.api.settings.save(p.id, { wordTarget: target })
+  },
+
+  updateProjectSettings: (patch) => {
+    const p = get().project
+    if (!p) return
+    set({ project: { ...p, settings: { ...p.settings, ...patch } } })
+    window.api.settings.save(p.id, patch).catch(console.error)
   },
 
   setVoiceFingerprint: (text) => {
