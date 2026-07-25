@@ -171,6 +171,30 @@
 .about-name { font-size: 24px; font-weight: 700; margin-top: 10px; }
 .about-ver { font-size: 12px; color: var(--text-3); margin-top: 4px; }
 .about-desc { font-size: 13px; color: var(--text-2); line-height: 1.6; margin: 18px 0 22px; }
+/* ════ THEMES MODAL ═══════════════════════════════════════════════════════ */
+.thm-sec { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3);
+  font-weight: 600; margin: 6px 0 10px; }
+.thm-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px; }
+.thm-card { border: 0.5px solid var(--border-2); border-radius: 11px; overflow: hidden; background: var(--bg); }
+.thm-card.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.thm-apply { display: block; width: 100%; border: 0; background: transparent; padding: 0; text-align: left; cursor: pointer; }
+.thm-swatch { height: 46px; display: flex; align-items: flex-end; gap: 4px; padding: 8px; }
+.thm-swatch > span { width: 16px; height: 16px; border-radius: 4px; box-shadow: 0 0 0 0.5px rgba(0,0,0,.2); }
+.thm-name { display: block; padding: 7px 10px 0; font-size: 12.5px; font-weight: 600; color: var(--text); }
+.thm-base { display: block; padding: 1px 10px 8px; font-size: 10.5px; color: var(--text-3); text-transform: capitalize; }
+.thm-actions { display: flex; gap: 2px; padding: 0 6px 6px; }
+.thm-actions button { flex: 1; height: 24px; border: 0; border-radius: 6px; background: transparent; color: var(--text-3);
+  display: grid; place-items: center; cursor: pointer; }
+.thm-actions button:hover { background: var(--bg-3); color: var(--text); }
+.thm-actions .thm-del:hover { color: var(--danger); }
+.thm-pickers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; }
+.thm-picker { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--text-2); cursor: pointer; }
+.thm-picker input[type=color] { width: 34px; height: 28px; border: 0.5px solid var(--border-2); border-radius: 7px;
+  background: transparent; padding: 2px; cursor: pointer; }
+.thm-io { width: 100%; min-height: 200px; resize: vertical; background: var(--bg); border: 0.5px solid var(--border-2);
+  border-radius: 9px; padding: 10px 12px; color: var(--text); font-family: var(--mono); font-size: 12px; line-height: 1.5; outline: none; }
+.thm-io:focus { border-color: var(--accent); }
+
 .pref-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 0.5px solid var(--border); }
 .pref-row > span:first-child { font-size: 13px; }
 .pref-note { font-size: 11.5px; color: var(--text-3); margin-top: 14px; line-height: 1.5; }
