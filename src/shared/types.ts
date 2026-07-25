@@ -16,6 +16,7 @@ export type ModalId =
   | 'new-project'
   | 'open-project'
   | 'command-palette'
+  | 'themes'
   | 'history'
   | 'compile'
   | 'shortcuts'

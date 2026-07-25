@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { ModalId, RecentEntry } from '@shared/types'
+import { BUILTIN_THEMES, themeById, applyTheme, type Theme as ThemeDef } from '../lib/theme'
 
 export type Screen = 'launch' | 'studio'
 export type Theme = 'dark' | 'light'
@@ -37,7 +38,9 @@ export interface Toast { message: string; type: 'error' | 'info' | 'success'; id
 interface ShellState {
   screen: Screen
   platform: 'darwin' | 'win32' | 'linux'
-  theme: Theme
+  theme: Theme                   // the active theme's base (dark|light)
+  themeId: string
+  customThemes: ThemeDef[]
   density: Density
   editorFont: EditorFont
   editorSize: number
@@ -59,6 +62,9 @@ interface ShellState {
   setRailPanel: (p: RailPanel) => void
   toggleRailPanel: (p: Exclude<RailPanel, null>) => void
   setTheme: (t: Theme) => void
+  setThemeId: (id: string) => void
+  saveCustomTheme: (theme: ThemeDef) => void
+  deleteCustomTheme: (id: string) => void
   setDensity: (d: Density) => void
   setEditorFont: (f: EditorFont) => void
   setEditorSize: (n: number) => void
@@ -85,14 +91,33 @@ const FONT_MAP: Record<string, string> = {
   sans: "'IBM Plex Sans', system-ui, sans-serif",
 }
 
-export const useShellStore = create<ShellState>((set) => ({
+// Resolve the active theme on boot: prefer pref:themeId, else map the legacy
+// dark/light pref, and migrate any legacy custom accent into a forked theme.
+function initThemeState() {
+  let customThemes: ThemeDef[] = []
+  try { customThemes = JSON.parse(window.api.prefs.get('pref:customThemes') ?? '[]') } catch { /* ignore */ }
+  const hadThemeId = !!window.api.prefs.get('pref:themeId')
+  let themeId = window.api.prefs.get('pref:themeId') || ((window.api.prefs.get('pref:theme') === 'light') ? 'paper' : 'midnight')
+  let active = themeById(themeId, customThemes) ?? BUILTIN_THEMES[0]
+  const oldAccent = window.api.prefs.get('pref:accent')
+  if (!hadThemeId && oldAccent && oldAccent !== active.anchors.accent) {
+    active = { ...active, id: `custom-${Date.now().toString(36)}`, name: `${active.name} (yours)`, builtin: false, anchors: { ...active.anchors, accent: oldAccent } }
+    customThemes = [...customThemes, active]
+    themeId = active.id
+    window.api.prefs.set('pref:customThemes', JSON.stringify(customThemes))
+    window.api.prefs.set('pref:themeId', themeId)
+  }
+  applyTheme(active)
+  return { theme: active.base as Theme, themeId, customThemes, accent: active.anchors.accent }
+}
+const THEME0 = initThemeState()
+
+export const useShellStore = create<ShellState>((set, get) => ({
   screen: 'launch',
   platform: (window.api?.shell?.platform ?? 'linux') as 'darwin' | 'win32' | 'linux',
-  theme: (() => {
-    const t = (window.api.prefs.get('pref:theme') as Theme) || 'dark'
-    document.documentElement.dataset.theme = t
-    return t
-  })(),
+  theme: THEME0.theme,
+  themeId: THEME0.themeId,
+  customThemes: THEME0.customThemes,
   density: (() => {
     const d = (window.api.prefs.get('pref:density') as Density) || 'balanced'
     document.documentElement.dataset.density = d
@@ -129,12 +154,7 @@ export const useShellStore = create<ShellState>((set) => ({
     const n = parseInt(window.api.prefs.get('pref:historyRetentionDays') ?? '14', 10)
     return isNaN(n) ? 14 : n
   })(),
-  accent: (() => {
-    const saved = window.api.prefs.get('pref:accent')
-    const color = saved || 'oklch(0.64 0.11 300)'
-    if (saved) document.documentElement.style.setProperty('--accent', color)
-    return color
-  })(),
+  accent: THEME0.accent,
   modal: null,
   toasts: [],
   recents: [],
@@ -145,10 +165,38 @@ export const useShellStore = create<ShellState>((set) => ({
   setModal: (modal) => set({ modal }),
   setRailPanel: (railPanel) => set({ railPanel }),
   toggleRailPanel: (p) => set((s) => ({ railPanel: s.railPanel === p ? null : p })),
+  // Base toggle (dark/light) picks the default skin for that base.
   setTheme: (theme) => {
     window.api.prefs.set('pref:theme', theme)
-    document.documentElement.dataset.theme = theme
-    set({ theme })
+    get().setThemeId(theme === 'light' ? 'paper' : 'midnight')
+  },
+  setThemeId: (id) => {
+    const theme = themeById(id, get().customThemes) ?? BUILTIN_THEMES[0]
+    applyTheme(theme)
+    window.api.prefs.set('pref:themeId', theme.id)
+    set({ themeId: theme.id, theme: theme.base as Theme, accent: theme.anchors.accent })
+  },
+  saveCustomTheme: (theme) => {
+    const list = get().customThemes
+    const customThemes = list.some((t) => t.id === theme.id)
+      ? list.map((t) => (t.id === theme.id ? theme : t))
+      : [...list, theme]
+    window.api.prefs.set('pref:customThemes', JSON.stringify(customThemes))
+    applyTheme(theme)
+    window.api.prefs.set('pref:themeId', theme.id)
+    set({ customThemes, themeId: theme.id, theme: theme.base as Theme, accent: theme.anchors.accent })
+  },
+  deleteCustomTheme: (id) => {
+    const customThemes = get().customThemes.filter((t) => t.id !== id)
+    window.api.prefs.set('pref:customThemes', JSON.stringify(customThemes))
+    if (get().themeId === id) {
+      const fb = BUILTIN_THEMES[0]
+      applyTheme(fb)
+      window.api.prefs.set('pref:themeId', fb.id)
+      set({ customThemes, themeId: fb.id, theme: fb.base as Theme, accent: fb.anchors.accent })
+    } else {
+      set({ customThemes })
+    }
   },
   setDensity: (density) => {
     window.api.prefs.set('pref:density', density)
@@ -199,10 +247,14 @@ export const useShellStore = create<ShellState>((set) => ({
     window.api.prefs.set('pref:historyRetentionDays', String(historyRetentionDays))
     set({ historyRetentionDays })
   },
-  setAccent: (accent) => {
-    window.api.prefs.set('pref:accent', accent)
-    document.documentElement.style.setProperty('--accent', accent)
-    set({ accent })
+  // A quick accent change edits the active theme's accent — forking a built-in
+  // skin into an editable copy so presets stay pristine.
+  setAccent: (color) => {
+    const active = themeById(get().themeId, get().customThemes) ?? BUILTIN_THEMES[0]
+    const next: ThemeDef = active.builtin
+      ? { ...active, id: `custom-${Date.now().toString(36)}`, name: `${active.name} (yours)`, builtin: false, anchors: { ...active.anchors, accent: color } }
+      : { ...active, anchors: { ...active.anchors, accent: color } }
+    get().saveCustomTheme(next)
   },
   // Stack up to 3 toasts so a second failure doesn't erase the first.
   setToast: (message, type = 'error') => set((s) => ({

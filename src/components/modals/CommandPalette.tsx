@@ -112,6 +112,7 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
       { id: 'compile', label: 'Compile / Export…', section: 'Project', hint: kbd('mod+shift+e'), run: openModal('compile') },
       { id: 'stats', label: 'Writing Stats…', section: 'Project', run: openModal('stats') },
       { id: 'prefs', label: 'Preferences…', section: 'Project', hint: kbd('mod+,'), run: openModal('prefs') },
+      { id: 'themes', label: 'Themes / Skins…', section: 'Project', run: openModal('themes') },
     ]
 
     if (aiEnabled) {

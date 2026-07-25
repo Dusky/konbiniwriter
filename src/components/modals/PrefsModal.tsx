@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useShellStore, type Density, type EditorFont } from '../../store/shellStore'
 import { useProjectStore } from '../../store/projectStore'
+import { BUILTIN_THEMES } from '../../lib/theme'
 
 interface Props { onClose: () => void }
 
@@ -36,6 +37,10 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 export default function PrefsModal({ onClose }: Props): React.ReactElement {
   const theme = useShellStore((s) => s.theme)
   const setTheme = useShellStore((s) => s.setTheme)
+  const themeId = useShellStore((s) => s.themeId)
+  const customThemes = useShellStore((s) => s.customThemes)
+  const setModal = useShellStore((s) => s.setModal)
+  const activeTheme = BUILTIN_THEMES.find((t) => t.id === themeId) ?? customThemes.find((t) => t.id === themeId)
   const density = useShellStore((s) => s.density)
   const setDensity = useShellStore((s) => s.setDensity)
   const editorFont = useShellStore((s) => s.editorFont)
@@ -75,6 +80,19 @@ export default function PrefsModal({ onClose }: Props): React.ReactElement {
               value={theme}
               onChange={setTheme}
             />
+          </Row>
+
+          <Row label="Theme">
+            <button className="btn" onClick={() => setModal('themes')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              {activeTheme && (
+                <span style={{ display: 'inline-flex', gap: 2 }}>
+                  {[activeTheme.anchors.bg, activeTheme.anchors.surface, activeTheme.anchors.accent, activeTheme.anchors.text].map((c, i) => (
+                    <span key={i} style={{ width: 10, height: 10, borderRadius: 2, background: c, border: '0.5px solid var(--border)' }} />
+                  ))}
+                </span>
+              )}
+              {activeTheme?.name ?? 'Custom'} — Browse skins…
+            </button>
           </Row>
 
           <Row label="Density">

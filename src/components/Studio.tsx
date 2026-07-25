@@ -15,6 +15,7 @@ import ShortcutsModal from './modals/ShortcutsModal'
 import AboutModal from './modals/AboutModal'
 import NewProjectModal from './modals/NewProjectModal'
 import PrefsModal from './modals/PrefsModal'
+import ThemesModal from './modals/ThemesModal'
 import SearchModal from './modals/SearchModal'
 import ChangesetModal from './modals/ChangesetModal'
 import PromptRegistryModal from './modals/PromptRegistryModal'
@@ -135,6 +136,7 @@ export default function Studio(): React.ReactElement {
       {modal === 'about'       && <AboutModal      onClose={() => setModal(null)} />}
       {modal === 'new-project' && <NewProjectModal  onClose={() => setModal(null)} />}
       {modal === 'prefs'       && <PrefsModal       onClose={() => setModal(null)} />}
+      {modal === 'themes'      && <ThemesModal      onClose={() => setModal(null)} />}
       {modal === 'search'          && <SearchModal         onClose={() => setModal(null)} />}
       {modal === 'prompt-registry' && <PromptRegistryModal  onClose={() => setModal(null)} />}
       {modal === 'ai-settings'     && <AISettingsModal      onClose={() => setModal(null)} />}
