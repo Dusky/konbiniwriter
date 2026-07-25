@@ -24,36 +24,19 @@ export default function TabStrip(): React.ReactElement | null {
   const viewTabs = openViewTabs.filter((v) => VIEW_TABS[v])
   if (tabs.length === 0 && viewTabs.length === 0) return null
 
-  const tabBase: React.CSSProperties = {
-    display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
-    padding: '0 8px 0 12px', maxWidth: 200, flexShrink: 0,
-    fontSize: 12, whiteSpace: 'nowrap', borderRight: '1px solid var(--border)',
-  }
   const closeBtn = (onClose: () => void, label: string) => (
     <button
-      className="linkish"
+      className="tab-x"
       onClick={(e) => { e.stopPropagation(); onClose() }}
       title="Close tab"
       aria-label={label}
-      style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        width: 16, height: 16, borderRadius: 3, flexShrink: 0,
-        color: 'var(--text-3)', fontSize: 13, lineHeight: 1,
-      }}
     >
-      ×
+      <Icon name="x" size={11} />
     </button>
   )
 
   return (
-    <div
-      role="tablist"
-      style={{
-        display: 'flex', alignItems: 'stretch', gap: 1, flexShrink: 0,
-        borderBottom: '1px solid var(--border)', background: 'var(--bg-2)',
-        overflowX: 'auto', minHeight: 34,
-      }}
-    >
+    <div className="tab-strip" role="tablist">
       {tabs.map((id) => {
         const node = project.nodes[id]
         const active = id === selectedId && !activeViewTab
@@ -62,17 +45,12 @@ export default function TabStrip(): React.ReactElement | null {
             key={id}
             role="tab"
             aria-selected={active}
+            className={`tab${active ? ' on' : ''}`}
             onClick={() => selectNode(id)}
             onMouseDown={(e) => { if (e.button === 1) { e.preventDefault(); closeTab(id) } }}
             title={node.title}
-            style={{
-              ...tabBase,
-              color: active ? 'var(--text)' : 'var(--text-3)',
-              background: active ? 'var(--bg)' : 'transparent',
-              borderTop: `2px solid ${active ? 'var(--accent)' : 'transparent'}`,
-            }}
           >
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{node.title}</span>
+            <span className="tab-label">{node.title}</span>
             {closeBtn(() => closeTab(id), `Close ${node.title}`)}
           </div>
         )
@@ -85,18 +63,13 @@ export default function TabStrip(): React.ReactElement | null {
             key={v}
             role="tab"
             aria-selected={active}
+            className={`tab${active ? ' on' : ''}`}
             onClick={() => selectViewTab(v)}
             onMouseDown={(e) => { if (e.button === 1) { e.preventDefault(); closeViewTab(v) } }}
             title={def.label}
-            style={{
-              ...tabBase,
-              color: active ? 'var(--text)' : 'var(--text-3)',
-              background: active ? 'var(--bg)' : 'transparent',
-              borderTop: `2px solid ${active ? 'var(--accent)' : 'transparent'}`,
-            }}
           >
-            <Icon name={def.icon} size={13} style={{ flexShrink: 0, opacity: active ? 1 : 0.8 }} />
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{def.label}</span>
+            <Icon name={def.icon} size={13} className="tab-ic" />
+            <span className="tab-label">{def.label}</span>
             {closeBtn(() => closeViewTab(v), `Close ${def.label}`)}
           </div>
         )

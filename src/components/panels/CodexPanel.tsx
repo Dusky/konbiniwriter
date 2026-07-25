@@ -248,7 +248,7 @@ export default function CodexPanel(): React.ReactElement {
             )}
             {scanResults.map((e) => (
               <button key={e.id} onClick={() => setSelectedScan(e)} className={rowClass(selectedScan?.id === e.id, e.added)}>
-                <div className="cdx-row-name">{e.added ? '✓ ' : ''}{e.name}</div>
+                <div className="cdx-row-name">{e.added ? <Icon name="check" size={11} style={{ verticalAlign: '-1px', marginRight: 3 }} /> : null}{e.name}</div>
                 <div className="cdx-row-sub">{e.category}</div>
               </button>
             ))}
@@ -275,7 +275,7 @@ export default function CodexPanel(): React.ReactElement {
                 )}
                 <div style={{ display: 'flex', gap: 10, marginTop: 'auto', paddingTop: 8 }}>
                   {selectedScan.added ? (
-                    <span style={{ fontSize: 'var(--t-sm)', color: 'var(--success)' }}>Added to codex ✓</span>
+                    <span style={{ fontSize: 'var(--t-sm)', color: 'var(--success)' }}>Added to codex <Icon name="check" size={11} style={{ verticalAlign: '-1px' }} /></span>
                   ) : (
                     <>
                       <button className="btn sm primary" onClick={() => handleAddScanEntry(selectedScan)}>
@@ -336,7 +336,7 @@ export default function CodexPanel(): React.ReactElement {
                   {selected.aliases.map((a) => (
                     <span key={a} className="cdx-chip">
                       {a}
-                      <button onClick={() => handleField('aliases', selected.aliases.filter((x) => x !== a))}>×</button>
+                      <button onClick={() => handleField('aliases', selected.aliases.filter((x) => x !== a))} aria-label="Remove alias"><Icon name="x" size={11} /></button>
                     </span>
                   ))}
                 </div>
@@ -384,7 +384,7 @@ export default function CodexPanel(): React.ReactElement {
                       onBlur={() => handleFactBlur(fact)}
                       placeholder="Value"
                     />
-                    <button className="cdx-fact-del" onClick={() => handleDeleteFact(fact.id)}>×</button>
+                    <button className="cdx-fact-del" onClick={() => handleDeleteFact(fact.id)} aria-label="Delete fact"><Icon name="x" size={11} /></button>
                   </div>
                 ))}
               </div>

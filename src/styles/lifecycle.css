@@ -120,7 +120,7 @@
 .mac-menubar .menu-top:hover, .mac-menubar .menu-top.open { background: var(--accent); color: var(--accent-fg); }
 .menu-dd { position: absolute; top: 100%; left: 0; margin-top: 3px; min-width: 236px; z-index: 500;
   background: color-mix(in oklch, var(--bg-2) 92%, transparent); -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px);
-  border: 0.5px solid var(--border-2); border-radius: 9px; padding: 5px; box-shadow: var(--shadow); }
+  border: 0.5px solid var(--border-2); border-radius: 9px; padding: 5px; box-shadow: var(--shadow-2); }
 .menu-item { display: flex; align-items: center; width: 100%; gap: 16px; padding: 5px 10px; border: 0;
   background: transparent; color: var(--text); border-radius: 6px; text-align: left; font-size: 12.5px; position: relative; }
 .menu-item:hover:not(.disabled) { background: var(--accent); color: var(--accent-fg); }

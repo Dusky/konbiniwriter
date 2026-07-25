@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import type { Proposal, DiffSegment } from '@shared/types'
 import { buildSegments, resolveProposal } from '../../lib/ProposalService'
+import Icon from '../common/Icon'
 
 interface Props {
   proposal: Proposal
@@ -22,7 +23,7 @@ function HunkRow({
       <div className="cs-hunk-hd">
         <span style={{ flex: 1 }}>Hunk {seg.idx + 1}</span>
         <button className={`cs-hunk-toggle${accepted ? ' on' : ''}`} onClick={onToggle}>
-          {accepted ? '✓ Accept' : 'Reject'}
+          {accepted ? <><Icon name="check" size={12} style={{ verticalAlign: '-1px', marginRight: 3 }} /> Accept</> : 'Reject'}
         </button>
       </div>
       <div className="cs-lines">

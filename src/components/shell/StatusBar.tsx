@@ -3,6 +3,7 @@ import { useProjectStore, subtreeWordCount, descendants } from '../../store/proj
 import { useShellStore } from '../../store/shellStore'
 import { statsService } from '../../lib/StatsService'
 import { wordCount, charCount } from '@shared/utils'
+import Icon from '../common/Icon'
 
 export default function StatusBar(): React.ReactElement {
   const project = useProjectStore((s) => s.project)
@@ -92,7 +93,7 @@ export default function StatusBar(): React.ReactElement {
             >
               Today: <b>{todayWords.toLocaleString()}</b>
               {goal > 0 && (
-                <>/ <b>{goal.toLocaleString()}</b>{pct >= 1 ? ' ✓' : ''}
+                <>/ <b>{goal.toLocaleString()}</b>{pct >= 1 ? <Icon name="check" size={11} style={{ verticalAlign: '-1px', marginLeft: 3 }} /> : null}
                   <span className="sb-mini" style={{ width: 40 }}>
                     <i className={pct >= 1 ? 'done' : ''} style={{ width: `${pct * 100}%` }} />
                   </span>

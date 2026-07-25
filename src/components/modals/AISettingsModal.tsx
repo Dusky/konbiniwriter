@@ -326,7 +326,7 @@ export default function AISettingsModal({ onClose, embedded }: Props): React.Rea
                         className="ai-inp mono" style={{ flex: 1, borderColor: anthropicKeyValidated ? 'var(--success)' : anthropicKeyError ? 'var(--danger)' : undefined }}
                       />
                       <button className="btn" onClick={handleAnthropicValidate} disabled={validating || !anthropicDraft.trim()} style={{ whiteSpace: 'nowrap' }}>
-                        {validating ? 'Checking…' : anthropicKeyValidated ? '✓ Valid' : 'Validate'}
+                        {validating ? 'Checking…' : anthropicKeyValidated ? <><Icon name="check" size={12} style={{ verticalAlign: '-1px', marginRight: 3 }} /> Valid</> : 'Validate'}
                       </button>
                     </div>
                     {anthropicKeyError && <div className="msg-err">{anthropicKeyError}</div>}
@@ -436,7 +436,7 @@ export default function AISettingsModal({ onClose, embedded }: Props): React.Rea
                       className="ai-inp mono" style={{ flex: 1, borderColor: openaiTested ? 'var(--success)' : openaiTestError ? 'var(--danger)' : undefined }}
                     />
                     <button className="btn" onClick={handleOpenAITest} disabled={validating || !openaiBaseUrl.trim() || !openaiModel.trim()} style={{ whiteSpace: 'nowrap' }}>
-                      {validating ? 'Testing…' : openaiTested ? '✓ OK' : 'Test'}
+                      {validating ? 'Testing…' : openaiTested ? <><Icon name="check" size={12} style={{ verticalAlign: '-1px', marginRight: 3 }} /> OK</> : 'Test'}
                     </button>
                   </div>
                   {openaiTestError && <div className="msg-err">{openaiTestError}</div>}
@@ -611,7 +611,7 @@ export default function AISettingsModal({ onClose, embedded }: Props): React.Rea
               )}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <button className="btn" style={{ fontSize: 12, padding: '4px 12px' }} disabled={!project || voiceRefreshing} onClick={handleRefreshVoice}>
-                  {voiceRefreshing ? 'Refreshing…' : voiceRefreshed ? 'Refreshed ✓' : 'Refresh from manuscript'}
+                  {voiceRefreshing ? 'Refreshing…' : voiceRefreshed ? <>Refreshed <Icon name="check" size={12} style={{ verticalAlign: '-1px', marginLeft: 3 }} /></> : 'Refresh from manuscript'}
                 </button>
                 {voiceError && <span style={{ fontSize: 11, color: 'var(--danger)' }}>{voiceError}</span>}
               </div>

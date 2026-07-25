@@ -198,7 +198,7 @@ export default function QualityDashboard({ onClose, embedded }: Props): React.Re
                     <span className="ql-trend">
                       <Sparkline points={qualityHistory.map((p) => p.craft)} />
                       <span className={delta >= 0 ? 'up' : 'down'}>
-                        {delta >= 0 ? '▲' : '▼'} {delta >= 0 ? '+' : ''}{delta} over {qualityHistory.length} passes
+                        <Icon name={delta >= 0 ? 'trending-up' : 'trending-down'} size={13} style={{ verticalAlign: '-2px', marginRight: 3 }} />{delta >= 0 ? '+' : ''}{delta} over {qualityHistory.length} passes
                       </span>
                     </span>
                   )
@@ -220,7 +220,7 @@ export default function QualityDashboard({ onClose, embedded }: Props): React.Re
                         onClick={() => r.slop ? setExpanded((e) => e === `slop:${r.id}` ? null : `slop:${r.id}`) : proofOne(r)}
                         title={r.slop ? `${r.slop.flags.length} slop flag(s) — click for detail` : 'Proof this scene for slop'}
                       >
-                        {proofBusy ? '…' : r.slop ? `⌇ ${r.slop.flags.length}` : '⌇'}
+                        {proofBusy ? '…' : <><Icon name="waves" size={12} />{r.slop ? <span style={{ marginLeft: 4 }}>{r.slop.flags.length}</span> : null}</>}
                       </button>
                       <button
                         className={`ql-badge voice ${r.voice ? scoreBand(r.voice.score) : 'none'}`}
@@ -228,7 +228,7 @@ export default function QualityDashboard({ onClose, embedded }: Props): React.Re
                         onClick={() => r.voice ? setExpanded((e) => e === `voice:${r.id}` ? null : `voice:${r.id}`) : voiceOne(r)}
                         title={!hasVoice ? 'Set a voice fingerprint in Foundation to score voice match' : r.voice ? `Voice match ${r.voice.score}/10 — click for detail` : 'Score this scene against your voice'}
                       >
-                        {voicing.has(r.id) ? '…' : r.voice ? `♪ ${r.voice.score}` : '♪'}
+                        {voicing.has(r.id) ? '…' : <><Icon name="audio-lines" size={12} />{r.voice ? <span style={{ marginLeft: 4 }}>{r.voice.score}</span> : null}</>}
                       </button>
                       {r.overall !== null ? (
                         <button className={`ql-badge ${scoreBand(r.overall)}`} onClick={() => setExpanded((e) => e === r.id ? null : r.id)} title="Show dimension breakdown">

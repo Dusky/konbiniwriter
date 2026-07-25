@@ -443,7 +443,7 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 
 /* ════ SELECTION TOOLBAR ══════════════════════════════════════════════════ */
 .sel-tb { position: fixed; z-index: 950; display: flex; align-items: center; gap: 2px; padding: 4px;
-  background: var(--bg-2); border: 0.5px solid var(--border-2); border-radius: 10px; box-shadow: var(--shadow); }
+  background: var(--bg-2); border: 0.5px solid var(--border-2); border-radius: 10px; box-shadow: var(--shadow-2); }
 .sel-tb .sel-spark { color: var(--accent); font-size: 12px; padding: 0 6px 0 4px; }
 .sel-tb button { height: 28px; padding: 0 11px; border: 0; background: transparent; color: var(--text); font-size: 12.5px; border-radius: 7px; }
 .sel-tb button:hover { background: var(--accent-soft); }
@@ -623,7 +623,7 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 .beat-scrim { position: fixed; inset: 0; z-index: 940; }
 .beat-box { position: fixed; z-index: 950; display: flex; flex-direction: column; gap: 8px;
   background: var(--bg-2); border: 0.5px solid var(--border-2); border-radius: 12px;
-  box-shadow: var(--shadow); padding: 12px; }
+  box-shadow: var(--shadow-2); padding: 12px; }
 .beat-hd { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--text); }
 .beat-hd .ai-spark { color: var(--accent); display: inline-flex; }
 .beat-x { border: 0; background: transparent; color: var(--text-3); cursor: pointer; display: inline-flex; padding: 2px; border-radius: 4px; }
@@ -648,7 +648,7 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 /* ── Co-write floating toolbar ── */
 .cw { position: fixed; z-index: 1000; }
 .cw-bar { display: flex; align-items: center; gap: 4px; background: var(--bg);
-  border: 0.5px solid var(--border-2); border-radius: 8px; padding: 4px 6px; box-shadow: var(--shadow); }
+  border: 0.5px solid var(--border-2); border-radius: 8px; padding: 4px 6px; box-shadow: var(--shadow-2); }
 .cw-bar.open { border-radius: 8px 8px 0 0; }
 .cw-cmd { padding: 3px 10px; border-radius: var(--r-sm); border: 0.5px solid var(--border);
   background: transparent; color: var(--text); font-size: var(--t-sm); cursor: pointer; }
@@ -672,7 +672,7 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 .cw-temp-range { flex: 1; accent-color: var(--accent); cursor: pointer; }
 .cw-reset { font-size: var(--t-xs); color: var(--text-3); background: none; border: none; cursor: pointer; padding: 0 4px; }
 .cw-picker { width: 340px; background: var(--bg); border: 0.5px solid var(--border-2); border-top: none;
-  border-radius: 0 0 8px 8px; box-shadow: var(--shadow); max-height: 300px; overflow-y: auto; }
+  border-radius: 0 0 8px 8px; box-shadow: var(--shadow-2); max-height: 300px; overflow-y: auto; }
 .cw-streaming { padding: 10px var(--s3); font-size: var(--t-sm); color: var(--text-3); white-space: pre-wrap; line-height: 1.5; }
 .cw-alts { padding: var(--s2); display: flex; flex-direction: column; gap: 6px; }
 .cw-alt { display: flex; align-items: flex-start; gap: var(--s2); background: var(--bg-2);

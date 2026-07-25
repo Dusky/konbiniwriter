@@ -566,18 +566,20 @@ export default function Editor({ docId }: Props): React.ReactElement {
           <span style={{ fontSize: 12, color: 'var(--text-3)', minWidth: 60 }}>
             {matches.length === 0 ? (findText ? '0 matches' : '') : `${currentMatch + 1} of ${matches.length}`}
           </span>
-          {(['◀', '▶'] as const).map((label, i) => (
+          {([['prev', 'chevron-left'], ['next', 'chevron-right']] as const).map(([kind, icon], i) => (
             <button
-              key={label}
+              key={kind}
               onClick={i === 0 ? goPrev : goNext}
               disabled={matches.length === 0}
+              aria-label={i === 0 ? 'Previous match' : 'Next match'}
+              title={i === 0 ? 'Previous match' : 'Next match'}
               style={{
                 padding: '3px 8px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
-                background: 'var(--bg-2)', color: 'var(--text)',
+                background: 'var(--bg-2)', color: 'var(--text)', display: 'inline-flex', alignItems: 'center',
                 cursor: matches.length === 0 ? 'not-allowed' : 'pointer', fontSize: 13,
                 opacity: matches.length === 0 ? 0.5 : 1,
               }}
-            >{label}</button>
+            ><Icon name={icon} size={13} /></button>
           ))}
           <button
             onClick={doReplace}

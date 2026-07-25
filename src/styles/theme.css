@@ -19,6 +19,14 @@
   --r-sm: 4px; --r-md: 7px; --r-lg: 11px; --r-full: 999px;
   --t-xs: 11px; --t-sm: 12px; --t-base: 13px; --t-md: 14px; --t-lg: 16px; --t-xl: 21px; --t-2xl: 30px;
   --h-sm: 24px; --h-md: 28px; --h-lg: 34px;
+
+  /* ── motion ────────────────────────────────────────────────────────────────
+     Two durations and one easing curve. Chrome (hover/active/selection) uses
+     --dur-1; surfaces that enter or leave use --dur-2. Anything longer reads as
+     sluggish in an app a writer lives inside all day. All of it collapses under
+     the prefers-reduced-motion guard below. */
+  --dur-1: 120ms; --dur-2: 180ms;
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 /* ── dark (default) ──────────────────────────────────────────────────────── */
@@ -38,7 +46,11 @@
   --accent-soft: color-mix(in oklch, var(--accent) 20%, transparent);
   --sel-bg:    color-mix(in oklch, var(--accent) 26%, var(--bg-2));
   --sel-bar:   var(--accent);
-  --shadow:    0 12px 32px -10px rgba(0,0,0,.5), 0 2px 6px rgba(0,0,0,.35);
+  /* elevation scale: 1 raised (cards/hover) · 2 popover (menus) · 3 overlay (modals) */
+  --shadow-1:  0 1px 2px rgba(0,0,0,.30), 0 2px 8px -4px rgba(0,0,0,.35);
+  --shadow-2:  0 6px 18px -6px rgba(0,0,0,.45), 0 2px 5px rgba(0,0,0,.30);
+  --shadow-3:  0 12px 32px -10px rgba(0,0,0,.5), 0 2px 6px rgba(0,0,0,.35);
+  --shadow:    var(--shadow-3);
   --hl-marker: oklch(0.46 0.02 300);
   --hl-head:   var(--accent);
   --hl-em:     oklch(0.80 0.05 70);
@@ -80,7 +92,10 @@
   --accent-soft: color-mix(in oklch, var(--accent) 14%, transparent);
   --sel-bg:    color-mix(in oklch, var(--accent) 16%, var(--bg-2));
   --sel-bar:   var(--accent);
-  --shadow:    0 12px 32px -12px rgba(40,30,20,.20), 0 2px 6px rgba(40,30,20,.08);
+  --shadow-1:  0 1px 2px rgba(40,30,20,.08), 0 2px 8px -4px rgba(40,30,20,.10);
+  --shadow-2:  0 6px 18px -6px rgba(40,30,20,.14), 0 2px 5px rgba(40,30,20,.08);
+  --shadow-3:  0 12px 32px -12px rgba(40,30,20,.20), 0 2px 6px rgba(40,30,20,.08);
+  --shadow:    var(--shadow-3);
   --hl-marker: oklch(0.74 0.02 300);
   --hl-head:   var(--accent);
   --hl-em:     oklch(0.50 0.09 50);
@@ -128,6 +143,57 @@ button { font-family: inherit; cursor: default; }
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── editor tab strip ──────────────────────────────────────────────────────── */
+.tab-strip { display: flex; align-items: stretch; gap: 1px; flex-shrink: 0; min-height: 34px;
+  border-bottom: 1px solid var(--border); background: var(--bg-2); overflow-x: auto;
+  scrollbar-width: none; }
+.tab-strip::-webkit-scrollbar { height: 0; }
+.tab { display: flex; align-items: center; gap: 6px; cursor: pointer; flex-shrink: 0;
+  padding: 0 var(--s2) 0 var(--s3); max-width: 200px; font-size: var(--t-sm);
+  white-space: nowrap; color: var(--text-3); background: transparent;
+  border-right: 1px solid var(--border); border-top: 2px solid transparent; }
+.tab:hover { color: var(--text-2); background: color-mix(in oklch, var(--bg) 55%, transparent); }
+.tab.on { color: var(--text); background: var(--bg); border-top-color: var(--accent); }
+.tab-label { overflow: hidden; text-overflow: ellipsis; }
+.tab-ic { flex-shrink: 0; opacity: .8; }
+.tab.on .tab-ic { opacity: 1; }
+.tab-x { display: grid; place-items: center; width: 16px; height: 16px; flex-shrink: 0;
+  border: 0; border-radius: var(--r-sm); background: transparent; color: var(--text-3);
+  cursor: pointer; opacity: 0; }
+.tab:hover .tab-x, .tab.on .tab-x { opacity: 1; }
+.tab-x:hover { background: var(--bg-3); color: var(--text); }
+
+/* ── motion ────────────────────────────────────────────────────────────────────
+   One place that gives every interactive control the same feel, so hover and
+   selection ease instead of snapping. Deliberately transitions only cheap
+   paint/composite properties — never layout — so hovering a long binder stays
+   smooth. Entrances use --dur-2; chrome uses --dur-1. */
+.btn, .tb-btn, .icon-btn, .chip, .seg button, .tree-row, .ctx button,
+.rail-tabs > button, .ql-badge, .thm-card, .tmpl-card, .lr-start, .snap-item,
+.tab, .tab-x {
+  transition:
+    background-color var(--dur-1) var(--ease),
+    border-color     var(--dur-1) var(--ease),
+    color            var(--dur-1) var(--ease),
+    box-shadow       var(--dur-1) var(--ease),
+    opacity          var(--dur-1) var(--ease),
+    transform        var(--dur-1) var(--ease);
+}
+/* A touch of physical feedback on press. */
+.btn:active, .tb-btn:active, .icon-btn:active, .chip:active { transform: translateY(1px); }
+
+@keyframes k-fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes k-rise { from { opacity: 0; transform: translateY(6px) scale(0.985) } to { opacity: 1; transform: none } }
+@keyframes k-pop  { from { opacity: 0; transform: scale(0.97) } to { opacity: 1; transform: none } }
+
+.modal-bg { animation: k-fade var(--dur-2) var(--ease) both; }
+.modal    { animation: k-rise var(--dur-2) var(--ease) both; }
+.ctx      { animation: k-pop  var(--dur-1) var(--ease) both; }
+/* Switching to a view tab (Stats, Quality, …) fades its surface in. Embedded
+   surfaces reuse the .modal box, so this must out-specify the k-rise above —
+   a tab shouldn't fly in like a dialog. */
+.view-host .view-embedded { animation: k-fade var(--dur-2) var(--ease) both; }
 
 /* ── desktop window ──────────────────────────────────────────────────────── */
 .stage { position: fixed; inset: 0; display: grid; place-items: center; padding: 22px;
@@ -241,7 +307,7 @@ button { font-family: inherit; cursor: default; }
    toast 9999 */
 .ctx { position: fixed; z-index: 1300; min-width: 180px; background: var(--bg-2);
   border: 0.5px solid var(--border-2); border-radius: 9px; padding: 5px;
-  box-shadow: var(--shadow); font-size: 12.5px; }
+  box-shadow: var(--shadow-2); font-size: 12.5px; }
 .ctx button { display: flex; width: 100%; align-items: center; gap: 9px; padding: 6px 9px; border: 0;
   background: transparent; color: var(--text); border-radius: 6px; text-align: left; }
 .ctx button:hover { background: var(--accent-soft); }
@@ -370,7 +436,9 @@ button { font-family: inherit; cursor: default; }
 .tl-drop { width: 3px; align-self: stretch; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
 .tl-card { position: relative; z-index: 1; flex-shrink: 0; width: 160px; height: 200px;
   background: var(--bg-2); border: 0.5px solid var(--border); border-radius: var(--r-md);
-  overflow: hidden; cursor: grab; display: flex; flex-direction: column; transition: box-shadow .15s; }
+  overflow: hidden; cursor: grab; display: flex; flex-direction: column;
+  transition: box-shadow var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease); }
+.tl-card:hover { box-shadow: var(--shadow-1); }
 .tl-card.sel { border: 2px solid var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
 .tl-card.dragging { opacity: .4; }
 .tl-card-bar { height: 4px; flex-shrink: 0; }
@@ -403,7 +471,7 @@ button { font-family: inherit; cursor: default; }
 .ebar-menu-scrim { position: fixed; inset: 0; z-index: 1290; }
 .ebar-menu { position: absolute; right: 0; bottom: 26px; z-index: 1300; min-width: 200px;
   background: var(--bg-2); border: 0.5px solid var(--border-2); border-radius: 9px;
-  padding: 6px; box-shadow: var(--shadow); }
+  padding: 6px; box-shadow: var(--shadow-2); }
 .ebar-menu-hd { padding: 4px 8px 6px; font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
   color: var(--text-3); font-weight: 600; }
 .ebar-menu-row { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 6px;

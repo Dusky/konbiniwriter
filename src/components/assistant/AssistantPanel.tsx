@@ -616,7 +616,7 @@ export default function AssistantPanel(): React.ReactElement {
             {contextPacket.tiers.filter((t) => t.content.trim()).map((tier) => (
               <div key={tier.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ color: tier.included ? 'var(--st-prog)' : 'var(--st-idea)', flexShrink: 0, width: 10 }}>
-                  {tier.included ? '✓' : '✗'}
+                  <Icon name={tier.included ? 'check' : 'x'} size={12} />
                 </span>
                 <span style={{ flex: 1, color: tier.included ? 'var(--text-2)' : 'var(--text-3)' }}>
                   {tier.label}{tier.truncated ? ' (truncated)' : ''}

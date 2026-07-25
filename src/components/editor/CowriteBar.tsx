@@ -4,6 +4,7 @@ import { useAIStore } from '../../store/aiStore'
 import { COWRITE_COMMANDS, runCowrite, streamBrainstorm, type CowriteCommand } from '../../lib/cowrite'
 import { parseBrainstormAlternatives } from '../../lib/parsers'
 import { createProposal } from '../../lib/ProposalService'
+import Icon from '../common/Icon'
 
 type PickerState =
   | null
@@ -156,7 +157,7 @@ export default function CowriteBar({ docId, selection, selRange, anchorRect, onC
         >
           T{tempOverride !== null ? `:${tempOverride.toFixed(2)}` : ''}
         </button>
-        <button className="cw-x" onClick={() => { setPicker(null); onClose() }}>×</button>
+        <button className="cw-x" onClick={() => { setPicker(null); onClose() }} aria-label="Close"><Icon name="x" size={13} /></button>
       </div>
 
       {/* Temperature slider panel */}

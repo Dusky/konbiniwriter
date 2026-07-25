@@ -59,7 +59,7 @@ export default function StatsModal({ onClose, embedded }: Props): React.ReactEle
             <span className="tb-spacer" style={{ flex: 1 }} />
             {goal > 0 && (
               <span style={{ fontSize: 'var(--t-sm)', color: goalMet ? 'var(--st-final)' : 'var(--text-3)' }}>
-                {goalMet ? '✓ met today' : `${Math.round(Math.min(1, todayWords / goal) * 100)}% today`}
+                {goalMet ? <><Icon name="check" size={12} style={{ verticalAlign: '-1px', marginRight: 3 }} /> met today</> : `${Math.round(Math.min(1, todayWords / goal) * 100)}% today`}
               </span>
             )}
           </div>

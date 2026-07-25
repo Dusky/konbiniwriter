@@ -8,6 +8,7 @@ import { runQualityGate } from '../../lib/QualityGate'
 import { uid } from '@shared/utils'
 import type { ID, CodexEntry, CodexFact, CodexCategory } from '@shared/types'
 import ModalShell from '../common/ModalShell'
+import Icon from '../common/Icon'
 
 type DocStepId = 'concept' | 'world' | 'characters' | 'outline'
 type WizardStepId = 'seeds' | DocStepId | 'voice'
@@ -444,7 +445,7 @@ export default function FoundationModal({ onClose, embedded }: Props): React.Rea
                 {running === 'voice' ? 'Generating…' : voice.trim() ? 'Regenerate' : 'Generate'}
               </button>
               <button className="btn sm" disabled={!voice.trim() || isBusy} onClick={saveVoice}>
-                {voiceSaved ? 'Saved ✓' : 'Save'}
+                {voiceSaved ? <>Saved <Icon name="check" size={12} style={{ verticalAlign: '-1px', marginLeft: 3 }} /></> : 'Save'}
               </button>
             </div>
             <textarea
@@ -486,7 +487,7 @@ export default function FoundationModal({ onClose, embedded }: Props): React.Rea
             <h3 style={{ margin: 0 }}>Foundation</h3>
             <span className="sub">{currentStep.sub}</span>
             <span className="tb-spacer" />
-            <button className="modal-x" onClick={onClose}>×</button>
+            <button className="modal-x" onClick={onClose} aria-label="Close"><Icon name="x" size={15} /></button>
           </div>
 
           {/* Step dots */}

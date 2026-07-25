@@ -3,6 +3,7 @@ import { useProjectStore } from '../../store/projectStore'
 import { useAIStore } from '../../store/aiStore'
 import { debtService } from '../../lib/DebtService'
 import type { DebtItem, DebtLayer, ID } from '@shared/types'
+import Icon from '../common/Icon'
 
 const LAYER_COLOR: Record<DebtLayer, string> = {
   canon: 'var(--accent)',
@@ -209,7 +210,7 @@ export default function DebtInboxModal({ onClose }: Props): React.ReactElement {
                           <div className="hint">{a.note}</div>
                         </div>
                         {a.resolved ? (
-                          <span className="debt-resolved">✓ Resolved</span>
+                          <span className="debt-resolved"><Icon name="check" size={12} style={{ verticalAlign: '-1px', marginRight: 3 }} /> Resolved</span>
                         ) : (
                           <>
                             <button className="btn sm" onClick={() => openDoc(a.docId)}>Open</button>
