@@ -3,8 +3,16 @@ import { useProjectStore } from '../../store/projectStore'
 import { useAIStore } from '../../store/aiStore'
 import { wordCount } from '@shared/utils'
 import { runJudge, judgeOverall, scoreBand, type JudgeResult } from '../../lib/judge'
+import { runSlop, type SlopResult } from '../../lib/slop'
 import ModalShell from '../common/ModalShell'
 import Icon from '../common/Icon'
+
+// Slop flags → band for colouring: any high flag is bad, a few mediums so-so, clean is good.
+function slopBand(flags: SlopResult['flags']): 'strong' | 'ok' | 'weak' {
+  if (flags.some((f) => f.severity === 'high')) return 'weak'
+  if (flags.length > 2) return 'ok'
+  return flags.length === 0 ? 'strong' : 'ok'
+}
 
 interface Props { onClose: () => void; embedded?: boolean }
 
@@ -14,11 +22,14 @@ export default function QualityDashboard({ onClose, embedded }: Props): React.Re
   const project = useProjectStore((s) => s.project)
   const judgeResults = useProjectStore((s) => s.judgeResults)
   const setJudgeResult = useProjectStore((s) => s.setJudgeResult)
+  const slopResults = useProjectStore((s) => s.slopResults)
+  const setSlopResult = useProjectStore((s) => s.setSlopResult)
   const selectNode = useProjectStore((s) => s.selectNode)
   const aiEnabled = useAIStore((s) => s.enabled)
 
   const [running, setRunning] = useState<Set<string>>(new Set())
-  const [batch, setBatch] = useState<{ done: number; total: number } | null>(null)
+  const [proofing, setProofing] = useState<Set<string>>(new Set())
+  const [batch, setBatch] = useState<{ label: string; done: number; total: number } | null>(null)
   const [weakFirst, setWeakFirst] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<string | null>(null)
@@ -50,12 +61,24 @@ export default function QualityDashboard({ onClose, embedded }: Props): React.Re
     }
   }
 
-  const evalAll = async () => {
+  const proofOne = async (scene: Scene): Promise<void> => {
+    if (!scene.content.trim()) return
+    setProofing((s) => new Set(s).add(scene.id))
+    try {
+      setSlopResult(scene.id, await runSlop(scene.content))
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setProofing((s) => { const n = new Set(s); n.delete(scene.id); return n })
+    }
+  }
+
+  const runBatch = async (label: string, fn: (s: Scene) => Promise<void>) => {
     const todo = scenes.filter((s) => s.content.trim())
-    setBatch({ done: 0, total: todo.length })
+    setBatch({ label, done: 0, total: todo.length })
     for (let i = 0; i < todo.length; i++) {
-      await evalOne(todo[i])
-      setBatch({ done: i + 1, total: todo.length })
+      await fn(todo[i])
+      setBatch({ label, done: i + 1, total: todo.length })
     }
     setBatch(null)
   }
@@ -66,7 +89,8 @@ export default function QualityDashboard({ onClose, embedded }: Props): React.Re
     const r: JudgeResult | undefined = judgeResults.get(s.id)
     const overall = r ? judgeOverall(r.scores) : null
     const stale = !!(r && r.words !== undefined && Math.abs(r.words - s.words) > Math.max(20, s.words * 0.1))
-    return { ...s, result: r, overall, stale }
+    const slop: SlopResult | undefined = slopResults.get(s.id)
+    return { ...s, result: r, overall, stale, slop }
   })
   const rows = weakFirst
     ? [...withScore].sort((a, b) => (a.overall ?? 99) - (b.overall ?? 99))
@@ -84,8 +108,11 @@ export default function QualityDashboard({ onClose, embedded }: Props): React.Re
         {aiEnabled && (
           <>
             <button className={`chip${weakFirst ? ' on' : ''}`} onClick={() => setWeakFirst((v) => !v)} title="Sort weakest scenes first">Weak first</button>
-            <button className="btn sm primary" disabled={!!batch || scenes.length === 0} onClick={evalAll}>
-              {batch ? `Evaluating ${batch.done}/${batch.total}…` : 'Evaluate all'}
+            <button className="btn sm" disabled={!!batch || scenes.length === 0} onClick={() => runBatch('Proofing', proofOne)} title="Flag slop in every scene">
+              {batch?.label === 'Proofing' ? `Proofing ${batch.done}/${batch.total}…` : 'Proof all'}
+            </button>
+            <button className="btn sm primary" disabled={!!batch || scenes.length === 0} onClick={() => runBatch('Evaluating', evalOne)}>
+              {batch?.label === 'Evaluating' ? `Evaluating ${batch.done}/${batch.total}…` : 'Evaluate all'}
             </button>
           </>
         )}
@@ -107,17 +134,26 @@ export default function QualityDashboard({ onClose, embedded }: Props): React.Re
             <div className="ql-table">
               {rows.map((r) => {
                 const busy = running.has(r.id)
+                const proofBusy = proofing.has(r.id)
                 return (
                   <div key={r.id} className="ql-row-wrap">
                     <div className="ql-row">
                       <button className="ql-title" onClick={() => open(r.id)} title="Open scene">{r.title}</button>
                       <span className="ql-words">{r.words.toLocaleString()}w</span>
+                      <button
+                        className={`ql-badge slop ${r.slop ? slopBand(r.slop.flags) : 'none'}`}
+                        disabled={proofBusy || !r.content.trim()}
+                        onClick={() => r.slop ? setExpanded((e) => e === `slop:${r.id}` ? null : `slop:${r.id}`) : proofOne(r)}
+                        title={r.slop ? `${r.slop.flags.length} slop flag(s) — click for detail` : 'Proof this scene for slop'}
+                      >
+                        {proofBusy ? '…' : r.slop ? `⌇ ${r.slop.flags.length}` : '⌇'}
+                      </button>
                       {r.overall !== null ? (
                         <button className={`ql-badge ${scoreBand(r.overall)}`} onClick={() => setExpanded((e) => e === r.id ? null : r.id)} title="Show dimension breakdown">
                           {r.overall.toFixed(1)}{r.stale && <span className="ql-stale" title="Scene changed since this score">•</span>}
                         </button>
                       ) : (
-                        <span className="ql-badge none">—</span>
+                        <button className="ql-badge none" onClick={() => evalOne(r)} disabled={busy || !r.content.trim()} title="Judge this scene">—</button>
                       )}
                       <button className="btn sm" disabled={busy || !r.content.trim()} onClick={() => evalOne(r)}>
                         {busy ? '…' : r.overall !== null ? 'Re-judge' : 'Judge'}
@@ -133,6 +169,19 @@ export default function QualityDashboard({ onClose, embedded }: Props): React.Re
                           </div>
                         ))}
                         {r.result.verdict && <div className="ql-verdict">{r.result.verdict}</div>}
+                      </div>
+                    )}
+                    {expanded === `slop:${r.id}` && r.slop && (
+                      <div className="ql-detail">
+                        {r.slop.flags.length === 0
+                          ? <div className="ql-verdict">No slop flagged — clean prose.</div>
+                          : r.slop.flags.map((f, i) => (
+                            <div key={i} className="ql-dim">
+                              <span className={`ql-dim-score ${f.severity === 'high' ? 'weak' : f.severity === 'medium' ? 'ok' : 'strong'}`}>{f.severity[0].toUpperCase()}</span>
+                              <span className="ql-dim-name" style={{ fontStyle: 'italic' }}>“{f.excerpt.length > 32 ? f.excerpt.slice(0, 32) + '…' : f.excerpt}”</span>
+                              <span className="ql-dim-note">{f.reason}</span>
+                            </div>
+                          ))}
                       </div>
                     )}
                   </div>

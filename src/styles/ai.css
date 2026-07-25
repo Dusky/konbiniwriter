@@ -564,10 +564,17 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 .ql-title:hover { color: var(--accent); }
 .ql-words { font-size: 11.5px; color: var(--text-3); width: 54px; text-align: right; flex-shrink: 0; }
 .ql-badge { flex-shrink: 0; min-width: 34px; text-align: center; font-size: 12px; font-weight: 600; border: 0; border-radius: 6px; padding: 3px 7px; cursor: pointer; color: var(--accent-fg); }
-.ql-badge.none { background: var(--bg-3); color: var(--text-3); cursor: default; }
+.ql-badge.none { background: var(--bg-3); color: var(--text-3); }
 .ql-badge.strong { background: var(--st-final); }
 .ql-badge.ok { background: var(--accent); }
 .ql-badge.weak { background: var(--st-idea); }
+.ql-badge:disabled { cursor: default; opacity: 0.55; }
+/* Slop badge: outlined so it reads as a separate signal from the craft score. */
+.ql-badge.slop { background: transparent; border: 1px solid var(--border-2); min-width: 40px; color: var(--text-3); }
+.ql-badge.slop.strong { color: var(--st-final); border-color: color-mix(in oklch, var(--st-final) 55%, transparent); }
+.ql-badge.slop.ok { color: var(--accent); border-color: color-mix(in oklch, var(--accent) 55%, transparent); }
+.ql-badge.slop.weak { color: var(--st-idea); border-color: color-mix(in oklch, var(--st-idea) 55%, transparent); }
+.ql-badge.slop.none { border-style: dashed; }
 .ql-stale { margin-left: 3px; opacity: 0.8; }
 .ql-detail { padding: 4px 2px 12px; display: flex; flex-direction: column; gap: 6px; }
 .ql-dim { display: grid; grid-template-columns: 26px 130px 1fr; gap: 8px; align-items: baseline; font-size: 12px; }

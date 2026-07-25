@@ -4,6 +4,7 @@ import type { Project, KNode, DocBody, DocMeta, NodeType, ViewMode, SaveStatus, 
 import { uid, wordCount } from '@shared/utils'
 import { type MentionIndex, buildIndex, updateIndex } from '../lib/MentionIndex'
 import type { JudgeResult } from '../lib/judge'
+import type { SlopResult } from '../lib/slop'
 import { statsService } from '../lib/StatsService'
 
 /**
@@ -118,7 +119,10 @@ interface ProjectState {
   // — judge scores (keyed by nodeId; persisted to aux/quality.json) —
   judgeResults: Map<ID, JudgeResult>
   setJudgeResult: (nodeId: ID, result: JudgeResult) => void
-  /** Load persisted judge scores for the current project (call on mount). */
+  // — slop results (keyed by nodeId; persisted to aux/slop.json) —
+  slopResults: Map<ID, SlopResult>
+  setSlopResult: (nodeId: ID, result: SlopResult) => void
+  /** Load persisted judge + slop scores for the current project (call on mount). */
   hydrateJudgeResults: () => Promise<void>
 
   // — autopilot runner —
@@ -198,6 +202,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   nodeHistory: [],
   nodeFuture: [],
   judgeResults: new Map(),
+  slopResults: new Map(),
   sessionWordsAdded: 0,
   autopilotQueue: [],
   autopilotRunning: false,
@@ -225,6 +230,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       nodeHistory: [],
       nodeFuture: [],
       judgeResults: new Map(),
+      slopResults: new Map(),
       sessionWordsAdded: 0,
       autopilotQueue: [],
       autopilotRunning: false,
@@ -240,7 +246,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
   unloadProject: () => {
     useShellStore.getState().setRailPanel('inspector')
-    set({ project: null, selectedId: null, openTabs: [], openViewTabs: [], activeViewTab: null, mentionIndex: EMPTY_INDEX, codex: [], debt: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], nodeFuture: [], judgeResults: new Map(), sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, autopilotPreset: [], focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null })
+    set({ project: null, selectedId: null, openTabs: [], openViewTabs: [], activeViewTab: null, mentionIndex: EMPTY_INDEX, codex: [], debt: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], nodeFuture: [], judgeResults: new Map(), slopResults: new Map(), sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, autopilotPreset: [], focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null })
   },
 
   selectNode: (id) => set((s) => {
@@ -485,15 +491,25 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     return { judgeResults: next }
   }),
 
+  setSlopResult: (nodeId, result) => set((s) => {
+    const next = new Map(s.slopResults)
+    next.set(nodeId, result)
+    const p = s.project
+    if (p) window.api.aux.write(p.id, 'slop.json', JSON.stringify(Object.fromEntries(next))).catch(console.error)
+    return { slopResults: next }
+  }),
+
   hydrateJudgeResults: async () => {
     const p = get().project
     if (!p) return
-    const raw = await window.api.aux.read(p.id, 'quality.json').catch(() => null)
-    if (!raw) return
-    try {
-      const obj = JSON.parse(raw) as Record<string, JudgeResult>
-      set({ judgeResults: new Map(Object.entries(obj)) })
-    } catch { /* ignore corrupt cache */ }
+    const [jraw, sraw] = await Promise.all([
+      window.api.aux.read(p.id, 'quality.json').catch(() => null),
+      window.api.aux.read(p.id, 'slop.json').catch(() => null),
+    ])
+    const patch: Partial<ProjectState> = {}
+    if (jraw) { try { patch.judgeResults = new Map(Object.entries(JSON.parse(jraw) as Record<string, JudgeResult>)) } catch { /* corrupt */ } }
+    if (sraw) { try { patch.slopResults = new Map(Object.entries(JSON.parse(sraw) as Record<string, SlopResult>)) } catch { /* corrupt */ } }
+    if (Object.keys(patch).length) set(patch)
   },
 
   setAutopilotQueue: (autopilotQueue) => set({ autopilotQueue }),

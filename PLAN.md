@@ -427,7 +427,10 @@ weak spots, voice-drift vs. the fingerprint, tracked across drafts so a writer c
   evaluate-one / evaluate-all, click-to-open, staleness marker. Scores persist
   to `aux/quality.json` (survive reload). Shared `lib/judge.ts` runner reused
   by the Inspector.
-- 🔲 Next: slop-count column, voice-drift vs. fingerprint, cross-draft trend.
+- ✅ **Slop signal per scene** — a slop-proof column (flag count, severity-banded)
+  beside the craft score, proof-one / proof-all, expandable flag detail. Shared
+  `lib/slop.ts` runner; persists to `aux/slop.json`.
+- 🔲 Next: voice-drift vs. fingerprint, cross-draft trend line.
 
 ### 5.3 Cross-device sync & backup 🔲  *(retention — biggest infra lift)*
 Optional, keeps "your data is yours": E2E-encrypted or git-backed sync of the
