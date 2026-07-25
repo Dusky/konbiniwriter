@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { useShellStore } from './shellStore'
 import type { Project, KNode, DocBody, DocMeta, NodeType, ViewMode, SaveStatus, Snapshot, ID, Proposal, CodexEntry, DebtItem, ProjectSettings } from '@shared/types'
 import type { Comment, CommentOrigin } from '@shared/comments'
+import type { NodeQuery, Collection } from '@shared/query'
 import { trimAnchor } from '@shared/comments'
 import { uid, wordCount } from '@shared/utils'
 import { type MentionIndex, buildIndex, updateIndex } from '../lib/MentionIndex'
@@ -45,6 +46,7 @@ interface ProjectState {
   comments: Comment[]
   /** Comment the rail should scroll to and flash — cleared once consumed. */
   focusedCommentId: ID | null
+  collections: Collection[]
   slopSpans: import('../components/editor/extensions').SlopSpan[]
   slopRunning: boolean
   nodeHistory: Array<{ rootIds: ID[]; nodes: Record<ID, KNode> }>
@@ -114,6 +116,19 @@ interface ProjectState {
   toggleCommentResolved: (id: ID) => void
   deleteComment: (id: ID) => void
   setFocusedComment: (id: ID | null) => void
+
+  // — binder filter & saved collections —
+  /** The query the binder is currently filtered by. Empty query = no filter. */
+  binderQuery: NodeQuery
+  /** The saved collection the filter came from, when it came from one. */
+  activeCollectionId: ID | null
+  setBinderQuery: (q: NodeQuery) => void
+  clearBinderQuery: () => void
+  /** Apply a saved collection's query to the binder. */
+  applyCollection: (id: ID) => void
+  saveCollection: (name: string, query: NodeQuery) => ID | null
+  renameCollection: (id: ID, name: string) => void
+  deleteCollection: (id: ID) => void
 
   // — propagation debt —
   raiseDebt: (item: DebtItem) => void
@@ -236,6 +251,17 @@ function persistCommentsSoon(projectId: ID, comments: Comment[]): void {
   commentSaveTimer = setTimeout(flushCommentSave, COMMENT_SAVE_DEBOUNCE_MS)
 }
 
+/**
+ * Collections ride in project settings rather than a sidecar of their own:
+ * they're a handful of small JSON objects, edited deliberately and rarely, so
+ * the extra file (and the extra merge surface) would buy nothing.
+ */
+function persistCollections(projectId: ID, collections: Collection[]): void {
+  window.api.settings.save(projectId, { collections }).catch((e: Error) => {
+    useShellStore.getState().setToast('Collections could not be saved: ' + e.message)
+  })
+}
+
 // ── store ────────────────────────────────────────────────────────────────────
 
 const EMPTY_INDEX: MentionIndex = { aliasToDocIds: new Map(), docToAliases: new Map() }
@@ -261,6 +287,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   debt: [],
   comments: [],
   focusedCommentId: null,
+  collections: [],
+  binderQuery: {},
+  activeCollectionId: null,
   slopSpans: [],
   slopRunning: false,
   nodeHistory: [],
@@ -293,6 +322,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       debt: (project.settings.debt as DebtItem[] | undefined) ?? [],
       comments: (project.settings.comments as Comment[] | undefined) ?? [],
       focusedCommentId: null,
+      collections: (project.settings.collections as Collection[] | undefined) ?? [],
+      binderQuery: {},
+      activeCollectionId: null,
       proposals: [],
       activeProposalId: null,
       nodeHistory: [],
@@ -317,7 +349,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   unloadProject: () => {
     flushCommentSave()   // don't drop a debounced anchor update on close
     useShellStore.getState().setRailPanel('inspector')
-    set({ project: null, selectedId: null, openTabs: [], openViewTabs: [], activeViewTab: null, mentionIndex: EMPTY_INDEX, codex: [], debt: [], comments: [], focusedCommentId: null, proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], nodeFuture: [], judgeResults: new Map(), slopResults: new Map(), voiceResults: new Map(), qualityHistory: [], sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, autopilotPreset: [], focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null })
+    set({ project: null, selectedId: null, openTabs: [], openViewTabs: [], activeViewTab: null, mentionIndex: EMPTY_INDEX, codex: [], debt: [], comments: [], focusedCommentId: null, collections: [], binderQuery: {}, activeCollectionId: null, proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], nodeFuture: [], judgeResults: new Map(), slopResults: new Map(), voiceResults: new Map(), qualityHistory: [], sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, autopilotPreset: [], focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null })
   },
 
   selectNode: (id) => set((s) => {
@@ -594,6 +626,46 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   }),
 
   setFocusedComment: (focusedCommentId) => set({ focusedCommentId }),
+
+  // Editing the filter by hand detaches it from whichever collection it came
+  // from — otherwise the binder would claim to be showing a saved collection
+  // while actually showing something else.
+  setBinderQuery: (binderQuery) => set({ binderQuery, activeCollectionId: null }),
+  clearBinderQuery: () => set({ binderQuery: {}, activeCollectionId: null }),
+
+  applyCollection: (id) => set((s) => {
+    const c = s.collections.find((x) => x.id === id)
+    if (!c) return {}
+    return { binderQuery: c.query, activeCollectionId: id }
+  }),
+
+  saveCollection: (name, query) => {
+    const s = get()
+    if (!s.project) return null
+    const now = new Date().toISOString()
+    const collection: Collection = { id: uid('col'), name: name.trim() || 'Untitled', query, createdAt: now, modifiedAt: now }
+    const collections = [...s.collections, collection]
+    set({ collections, activeCollectionId: collection.id })
+    persistCollections(s.project.id, collections)
+    return collection.id
+  },
+
+  renameCollection: (id, name) => set((s) => {
+    const collections = s.collections.map((c) =>
+      c.id === id ? { ...c, name: name.trim() || c.name, modifiedAt: new Date().toISOString() } : c)
+    if (s.project) persistCollections(s.project.id, collections)
+    return { collections }
+  }),
+
+  deleteCollection: (id) => set((s) => {
+    const collections = s.collections.filter((c) => c.id !== id)
+    if (s.project) persistCollections(s.project.id, collections)
+    // Deleting the collection that's driving the binder drops the filter with
+    // it, rather than leaving an anonymous filter the writer can't identify.
+    return s.activeCollectionId === id
+      ? { collections, binderQuery: {}, activeCollectionId: null }
+      : { collections }
+  }),
 
   raiseDebt: (item) => set((s) => {
     // Supersede any existing unresolved item from the same source + title

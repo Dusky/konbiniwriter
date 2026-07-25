@@ -6,6 +6,7 @@ import { STATUS_META, STATUS_ORDER, LABEL_META, LABEL_ORDER, wordCount, charCoun
 import type { StatusId, LabelId } from '@shared/types'
 import { backlinksFor } from '../../lib/MentionIndex'
 import { runJudge, type JudgeScore } from '../../lib/judge'
+import KeywordEditor from './KeywordEditor'
 
 function scoreColor(score: number): string {
   return score >= 8 ? 'var(--success)' : score >= 5 ? 'var(--accent)' : 'var(--danger)'
@@ -154,6 +155,15 @@ export default function Inspector(): React.ReactElement {
               )
             })}
           </div>
+        </div>
+
+        {/* Keywords */}
+        <div className="insp-sec">
+          <h4>Keywords</h4>
+          <KeywordEditor
+            keywords={node.meta.keywords ?? []}
+            onChange={(keywords) => handleMeta({ keywords })}
+          />
         </div>
 
         {/* Synopsis */}

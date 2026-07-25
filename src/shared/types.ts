@@ -3,6 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { Comment } from './comments'
+import type { Collection } from './query'
 
 export type ID = string
 export type ISO = string
@@ -52,6 +53,7 @@ export interface ProjectSettings {
   codex?: CodexEntry[]       // stored as JSON, typed at load time
   debt?: DebtItem[]          // propagation-debt inbox (persisted with project)
   comments?: Comment[]       // margin notes anchored to spans of prose (sidecar)
+  collections?: Collection[]  // saved binder queries
   voiceFingerprint?: string  // foundation: prose style guide, injected as context
   aiInstructions?: string    // per-project AI instructions & notes (CLAUDE.md analog)
   autopilotRun?: AutopilotRunState | null  // in-progress autopilot run, for resume
@@ -119,6 +121,12 @@ export interface DocMeta {
   synopsis: string
   target: number
   includeInCompile: boolean
+  /**
+   * Free-form tags used to query the binder ("mira", "pov-alex", "needs-research").
+   * Optional so bundles written before keywords existed load without migration —
+   * read it as `keywords ?? []`.
+   */
+  keywords?: string[]
 }
 
 export interface DocBody {

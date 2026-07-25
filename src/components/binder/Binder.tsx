@@ -5,9 +5,11 @@ import ContextMenu, { type MenuItem } from '../common/ContextMenu'
 import ConfirmDialog from '../common/ConfirmDialog'
 import Icon from '../common/Icon'
 import SidebarResizer from '../common/SidebarResizer'
+import BinderFilter from './BinderFilter'
 import { kbd } from '../../lib/kbd'
 import { STATUS_META, fmtWords } from '@shared/utils'
 import type { ID, NodeType } from '@shared/types'
+import { isEmptyQuery, runQuery } from '@shared/query'
 
 type DropPos = 'before' | 'into' | 'after'
 
@@ -30,6 +32,8 @@ export default function Binder(): React.ReactElement {
   const canRedo = useProjectStore((s) => s.nodeFuture.length > 0)
   const setRailPanel = useShellStore((s) => s.setRailPanel)
   const setToast = useShellStore((s) => s.setToast)
+  const binderQuery = useProjectStore((s) => s.binderQuery)
+  const clearBinderQuery = useProjectStore((s) => s.clearBinderQuery)
 
   const [ctx, setCtx] = useState<{ x: number; y: number; id: ID } | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<ID | null>(null)
@@ -55,7 +59,14 @@ export default function Binder(): React.ReactElement {
 
   if (!project) return <div className="binder" />
 
-  const flat = flattenVisible(project)
+  // A filtered binder is a flat result list, not a tree: the matches rarely
+  // share a parent, and showing their ancestors just to hold them would put
+  // non-matching rows back on screen. Nesting and drag-to-reorder both only
+  // make sense against the real tree, so they're off while filtering.
+  const filtering = !isEmptyQuery(binderQuery)
+  const flat = filtering
+    ? runQuery(project, binderQuery).map((id) => ({ id, depth: 0 }))
+    : flattenVisible(project)
 
   // ── IPC mutations ────────────────────────────────────────────────────────
 
@@ -159,11 +170,21 @@ export default function Binder(): React.ReactElement {
     <div className="binder">
       <SidebarResizer edge="right" cssVar="--binder-w" prefKey="pref:binderWidth" min={180} max={480} fallback={264} />
       <div className="binder-hd">Binder</div>
+      <BinderFilter />
       <div className="binder-scroll">
         {flat.length === 0 && (
           <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-3)', fontSize: 12.5, lineHeight: 1.6 }}>
-            <div style={{ marginBottom: 10 }}>Your project is empty.</div>
-            <button className="btn sm" onClick={() => createNode(null, 'document')}>+ Create your first document</button>
+            {filtering ? (
+              <>
+                <div style={{ marginBottom: 10 }}>Nothing matches this filter.</div>
+                <button className="btn sm" onClick={clearBinderQuery}>Clear filter</button>
+              </>
+            ) : (
+              <>
+                <div style={{ marginBottom: 10 }}>Your project is empty.</div>
+                <button className="btn sm" onClick={() => createNode(null, 'document')}>+ Create your first document</button>
+              </>
+            )}
           </div>
         )}
         {flat.map(({ id, depth }) => {
@@ -182,7 +203,7 @@ export default function Binder(): React.ReactElement {
                 style={{ paddingLeft: `${depth * 15 + 4}px`, opacity: drag?.dragId === id ? 0.4 : 1 }}
                 onClick={() => { if (renamingId !== id) selectNode(id) }}
                 onContextMenu={(e) => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, id }) }}
-                draggable
+                draggable={!filtering}
                 onDragStart={(e) => {
                   // Firefox refuses to start a drag unless data is set.
                   e.dataTransfer.setData('text/plain', id)
@@ -194,7 +215,7 @@ export default function Binder(): React.ReactElement {
                 onDragEnd={() => setDrag(null)}
               >
                 {/* Expand twist for folders */}
-                {node.type === 'folder' ? (
+                {node.type === 'folder' && !filtering ? (
                   <span
                     className={`tw-twist${node.expanded ? ' open' : ''}`}
                     onClick={(e) => { e.stopPropagation(); mutate({ type: 'setExpanded', id, expanded: !node.expanded }) }}
