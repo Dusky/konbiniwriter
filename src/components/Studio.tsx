@@ -21,7 +21,6 @@ import ChangesetModal from './modals/ChangesetModal'
 import PromptRegistryModal from './modals/PromptRegistryModal'
 import AISettingsModal from './modals/AISettingsModal'
 import BatchGeneratorModal from './modals/BatchGeneratorModal'
-import StatsModal from './modals/StatsModal'
 import AutopilotModal from './modals/AutopilotModal'
 import CommandPalette from './modals/CommandPalette'
 import HistoryModal from './modals/HistoryModal'
@@ -141,7 +140,6 @@ export default function Studio(): React.ReactElement {
       {modal === 'prompt-registry' && <PromptRegistryModal  onClose={() => setModal(null)} />}
       {modal === 'ai-settings'     && <AISettingsModal      onClose={() => setModal(null)} />}
       {modal === 'batch-generator' && <BatchGeneratorModal  onClose={() => setModal(null)} />}
-      {modal === 'stats'           && <StatsModal           onClose={() => setModal(null)} />}
       {modal === 'autopilot'       && <AutopilotModal       onClose={() => setModal(null)} />}
       {modal === 'debt'            && <DebtInboxModal       onClose={() => setModal(null)} />}
       {modal === 'foundation'      && <FoundationModal      onClose={() => setModal(null)} />}

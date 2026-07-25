@@ -10,6 +10,7 @@ import Icon from '../common/Icon'
 import Corkboard from '../views/Corkboard'
 import Outliner from '../views/Outliner'
 import Timeline from '../views/Timeline'
+import { VIEW_TABS } from '../views/viewTabs'
 
 interface Props {
   nodeId?: string
@@ -21,6 +22,8 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
   const project = useProjectStore((s) => s.project)
   const storeSelectedId = useProjectStore((s) => s.selectedId)
   const view = useProjectStore((s) => s.view)
+  const activeViewTab = useProjectStore((s) => s.activeViewTab)
+  const closeViewTab = useProjectStore((s) => s.closeViewTab)
   const selectNode = useProjectStore((s) => s.selectNode)
   const setSplitId = useProjectStore((s) => s.setSplitId)
   const applyMutation = useProjectStore((s) => s.applyMutation)
@@ -51,6 +54,18 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
   }
 
   const selectedNode = selectedId ? project.nodes[selectedId] : null
+
+  // App-view tab active (Stats, Foundation, …) → render that surface in the main
+  // pane, keeping the tab strip on top. Split panes are document-only.
+  if (activeViewTab && !splitOpen) {
+    const def = VIEW_TABS[activeViewTab]
+    return (
+      <div className="main" style={{ display: 'flex', flexDirection: 'column' }}>
+        <TabStrip />
+        {def ? def.render(() => closeViewTab(activeViewTab)) : null}
+      </div>
+    )
+  }
 
   if (view === 'corkboard') return <Corkboard />
   if (view === 'outliner')  return <Outliner />

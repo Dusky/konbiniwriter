@@ -27,7 +27,6 @@ export type ModalId =
   | 'ai-settings'
   | 'batch-generator'
   | 'bestof'
-  | 'stats'
   | 'autopilot'
   | 'foundation'
   | 'debt'

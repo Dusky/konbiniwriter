@@ -43,6 +43,7 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
     const shell = useShellStore.getState()
     const proj = useProjectStore.getState()
     const openModal = (m: ModalId) => () => shell.setModal(m)
+    const openView = (v: Parameters<typeof proj.openViewTab>[0]) => () => proj.openViewTab(v)
 
     // Launch screen (no project loaded): a small set focused on getting in.
     if (!project) {
@@ -110,7 +111,7 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
       { id: 'snapshot', label: 'Take Snapshot…', section: 'Document', hint: kbd('mod+shift+s'), run: openModal('history') },
       { id: 'search', label: 'Search Project…', section: 'Project', hint: kbd('mod+shift+f'), run: openModal('search') },
       { id: 'compile', label: 'Compile / Export…', section: 'Project', hint: kbd('mod+shift+e'), run: openModal('compile') },
-      { id: 'stats', label: 'Writing Stats…', section: 'Project', run: openModal('stats') },
+      { id: 'stats', label: 'Writing Stats…', section: 'Project', run: openView('stats') },
       { id: 'prefs', label: 'Preferences…', section: 'Project', hint: kbd('mod+,'), run: openModal('prefs') },
       { id: 'themes', label: 'Themes / Skins…', section: 'Project', run: openModal('themes') },
     ]

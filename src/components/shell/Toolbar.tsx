@@ -25,6 +25,7 @@ export default function Toolbar(): React.ReactElement {
   const setScreen = useShellStore((s) => s.setScreen)
   const splitOpen = useProjectStore((s) => s.splitOpen)
   const toggleSplit = useProjectStore((s) => s.toggleSplit)
+  const openViewTab = useProjectStore((s) => s.openViewTab)
 
   const selectedNode = selectedId && project ? project.nodes[selectedId] : null
   const aiEnabled = useAIStore((s) => s.enabled)
@@ -131,7 +132,7 @@ export default function Toolbar(): React.ReactElement {
         <button className="tb-btn" title={`Search Project (${kbd('mod+shift+f')})`} aria-label="Search Project" onClick={() => setModal('search')}>
           <Icon name="search" />
         </button>
-        <button className="tb-btn" title="Writing Stats" aria-label="Writing Stats" onClick={() => setModal('stats')}>
+        <button className="tb-btn" title="Writing Stats" aria-label="Writing Stats" onClick={() => openViewTab('stats')}>
           <Icon name="chart" />
         </button>
         <button className="tb-btn" title={`Preferences (${kbd('mod+,')})`} aria-label="Preferences" onClick={() => setModal('prefs')}>

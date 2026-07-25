@@ -5,11 +5,25 @@ import { uid, wordCount } from '@shared/utils'
 import { type MentionIndex, buildIndex, updateIndex } from '../lib/MentionIndex'
 import { statsService } from '../lib/StatsService'
 
+/**
+ * App-level surfaces that open as tabs in the main pane instead of as modals
+ * (settings, dashboards, AI workspaces you keep open beside the manuscript).
+ * Distinct from document tabs, which are node IDs.
+ */
+export type ViewTabId =
+  | 'stats' | 'foundation' | 'autopilot' | 'prompt-registry' | 'ai-settings'
+  | 'batch-generator' | 'bestof' | 'prefs' | 'themes'
+
 interface ProjectState {
   project: Project | null
   selectedId: ID | null
   /** Documents open as editor tabs, in tab order. selectedId is the active tab. */
   openTabs: ID[]
+  /** App-view surfaces open as tabs (Stats, Foundation, …), in tab order. */
+  openViewTabs: ViewTabId[]
+  /** The active view tab. When non-null the main pane shows it instead of the
+   *  editor; selecting a document tab clears it (selectedId is preserved). */
+  activeViewTab: ViewTabId | null
   splitId: ID | null
   splitOpen: boolean
   view: ViewMode
@@ -40,6 +54,12 @@ interface ProjectState {
   selectNode: (id: ID | null) => void
   /** Close an open editor tab; if it was active, activate a neighbour. */
   closeTab: (id: ID) => void
+  /** Open (or focus) an app-view tab in the main pane. */
+  openViewTab: (v: ViewTabId) => void
+  /** Focus an already-open app-view tab. */
+  selectViewTab: (v: ViewTabId) => void
+  /** Close an app-view tab; if it was active, fall back to a neighbour or the editor. */
+  closeViewTab: (v: ViewTabId) => void
   setSplitId: (id: ID | null) => void
   toggleSplit: () => void
   setView: (v: ViewMode) => void
@@ -153,6 +173,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   project: null,
   selectedId: null,
   openTabs: [],
+  openViewTabs: [],
+  activeViewTab: null,
   splitId: null,
   splitOpen: false,
   view: 'editor',
@@ -185,6 +207,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       project,
       selectedId: null,
       openTabs: [],
+      openViewTabs: [],
+      activeViewTab: null,
       view: 'editor',
       saveStatus: 'saved',
       renamingId: null,
@@ -211,13 +235,14 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
   unloadProject: () => {
     useShellStore.getState().setRailPanel('inspector')
-    set({ project: null, selectedId: null, openTabs: [], mentionIndex: EMPTY_INDEX, codex: [], debt: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], nodeFuture: [], judgeResults: new Map(), sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, autopilotPreset: [], focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null })
+    set({ project: null, selectedId: null, openTabs: [], openViewTabs: [], activeViewTab: null, mentionIndex: EMPTY_INDEX, codex: [], debt: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], nodeFuture: [], judgeResults: new Map(), sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, autopilotPreset: [], focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null })
   },
 
   selectNode: (id) => set((s) => {
-    if (!id || !s.project) return { selectedId: id, cursor: null }
+    // Selecting a document leaves any view tab (returns the main pane to the editor).
+    if (!id || !s.project) return { selectedId: id, cursor: null, activeViewTab: null }
     const node = s.project.nodes[id]
-    if (!node) return { selectedId: id, cursor: null }
+    if (!node) return { selectedId: id, cursor: null, activeViewTab: null }
     // Auto-switch view based on node type
     const newView = node.type === 'folder'
       ? (s.view === 'editor' ? 'corkboard' : s.view)
@@ -226,7 +251,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const openTabs = node.type !== 'folder' && !s.openTabs.includes(id)
       ? [...s.openTabs, id]
       : s.openTabs
-    return { selectedId: id, view: newView, cursor: null, openTabs }
+    return { selectedId: id, view: newView, cursor: null, openTabs, activeViewTab: null }
   }),
 
   closeTab: (id) => set((s) => {
@@ -241,9 +266,28 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     return { openTabs }
   }),
 
+  openViewTab: (v) => set((s) => ({
+    openViewTabs: s.openViewTabs.includes(v) ? s.openViewTabs : [...s.openViewTabs, v],
+    activeViewTab: v,
+  })),
+  selectViewTab: (v) => set({ activeViewTab: v }),
+  closeViewTab: (v) => set((s) => {
+    const idx = s.openViewTabs.indexOf(v)
+    if (idx === -1) return {}
+    const openViewTabs = s.openViewTabs.filter((t) => t !== v)
+    // If the active view tab closed, fall back to a neighbour; if none remain,
+    // activeViewTab goes null and the main pane returns to the document editor.
+    if (s.activeViewTab === v) {
+      const next = openViewTabs[idx] ?? openViewTabs[idx - 1] ?? null
+      return { openViewTabs, activeViewTab: next }
+    }
+    return { openViewTabs }
+  }),
+
   setSplitId: (splitId) => set({ splitId }),
   toggleSplit: () => set((s) => s.splitOpen ? { splitOpen: false, splitId: null } : { splitOpen: true }),
-  setView: (view) => set({ view }),
+  // Switching the main view control (Editor/Corkboard/…) leaves any view tab.
+  setView: (view) => set({ view, activeViewTab: null }),
   setRenamingId: (renamingId) => set({ renamingId }),
   setFocusMode: (focusMode) => set({ focusMode }),
   setCompositionMode: (compositionMode) => set({ compositionMode }),

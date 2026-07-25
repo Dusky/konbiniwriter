@@ -12,6 +12,7 @@ export default function StatusBar(): React.ReactElement {
   const sessionWordsAdded = useProjectStore((s) => s.sessionWordsAdded)
   const cursor = useProjectStore((s) => s.cursor)
   const view = useProjectStore((s) => s.view)
+  const openViewTab = useProjectStore((s) => s.openViewTab)
   const setModal = useShellStore((s) => s.setModal)
 
   const selectedNode = selectedId && project ? project.nodes[selectedId] : null
@@ -87,7 +88,7 @@ export default function StatusBar(): React.ReactElement {
               className="sb-stat"
               title="Daily writing goal — click for stats"
               style={{ color: goal && pct >= 1 ? 'var(--st-final)' : 'var(--text-3)' }}
-              onClick={() => setModal('stats')}
+              onClick={() => openViewTab('stats')}
             >
               Today: <b>{todayWords.toLocaleString()}</b>
               {goal > 0 && (
@@ -111,7 +112,7 @@ export default function StatusBar(): React.ReactElement {
                   <span
                     className="sb-muted"
                     title="View Writing Stats"
-                    onClick={(e) => { e.stopPropagation(); setModal('stats') }}
+                    onClick={(e) => { e.stopPropagation(); openViewTab('stats') }}
                   >
                     {' · '}+{sessionWordsAdded.toLocaleString()} this session
                   </span>

@@ -1,10 +1,11 @@
 import React, { useState } from 'react'
 import { statsService } from '../../lib/StatsService'
 import Icon from '../common/Icon'
+import ModalShell from '../common/ModalShell'
 
-interface Props { onClose: () => void }
+interface Props { onClose: () => void; embedded?: boolean }
 
-export default function StatsModal({ onClose }: Props): React.ReactElement {
+export default function StatsModal({ onClose, embedded }: Props): React.ReactElement {
   const history = statsService.getHistory(30)
   const streak = statsService.getStreak()
   const allTime = statsService.getAllTimeTotal()
@@ -21,8 +22,7 @@ export default function StatsModal({ onClose }: Props): React.ReactElement {
   }
 
   return (
-    <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ maxWidth: 520 }} role="dialog" aria-modal="true" aria-label="Writing Stats">
+    <ModalShell embedded={embedded} onClose={onClose} maxWidth={520} label="Writing Stats">
         <div className="modal-hd">
           <h3>Writing Stats</h3>
         </div>
@@ -83,11 +83,12 @@ export default function StatsModal({ onClose }: Props): React.ReactElement {
             })}
           </div>
         </div>
-        <div className="modal-foot">
-          <span className="tb-spacer" />
-          <button className="btn" onClick={onClose}>Done</button>
-        </div>
-      </div>
-    </div>
+        {!embedded && (
+          <div className="modal-foot">
+            <span className="tb-spacer" />
+            <button className="btn" onClick={onClose}>Done</button>
+          </div>
+        )}
+    </ModalShell>
   )
 }
