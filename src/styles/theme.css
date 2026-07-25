@@ -18,7 +18,7 @@
   --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px;
   --r-sm: 4px; --r-md: 7px; --r-lg: 11px; --r-full: 999px;
   --t-xs: 11px; --t-sm: 12px; --t-base: 13px; --t-md: 14px; --t-lg: 16px; --t-xl: 21px; --t-2xl: 30px;
-  --h-sm: 24px; --h-md: 28px; --h-lg: 34px;
+  /* control heights (--h-sm/md/lg) and chrome bars are density-scaled — see below */
 
   /* ── motion ────────────────────────────────────────────────────────────────
      Two durations and one easing curve. Chrome (hover/active/selection) uses
@@ -112,10 +112,27 @@
   --warn-text:   oklch(0.42 0.09 60);
 }
 
-/* ── density ─────────────────────────────────────────────────────────────── */
-:root, [data-density="balanced"] { --row-h: 27px; --row-pad: 5px; --row-font: 13px; --indent: 15px; }
-[data-density="compact"]  { --row-h: 22px; --row-pad: 3px; --row-font: 12px; --indent: 13px; }
-[data-density="roomy"]    { --row-h: 33px; --row-pad: 8px; --row-font: 13.5px; --indent: 18px; }
+/* ── density ───────────────────────────────────────────────────────────────
+   Density scales the whole shell, not just the binder. The control ramp
+   (--h-sm/md/lg) and the chrome bars live here rather than in the static scale
+   above, because "Compact" has to mean something everywhere a writer looks —
+   otherwise the setting tightens the tree and leaves a fat toolbar above it.
+   Balanced keeps the previous hand-tuned values, so nothing moves by default. */
+:root, [data-density="balanced"] {
+  --row-h: 27px; --row-pad: 5px; --row-font: 13px; --indent: 15px;
+  --h-sm: 24px; --h-md: 28px; --h-lg: 34px;
+  --h-titlebar: 38px; --h-toolbar: 42px; --h-statusbar: 26px; --h-docbar: 30px;
+}
+[data-density="compact"] {
+  --row-h: 22px; --row-pad: 3px; --row-font: 12px; --indent: 13px;
+  --h-sm: 21px; --h-md: 25px; --h-lg: 29px;
+  --h-titlebar: 32px; --h-toolbar: 36px; --h-statusbar: 22px; --h-docbar: 26px;
+}
+[data-density="roomy"] {
+  --row-h: 33px; --row-pad: 8px; --row-font: 13.5px; --indent: 18px;
+  --h-sm: 27px; --h-md: 32px; --h-lg: 38px;
+  --h-titlebar: 44px; --h-toolbar: 48px; --h-statusbar: 30px; --h-docbar: 34px;
+}
 
 /* Small helper/caption text — the repeated 11px muted line, one class. */
 .hint { font-size: var(--t-xs); color: var(--text-3); line-height: 1.5; }
@@ -145,7 +162,7 @@ button { font-family: inherit; cursor: default; }
 }
 
 /* ── editor tab strip ──────────────────────────────────────────────────────── */
-.tab-strip { display: flex; align-items: stretch; gap: 1px; flex-shrink: 0; min-height: 34px;
+.tab-strip { display: flex; align-items: stretch; gap: 1px; flex-shrink: 0; min-height: var(--h-lg);
   border-bottom: 1px solid var(--border); background: var(--bg-2); overflow-x: auto;
   scrollbar-width: none; }
 .tab-strip::-webkit-scrollbar { height: 0; }
@@ -214,7 +231,7 @@ button { font-family: inherit; cursor: default; }
 }
 
 /* titlebar */
-.titlebar { height: 38px; flex: none; display: flex; align-items: center; gap: 12px;
+.titlebar { height: var(--h-titlebar); flex: none; display: flex; align-items: center; gap: 12px;
   padding: 0 14px; background: var(--titlebar);
   border-bottom: 0.5px solid var(--border); user-select: none; }
 .lights { display: flex; gap: 8px; }
@@ -230,11 +247,11 @@ button { font-family: inherit; cursor: default; }
 @keyframes toast-in { from { opacity: 0; transform: translateX(-50%) translateY(8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 
 /* toolbar */
-.toolbar { height: 42px; flex: none; display: flex; align-items: center; gap: 6px;
+.toolbar { height: var(--h-toolbar); flex: none; display: flex; align-items: center; gap: 6px;
   padding: 0 10px; background: var(--bg); border-bottom: 0.5px solid var(--border); }
 .tb-group { display: flex; align-items: center; gap: 2px; }
 .tb-spacer { flex: 1; }
-.tb-btn { height: 28px; min-width: 28px; padding: 0 8px; display: inline-flex; align-items: center;
+.tb-btn { height: var(--h-md); min-width: var(--h-md); padding: 0 8px; display: inline-flex; align-items: center;
   gap: 6px; border: 0; border-radius: 7px; background: transparent; color: var(--text-2);
   font-size: 12.5px; }
 .tb-btn:hover { background: var(--bg-3); color: var(--text); }
@@ -242,7 +259,7 @@ button { font-family: inherit; cursor: default; }
 .tb-btn svg { width: 16px; height: 16px; }
 .tb-sep { width: 1px; height: 18px; background: var(--border); margin: 0 4px; }
 .seg { display: flex; background: var(--bg-2); border: 0.5px solid var(--border); border-radius: 8px; padding: 2px; }
-.seg button { height: 24px; padding: 0 12px; border: 0; background: transparent; color: var(--text-2);
+.seg button { height: var(--h-sm); padding: 0 12px; border: 0; background: transparent; color: var(--text-2);
   font-size: 12px; border-radius: 6px; font-weight: 500; }
 .seg button.on { background: var(--bg-3); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.2); }
 
@@ -319,7 +336,7 @@ button { font-family: inherit; cursor: default; }
 
 /* ── main / editor ───────────────────────────────────────────────────────── */
 .main { background: var(--editor-bg); min-width: 0; overflow: hidden; display: flex; flex-direction: column; }
-.doc-bar { height: 30px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 18px;
+.doc-bar { height: var(--h-docbar); flex: none; display: flex; align-items: center; gap: 8px; padding: 0 18px;
   color: var(--text-3); font-size: 11.5px; border-bottom: 0.5px solid transparent; }
 .doc-bar .crumb { color: var(--text-3); }
 .doc-bar .crumb b { color: var(--text-2); font-weight: 500; }
@@ -484,7 +501,7 @@ button { font-family: inherit; cursor: default; }
 .ebar-menu-reset:hover { background: var(--bg-3); color: var(--text); }
 
 /* ── statusbar ───────────────────────────────────────────────────────────── */
-.statusbar { height: 26px; flex: none; display: flex; align-items: center; gap: 16px;
+.statusbar { height: var(--h-statusbar); flex: none; display: flex; align-items: center; gap: 16px;
   padding: 0 14px; background: var(--titlebar); border-top: 0.5px solid var(--border);
   font-size: 11px; color: var(--text-3); }
 .statusbar .sb-r { margin-left: auto; display: flex; gap: 16px; align-items: center; }
@@ -496,7 +513,7 @@ button { font-family: inherit; cursor: default; }
 .sb-mini > i.done { background: var(--st-final); }
 .sb-muted { color: var(--text-3); font-weight: normal; cursor: pointer; }
 .sb-goal-inp { width: 80px; padding: 0 4px; height: 20px; font-size: var(--t-sm); background: var(--bg-2);
-  border: 0.5px solid var(--border); border-radius: 3px; color: inherit; }
+  border: 0.5px solid var(--border); border-radius: 3px; color: inherit;  font-variant-numeric: tabular-nums; }
 .sb-save.saving { color: var(--st-prog); }
 .sb-save.error { color: var(--st-idea); }
 .sb-save.idle { color: var(--text-3); }

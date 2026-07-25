@@ -565,8 +565,10 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 .ql-row { display: flex; align-items: center; gap: 10px; padding: 7px 2px; }
 .ql-title { flex: 1; min-width: 0; text-align: left; background: none; border: 0; color: var(--text); font-size: 13px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ql-title:hover { color: var(--accent); }
-.ql-words { font-size: 11.5px; color: var(--text-3); width: 54px; text-align: right; flex-shrink: 0; }
-.ql-badge { flex-shrink: 0; min-width: 34px; text-align: center; font-size: 12px; font-weight: 600; border: 0; border-radius: 6px; padding: 3px 7px; cursor: pointer; color: var(--accent-fg); }
+.ql-words { font-size: 11.5px; color: var(--text-3); width: 54px; text-align: right; flex-shrink: 0;
+  font-variant-numeric: tabular-nums; }
+.ql-badge { flex-shrink: 0; min-width: 34px; text-align: center; font-size: 12px; font-weight: 600;
+  font-variant-numeric: tabular-nums; border: 0; border-radius: 6px; padding: 3px 7px; cursor: pointer; color: var(--accent-fg); }
 .ql-badge.none { background: var(--bg-3); color: var(--text-3); }
 .ql-badge.strong { background: var(--st-final); }
 .ql-badge.ok { background: var(--accent); }
@@ -586,7 +588,8 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 .ql-stale { margin-left: 3px; opacity: 0.8; }
 .ql-detail { padding: 4px 2px 12px; display: flex; flex-direction: column; gap: 6px; }
 .ql-dim { display: grid; grid-template-columns: 26px 130px 1fr; gap: 8px; align-items: baseline; font-size: 12px; }
-.ql-dim-score { text-align: center; font-weight: 600; border-radius: 4px; color: var(--accent-fg); }
+.ql-dim-score { text-align: center; font-weight: 600; border-radius: 4px; color: var(--accent-fg);
+  font-variant-numeric: tabular-nums; }
 .ql-dim-score.strong { background: var(--st-final); } .ql-dim-score.ok { background: var(--accent); } .ql-dim-score.weak { background: var(--st-idea); }
 .ql-dim-name { color: var(--text-2); font-weight: 500; }
 .ql-dim-note { color: var(--text-3); line-height: 1.45; }

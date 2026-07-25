@@ -498,6 +498,18 @@ mtime scan on window focus/visibility, confirmed by `planMerge` so our own
 autosaves never cry wolf). Tier 2 (hosted) reuses `planMerge` wholesale — it
 only has to move bytes and hand a bundle in.
 
+### 5.5 Density + typography audit ✅
+- The control-height ramp (`--h-sm/md/lg`) was declared with a "no more
+  hand-tuned magic numbers" comment and used **zero** times while the chrome
+  hardcoded 38/42/28/30/34px. Now wired — and moved into the density block
+  alongside new `--h-titlebar/toolbar/statusbar/docbar`, because Density only
+  reached the binder before: picking Compact tightened the tree and left a fat
+  toolbar above it. Balanced keeps the exact previous values, so nothing shifts
+  by default.
+- `font-variant-numeric: tabular-nums` on the remaining live counters (quality
+  scores + word column, sync summary, stats chips, goal input) so numbers that
+  tick while you write don't reflow their neighbours.
+
 ### 5.4 Frictionless import ✅  *(companion to 5.1 — lowers switching cost)*
 - ✅ **Scrivener `.scriv`** — the actual switching cost for the target user.
   Auto-detected from the existing folder picker (a .scriv *is* a folder, so the

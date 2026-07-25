@@ -211,7 +211,7 @@
   font-size: var(--t-xs); color: var(--text-3); line-height: 1.5; }
 .sync-meta code { font-family: var(--mono); background: var(--bg); padding: 0 4px; border-radius: 3px; }
 .sync-summary { display: flex; gap: var(--s4); flex-wrap: wrap; padding: var(--s2) 0 var(--s3);
-  font-size: var(--t-sm); color: var(--text-2); }
+  font-size: var(--t-sm); color: var(--text-2); font-variant-numeric: tabular-nums; }
 .sync-summary .warn { color: var(--danger); }
 .sync-list { display: flex; flex-direction: column; }
 .sync-row { display: flex; align-items: center; gap: var(--s2); padding: 6px 2px;
