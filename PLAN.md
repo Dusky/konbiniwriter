@@ -498,9 +498,19 @@ mtime scan on window focus/visibility, confirmed by `planMerge` so our own
 autosaves never cry wolf). Tier 2 (hosted) reuses `planMerge` wholesale — it
 only has to move bytes and hand a bundle in.
 
-### 5.4 Frictionless import 🔲  *(companion to 5.1 — lowers switching cost)*
-Beyond the current `.docx`/folder import: Scrivener `.scriv`, Google-Docs export,
-richer Markdown-folder mapping. Pairs naturally with export work.
+### 5.4 Frictionless import ✅  *(companion to 5.1 — lowers switching cost)*
+- ✅ **Scrivener `.scriv`** — the actual switching cost for the target user.
+  Auto-detected from the existing folder picker (a .scriv *is* a folder, so the
+  `.scrivx` manifest gives it away). `shared/scrivener.ts` walks the binder into
+  nested paths; `shared/rtf.ts` recovers prose from RTF including bold/italic as
+  Markdown, unicode escapes and typographic punctuation. Synopses import to the
+  corkboard (new optional `ImportDoc.synopsis`); empty leaves survive as outline
+  stubs; Scrivener's own Trash is deliberately skipped. Handles v3
+  (`Files/Data/<UUID>/`) and v2 (`Files/Docs/<id>.rtf`).
+- ✅ **Google Docs** — already covered: Docs exports as `.docx`, which the
+  folder import converts via mammoth. No separate path needed.
+- 🔲 Optional later: `.zip` of a Scrivener bundle, and front-matter-aware
+  Markdown mapping (title/synopsis from YAML).
 
 ---
 

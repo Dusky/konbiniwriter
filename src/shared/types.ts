@@ -317,7 +317,12 @@ export interface OAuthStreamHandlers {
 }
 
 /** One imported source file. `path` is relative, e.g. "Part 1/ch1.md". */
-export interface ImportDoc { path: string; content: string }
+export interface ImportDoc {
+  path: string
+  content: string
+  /** Corkboard synopsis, when the source has one (e.g. Scrivener). */
+  synopsis?: string
+}
 
 export interface KonbiniAPI {
   project: {

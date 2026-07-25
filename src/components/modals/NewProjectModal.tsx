@@ -4,6 +4,7 @@ import { useShellStore } from '../../store/shellStore'
 import { useProjectStore } from '../../store/projectStore'
 import type { TemplateId, ImportDoc } from '@shared/types'
 import { isDocx, docxToText } from '../../lib/docxImport'
+import { isScrivenerBundle, parseScrivener } from '@shared/scrivener'
 import Icon, { type IconName } from '../common/Icon'
 
 const IMPORTABLE = /\.(md|markdown|mdown|txt|text|docx)$/i
@@ -46,12 +47,39 @@ export default function NewProjectModal({ onClose, initialTemplate }: Props): Re
   }
 
   const handleImportFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []).filter((f) => IMPORTABLE.test(f.name))
+    const all = Array.from(e.target.files ?? [])
     e.target.value = ''
-    if (files.length === 0) { setError('No Markdown, text, or Word (.docx) files found in that folder.'); return }
+    const rel = (f: File) => (f.webkitRelativePath || f.name).replace(/\\/g, '/')
+
+    // A Scrivener project is just a folder, so the same picker finds it — detect
+    // the .scrivx manifest and take the Scrivener path instead of treating the
+    // bundle's internals as loose files.
+    if (isScrivenerBundle(all.map(rel))) {
+      setError(null); setCreating(true)
+      try {
+        const scrivFiles = all.filter((f) => /\.(scrivx|rtf|txt)$/i.test(f.name))
+        const map = new Map<string, string>()
+        for (const f of scrivFiles) {
+          const p = rel(f)
+          map.set(p.includes('/') ? p.split('/').slice(1).join('/') : p, await f.text())
+        }
+        const parsed = parseScrivener(map)
+        if ('error' in parsed) { setError(parsed.error); setCreating(false); return }
+        const importTitle = (title.trim() && title.trim() !== 'Untitled Project') ? title.trim() : parsed.title
+        const project = await window.api.project.import({ title: importTitle, location: 'browser-pick', docs: parsed.docs })
+        openProject(project)
+      } catch (err) {
+        const isUserCancel = (err instanceof DOMException && err.name === 'AbortError') || String(err).includes('No folder selected')
+        if (!isUserCancel) setError(String(err).replace(/^Error:\s*/, ''))
+        setCreating(false)
+      }
+      return
+    }
+
+    const files = all.filter((f) => IMPORTABLE.test(f.name))
+    if (files.length === 0) { setError('No Markdown, text, Word (.docx), or Scrivener files found in that folder.'); return }
     setError(null); setCreating(true)
     try {
-      const rel = (f: File) => (f.webkitRelativePath || f.name).replace(/\\/g, '/')
       const topFolder = rel(files[0]).split('/')[0]
       const importTitle = (title.trim() && title.trim() !== 'Untitled Project') ? title.trim() : (topFolder || 'Imported Project')
       // Strip the wrapping top-level folder so it becomes the project itself.
@@ -158,7 +186,7 @@ export default function NewProjectModal({ onClose, initialTemplate }: Props): Re
         <input ref={importInputRef} type="file" multiple onChange={handleImportFiles} style={{ display: 'none' }} />
         <div className="modal-foot">
           <button className="btn ghost" onClick={() => importInputRef.current?.click()} disabled={creating}
-            title="Import a folder of Markdown, text, or Word (.docx) files as a new project">
+            title="Import a Scrivener .scriv project, or a folder of Markdown / text / Word (.docx) files">
             Import folder…
           </button>
           <span className="tb-spacer" />

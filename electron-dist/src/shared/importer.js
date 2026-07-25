@@ -63,7 +63,7 @@ function buildProjectFromDocs(title, location, inputs) {
         const parentId = ensureFolder(segs.join('/'));
         const did = (0, utils_1.uid)('document');
         const docTitle = file.replace(TITLE_EXT, '') || 'Untitled';
-        nodes[did] = makeNode(did, 'document', docTitle, parentId);
+        nodes[did] = makeNode(did, 'document', docTitle, parentId, doc.synopsis ? { synopsis: doc.synopsis } : undefined);
         docs[did] = { content: doc.content, snapshots: [] };
         if (parentId)
             nodes[parentId].childIds.push(did);

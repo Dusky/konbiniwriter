@@ -64,7 +64,8 @@ export function buildProjectFromDocs(title: string, location: string, inputs: Im
     const parentId = ensureFolder(segs.join('/'))
     const did = uid('document')
     const docTitle = file.replace(TITLE_EXT, '') || 'Untitled'
-    nodes[did] = makeNode(did, 'document', docTitle, parentId)
+    nodes[did] = makeNode(did, 'document', docTitle, parentId,
+      doc.synopsis ? { synopsis: doc.synopsis } : undefined)
     docs[did] = { content: doc.content, snapshots: [] }
     if (parentId) nodes[parentId].childIds.push(did)
     else rootIds.push(did)
