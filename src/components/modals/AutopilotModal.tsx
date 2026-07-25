@@ -10,6 +10,7 @@ import { agentRegistry } from '../../lib/PromptRegistry'
 import { costOf, formatUSD } from '../../lib/Pricing'
 import { parseReaderVerdict } from '../../lib/parsers'
 import type { ID, PromptTemplate, AutopilotRunState } from '@shared/types'
+import ModalShell from '../common/ModalShell'
 
 // The gate scores prose craft, so it only makes sense for drafting prompts.
 const gateEligibleFor = (p?: PromptTemplate | null): boolean =>
@@ -17,7 +18,7 @@ const gateEligibleFor = (p?: PromptTemplate | null): boolean =>
 
 type Phase = 'config' | 'running' | 'done'
 
-interface Props { onClose: () => void }
+interface Props { onClose: () => void; embedded?: boolean }
 
 function getAllNonFolderNodes(project: NonNullable<ReturnType<typeof useProjectStore.getState>['project']>): Array<{ id: ID; depth: number }> {
   const out: Array<{ id: ID; depth: number }> = []
@@ -33,7 +34,7 @@ function getAllNonFolderNodes(project: NonNullable<ReturnType<typeof useProjectS
   return out
 }
 
-export default function AutopilotModal({ onClose }: Props): React.ReactElement {
+export default function AutopilotModal({ onClose, embedded }: Props): React.ReactElement {
   const project = useProjectStore((s) => s.project)
   const mentionIndex = useProjectStore((s) => s.mentionIndex)
   const queueProposal = useProjectStore((s) => s.queueProposal)
@@ -368,8 +369,7 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
   const currentNodeTitle = phase === 'running' ? currentTitle : ''
 
   return (
-    <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && phase !== 'running' && onClose()}>
-      <div className="modal" style={{ maxWidth: 560 }} role="dialog" aria-modal="true" aria-label="Autopilot Runner">
+    <ModalShell embedded={embedded} onClose={() => { if (phase !== 'running') onClose() }} maxWidth={560} label="Autopilot Runner">
         <div className="modal-hd"><h3>Autopilot Runner</h3></div>
 
         {phase === 'config' && (
@@ -518,7 +518,6 @@ export default function AutopilotModal({ onClose }: Props): React.ReactElement {
             </div>
           </>
         )}
-      </div>
-    </div>
+    </ModalShell>
   )
 }

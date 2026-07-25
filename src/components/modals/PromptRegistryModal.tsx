@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import type { PromptTemplate, PromptFeature, AgentTemplate, AgentCategory } from '@shared/types'
 import { promptRegistry, agentRegistry } from '../../lib/PromptRegistry'
 import { uid } from '@shared/utils'
+import ModalShell from '../common/ModalShell'
 
 const FEATURES: { id: PromptFeature | 'all'; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -17,9 +18,9 @@ const AGENT_CATEGORIES: AgentCategory[] = ['reader', 'critic', 'judge', 'codex',
 interface EditorState { prompt: PromptTemplate; dirty: boolean }
 interface AgentEditorState { agent: AgentTemplate; dirty: boolean }
 
-interface Props { onClose: () => void }
+interface Props { onClose: () => void; embedded?: boolean }
 
-export default function PromptRegistryModal({ onClose }: Props): React.ReactElement {
+export default function PromptRegistryModal({ onClose, embedded }: Props): React.ReactElement {
   const [tab, setTab] = useState<'prompts' | 'agents'>('prompts')
   const [saved, setSaved] = useState(false)
 
@@ -86,8 +87,7 @@ export default function PromptRegistryModal({ onClose }: Props): React.ReactElem
   const sa = selAgent?.agent
 
   return (
-    <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ maxWidth: 900, maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} role="dialog" aria-modal="true" aria-label="Registry">
+    <ModalShell embedded={embedded} onClose={onClose} maxWidth={900} label="Registry">
         <div className="modal-hd">
           <h3>Registry</h3>
           <div className="seg" style={{ gap: 2, marginLeft: 12 }}>
@@ -200,7 +200,6 @@ export default function PromptRegistryModal({ onClose }: Props): React.ReactElem
           <span className="tb-spacer" />
           <button className="btn" onClick={onClose}>Close</button>
         </div>
-      </div>
-    </div>
+    </ModalShell>
   )
 }

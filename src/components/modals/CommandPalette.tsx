@@ -112,8 +112,8 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
       { id: 'search', label: 'Search Project…', section: 'Project', hint: kbd('mod+shift+f'), run: openModal('search') },
       { id: 'compile', label: 'Compile / Export…', section: 'Project', hint: kbd('mod+shift+e'), run: openModal('compile') },
       { id: 'stats', label: 'Writing Stats…', section: 'Project', run: openView('stats') },
-      { id: 'prefs', label: 'Preferences…', section: 'Project', hint: kbd('mod+,'), run: openModal('prefs') },
-      { id: 'themes', label: 'Themes / Skins…', section: 'Project', run: openModal('themes') },
+      { id: 'prefs', label: 'Preferences…', section: 'Project', hint: kbd('mod+,'), run: openView('prefs') },
+      { id: 'themes', label: 'Themes / Skins…', section: 'Project', run: openView('themes') },
     ]
 
     if (aiEnabled) {
@@ -122,16 +122,16 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
         { id: 'ai-debt', label: 'Propagation Debt…', section: 'AI', run: openModal('debt') },
         { id: 'ai-chat', label: 'AI Chat…', section: 'AI', hint: kbd('mod+shift+a'), run: () => shell.setRailPanel('assistant') },
         { id: 'ai-reader', label: 'Reader Panel…', section: 'AI', hint: kbd('mod+shift+r'), run: () => shell.setRailPanel('reader') },
-        { id: 'ai-foundation', label: 'Foundation (seed → world → cast)…', section: 'AI', run: openModal('foundation') },
-        { id: 'ai-batch', label: 'Batch Generators…', section: 'AI', hint: kbd('mod+shift+g'), run: openModal('batch-generator') },
-        { id: 'ai-bestof', label: 'Best of N (variant tournament)…', section: 'AI', run: openModal('bestof') },
+        { id: 'ai-foundation', label: 'Foundation (seed → world → cast)…', section: 'AI', run: openView('foundation') },
+        { id: 'ai-batch', label: 'Batch Generators…', section: 'AI', hint: kbd('mod+shift+g'), run: openView('batch-generator') },
+        { id: 'ai-bestof', label: 'Best of N (variant tournament)…', section: 'AI', run: openView('bestof') },
         { id: 'ai-critic', label: 'Critic (professor critique + revision)…', section: 'AI', run: () => shell.setRailPanel('critic') },
-        { id: 'ai-autopilot', label: 'Autopilot…', section: 'AI', hint: kbd('mod+shift+p'), run: openModal('autopilot') },
-        { id: 'ai-prompts', label: 'Prompt Registry…', section: 'AI', run: openModal('prompt-registry') },
-        { id: 'ai-settings', label: 'AI Settings…', section: 'AI', run: openModal('ai-settings') },
+        { id: 'ai-autopilot', label: 'Autopilot…', section: 'AI', hint: kbd('mod+shift+p'), run: openView('autopilot') },
+        { id: 'ai-prompts', label: 'Prompt Registry…', section: 'AI', run: openView('prompt-registry') },
+        { id: 'ai-settings', label: 'AI Settings…', section: 'AI', run: openView('ai-settings') },
       )
     } else {
-      cmds.push({ id: 'ai-enable', label: 'Enable AI…', section: 'AI', run: openModal('ai-settings') })
+      cmds.push({ id: 'ai-enable', label: 'Enable AI…', section: 'AI', run: openView('ai-settings') })
     }
 
     cmds.push(

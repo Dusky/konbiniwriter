@@ -135,7 +135,7 @@ export default function Toolbar(): React.ReactElement {
         <button className="tb-btn" title="Writing Stats" aria-label="Writing Stats" onClick={() => openViewTab('stats')}>
           <Icon name="chart" />
         </button>
-        <button className="tb-btn" title={`Preferences (${kbd('mod+,')})`} aria-label="Preferences" onClick={() => setModal('prefs')}>
+        <button className="tb-btn" title={`Preferences (${kbd('mod+,')})`} aria-label="Preferences" onClick={() => openViewTab('prefs')}>
           <Icon name="settings" />
         </button>
       </div>
@@ -156,7 +156,7 @@ export default function Toolbar(): React.ReactElement {
             <span className="ai-spark"><Icon name="sparkle" size={13} /></span> AI <Icon name="chevron-down" size={12} style={{ opacity: 0.7 }} />
             {(debtOpen > 0 || slopCount > 0) && <span className="ai-dot" />}
           </button>
-          <button className="tb-btn" title="AI Settings" aria-label="AI Settings" onClick={() => setModal('ai-settings')} style={{ color: 'var(--accent)' }}>
+          <button className="tb-btn" title="AI Settings" aria-label="AI Settings" onClick={() => openViewTab('ai-settings')} style={{ color: 'var(--accent)' }}>
             <Icon name="settings-2" />
           </button>
           {aiMenu && (
@@ -166,27 +166,27 @@ export default function Toolbar(): React.ReactElement {
               onClose={() => setAiMenu(null)}
               items={[
                 { label: 'Foundation', header: true },
-                { label: 'Foundation — seed → world → cast', action: () => setModal('foundation') },
+                { label: 'Foundation — seed → world → cast', action: () => openViewTab('foundation') },
                 { label: 'Codex', action: () => setRailPanel('codex') },
-                { label: 'Prompt Registry', action: () => setModal('prompt-registry') },
+                { label: 'Prompt Registry', action: () => openViewTab('prompt-registry') },
                 { label: 'Draft', header: true },
                 { label: `Generate beat — inline (${kbd('mod+j')})`, action: () => window.dispatchEvent(new CustomEvent('konbini:generate-beat')) },
                 { label: 'Chat', action: () => setRailPanel('assistant') },
-                { label: 'Generate — cast, beats, chapter', action: () => setModal('batch-generator') },
+                { label: 'Generate — cast, beats, chapter', action: () => openViewTab('batch-generator') },
                 { label: slopRunning ? 'Slop Proof — running…' : slopCount > 0 ? `Slop Proof — ${slopCount} flagged` : 'Slop Proof', disabled: slopRunning, action: () => (window as unknown as Record<string, () => void>).__konbiniRunProof?.() },
                 { label: 'Evaluate', header: true },
                 { label: 'Reader Panel', action: () => setRailPanel('reader') },
                 { label: 'Critic', action: () => setRailPanel('critic') },
-                { label: 'Best of N', action: () => setModal('bestof') },
+                { label: 'Best of N', action: () => openViewTab('bestof') },
                 { label: 'Revise', header: true },
-                { label: 'Autopilot', action: () => setModal('autopilot') },
+                { label: 'Autopilot', action: () => openViewTab('autopilot') },
                 { label: debtOpen > 0 ? `Propagation Debt — ${debtOpen}` : 'Propagation Debt', action: () => setModal('debt') },
               ]}
             />
           )}
         </>
       ) : (
-        <button className="tb-btn ai-enable" title={`Enable AI (${kbd('mod+shift+a')})`} onClick={() => setModal('ai-settings')}>
+        <button className="tb-btn ai-enable" title={`Enable AI (${kbd('mod+shift+a')})`} onClick={() => openViewTab('ai-settings')}>
           <span className="ai-spark"><Icon name="sparkle" size={13} /></span> AI
         </button>
       )}

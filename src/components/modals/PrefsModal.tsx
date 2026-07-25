@@ -2,8 +2,9 @@ import React, { useState } from 'react'
 import { useShellStore, type Density, type EditorFont } from '../../store/shellStore'
 import { useProjectStore } from '../../store/projectStore'
 import { BUILTIN_THEMES } from '../../lib/theme'
+import ModalShell from '../common/ModalShell'
 
-interface Props { onClose: () => void }
+interface Props { onClose: () => void; embedded?: boolean }
 
 function Seg<T extends string>({ options, value, onChange }: {
   options: { label: string; value: T }[]
@@ -34,12 +35,12 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   )
 }
 
-export default function PrefsModal({ onClose }: Props): React.ReactElement {
+export default function PrefsModal({ onClose, embedded }: Props): React.ReactElement {
   const theme = useShellStore((s) => s.theme)
   const setTheme = useShellStore((s) => s.setTheme)
   const themeId = useShellStore((s) => s.themeId)
   const customThemes = useShellStore((s) => s.customThemes)
-  const setModal = useShellStore((s) => s.setModal)
+  const openViewTab = useProjectStore((s) => s.openViewTab)
   const activeTheme = BUILTIN_THEMES.find((t) => t.id === themeId) ?? customThemes.find((t) => t.id === themeId)
   const density = useShellStore((s) => s.density)
   const setDensity = useShellStore((s) => s.setDensity)
@@ -69,8 +70,7 @@ export default function PrefsModal({ onClose }: Props): React.ReactElement {
   }
 
   return (
-    <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ maxWidth: 520 }} role="dialog" aria-modal="true" aria-label="Preferences">
+    <ModalShell embedded={embedded} onClose={onClose} maxWidth={520} label="Preferences">
         <div className="modal-hd"><h3>Preferences</h3></div>
         <div className="modal-body">
 
@@ -83,7 +83,7 @@ export default function PrefsModal({ onClose }: Props): React.ReactElement {
           </Row>
 
           <Row label="Theme">
-            <button className="btn" onClick={() => setModal('themes')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <button className="btn" onClick={() => openViewTab('themes')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
               {activeTheme && (
                 <span style={{ display: 'inline-flex', gap: 2 }}>
                   {[activeTheme.anchors.bg, activeTheme.anchors.surface, activeTheme.anchors.accent, activeTheme.anchors.text].map((c, i) => (
@@ -225,7 +225,6 @@ export default function PrefsModal({ onClose }: Props): React.ReactElement {
           <span className="tb-spacer" />
           <button className="btn" onClick={onClose}>Done</button>
         </div>
-      </div>
-    </div>
+    </ModalShell>
   )
 }

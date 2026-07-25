@@ -6,15 +6,16 @@ import { buildContext, renderContext } from '../../lib/ContextBuilder'
 import { createProposal } from '../../lib/ProposalService'
 import { streamCompletion } from '../../lib/AIClient'
 import { rankVariants, type RankedVariant } from '../../lib/Ranking'
+import ModalShell from '../common/ModalShell'
 
 const GEN_PROMPT_ID = 'builtin:batch:chapter-draft'
 const VARIANT_TEMP = 0.95 // elevated for diversity across variants
 
-interface Props { onClose: () => void }
+interface Props { onClose: () => void; embedded?: boolean }
 
 type Phase = 'config' | 'generating' | 'ranking' | 'results'
 
-export default function BestOfModal({ onClose }: Props): React.ReactElement {
+export default function BestOfModal({ onClose, embedded }: Props): React.ReactElement {
   const project = useProjectStore((s) => s.project)
   const selectedId = useProjectStore((s) => s.selectedId)
   const mentionIndex = useProjectStore((s) => s.mentionIndex)
@@ -114,9 +115,7 @@ export default function BestOfModal({ onClose }: Props): React.ReactElement {
   const stop = () => { abortRef.current?.abort(); setPhase('config') }
 
   return (
-    // Inert backdrop — ranked variants are only dismissed via Close.
-    <div className="modal-bg">
-      <div className="modal" style={{ maxWidth: 640, maxHeight: '88vh', display: 'flex', flexDirection: 'column' }} role="dialog" aria-modal="true" aria-label="Best of N">
+    <ModalShell embedded={embedded} onClose={onClose} maxWidth={640} label="Best of N">
         <div className="modal-hd" style={{ gap: 10 }}>
           <h3>Best of N</h3>
           <span className="sub">generate · rank · pick the winner</span>
@@ -209,7 +208,6 @@ export default function BestOfModal({ onClose }: Props): React.ReactElement {
             </div>
           </>
         )}
-      </div>
-    </div>
+    </ModalShell>
   )
 }

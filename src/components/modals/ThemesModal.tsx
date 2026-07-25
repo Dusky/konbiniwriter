@@ -5,8 +5,9 @@ import {
   type Theme, type ThemeBase,
 } from '../../lib/theme'
 import Icon from '../common/Icon'
+import ModalShell from '../common/ModalShell'
 
-interface Props { onClose: () => void }
+interface Props { onClose: () => void; embedded?: boolean }
 
 // A little palette preview for a theme card.
 function Swatch({ theme }: { theme: Theme }) {
@@ -21,7 +22,7 @@ function Swatch({ theme }: { theme: Theme }) {
   )
 }
 
-export default function ThemesModal({ onClose }: Props): React.ReactElement {
+export default function ThemesModal({ onClose, embedded }: Props): React.ReactElement {
   const themeId = useShellStore((s) => s.themeId)
   const customThemes = useShellStore((s) => s.customThemes)
   const setThemeId = useShellStore((s) => s.setThemeId)
@@ -54,8 +55,7 @@ export default function ThemesModal({ onClose }: Props): React.ReactElement {
   // ── Import / export view ───────────────────────────────────────────────────
   if (io) {
     return (
-      <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && setIo(null)}>
-        <div className="modal" style={{ maxWidth: 480 }} role="dialog" aria-modal="true">
+      <ModalShell embedded={embedded} onClose={() => setIo(null)} maxWidth={480}>
           <div className="modal-hd"><h3>{io.mode === 'export' ? 'Export theme' : 'Import theme'}</h3></div>
           <div className="modal-body">
             <textarea
@@ -78,16 +78,14 @@ export default function ThemesModal({ onClose }: Props): React.ReactElement {
                   saveCustomTheme(r); originalId.current = r.id; setIo(null)
                 }}>Import</button>}
           </div>
-        </div>
-      </div>
+      </ModalShell>
     )
   }
 
   // ── Editor view ─────────────────────────────────────────────────────────────
   if (draft) {
     return (
-      <div className="modal-bg">
-        <div className="modal" style={{ maxWidth: 460 }} role="dialog" aria-modal="true">
+      <ModalShell embedded={embedded} onClose={cancelEdit} maxWidth={460}>
           <div className="modal-hd"><h3>Customize theme</h3><span className="sub">changes preview live</span></div>
           <div className="modal-body">
             <div className="field">
@@ -118,8 +116,7 @@ export default function ThemesModal({ onClose }: Props): React.ReactElement {
             <span className="tb-spacer" />
             <button className="btn primary" onClick={saveEdit}>Save theme</button>
           </div>
-        </div>
-      </div>
+      </ModalShell>
     )
   }
 
@@ -142,8 +139,7 @@ export default function ThemesModal({ onClose }: Props): React.ReactElement {
   )
 
   return (
-    <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ maxWidth: 640 }} role="dialog" aria-modal="true" aria-label="Themes">
+    <ModalShell embedded={embedded} onClose={onClose} maxWidth={640} label="Themes">
         <div className="modal-hd"><h3>Themes</h3><span className="sub">pick a skin, or make your own</span></div>
         <div className="modal-body">
           <div className="thm-sec">Built-in</div>
@@ -161,7 +157,6 @@ export default function ThemesModal({ onClose }: Props): React.ReactElement {
           <span className="tb-spacer" />
           <button className="btn primary" onClick={onClose}>Done</button>
         </div>
-      </div>
-    </div>
+    </ModalShell>
   )
 }

@@ -14,19 +14,11 @@ import CompileModal from './modals/CompileModal'
 import ShortcutsModal from './modals/ShortcutsModal'
 import AboutModal from './modals/AboutModal'
 import NewProjectModal from './modals/NewProjectModal'
-import PrefsModal from './modals/PrefsModal'
-import ThemesModal from './modals/ThemesModal'
 import SearchModal from './modals/SearchModal'
 import ChangesetModal from './modals/ChangesetModal'
-import PromptRegistryModal from './modals/PromptRegistryModal'
-import AISettingsModal from './modals/AISettingsModal'
-import BatchGeneratorModal from './modals/BatchGeneratorModal'
-import AutopilotModal from './modals/AutopilotModal'
 import CommandPalette from './modals/CommandPalette'
 import HistoryModal from './modals/HistoryModal'
 import DebtInboxModal from './modals/DebtInboxModal'
-import FoundationModal from './modals/FoundationModal'
-import BestOfModal from './modals/BestOfModal'
 import { debtService } from '../lib/DebtService'
 
 export default function Studio(): React.ReactElement {
@@ -134,16 +126,8 @@ export default function Studio(): React.ReactElement {
       {modal === 'shortcuts'   && <ShortcutsModal  onClose={() => setModal(null)} />}
       {modal === 'about'       && <AboutModal      onClose={() => setModal(null)} />}
       {modal === 'new-project' && <NewProjectModal  onClose={() => setModal(null)} />}
-      {modal === 'prefs'       && <PrefsModal       onClose={() => setModal(null)} />}
-      {modal === 'themes'      && <ThemesModal      onClose={() => setModal(null)} />}
       {modal === 'search'          && <SearchModal         onClose={() => setModal(null)} />}
-      {modal === 'prompt-registry' && <PromptRegistryModal  onClose={() => setModal(null)} />}
-      {modal === 'ai-settings'     && <AISettingsModal      onClose={() => setModal(null)} />}
-      {modal === 'batch-generator' && <BatchGeneratorModal  onClose={() => setModal(null)} />}
-      {modal === 'autopilot'       && <AutopilotModal       onClose={() => setModal(null)} />}
       {modal === 'debt'            && <DebtInboxModal       onClose={() => setModal(null)} />}
-      {modal === 'foundation'      && <FoundationModal      onClose={() => setModal(null)} />}
-      {modal === 'bestof'          && <BestOfModal          onClose={() => setModal(null)} />}
 
       {activeProposal && (
         <ChangesetModal

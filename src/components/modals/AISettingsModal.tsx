@@ -7,6 +7,7 @@ import { formatUSD } from '../../lib/Pricing'
 import { createPKCE, authorizeUrl, completeSignIn, type PKCE } from '../../lib/ClaudeOAuth'
 import { kbd } from '../../lib/kbd'
 import Icon from '../common/Icon'
+import ModalShell from '../common/ModalShell'
 
 const ANTHROPIC_MODELS = [
   { id: 'claude-fable-5',   label: 'Claude Fable 5 (most capable)' },
@@ -81,9 +82,9 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   )
 }
 
-interface Props { onClose: () => void }
+interface Props { onClose: () => void; embedded?: boolean }
 
-export default function AISettingsModal({ onClose }: Props): React.ReactElement {
+export default function AISettingsModal({ onClose, embedded }: Props): React.ReactElement {
   const {
     enabled, setEnabled,
     provider, service, setService,
@@ -224,8 +225,7 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
       : true
 
   return (
-    <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ maxWidth: 580 }} role="dialog" aria-modal="true" aria-label="AI Settings">
+    <ModalShell embedded={embedded} onClose={onClose} maxWidth={580} label="AI Settings">
         <div className="modal-hd">
           <h3>AI Settings</h3>
           <span style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 10, alignSelf: 'center' }}>
@@ -662,7 +662,6 @@ export default function AISettingsModal({ onClose }: Props): React.ReactElement 
           )}
           {enabled && <button className="btn" onClick={onClose}>Done</button>}
         </div>
-      </div>
-    </div>
+    </ModalShell>
   )
 }

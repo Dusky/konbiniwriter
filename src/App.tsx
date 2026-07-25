@@ -111,7 +111,7 @@ export default function App(): React.ReactElement {
     if (shift && e.key === 'S') { e.preventDefault(); setModal('history') }
     if (shift && e.key === 'E') { e.preventDefault(); setModal('compile') }
     if (e.key === '/') { e.preventDefault(); setModal('shortcuts') }
-    if (!shift && !alt && e.key === ',') { e.preventDefault(); setModal('prefs') }
+    if (!shift && !alt && e.key === ',') { e.preventDefault(); useProjectStore.getState().openViewTab('prefs') }
     if (shift && e.key === 'F') { e.preventDefault(); setModal('search') }
     if (shift && e.key === 'K') { e.preventDefault(); if (useAIStore.getState().enabled) useShellStore.getState().toggleRailPanel('codex') }
     if (shift && e.key === 'A') {
@@ -119,8 +119,8 @@ export default function App(): React.ReactElement {
       if (useAIStore.getState().enabled) useShellStore.getState().toggleRailPanel('assistant')
     }
     if (shift && e.key === 'R') { e.preventDefault(); if (useAIStore.getState().enabled) useShellStore.getState().toggleRailPanel('reader') }
-    if (shift && e.key === 'G') { e.preventDefault(); setModal('batch-generator') }
-    if (shift && e.key === 'P') { e.preventDefault(); setModal('autopilot') }
+    if (shift && e.key === 'G') { e.preventDefault(); useProjectStore.getState().openViewTab('batch-generator') }
+    if (shift && e.key === 'P') { e.preventDefault(); useProjectStore.getState().openViewTab('autopilot') }
 
     // New project / open (always available)
     if (!shift && !alt && e.key === 'n' && screen === 'launch') { e.preventDefault(); setModal('new-project') }

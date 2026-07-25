@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useProjectStore } from '../../store/projectStore'
-import { useShellStore } from '../../store/shellStore'
 import { useAIStore } from '../../store/aiStore'
 import { promptRegistry } from '../../lib/PromptRegistry'
 import { createProposal } from '../../lib/ProposalService'
@@ -8,6 +7,7 @@ import { streamCompletion } from '../../lib/AIClient'
 import { runQualityGate } from '../../lib/QualityGate'
 import { uid } from '@shared/utils'
 import type { ID, CodexEntry, CodexFact, CodexCategory } from '@shared/types'
+import ModalShell from '../common/ModalShell'
 
 type DocStepId = 'concept' | 'world' | 'characters' | 'outline'
 type WizardStepId = 'seeds' | DocStepId | 'voice'
@@ -28,19 +28,19 @@ const WIZARD_STEPS: { id: WizardStepId; title: string; sub: string }[] = [
   { id: 'voice',      title: 'Voice Fingerprint', sub: 'capture the style' },
 ]
 
-interface Props { onClose: () => void }
+interface Props { onClose: () => void; embedded?: boolean }
 interface GateResult { overall: number; verdict: 'pass' | 'revise'; issues: string[]; suggestions: string[]; rounds: number }
 const GATE_THRESHOLD = 75
 const MAX_GATE_ROUNDS = 2
 
-export default function FoundationModal({ onClose }: Props): React.ReactElement {
+export default function FoundationModal({ onClose, embedded }: Props): React.ReactElement {
   const project = useProjectStore((s) => s.project)
   const applyMutation = useProjectStore((s) => s.applyMutation)
   const queueProposal = useProjectStore((s) => s.queueProposal)
   const upsertCodexEntry = useProjectStore((s) => s.upsertCodexEntry)
   const setVoiceFingerprint = useProjectStore((s) => s.setVoiceFingerprint)
   const setAutopilotPreset = useProjectStore((s) => s.setAutopilotPreset)
-  const setModal = useShellStore((s) => s.setModal)
+  const openViewTab = useProjectStore((s) => s.openViewTab)
   const aiEnabled = useAIStore((s) => s.enabled)
 
   // Wizard navigation
@@ -229,7 +229,7 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
       }
       setAutopilotPreset(ids)
       onClose()
-      setModal('autopilot')
+      openViewTab('autopilot')
     } catch (e) {
       if ((e as Error).name !== 'AbortError') setError(`Scaffold failed: ${(e as Error).message}`)
       setSending(false)
@@ -309,13 +309,11 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
 
   if (!aiEnabled) {
     return (
-      <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-        <div className="modal" style={{ maxWidth: 520 }} role="dialog" aria-modal="true" aria-label="Foundation">
+      <ModalShell embedded={embedded} onClose={onClose} maxWidth={520} label="Foundation">
           <div className="modal-hd"><h3>Foundation</h3></div>
           <div className="modal-body dock-empty" style={{ padding: 'var(--s4) var(--s5)' }}>Enable AI to use the Foundation pipeline.</div>
           <div className="modal-foot"><span className="tb-spacer" /><button className="btn" onClick={onClose}>Close</button></div>
-        </div>
-      </div>
+      </ModalShell>
     )
   }
 
@@ -480,8 +478,7 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
   })()
 
   return (
-    <div className="modal-bg">
-      <div className="modal" style={{ maxWidth: 640, maxHeight: '92vh', display: 'flex', flexDirection: 'column' }} role="dialog" aria-modal="true" aria-label="Foundation Wizard">
+    <ModalShell embedded={embedded} onClose={onClose} maxWidth={640} label="Foundation Wizard">
 
         {/* Header */}
         <div className="modal-hd" style={{ flexDirection: 'column', gap: 10, paddingBottom: 12 }}>
@@ -540,7 +537,6 @@ export default function FoundationModal({ onClose }: Props): React.ReactElement 
             </button>
           )}
         </div>
-      </div>
-    </div>
+    </ModalShell>
   )
 }

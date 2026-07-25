@@ -7,6 +7,7 @@ import { createProposal } from '../../lib/ProposalService'
 import { streamCompletion } from '../../lib/AIClient'
 import { runQualityGate } from '../../lib/QualityGate'
 import type { ID } from '@shared/types'
+import ModalShell from '../common/ModalShell'
 
 type GeneratorId = 'cast' | 'beat-sheet' | 'chapter-draft' | 'judge'
 
@@ -17,9 +18,9 @@ const GENERATORS: { id: GeneratorId; label: string; desc: string; promptId: stri
   { id: 'judge',         label: 'Evaluate Prose',    desc: 'Score on six craft dimensions',               promptId: 'builtin:evaluation:judge',     needsSynopsis: false },
 ]
 
-interface Props { onClose: () => void }
+interface Props { onClose: () => void; embedded?: boolean }
 
-export default function BatchGeneratorModal({ onClose }: Props): React.ReactElement {
+export default function BatchGeneratorModal({ onClose, embedded }: Props): React.ReactElement {
   const project = useProjectStore((s) => s.project)
   const selectedId = useProjectStore((s) => s.selectedId)
   const mentionIndex = useProjectStore((s) => s.mentionIndex)
@@ -125,8 +126,7 @@ export default function BatchGeneratorModal({ onClose }: Props): React.ReactElem
   }
 
   return (
-    <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ maxWidth: 580 }} role="dialog" aria-modal="true" aria-label="Batch Generator">
+    <ModalShell embedded={embedded} onClose={onClose} maxWidth={580} label="Batch Generator">
         <div className="modal-hd"><h3>Batch Generators</h3></div>
         <div className="modal-body stack">
 
@@ -197,7 +197,6 @@ export default function BatchGeneratorModal({ onClose }: Props): React.ReactElem
             {running ? 'Generating…' : `Run ${selected.label}`}
           </button>
         </div>
-      </div>
-    </div>
+    </ModalShell>
   )
 }

@@ -14,9 +14,12 @@ interface Props {
 // reusing the same .modal-hd/.modal-body/.modal-foot content without duplicating it.
 export default function ModalShell({ embedded, onClose, maxWidth = 520, label, children }: Props): React.ReactElement {
   if (embedded) {
+    // Reuse the .modal box (flex column + internal body scroll) so every
+    // surface's layout — including wide, tall, internally-scrolling ones —
+    // behaves as it did in a dialog, but rendered in-flow and full-bleed.
     return (
       <div className="view-host">
-        <div className="view-pane" style={{ maxWidth }}>{children}</div>
+        <div className="modal view-embedded" style={{ maxWidth }}>{children}</div>
       </div>
     )
   }
