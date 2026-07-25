@@ -417,6 +417,12 @@ export interface KonbiniAPI {
   }
   /** Cross-device sync (Tier 0: a bundle an external syncer may have changed). */
   sync: {
+    /**
+     * Cheap change-detector: file → mtime for the manifest and every doc.
+     * Compared against the previous probe to decide whether a full read is
+     * even worth doing.
+     */
+    probe(projectId: ID): Promise<Record<string, number>>
     /** Re-read the bundle from disk, bypassing the in-memory cache. */
     readBundle(projectId: ID): Promise<SyncBundle>
     /**

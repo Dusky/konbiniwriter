@@ -456,8 +456,9 @@ weak spots, voice-drift vs. the fingerprint, tracked across drafts so a writer c
    checkout). `window.api.sync.readBundle`/`applyMerge` + the Sync view tab:
    re-read the bundle, plan the merge, snapshot every changed doc, write
    `.conflict` files for real divergence. Zero infra.
-2. **Tier 1 — git remote.** Plain text; user owns everything; free history.
-   Electron-first (browsers need isomorphic-git + a CORS proxy).
+2. ~~Tier 1 — git remote.~~ **Dropped.** Tier 0 already makes a git checkout
+   safe: pull, and Konbini reconciles what landed. A dedicated integration would
+   only automate fetch/push — a power-user nicety, not a novelist feature.
 3. **Tier 2 — hosted, E2E-encrypted.** The subscription, and the *only* option
    that works on OPFS (Firefox/Safari), where there's no folder to point at.
 
@@ -492,10 +493,10 @@ merge + preserve-both is the right weight.
 5. ✅ `.conflict` generalized from "external edit" to "sync divergence":
    `applyMerge` writes the preserved text and the Sync tab surfaces it.
 
-**Build order:** ✅ Tier 0 + the merge engine. Next: Tier 1 (git remote) reuses
-`planMerge` wholesale — it only has to fetch/push and hand a bundle in. Also
-still open: auto-detecting external changes (file watch / focus poll) rather
-than the current explicit "Check for changes".
+**Build order:** ✅ Tier 0 + the merge engine + auto-detection (`sync.probe`
+mtime scan on window focus/visibility, confirmed by `planMerge` so our own
+autosaves never cry wolf). Tier 2 (hosted) reuses `planMerge` wholesale — it
+only has to move bytes and hand a bundle in.
 
 ### 5.4 Frictionless import 🔲  *(companion to 5.1 — lowers switching cost)*
 Beyond the current `.docx`/folder import: Scrivener `.scriv`, Google-Docs export,

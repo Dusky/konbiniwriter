@@ -356,6 +356,21 @@ export class NodeProjectService {
 
   // ── Sync (Tier 0) ─────────────────────────────────────────────────────────
 
+  /** File → mtime for the manifest and every doc; a cheap "did anything move?". */
+  async probe(projectId: string): Promise<Record<string, number>> {
+    const dir = this.getPath(projectId)
+    const out: Record<string, number> = {}
+    const m = await statMtime(path.join(dir, 'project.json'))
+    if (m) out['project.json'] = m
+    try {
+      for (const name of await fs.readdir(path.join(dir, 'docs'))) {
+        if (!name.endsWith('.md')) continue
+        out[`docs/${name}`] = await statMtime(path.join(dir, 'docs', name))
+      }
+    } catch { /* no docs dir yet */ }
+    return out
+  }
+
   /**
    * Read the bundle straight off disk, ignoring our in-memory copy — this is how
    * we see what an external syncer (Dropbox/iCloud/Syncthing/git) left behind.

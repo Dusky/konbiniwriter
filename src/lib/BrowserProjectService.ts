@@ -387,6 +387,24 @@ export class BrowserProjectService {
 
   // ── Sync (Tier 0) ─────────────────────────────────────────────────────────
 
+  /** File → mtime for the manifest and every doc; a cheap "did anything move?". */
+  async probe(projectId: string): Promise<Record<string, number>> {
+    const h = this.getHandle(projectId)
+    const out: Record<string, number> = {}
+    try {
+      const fh = await h.getFileHandle('project.json')
+      out['project.json'] = (await fh.getFile()).lastModified
+    } catch { /* missing manifest shows up as an absent key */ }
+    try {
+      const docs = await h.getDirectoryHandle('docs')
+      for await (const [name, handle] of (docs as unknown as { entries(): AsyncIterable<[string, FileSystemHandle]> }).entries()) {
+        if (handle.kind !== 'file' || !name.endsWith('.md')) continue
+        out[`docs/${name}`] = (await (handle as FileSystemFileHandle).getFile()).lastModified
+      }
+    } catch { /* no docs dir yet */ }
+    return out
+  }
+
   /**
    * Read the bundle straight off disk, ignoring our in-memory copy — this is how
    * we see what an external syncer (Dropbox/iCloud/Syncthing/git) left behind.

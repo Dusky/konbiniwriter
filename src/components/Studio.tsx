@@ -20,6 +20,7 @@ import CommandPalette from './modals/CommandPalette'
 import DebtInboxModal from './modals/DebtInboxModal'
 import { debtService } from '../lib/DebtService'
 import { syncService } from '../lib/SyncService'
+import { useExternalChanges } from '../lib/useExternalChanges'
 
 export default function Studio(): React.ReactElement {
   const layout = useShellStore((s) => s.layout)
@@ -37,6 +38,9 @@ export default function Studio(): React.ReactElement {
   const hydrateProjectId = useProjectStore((s) => s.project?.id)
   const hydrateJudgeResults = useProjectStore((s) => s.hydrateJudgeResults)
   useEffect(() => { if (hydrateProjectId) void hydrateJudgeResults() }, [hydrateProjectId, hydrateJudgeResults])
+
+  // Notice when an external syncer changes the bundle under us.
+  useExternalChanges()
 
   // Record a sync ancestor on first open — the bundle we just read IS the
   // common ancestor, so the first external change reconciles cleanly instead of
