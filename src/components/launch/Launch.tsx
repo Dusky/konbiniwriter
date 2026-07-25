@@ -116,7 +116,7 @@ export default function Launch(): React.ReactElement {
                       className="lr-start"
                       onClick={() => { setSeedTemplate(t.id); setModal('new-project') }}
                     >
-                      <span className="lr-start-glyph">{t.glyph}</span>
+                      <span className="lr-start-glyph"><Icon name={t.icon} size={22} /></span>
                       <span className="lr-start-main">
                         <span className="lr-start-label">{t.label}</span>
                         <span className="lr-start-desc">{t.desc}</span>

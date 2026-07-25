@@ -4,14 +4,15 @@ import { useShellStore } from '../../store/shellStore'
 import { useProjectStore } from '../../store/projectStore'
 import type { TemplateId, ImportDoc } from '@shared/types'
 import { isDocx, docxToText } from '../../lib/docxImport'
+import Icon, { type IconName } from '../common/Icon'
 
 const IMPORTABLE = /\.(md|markdown|mdown|txt|text|docx)$/i
 
-export const TEMPLATES: { id: TemplateId; glyph: string; label: string; desc: string }[] = [
-  { id: 'novel',       glyph: '冊', label: 'Novel',       desc: 'Three-act structure with chapter/scene hierarchy.' },
-  { id: 'blank',       glyph: '□',  label: 'Blank',       desc: 'A single empty document to start freely.' },
-  { id: 'screenplay',  glyph: '幕', label: 'Screenplay',  desc: 'Acts and scenes in standard script format.' },
-  { id: 'nonfiction',  glyph: '頁', label: 'Non-fiction', desc: 'Chapters and sections for long-form non-fiction.' },
+export const TEMPLATES: { id: TemplateId; icon: IconName; label: string; desc: string }[] = [
+  { id: 'novel',       icon: 'book',         label: 'Novel',       desc: 'Three-act structure with chapter/scene hierarchy.' },
+  { id: 'blank',       icon: 'document',     label: 'Blank',       desc: 'A single empty document to start freely.' },
+  { id: 'screenplay',  icon: 'clapperboard', label: 'Screenplay',  desc: 'Acts and scenes in standard script format.' },
+  { id: 'nonfiction',  icon: 'notebook',     label: 'Non-fiction', desc: 'Chapters and sections for long-form non-fiction.' },
 ]
 
 interface Props { onClose: () => void; initialTemplate?: TemplateId }
@@ -127,7 +128,7 @@ export default function NewProjectModal({ onClose, initialTemplate }: Props): Re
                   className={`tmpl-card${template === t.id ? ' on' : ''}`}
                   onClick={() => setTemplate(t.id)}
                 >
-                  <span className="tc-glyph">{t.glyph}</span>
+                  <span className="tc-glyph"><Icon name={t.icon} size={22} /></span>
                   <span className="tc-label">{t.label}</span>
                   <span className="tc-desc">{t.desc}</span>
                 </button>
