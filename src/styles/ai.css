@@ -548,6 +548,12 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 /* ── History modal ── */
 .hist-body { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4); min-height: 340px; }
 .hist-timeline { display: flex; flex-direction: column; gap: var(--s1); max-height: 400px; overflow-y: auto; }
+/* History in the right rail: a compact single column (timeline, then diff). */
+.hist-rail { display: flex; flex-direction: column; gap: var(--s2); height: 100%; padding: var(--s3); overflow-y: auto; }
+.hist-rail-hd { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+.hist-rail .hist-timeline { max-height: none; overflow: visible; }
+.hist-rail-preview { border-top: 0.5px solid var(--border); padding-top: var(--s2); }
+.hist-rail-preview .snap-diff { max-height: 260px; overflow: auto; }
 .hist-take { display: flex; gap: var(--s2); margin-bottom: var(--s2); flex-shrink: 0; }
 .hist-banner { display: flex; align-items: center; gap: var(--s2); background: var(--bg-3);
   border-radius: var(--r-md); padding: var(--s2) var(--s3); margin-bottom: var(--s2);

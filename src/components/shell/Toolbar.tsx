@@ -91,9 +91,9 @@ export default function Toolbar(): React.ReactElement {
       <div className="tb-spacer" />
 
       <div className="tb-group">
-        <button className="tb-btn" title={`Take Snapshot (${kbd('mod+shift+s')})`} onClick={() => setModal('history')}>
+        <button className="tb-btn" title={`History & Snapshots (${kbd('mod+shift+s')})`} onClick={() => setRailPanel('history')}>
           <Icon name="history" />
-          Snapshot
+          History
         </button>
         <button className="tb-btn" title={`Compile (${kbd('mod+shift+e')})`} onClick={() => setModal('compile')}>
           <Icon name="file-output" />

@@ -8,12 +8,14 @@ import AssistantPanel from '../assistant/AssistantPanel'
 import CodexPanel from '../panels/CodexPanel'
 import ReaderPanel from '../panels/ReaderPanel'
 import CriticPanel from '../panels/CriticPanel'
+import HistoryModal from '../modals/HistoryModal'
 
 // The right rail hosts exactly one panel; the tab strip makes the choices
 // visible and switchable so nothing silently vanishes. Inspector is always
 // available; the rest require AI on.
 const TABS: { id: Exclude<RailPanel, null>; label: string; ai: boolean }[] = [
   { id: 'inspector', label: 'Inspector', ai: false },
+  { id: 'history',   label: 'History',   ai: false },
   { id: 'assistant', label: 'Chat',      ai: true },
   { id: 'codex',     label: 'Codex',     ai: true },
   { id: 'reader',    label: 'Readers',   ai: true },
@@ -50,6 +52,7 @@ export default function RightRail(): React.ReactElement {
           : railPanel === 'reader' ? <ReaderPanel />
           : railPanel === 'critic' ? <CriticPanel />
           : railPanel === 'assistant' ? <AssistantPanel />
+          : railPanel === 'history' ? <HistoryModal rail onClose={() => setRailPanel(null)} />
           : <Inspector />}
       </div>
     </div>

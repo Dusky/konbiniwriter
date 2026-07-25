@@ -17,7 +17,6 @@ import NewProjectModal from './modals/NewProjectModal'
 import SearchModal from './modals/SearchModal'
 import ChangesetModal from './modals/ChangesetModal'
 import CommandPalette from './modals/CommandPalette'
-import HistoryModal from './modals/HistoryModal'
 import DebtInboxModal from './modals/DebtInboxModal'
 import { debtService } from '../lib/DebtService'
 
@@ -71,7 +70,8 @@ export default function Studio(): React.ReactElement {
 
   React.useEffect(() => {
     // AI turned off while an AI panel was docked — fall back to the inspector.
-    if (!aiEnabled && railPanel && railPanel !== 'inspector') setRailPanel('inspector')
+    // Inspector and History are non-AI panels, so they're allowed with AI off.
+    if (!aiEnabled && railPanel && railPanel !== 'inspector' && railPanel !== 'history') setRailPanel('inspector')
   }, [aiEnabled, railPanel, setRailPanel])
 
   // Keyboard-first: closing any modal hands focus back to the editor so the
@@ -121,7 +121,6 @@ export default function Studio(): React.ReactElement {
       {compositionMode && <CompositionMode />}
 
       {modal === 'command-palette' && <CommandPalette onClose={() => setModal(null)} />}
-      {modal === 'history'     && <HistoryModal    onClose={() => setModal(null)} />}
       {modal === 'compile'     && <CompileModal    onClose={() => setModal(null)} />}
       {modal === 'shortcuts'   && <ShortcutsModal  onClose={() => setModal(null)} />}
       {modal === 'about'       && <AboutModal      onClose={() => setModal(null)} />}

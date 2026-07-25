@@ -28,7 +28,7 @@ export default function Binder(): React.ReactElement {
   const redoMutation = useProjectStore((s) => s.redoMutation)
   const canUndo = useProjectStore((s) => s.nodeHistory.length > 0)
   const canRedo = useProjectStore((s) => s.nodeFuture.length > 0)
-  const setModal = useShellStore((s) => s.setModal)
+  const setRailPanel = useShellStore((s) => s.setRailPanel)
   const setToast = useShellStore((s) => s.setToast)
 
   const [ctx, setCtx] = useState<{ x: number; y: number; id: ID } | null>(null)
@@ -140,7 +140,7 @@ export default function Binder(): React.ReactElement {
       { label: '---', action: () => {} },
       { label: 'Rename',        action: () => { setRenamingId(id); setRenameValue(node?.title ?? '') } },
       { label: 'Duplicate',     action: () => mutate({ type: 'duplicate', id }) },
-      { label: 'Take Snapshot', action: () => { selectNode(id); setModal('history') }, disabled: node?.type === 'folder' },
+      { label: 'History & Snapshots', action: () => { selectNode(id); setRailPanel('history') }, disabled: node?.type === 'folder' },
       { label: '---', action: () => {} },
       inTrash
         ? { label: 'Delete Permanently', action: () => setConfirmDelete(id), danger: true }

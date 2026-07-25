@@ -41,9 +41,9 @@ function lineDiff(a: string, b: string): Array<{ t: 'ctx' | 'add' | 'del'; v: st
 
 type Filter = 'all' | 'manual' | 'auto'
 
-interface Props { onClose: () => void }
+interface Props { onClose: () => void; rail?: boolean }
 
-export default function HistoryModal({ onClose }: Props): React.ReactElement {
+export default function HistoryModal({ onClose, rail }: Props): React.ReactElement {
   const project = useProjectStore((s) => s.project)
   const selectedId = useProjectStore((s) => s.selectedId)
   const addSnapshot = useProjectStore((s) => s.addSnapshot)
@@ -77,6 +77,7 @@ export default function HistoryModal({ onClose }: Props): React.ReactElement {
   )
 
   if (!project || !nodeId || !node || node.type === 'folder') {
+    if (rail) return <div className="dock-empty" style={{ padding: 'var(--s4)' }}>Select a document to see its history.</div>
     return (
       <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
         <div className="modal" style={{ maxWidth: 560 }} role="dialog" aria-modal="true" aria-label="Document History">
@@ -116,7 +117,7 @@ export default function HistoryModal({ onClose }: Props): React.ReactElement {
         restoreContent(nodeId, content)
         addSnapshot(nodeId, snapshot)
         setSnapshots((prev) => [snapshot, ...prev])
-        onClose()
+        if (!rail) onClose()
       } catch (e) {
         setError('Restore failed: ' + (e as Error).message)
       } finally {
@@ -166,21 +167,7 @@ export default function HistoryModal({ onClose }: Props): React.ReactElement {
     <button className={`chip${filter === f ? ' on' : ''}`} onClick={() => setFilter(f)}>{text}</button>
   )
 
-  return (
-    <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" role="dialog" aria-modal="true" aria-label="Document History">
-        <div className="modal-hd" style={{ alignItems: 'baseline', gap: 10 }}>
-          <h3>Document History</h3>
-          <span className="sub">{node.title}</span>
-          <span className="tb-spacer" />
-          <div style={{ display: 'flex', gap: 'var(--s2)' }}>
-            {chip('all', 'All')}
-            {chip('manual', 'Manual')}
-            {chip('auto', 'Auto')}
-          </div>
-        </div>
-        <div className="modal-body hist-body">
-          {/* Left: timeline */}
+  const timelineEl = (
           <div className="hist-timeline">
             <div className="hist-take">
               <input
@@ -245,8 +232,9 @@ export default function HistoryModal({ onClose }: Props): React.ReactElement {
               </div>
             ))}
           </div>
+  )
 
-          {/* Right: diff preview */}
+  const previewEl = (
           <div>
             {selected && (
               <div className="hist-cmp">
@@ -274,6 +262,62 @@ export default function HistoryModal({ onClose }: Props): React.ReactElement {
               </div>
             )}
           </div>
+  )
+
+  const ctxMenu = ctx && (
+    <ContextMenu
+      x={ctx.x}
+      y={ctx.y}
+      items={[
+        { label: 'Compare with current', action: () => { setSelected(ctx.snap); setCompareMode('current') } },
+        {
+          label: 'Compare with previous',
+          action: () => { setSelected(ctx.snap); setCompareMode('previous') },
+          disabled: snapshots.findIndex((s) => s.id === ctx.snap.id) >= snapshots.length - 1,
+        },
+        { label: 'Restore this version', action: () => handleRestore(ctx.snap) },
+        { label: '---', action: () => {} },
+        { label: 'Delete version', action: () => handleDelete(ctx.snap), danger: true },
+      ]}
+      onClose={() => setCtx(null)}
+    />
+  )
+
+  const filters = (
+    <div style={{ display: 'flex', gap: 'var(--s2)' }}>
+      {chip('all', 'All')}{chip('manual', 'Manual')}{chip('auto', 'Auto')}
+    </div>
+  )
+
+  // Rail: a compact single column (timeline, then the diff below when a version
+  // is picked) — the wide two-pane layout can't fit the sidebar.
+  if (rail) {
+    return (
+      <div className="hist-rail">
+        <div className="hist-rail-hd">
+          <span className="sub" style={{ fontWeight: 600, color: 'var(--text-2)' }}>{node.title}</span>
+          <span className="tb-spacer" style={{ flex: 1 }} />
+          {filters}
+        </div>
+        {timelineEl}
+        {selected && <div className="hist-rail-preview">{previewEl}</div>}
+        {ctxMenu}
+      </div>
+    )
+  }
+
+  return (
+    <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal" role="dialog" aria-modal="true" aria-label="Document History">
+        <div className="modal-hd" style={{ alignItems: 'baseline', gap: 10 }}>
+          <h3>Document History</h3>
+          <span className="sub">{node.title}</span>
+          <span className="tb-spacer" />
+          {filters}
+        </div>
+        <div className="modal-body hist-body">
+          {timelineEl}
+          {previewEl}
         </div>
         <div className="modal-foot">
           <span className="hint">
@@ -283,24 +327,7 @@ export default function HistoryModal({ onClose }: Props): React.ReactElement {
           <button className="btn" onClick={onClose}>Close</button>
         </div>
       </div>
-      {ctx && (
-        <ContextMenu
-          x={ctx.x}
-          y={ctx.y}
-          items={[
-            { label: 'Compare with current', action: () => { setSelected(ctx.snap); setCompareMode('current') } },
-            {
-              label: 'Compare with previous',
-              action: () => { setSelected(ctx.snap); setCompareMode('previous') },
-              disabled: snapshots.findIndex((s) => s.id === ctx.snap.id) >= snapshots.length - 1,
-            },
-            { label: 'Restore this version', action: () => handleRestore(ctx.snap) },
-            { label: '---', action: () => {} },
-            { label: 'Delete version', action: () => handleDelete(ctx.snap), danger: true },
-          ]}
-          onClose={() => setCtx(null)}
-        />
-      )}
+      {ctxMenu}
     </div>
   )
 }

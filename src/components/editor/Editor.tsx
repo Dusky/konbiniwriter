@@ -46,7 +46,7 @@ export default function Editor({ docId }: Props): React.ReactElement {
   const setPendingReveal = useProjectStore((s) => s.setPendingReveal)
   const typewriterMode = useShellStore((s) => s.typewriterMode)
   const livePreviewOn = useShellStore((s) => s.livePreview)
-  const setModal = useShellStore((s) => s.setModal)
+  const setRailPanel = useShellStore((s) => s.setRailPanel)
   const queueProposal = useProjectStore((s) => s.queueProposal)
 
   const content = project?.docs[docId]?.content ?? ''
@@ -291,10 +291,9 @@ export default function Editor({ docId }: Props): React.ReactElement {
       for (const c of COWRITE_COMMANDS) items.push({ label: c.label, action: () => startCowrite(c.id) })
     }
     items.push({ label: '---', action: () => {} })
-    items.push({ label: 'Take Snapshot', action: () => setModal('history') })
-    items.push({ label: 'Document History', action: () => setModal('history') })
+    items.push({ label: 'History & Snapshots', action: () => setRailPanel('history') })
     return items
-  }, [aiEnabled, doCut, doCopy, doPaste, doSelectAll, startCowrite, setModal])
+  }, [aiEnabled, doCut, doCopy, doPaste, doSelectAll, startCowrite, setRailPanel])
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     const view = viewRef.current

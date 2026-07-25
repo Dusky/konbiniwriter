@@ -12,7 +12,7 @@ export function useNodeMenu(): (nodeId: ID) => MenuItem[] {
   const selectNode = useProjectStore((s) => s.selectNode)
   const setView = useProjectStore((s) => s.setView)
   const applyMutation = useProjectStore((s) => s.applyMutation)
-  const setModal = useShellStore((s) => s.setModal)
+  const setRailPanel = useShellStore((s) => s.setRailPanel)
 
   return (nodeId: ID): MenuItem[] => {
     if (!project) return []
@@ -35,8 +35,7 @@ export function useNodeMenu(): (nodeId: ID) => MenuItem[] {
       { label: 'New Scene', action: () => mutate({ type: 'create', parentId: siblingParent, nodeType: 'scene' }) },
       { label: 'Duplicate', action: () => mutate({ type: 'duplicate', id: nodeId }) },
       { label: '---', action: () => {} },
-      { label: 'Take Snapshot', action: () => { selectNode(nodeId); setModal('history') }, disabled: isFolder },
-      { label: 'Document History', action: () => { selectNode(nodeId); setModal('history') }, disabled: isFolder },
+      { label: 'History & Snapshots', action: () => { selectNode(nodeId); setRailPanel('history') }, disabled: isFolder },
       { label: '---', action: () => {} },
       inTrash
         ? { label: 'Delete Permanently', action: () => mutate({ type: 'delete', id: nodeId }), danger: true }
