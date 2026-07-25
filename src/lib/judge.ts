@@ -15,6 +15,14 @@ export interface JudgeResult {
 
 export const JUDGE_PROMPT_ID = 'builtin:evaluation:judge'
 
+/** One manuscript-wide craft reading, recorded per full "Evaluate all" pass. */
+export interface QualityPoint {
+  at: string       // ISO timestamp of the pass
+  craft: number    // mean craft score across scored scenes (1–10)
+  scored: number   // scenes that had a score at that pass
+  total: number    // total scenes
+}
+
 /** Mean of the dimension scores (the judge rates each 1–10). 0 if none. */
 export function judgeOverall(scores: JudgeScore[]): number {
   const valid = scores.filter((s) => Number.isFinite(s.score))

@@ -3,7 +3,7 @@ import { useShellStore } from './shellStore'
 import type { Project, KNode, DocBody, DocMeta, NodeType, ViewMode, SaveStatus, Snapshot, ID, Proposal, CodexEntry, DebtItem, ProjectSettings } from '@shared/types'
 import { uid, wordCount } from '@shared/utils'
 import { type MentionIndex, buildIndex, updateIndex } from '../lib/MentionIndex'
-import type { JudgeResult } from '../lib/judge'
+import type { JudgeResult, QualityPoint } from '../lib/judge'
 import type { SlopResult } from '../lib/slop'
 import type { VoiceResult } from '../lib/voice'
 import { statsService } from '../lib/StatsService'
@@ -126,7 +126,10 @@ interface ProjectState {
   // — voice-drift results (keyed by nodeId; persisted to aux/voice.json) —
   voiceResults: Map<ID, VoiceResult>
   setVoiceResult: (nodeId: ID, result: VoiceResult) => void
-  /** Load persisted judge + slop + voice scores for the current project (call on mount). */
+  // — cross-draft craft trend (one point per Evaluate-all pass; aux/quality-history.json) —
+  qualityHistory: QualityPoint[]
+  pushQualityPoint: (point: QualityPoint) => void
+  /** Load persisted judge + slop + voice scores + trend for the current project (call on mount). */
   hydrateJudgeResults: () => Promise<void>
 
   // — autopilot runner —
@@ -208,6 +211,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   judgeResults: new Map(),
   slopResults: new Map(),
   voiceResults: new Map(),
+  qualityHistory: [],
   sessionWordsAdded: 0,
   autopilotQueue: [],
   autopilotRunning: false,
@@ -237,6 +241,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       judgeResults: new Map(),
       slopResults: new Map(),
       voiceResults: new Map(),
+      qualityHistory: [],
       sessionWordsAdded: 0,
       autopilotQueue: [],
       autopilotRunning: false,
@@ -252,7 +257,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
   unloadProject: () => {
     useShellStore.getState().setRailPanel('inspector')
-    set({ project: null, selectedId: null, openTabs: [], openViewTabs: [], activeViewTab: null, mentionIndex: EMPTY_INDEX, codex: [], debt: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], nodeFuture: [], judgeResults: new Map(), slopResults: new Map(), voiceResults: new Map(), sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, autopilotPreset: [], focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null })
+    set({ project: null, selectedId: null, openTabs: [], openViewTabs: [], activeViewTab: null, mentionIndex: EMPTY_INDEX, codex: [], debt: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], nodeFuture: [], judgeResults: new Map(), slopResults: new Map(), voiceResults: new Map(), qualityHistory: [], sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, autopilotPreset: [], focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null })
   },
 
   selectNode: (id) => set((s) => {
@@ -513,18 +518,27 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     return { voiceResults: next }
   }),
 
+  pushQualityPoint: (point) => set((s) => {
+    const next = [...s.qualityHistory, point].slice(-50)  // keep the last 50 passes
+    const p = s.project
+    if (p) window.api.aux.write(p.id, 'quality-history.json', JSON.stringify(next)).catch(console.error)
+    return { qualityHistory: next }
+  }),
+
   hydrateJudgeResults: async () => {
     const p = get().project
     if (!p) return
-    const [jraw, sraw, vraw] = await Promise.all([
+    const [jraw, sraw, vraw, hraw] = await Promise.all([
       window.api.aux.read(p.id, 'quality.json').catch(() => null),
       window.api.aux.read(p.id, 'slop.json').catch(() => null),
       window.api.aux.read(p.id, 'voice.json').catch(() => null),
+      window.api.aux.read(p.id, 'quality-history.json').catch(() => null),
     ])
     const patch: Partial<ProjectState> = {}
     if (jraw) { try { patch.judgeResults = new Map(Object.entries(JSON.parse(jraw) as Record<string, JudgeResult>)) } catch { /* corrupt */ } }
     if (sraw) { try { patch.slopResults = new Map(Object.entries(JSON.parse(sraw) as Record<string, SlopResult>)) } catch { /* corrupt */ } }
     if (vraw) { try { patch.voiceResults = new Map(Object.entries(JSON.parse(vraw) as Record<string, VoiceResult>)) } catch { /* corrupt */ } }
+    if (hraw) { try { const h = JSON.parse(hraw); if (Array.isArray(h)) patch.qualityHistory = h as QualityPoint[] } catch { /* corrupt */ } }
     if (Object.keys(patch).length) set(patch)
   },
 

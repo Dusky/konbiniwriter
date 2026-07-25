@@ -556,7 +556,10 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 .hist-rail-preview .snap-diff { max-height: 260px; overflow: auto; }
 
 /* ── Manuscript Quality dashboard ─────────────────────────────────────────── */
-.ql-summary { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; font-size: 13px; color: var(--text-2); }
+.ql-summary { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; font-size: 13px; color: var(--text-2); flex-wrap: wrap; }
+.ql-trend { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; font-size: 12px; }
+.ql-trend .ql-spark { display: block; }
+.ql-trend .up { color: var(--st-final); } .ql-trend .down { color: var(--st-idea); }
 .ql-table { display: flex; flex-direction: column; gap: 2px; }
 .ql-row-wrap { border-bottom: 0.5px solid var(--border); }
 .ql-row { display: flex; align-items: center; gap: 10px; padding: 7px 2px; }

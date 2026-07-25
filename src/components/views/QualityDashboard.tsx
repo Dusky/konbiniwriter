@@ -15,6 +15,25 @@ function slopBand(flags: SlopResult['flags']): 'strong' | 'ok' | 'weak' {
   return flags.length === 0 ? 'strong' : 'ok'
 }
 
+// A tiny craft-over-passes sparkline (auto-ranged for visibility of small deltas).
+function Sparkline({ points }: { points: number[] }): React.ReactElement | null {
+  if (points.length < 2) return null
+  const w = 132, h = 26, pad = 3
+  const min = Math.min(...points), max = Math.max(...points)
+  const range = Math.max(0.4, max - min)
+  const x = (i: number) => pad + (i / (points.length - 1)) * (w - 2 * pad)
+  const y = (v: number) => h - pad - ((v - min) / range) * (h - 2 * pad)
+  const d = points.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ')
+  const lastUp = points[points.length - 1] >= points[0]
+  const stroke = lastUp ? 'var(--st-final)' : 'var(--st-idea)'
+  return (
+    <svg width={w} height={h} className="ql-spark" role="img" aria-label="craft score over passes">
+      <path d={d} fill="none" stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={x(points.length - 1)} cy={y(points[points.length - 1])} r="2.5" fill={stroke} />
+    </svg>
+  )
+}
+
 interface Props { onClose: () => void; embedded?: boolean }
 
 interface Scene { id: string; title: string; words: number; content: string }
@@ -27,6 +46,8 @@ export default function QualityDashboard({ onClose, embedded }: Props): React.Re
   const setSlopResult = useProjectStore((s) => s.setSlopResult)
   const voiceResults = useProjectStore((s) => s.voiceResults)
   const setVoiceResult = useProjectStore((s) => s.setVoiceResult)
+  const qualityHistory = useProjectStore((s) => s.qualityHistory)
+  const pushQualityPoint = useProjectStore((s) => s.pushQualityPoint)
   const selectNode = useProjectStore((s) => s.selectNode)
   const aiEnabled = useAIStore((s) => s.enabled)
 
@@ -102,6 +123,21 @@ export default function QualityDashboard({ onClose, embedded }: Props): React.Re
     setBatch(null)
   }
 
+  // Evaluate every scene, then record one manuscript-craft trend point for the pass.
+  const evalAllAndRecord = async () => {
+    await runBatch('Evaluating', evalOne)
+    const jr = useProjectStore.getState().judgeResults
+    const craftVals = scenes
+      .map((s) => jr.get(s.id))
+      .filter((r): r is JudgeResult => !!r)
+      .map((r) => judgeOverall(r.scores))
+      .filter((v) => v > 0)
+    if (craftVals.length) {
+      const craft = craftVals.reduce((a, b) => a + b, 0) / craftVals.length
+      pushQualityPoint({ at: new Date().toISOString(), craft: +craft.toFixed(2), scored: craftVals.length, total: scenes.length })
+    }
+  }
+
   const open = (id: string) => { selectNode(id); onClose() }
 
   const withScore = scenes.map((s) => {
@@ -136,7 +172,7 @@ export default function QualityDashboard({ onClose, embedded }: Props): React.Re
                 {batch?.label === 'Voice' ? `Voice ${batch.done}/${batch.total}…` : 'Voice all'}
               </button>
             )}
-            <button className="btn sm primary" disabled={!!batch || scenes.length === 0} onClick={() => runBatch('Evaluating', evalOne)}>
+            <button className="btn sm primary" disabled={!!batch || scenes.length === 0} onClick={evalAllAndRecord}>
               {batch?.label === 'Evaluating' ? `Evaluating ${batch.done}/${batch.total}…` : 'Evaluate all'}
             </button>
           </>
@@ -154,6 +190,19 @@ export default function QualityDashboard({ onClose, embedded }: Props): React.Re
               <div className="ql-summary">
                 <span className={`ql-badge ${scoreBand(manuscriptAvg)}`}>{manuscriptAvg.toFixed(1)}</span>
                 <span>manuscript average · {scored.length}/{scenes.length} scenes scored</span>
+                {qualityHistory.length >= 2 && (() => {
+                  const first = qualityHistory[0].craft
+                  const last = qualityHistory[qualityHistory.length - 1].craft
+                  const delta = +(last - first).toFixed(1)
+                  return (
+                    <span className="ql-trend">
+                      <Sparkline points={qualityHistory.map((p) => p.craft)} />
+                      <span className={delta >= 0 ? 'up' : 'down'}>
+                        {delta >= 0 ? '▲' : '▼'} {delta >= 0 ? '+' : ''}{delta} over {qualityHistory.length} passes
+                      </span>
+                    </span>
+                  )
+                })()}
               </div>
             )}
             <div className="ql-table">
