@@ -433,6 +433,8 @@ export class BrowserProjectService {
       const { buildEpub } = await import('@shared/epubBuilder')
       const blob = await buildEpub({
         title: p.title,
+        author: p.settings.author,
+        language: p.settings.language,
         chapters: chapters.map((c, i) => ({
           id: `ch_${String(i + 1).padStart(4, '0')}`,
           title: c.title,

@@ -41,6 +41,8 @@ export interface Project {
 export interface ProjectSettings {
   location: string
   template?: TemplateId
+  author?: string            // book metadata: used by every export format
+  language?: string          // BCP-47 tag for EPUB (defaults to 'en')
   accent?: string
   editorFont?: 'mono' | 'serif' | 'sans'
   editorSize?: number

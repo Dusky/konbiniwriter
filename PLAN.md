@@ -396,6 +396,44 @@ Everything resolves through changeset review. Debt from AI changes is raised by 
 
 ---
 
+## Phase 5 — Path to Paid 🔲
+
+The studio is feature-complete for drafting; the gap to a product people pay for
+is **trust, finishing, and a differentiator** — not more features. Monetization
+shape: the app + local writing stays free, BYOK means we never resell tokens, so
+the paid tiers are **sync, publish-grade export, and the premium AI revision
+loop**. Built one at a time, each shippable on its own.
+
+### 5.1 Publish-grade export 🔲  *(first — concrete, low-risk, ships value)*
+Turn "drafting toy" into "I shipped my novel." Extends the existing Compile
+pipeline; **no new document-mutation path** (export is read-only over the bundle).
+- **EPUB 3** — spine from the binder order, per-chapter XHTML, generated TOC/nav,
+  metadata (title/author/language), embedded cover.
+- **Print-ready PDF** — proper page layout (trim size, margins, running heads,
+  page numbers, chapter breaks) via a print stylesheet + `window.print()`.
+- **Shunn manuscript format** — standard agent-submission DOCX (monospaced,
+  double-spaced, name/contact header, word-count rounding, `#` scene breaks).
+- **Clean DOCX/Markdown** — already partly there; make it publish-clean.
+- Scope boundary: reuse `include-in-compile` flags + binder order; a small
+  export-settings surface (as a view tab); no WYSIWYG page designer in v1.
+
+### 5.2 Anti-slop revision dashboard 🔲  *(the moat — reason to pay)*
+Surface the pieces that already exist (voice fingerprint, slop scoring, LLM judge,
+reader panel, critic) as **one tangible quality view**: per-scene scores, flagged
+weak spots, voice-drift vs. the fingerprint, tracked across drafts so a writer can
+*see the manuscript getting better*. Audit `QualityGate`/slop/eval depth first.
+
+### 5.3 Cross-device sync & backup 🔲  *(retention — biggest infra lift)*
+Optional, keeps "your data is yours": E2E-encrypted or git-backed sync of the
+`.konbini` bundle so a novel isn't trapped on one machine. Conflict handling reuses
+the existing `.conflict` backup convention. Do after 5.1/5.2 prove value.
+
+### 5.4 Frictionless import 🔲  *(companion to 5.1 — lowers switching cost)*
+Beyond the current `.docx`/folder import: Scrivener `.scriv`, Google-Docs export,
+richer Markdown-folder mapping. Pairs naturally with export work.
+
+---
+
 ## Electron packaging (any phase, when needed)
 
 1. `src/preload/index.ts` — `contextBridge.exposeInMainWorld('api', { ... })` with the same `KonbiniAPI` interface

@@ -12,6 +12,7 @@ export interface EpubChapter {
 
 export interface EpubOptions {
   title: string
+  author?: string
   language?: string
   chapters: EpubChapter[]
 }
@@ -92,7 +93,7 @@ hr::before { content: "* * *"; }
 // ── EPUB assembly ─────────────────────────────────────────────────────────────
 
 export async function buildEpub(opts: EpubOptions): Promise<Uint8Array> {
-  const { title, language = 'en', chapters } = opts
+  const { title, author, language = 'en', chapters } = opts
   const uid = `urn:uuid:epub-${Date.now().toString(36)}`
   const modified = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')
 
@@ -130,7 +131,7 @@ export async function buildEpub(opts: EpubOptions): Promise<Uint8Array> {
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
     <dc:identifier id="bookid">${uid}</dc:identifier>
     <dc:title>${esc(title)}</dc:title>
-    <dc:language>${language}</dc:language>
+${author ? `    <dc:creator>${esc(author)}</dc:creator>\n` : ''}    <dc:language>${language}</dc:language>
     <meta property="dcterms:modified">${modified}</meta>
   </metadata>
   <manifest>

@@ -78,7 +78,7 @@ hr::before { content: "* * *"; }
 `.trim();
 // ── EPUB assembly ─────────────────────────────────────────────────────────────
 async function buildEpub(opts) {
-    const { title, language = 'en', chapters } = opts;
+    const { title, author, language = 'en', chapters } = opts;
     const uid = `urn:uuid:epub-${Date.now().toString(36)}`;
     const modified = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
     const zip = new jszip_1.default();
@@ -107,7 +107,7 @@ async function buildEpub(opts) {
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
     <dc:identifier id="bookid">${uid}</dc:identifier>
     <dc:title>${esc(title)}</dc:title>
-    <dc:language>${language}</dc:language>
+${author ? `    <dc:creator>${esc(author)}</dc:creator>\n` : ''}    <dc:language>${language}</dc:language>
     <meta property="dcterms:modified">${modified}</meta>
   </metadata>
   <manifest>
