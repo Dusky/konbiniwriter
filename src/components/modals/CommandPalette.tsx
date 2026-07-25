@@ -121,6 +121,7 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
         { id: 'ai-debt', label: 'Propagation Debt…', section: 'AI', run: openModal('debt') },
         { id: 'ai-chat', label: 'AI Chat…', section: 'AI', hint: kbd('mod+shift+a'), run: () => shell.setRailPanel('assistant') },
         { id: 'ai-reader', label: 'Reader Panel…', section: 'AI', hint: kbd('mod+shift+r'), run: () => shell.setRailPanel('reader') },
+        { id: 'ai-quality', label: 'Manuscript Quality…', section: 'AI', run: openView('quality') },
         { id: 'ai-foundation', label: 'Foundation (seed → world → cast)…', section: 'AI', run: openView('foundation') },
         { id: 'ai-batch', label: 'Batch Generators…', section: 'AI', hint: kbd('mod+shift+g'), run: openView('batch-generator') },
         { id: 'ai-bestof', label: 'Best of N (variant tournament)…', section: 'AI', run: openView('bestof') },

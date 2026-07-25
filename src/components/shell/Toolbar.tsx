@@ -175,6 +175,7 @@ export default function Toolbar(): React.ReactElement {
                 { label: 'Generate — cast, beats, chapter', action: () => openViewTab('batch-generator') },
                 { label: slopRunning ? 'Slop Proof — running…' : slopCount > 0 ? `Slop Proof — ${slopCount} flagged` : 'Slop Proof', disabled: slopRunning, action: () => (window as unknown as Record<string, () => void>).__konbiniRunProof?.() },
                 { label: 'Evaluate', header: true },
+                { label: 'Manuscript Quality — score every scene', action: () => openViewTab('quality') },
                 { label: 'Reader Panel', action: () => setRailPanel('reader') },
                 { label: 'Critic', action: () => setRailPanel('critic') },
                 { label: 'Best of N', action: () => openViewTab('bestof') },

@@ -6,7 +6,7 @@ import {
   Square, ArrowUp, Wrench, Eye, Clock, PanelLeft, PanelRight, Columns2,
   Focus, NotebookText, History, FileOutput, TextSearch, ChartColumn,
   Undo2, Redo2, Flame, StickyNote, Clapperboard,
-  Palette, Rocket, Trophy, Library,
+  Palette, Rocket, Trophy, Library, Gauge,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -21,7 +21,7 @@ export type IconName =
   | 'refresh' | 'copy' | 'edit' | 'stop' | 'send' | 'tool' | 'eye' | 'clock'
   | 'panel-left' | 'panel-right' | 'columns' | 'focus' | 'notebook' | 'history'
   | 'file-output' | 'text-search' | 'chart' | 'undo' | 'redo' | 'flame'
-  | 'sticky-note' | 'clapperboard' | 'palette' | 'rocket' | 'trophy' | 'library'
+  | 'sticky-note' | 'clapperboard' | 'palette' | 'rocket' | 'trophy' | 'library' | 'gauge'
 
 const MAP: Record<IconName, LucideIcon> = {
   search: Search,
@@ -70,6 +70,7 @@ const MAP: Record<IconName, LucideIcon> = {
   rocket: Rocket,
   trophy: Trophy,
   library: Library,
+  gauge: Gauge,
 }
 
 interface Props {

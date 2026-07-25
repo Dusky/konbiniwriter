@@ -10,6 +10,7 @@ import PromptRegistryModal from '../modals/PromptRegistryModal'
 import BatchGeneratorModal from '../modals/BatchGeneratorModal'
 import BestOfModal from '../modals/BestOfModal'
 import AutopilotModal from '../modals/AutopilotModal'
+import QualityDashboard from './QualityDashboard'
 
 // Registry of app-view tabs: the tab's label + icon, and how to render the
 // surface embedded in the main pane. Each surface reuses its existing modal
@@ -31,4 +32,5 @@ export const VIEW_TABS: Record<ViewTabId, ViewTabDef> = {
   'batch-generator':{ label: 'Generate',    icon: 'wand',       render: (c) => <BatchGeneratorModal embedded onClose={c} /> },
   bestof:           { label: 'Best of N',   icon: 'trophy',     render: (c) => <BestOfModal embedded onClose={c} /> },
   autopilot:        { label: 'Autopilot',   icon: 'rocket',     render: (c) => <AutopilotModal embedded onClose={c} /> },
+  quality:          { label: 'Quality',     icon: 'gauge',      render: (c) => <QualityDashboard embedded onClose={c} /> },
 }

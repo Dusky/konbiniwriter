@@ -4,12 +4,8 @@ import { useShellStore } from '../../store/shellStore'
 import { useAIStore } from '../../store/aiStore'
 import { STATUS_META, STATUS_ORDER, LABEL_META, LABEL_ORDER, wordCount, charCount } from '@shared/utils'
 import type { StatusId, LabelId } from '@shared/types'
-import { promptRegistry } from '../../lib/PromptRegistry'
-import { streamCompletion } from '../../lib/AIClient'
 import { backlinksFor } from '../../lib/MentionIndex'
-
-interface JudgeScore { dimension: string; score: number; note: string }
-interface JudgeResult { scores: JudgeScore[]; verdict: string }
+import { runJudge, type JudgeScore } from '../../lib/judge'
 
 function scoreColor(score: number): string {
   return score >= 8 ? 'var(--success)' : score >= 5 ? 'var(--accent)' : 'var(--danger)'
@@ -51,32 +47,18 @@ export default function Inspector(): React.ReactElement {
   const target = node.meta.target
   const progress = target > 0 ? Math.min(1, words / target) : 0
 
-  const runJudge = async () => {
+  const runJudgeInspector = async () => {
     const content = project?.docs[selectedId]?.content ?? ''
     if (!content.trim()) return
     setJudgeRunning(true)
     setJudgeError(null)
-    const rendered = promptRegistry.render('builtin:evaluation:judge', { content: content.slice(0, 8000) })
-    const template = promptRegistry.get('builtin:evaluation:judge')!
-    await streamCompletion(
-      [{ role: 'user', content: rendered }],
-      { model: template.model, maxTokens: template.maxTokens, temperature: template.temperature },
-      {
-        onChunk: () => {},
-        onDone: (full) => {
-          try {
-            const jsonMatch = full.match(/\[[\s\S]*?\]/)
-            const scores: JudgeScore[] = jsonMatch ? JSON.parse(jsonMatch[0]) : []
-            const afterJson = jsonMatch ? full.slice(full.indexOf(jsonMatch[0]) + jsonMatch[0].length).trim() : ''
-            setJudgeResultStore(selectedId, { scores, verdict: afterJson })
-          } catch {
-            setJudgeError('Could not parse judge response')
-          }
-          setJudgeRunning(false)
-        },
-        onError: (err) => { setJudgeError(err.message); setJudgeRunning(false) },
-      },
-    )
+    try {
+      setJudgeResultStore(selectedId, await runJudge(content))
+    } catch (err) {
+      setJudgeError((err as Error).message)
+    } finally {
+      setJudgeRunning(false)
+    }
   }
 
   const mutateNode = async (op: Parameters<typeof window.api.node.mutate>[1]) => {
@@ -250,7 +232,7 @@ export default function Inspector(): React.ReactElement {
                 className="tb-btn"
                 style={{ fontSize: 11, padding: '2px 8px' }}
                 disabled={judgeRunning}
-                onClick={runJudge}
+                onClick={runJudgeInspector}
               >
                 {judgeRunning ? '…' : judgeResult ? 'Re-score' : 'Score'}
               </button>

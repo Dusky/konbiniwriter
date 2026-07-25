@@ -417,11 +417,17 @@ pipeline; **no new document-mutation path** (export is read-only over the bundle
 - Scope boundary: reuse `include-in-compile` flags + binder order; a small
   export-settings surface (as a view tab); no WYSIWYG page designer in v1.
 
-### 5.2 Anti-slop revision dashboard 🔲  *(the moat — reason to pay)*
+### 5.2 Anti-slop revision dashboard 🔶  *(the moat — reason to pay)*
 Surface the pieces that already exist (voice fingerprint, slop scoring, LLM judge,
 reader panel, critic) as **one tangible quality view**: per-scene scores, flagged
 weak spots, voice-drift vs. the fingerprint, tracked across drafts so a writer can
-*see the manuscript getting better*. Audit `QualityGate`/slop/eval depth first.
+*see the manuscript getting better*.
+- ✅ **Manuscript Quality view tab** — every scene scored by the LLM judge,
+  overall + per-dimension breakdown, weak-first sort, manuscript average,
+  evaluate-one / evaluate-all, click-to-open, staleness marker. Scores persist
+  to `aux/quality.json` (survive reload). Shared `lib/judge.ts` runner reused
+  by the Inspector.
+- 🔲 Next: slop-count column, voice-drift vs. fingerprint, cross-draft trend.
 
 ### 5.3 Cross-device sync & backup 🔲  *(retention — biggest infra lift)*
 Optional, keeps "your data is yours": E2E-encrypted or git-backed sync of the

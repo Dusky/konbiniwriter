@@ -3,6 +3,7 @@ import { useShellStore } from './shellStore'
 import type { Project, KNode, DocBody, DocMeta, NodeType, ViewMode, SaveStatus, Snapshot, ID, Proposal, CodexEntry, DebtItem, ProjectSettings } from '@shared/types'
 import { uid, wordCount } from '@shared/utils'
 import { type MentionIndex, buildIndex, updateIndex } from '../lib/MentionIndex'
+import type { JudgeResult } from '../lib/judge'
 import { statsService } from '../lib/StatsService'
 
 /**
@@ -12,7 +13,7 @@ import { statsService } from '../lib/StatsService'
  */
 export type ViewTabId =
   | 'stats' | 'foundation' | 'autopilot' | 'prompt-registry' | 'ai-settings'
-  | 'batch-generator' | 'bestof' | 'prefs' | 'themes'
+  | 'batch-generator' | 'bestof' | 'prefs' | 'themes' | 'quality'
 
 interface ProjectState {
   project: Project | null
@@ -114,9 +115,11 @@ interface ProjectState {
   setAiInstructions: (text: string) => void
   setAutopilotRun: (run: import('@shared/types').AutopilotRunState | null) => void
 
-  // — judge scores (keyed by nodeId) —
-  judgeResults: Map<ID, { scores: Array<{ dimension: string; score: number; note: string }>; verdict: string }>
-  setJudgeResult: (nodeId: ID, result: { scores: Array<{ dimension: string; score: number; note: string }>; verdict: string }) => void
+  // — judge scores (keyed by nodeId; persisted to aux/quality.json) —
+  judgeResults: Map<ID, JudgeResult>
+  setJudgeResult: (nodeId: ID, result: JudgeResult) => void
+  /** Load persisted judge scores for the current project (call on mount). */
+  hydrateJudgeResults: () => Promise<void>
 
   // — autopilot runner —
   autopilotQueue: string[]
@@ -477,8 +480,21 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   setJudgeResult: (nodeId, result) => set((s) => {
     const next = new Map(s.judgeResults)
     next.set(nodeId, result)
+    const p = s.project
+    if (p) window.api.aux.write(p.id, 'quality.json', JSON.stringify(Object.fromEntries(next))).catch(console.error)
     return { judgeResults: next }
   }),
+
+  hydrateJudgeResults: async () => {
+    const p = get().project
+    if (!p) return
+    const raw = await window.api.aux.read(p.id, 'quality.json').catch(() => null)
+    if (!raw) return
+    try {
+      const obj = JSON.parse(raw) as Record<string, JudgeResult>
+      set({ judgeResults: new Map(Object.entries(obj)) })
+    } catch { /* ignore corrupt cache */ }
+  },
 
   setAutopilotQueue: (autopilotQueue) => set({ autopilotQueue }),
   setAutopilotRunning: (autopilotRunning) => set({ autopilotRunning }),

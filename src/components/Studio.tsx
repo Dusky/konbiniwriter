@@ -32,6 +32,11 @@ export default function Studio(): React.ReactElement {
   const splitOpen = useProjectStore((s) => s.splitOpen)
   const splitId = useProjectStore((s) => s.splitId)
 
+  // Load persisted judge/quality scores when a project opens.
+  const hydrateProjectId = useProjectStore((s) => s.project?.id)
+  const hydrateJudgeResults = useProjectStore((s) => s.hydrateJudgeResults)
+  useEffect(() => { if (hydrateProjectId) void hydrateJudgeResults() }, [hydrateProjectId, hydrateJudgeResults])
+
   // Apply persisted sidebar widths on mount (the resizers write these prefs).
   useEffect(() => {
     const bw = window.api.prefs.get('pref:binderWidth')
