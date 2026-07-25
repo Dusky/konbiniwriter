@@ -50,6 +50,23 @@ export const syncService = {
     return log
   },
 
+  /**
+   * Establish a first ancestor if this project has never been reconciled.
+   *
+   * Call right after opening a project: the bundle was just read off disk, so
+   * memory and disk agree by construction, which is exactly what an ancestor
+   * records. Without this the *first* external change a writer ever makes would
+   * be reported as a conflict — reconcileDoc has no history to compare against
+   * and correctly refuses to guess — which is alarming and needless.
+   *
+   * Only ever writes when no log exists, so it can't overwrite real history.
+   */
+  ensureBaseline(project: Project): void {
+    const existing = window.api.prefs.get(logKey(project.id))
+    if (existing) return
+    this.markSynced(project)
+  },
+
   /** Forget a project's ancestor record (e.g. when re-linking a remote). */
   clearLog(projectId: string): void {
     window.api.prefs.remove(logKey(projectId))

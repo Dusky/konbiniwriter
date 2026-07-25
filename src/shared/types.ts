@@ -132,6 +132,23 @@ export interface Snapshot {
   kind?: 'manual' | 'auto'   // absent = manual (back-compat with older bundles)
 }
 
+/** A bundle as it currently exists on disk. */
+export interface SyncBundle {
+  rootIds: ID[]
+  nodes: Record<ID, KNode>
+  docs: Record<ID, { content: string }>
+}
+
+/** The outcome of a merge, ready to persist. */
+export interface SyncMerged {
+  rootIds: ID[]
+  nodes: Record<ID, KNode>
+  /** docId → final content to write. */
+  docs: Record<ID, string>
+  /** docId → divergent text to preserve beside the document. */
+  conflicts: Record<ID, string>
+}
+
 // ── Recents ───────────────────────────────────────────────────────────────────
 
 export interface RecentEntry {
@@ -397,5 +414,16 @@ export interface KonbiniAPI {
     read(projectId: ID, name: string): Promise<string | null>
     write(projectId: ID, name: string, content: string): Promise<void>
     remove(projectId: ID, name: string): Promise<void>
+  }
+  /** Cross-device sync (Tier 0: a bundle an external syncer may have changed). */
+  sync: {
+    /** Re-read the bundle from disk, bypassing the in-memory cache. */
+    readBundle(projectId: ID): Promise<SyncBundle>
+    /**
+     * Persist a merged result: doc bodies, the node tree, and one
+     * `<id>.conflict-<stamp>.md` per preserved divergence.
+     * @returns the conflict filenames written.
+     */
+    applyMerge(projectId: ID, merged: SyncMerged): Promise<string[]>
   }
 }

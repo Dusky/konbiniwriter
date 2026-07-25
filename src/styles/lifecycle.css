@@ -205,3 +205,21 @@
 [data-theme="light"] .os-shell {
   background: radial-gradient(1200px 600px at 50% -10%, oklch(0.92 0.02 300 / .6), transparent 70%), oklch(0.86 0.005 90); }
 .os-shell .stage { position: relative; flex: 1; inset: auto; }
+
+/* ════ SYNC (Tier 0) ══════════════════════════════════════════════════════ */
+.sync-meta { display: flex; flex-direction: column; gap: 3px; margin: var(--s3) 0;
+  font-size: var(--t-xs); color: var(--text-3); line-height: 1.5; }
+.sync-meta code { font-family: var(--mono); background: var(--bg); padding: 0 4px; border-radius: 3px; }
+.sync-summary { display: flex; gap: var(--s4); flex-wrap: wrap; padding: var(--s2) 0 var(--s3);
+  font-size: var(--t-sm); color: var(--text-2); }
+.sync-summary .warn { color: var(--danger); }
+.sync-list { display: flex; flex-direction: column; }
+.sync-row { display: flex; align-items: center; gap: var(--s2); padding: 6px 2px;
+  border-bottom: 0.5px solid var(--border); font-size: var(--t-sm); }
+.sync-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.sync-tag { font-size: var(--t-xs); color: var(--text-3); flex-shrink: 0; }
+.sync-tag.conflict { color: var(--danger); }
+.sync-ok { margin: var(--s3) 0; padding: 9px 11px; border-radius: var(--r-md);
+  background: color-mix(in oklch, var(--success) 14%, var(--bg-2));
+  border: 0.5px solid color-mix(in oklch, var(--success) 45%, transparent);
+  color: var(--text); font-size: var(--t-sm); line-height: 1.5; }

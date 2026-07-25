@@ -305,6 +305,10 @@ const api = {
     debt: {
         save: (pid, items) => NodeProjectService_1.nodeProjectService.saveDebt(pid, items),
     },
+    sync: {
+        readBundle: (pid) => NodeProjectService_1.nodeProjectService.readBundle(pid),
+        applyMerge: (pid, merged) => NodeProjectService_1.nodeProjectService.applyMerge(pid, merged),
+    },
     settings: {
         save: (pid, patch) => NodeProjectService_1.nodeProjectService.saveSettings(pid, patch),
     },

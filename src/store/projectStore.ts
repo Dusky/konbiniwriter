@@ -15,7 +15,7 @@ import { statsService } from '../lib/StatsService'
  */
 export type ViewTabId =
   | 'stats' | 'foundation' | 'autopilot' | 'prompt-registry' | 'ai-settings'
-  | 'batch-generator' | 'bestof' | 'prefs' | 'themes' | 'quality'
+  | 'batch-generator' | 'bestof' | 'prefs' | 'themes' | 'quality' | 'sync'
 
 interface ProjectState {
   project: Project | null

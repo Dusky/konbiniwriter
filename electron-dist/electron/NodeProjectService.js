@@ -43,6 +43,7 @@ const templates_1 = require("../src/shared/templates");
 const importer_1 = require("../src/shared/importer");
 const nodeOps_1 = require("../src/shared/nodeOps");
 const bundle_1 = require("../src/shared/bundle");
+const sync_1 = require("../src/shared/sync");
 // ── FS helpers ────────────────────────────────────────────────────────────────
 async function readText(dir, ...parts) {
     try {
@@ -349,6 +350,58 @@ class NodeProjectService {
             throw new Error(`Invalid aux file name: ${name}`);
         const dir = this.getPath(projectId);
         await removeFile(dir, 'aux', name);
+    }
+    // ── Sync (Tier 0) ─────────────────────────────────────────────────────────
+    /**
+     * Read the bundle straight off disk, ignoring our in-memory copy — this is how
+     * we see what an external syncer (Dropbox/iCloud/Syncthing/git) left behind.
+     */
+    async readBundle(projectId) {
+        const dir = this.getPath(projectId);
+        const manifestText = await readText(dir, 'project.json');
+        if (!manifestText)
+            throw new Error('Bundle has no project.json');
+        const onDisk = JSON.parse(manifestText);
+        (0, nodeOps_1.migrateProject)(onDisk); // an older bundle may predate per-node revs
+        const docs = {};
+        for (const nodeId of Object.keys(onDisk.docs ?? {})) {
+            docs[nodeId] = { content: (await readText(dir, 'docs', `${nodeId}.md`)) ?? '' };
+        }
+        return { rootIds: onDisk.rootIds, nodes: onDisk.nodes, docs };
+    }
+    /**
+     * Persist a merge. Divergent remote text is written beside the document as
+     * `<id>.conflict-<stamp>.md` — never discarded — using the same convention as
+     * an external-edit conflict, so one resolution surface covers both.
+     */
+    async applyMerge(projectId, merged) {
+        const dir = this.getPath(projectId);
+        const proj = this.getProject(projectId);
+        const written = [];
+        for (const [docId, text] of Object.entries(merged.conflicts)) {
+            const file = (0, sync_1.conflictFileName)(docId);
+            await writeText(dir, text, 'docs', file);
+            written.push(file);
+        }
+        for (const [docId, content] of Object.entries(merged.docs)) {
+            await writeText(dir, content, 'docs', `${docId}.md`);
+            if (proj.docs[docId])
+                proj.docs[docId].content = content;
+            else
+                proj.docs[docId] = { content, snapshots: [] };
+        }
+        // Drop docs the merge decided are gone.
+        for (const docId of Object.keys(proj.docs)) {
+            if (!merged.nodes[docId]) {
+                delete proj.docs[docId];
+                await removeFile(dir, 'docs', `${docId}.md`);
+            }
+        }
+        proj.nodes = merged.nodes;
+        proj.rootIds = merged.rootIds;
+        proj.modified = new Date().toISOString();
+        await this.writeManifest(dir, proj);
+        return written;
     }
     // ── Helpers ──────────────────────────────────────────────────────────────────
     getPath(projectId) {

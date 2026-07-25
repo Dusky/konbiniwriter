@@ -6,13 +6,14 @@
 // "path" strings throughout are opaque keys into this.handles; components never
 // see real filesystem paths (same story in Electron where they'd be real paths).
 
-import type { Project, KNode, DocBody, NodeOp, Snapshot, ID, ImportDoc, CompileFormat, CompileResult } from '@shared/types'
+import type { Project, KNode, DocBody, NodeOp, Snapshot, ID, ImportDoc, CompileFormat, CompileResult, SyncBundle, SyncMerged } from '@shared/types'
 import { uid, wordCount, isValidAuxName } from '@shared/utils'
 import { buildProjectFromTemplate } from '@shared/templates'
 import { buildProjectFromDocs } from '@shared/importer'
 import { handleStore } from './HandleStore'
 import { applyNodeOp, migrateProject } from '@shared/nodeOps'
 import { serializeManifest, serializeCodex, serializeDebt, adoptSidecars, CODEX_FILE, DEBT_FILE } from '@shared/bundle'
+import { conflictFileName } from '@shared/sync'
 
 // FSA permission methods aren't in the base DOM lib types yet.
 type PermissionHandle = FileSystemDirectoryHandle & {
@@ -382,6 +383,58 @@ export class BrowserProjectService {
     })
     const suffix = format === 'shunn' ? '.manuscript.docx' : '.docx'
     return { blob, filename: `${projectTitle}${suffix}`, format }
+  }
+
+  // ── Sync (Tier 0) ─────────────────────────────────────────────────────────
+
+  /**
+   * Read the bundle straight off disk, ignoring our in-memory copy — this is how
+   * we see what an external syncer (Dropbox/iCloud/Syncthing/git) left behind.
+   */
+  async readBundle(projectId: string): Promise<SyncBundle> {
+    const h = this.getHandle(projectId)
+    const manifestText = await readText(h, 'project.json')
+    if (!manifestText) throw new Error('Bundle has no project.json')
+    const onDisk: Project = JSON.parse(manifestText)
+    migrateProject(onDisk)   // an older bundle may predate per-node revs
+    const docs: Record<ID, { content: string }> = {}
+    for (const nodeId of Object.keys(onDisk.docs ?? {})) {
+      docs[nodeId] = { content: (await readText(h, 'docs', `${nodeId}.md`)) ?? '' }
+    }
+    return { rootIds: onDisk.rootIds, nodes: onDisk.nodes, docs }
+  }
+
+  /**
+   * Persist a merge. Divergent remote text is written beside the document as
+   * `<id>.conflict-<stamp>.md` — never discarded — using the same convention as
+   * an external-edit conflict, so one resolution surface covers both.
+   */
+  async applyMerge(projectId: string, merged: SyncMerged): Promise<string[]> {
+    const h = this.getHandle(projectId)
+    const p = this.getProject(projectId)
+
+    const written: string[] = []
+    for (const [docId, text] of Object.entries(merged.conflicts)) {
+      const file = conflictFileName(docId)
+      await writeText(h, text, 'docs', file)
+      written.push(file)
+    }
+
+    for (const [docId, content] of Object.entries(merged.docs)) {
+      await writeText(h, content, 'docs', `${docId}.md`)
+      if (p.docs[docId]) p.docs[docId].content = content
+      else p.docs[docId] = { content, snapshots: [] }
+    }
+    // Drop docs the merge decided are gone.
+    for (const docId of Object.keys(p.docs)) {
+      if (!merged.nodes[docId]) { delete p.docs[docId]; await removeFile(h, 'docs', `${docId}.md`) }
+    }
+
+    p.nodes = merged.nodes
+    p.rootIds = merged.rootIds
+    p.modified = new Date().toISOString()
+    await this.writeManifest(h, p)
+    return written
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

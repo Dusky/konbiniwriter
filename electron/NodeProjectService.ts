@@ -10,9 +10,11 @@ import { buildProjectFromTemplate } from '../src/shared/templates'
 import { buildProjectFromDocs } from '../src/shared/importer'
 import { applyNodeOp, migrateProject } from '../src/shared/nodeOps'
 import { serializeManifest, serializeCodex, serializeDebt, adoptSidecars, CODEX_FILE, DEBT_FILE } from '../src/shared/bundle'
+import { conflictFileName } from '../src/shared/sync'
 import type {
   Project, KNode, DocBody, NodeOp, Snapshot, ID, ImportDoc,
   CompileFormat, CompileResult, CodexEntry, DebtItem, ProjectSettings, TemplateId,
+  SyncBundle, SyncMerged,
 } from '../src/shared/types'
 
 // ── FS helpers ────────────────────────────────────────────────────────────────
@@ -350,6 +352,58 @@ export class NodeProjectService {
     if (!isValidAuxName(name)) throw new Error(`Invalid aux file name: ${name}`)
     const dir = this.getPath(projectId)
     await removeFile(dir, 'aux', name)
+  }
+
+  // ── Sync (Tier 0) ─────────────────────────────────────────────────────────
+
+  /**
+   * Read the bundle straight off disk, ignoring our in-memory copy — this is how
+   * we see what an external syncer (Dropbox/iCloud/Syncthing/git) left behind.
+   */
+  async readBundle(projectId: string): Promise<SyncBundle> {
+    const dir = this.getPath(projectId)
+    const manifestText = await readText(dir, 'project.json')
+    if (!manifestText) throw new Error('Bundle has no project.json')
+    const onDisk: Project = JSON.parse(manifestText)
+    migrateProject(onDisk)   // an older bundle may predate per-node revs
+    const docs: Record<ID, { content: string }> = {}
+    for (const nodeId of Object.keys(onDisk.docs ?? {})) {
+      docs[nodeId] = { content: (await readText(dir, 'docs', `${nodeId}.md`)) ?? '' }
+    }
+    return { rootIds: onDisk.rootIds, nodes: onDisk.nodes, docs }
+  }
+
+  /**
+   * Persist a merge. Divergent remote text is written beside the document as
+   * `<id>.conflict-<stamp>.md` — never discarded — using the same convention as
+   * an external-edit conflict, so one resolution surface covers both.
+   */
+  async applyMerge(projectId: string, merged: SyncMerged): Promise<string[]> {
+    const dir = this.getPath(projectId)
+    const proj = this.getProject(projectId)
+
+    const written: string[] = []
+    for (const [docId, text] of Object.entries(merged.conflicts)) {
+      const file = conflictFileName(docId)
+      await writeText(dir, text, 'docs', file)
+      written.push(file)
+    }
+
+    for (const [docId, content] of Object.entries(merged.docs)) {
+      await writeText(dir, content, 'docs', `${docId}.md`)
+      if (proj.docs[docId]) proj.docs[docId].content = content
+      else proj.docs[docId] = { content, snapshots: [] }
+    }
+    // Drop docs the merge decided are gone.
+    for (const docId of Object.keys(proj.docs)) {
+      if (!merged.nodes[docId]) { delete proj.docs[docId]; await removeFile(dir, 'docs', `${docId}.md`) }
+    }
+
+    proj.nodes = merged.nodes
+    proj.rootIds = merged.rootIds
+    proj.modified = new Date().toISOString()
+    await this.writeManifest(dir, proj)
+    return written
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────────

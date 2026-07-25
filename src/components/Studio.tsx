@@ -19,6 +19,7 @@ import ChangesetModal from './modals/ChangesetModal'
 import CommandPalette from './modals/CommandPalette'
 import DebtInboxModal from './modals/DebtInboxModal'
 import { debtService } from '../lib/DebtService'
+import { syncService } from '../lib/SyncService'
 
 export default function Studio(): React.ReactElement {
   const layout = useShellStore((s) => s.layout)
@@ -36,6 +37,14 @@ export default function Studio(): React.ReactElement {
   const hydrateProjectId = useProjectStore((s) => s.project?.id)
   const hydrateJudgeResults = useProjectStore((s) => s.hydrateJudgeResults)
   useEffect(() => { if (hydrateProjectId) void hydrateJudgeResults() }, [hydrateProjectId, hydrateJudgeResults])
+
+  // Record a sync ancestor on first open — the bundle we just read IS the
+  // common ancestor, so the first external change reconciles cleanly instead of
+  // looking like a conflict.
+  useEffect(() => {
+    const p = useProjectStore.getState().project
+    if (p) syncService.ensureBaseline(p)
+  }, [hydrateProjectId])
 
   // Apply persisted sidebar widths on mount (the resizers write these prefs).
   useEffect(() => {

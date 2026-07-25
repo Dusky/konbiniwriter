@@ -452,8 +452,10 @@ weak spots, voice-drift vs. the fingerprint, tracked across drafts so a writer c
   lost). This is what 5.3 must actually solve.
 
 **Transport — three tiers, each shippable alone; one shared merge engine.**
-1. **Tier 0 — safe under an external syncer** (Dropbox/iCloud/Syncthing). Works
-   today *by accident* and unsafely (those do whole-file LWW). Zero infra.
+1. ✅ **Tier 0 — safe under an external syncer** (Dropbox/iCloud/Syncthing/git
+   checkout). `window.api.sync.readBundle`/`applyMerge` + the Sync view tab:
+   re-read the bundle, plan the merge, snapshot every changed doc, write
+   `.conflict` files for real divergence. Zero infra.
 2. **Tier 1 — git remote.** Plain text; user owns everything; free history.
    Electron-first (browsers need isomorphic-git + a CORS proxy).
 3. **Tier 2 — hosted, E2E-encrypted.** The subscription, and the *only* option
@@ -487,13 +489,13 @@ merge + preserve-both is the right weight.
 4. ✅ Device ID + sync log (`SyncService`, device-local in prefs — deliberately
    NOT in the bundle, which is the thing being synced) + the transport-agnostic
    merge engine in `shared/sync.ts` (`reconcileDoc`, `mergeNodes`, `planMerge`).
-5. 🔶 `conflictFileName()` matches the existing convention and `planMerge`
-   returns the text to preserve; still to do is writing those files during a
-   real sync and surfacing them for resolution.
+5. ✅ `.conflict` generalized from "external edit" to "sync divergence":
+   `applyMerge` writes the preserved text and the Sync tab surfaces it.
 
-**Build order:** Tier 0 + the merge engine first — ships value with no backend,
-forces the merge/conflict work every later tier reuses, and is fully testable
-offline by simulating two divergent bundles.
+**Build order:** ✅ Tier 0 + the merge engine. Next: Tier 1 (git remote) reuses
+`planMerge` wholesale — it only has to fetch/push and hand a bundle in. Also
+still open: auto-detecting external changes (file watch / focus poll) rather
+than the current explicit "Check for changes".
 
 ### 5.4 Frictionless import 🔲  *(companion to 5.1 — lowers switching cost)*
 Beyond the current `.docx`/folder import: Scrivener `.scriv`, Google-Docs export,

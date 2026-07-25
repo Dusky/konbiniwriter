@@ -44,6 +44,15 @@ describe('syncService', () => {
     expect(syncService.getLog(p.id).lastSyncAt).toBeNull()
   })
 
+  it('ensureBaseline records an ancestor on first open but never overwrites real history', () => {
+    const p = proj()
+    syncService.ensureBaseline(p)
+    const first = syncService.getLog(p.id)
+    expect(first.lastSyncAt).not.toBeNull()   // a fresh open establishes the ancestor
+    syncService.ensureBaseline(p)
+    expect(syncService.getLog(p.id)).toEqual(first)   // idempotent, doesn't clobber
+  })
+
   it('logs are per-project', () => {
     const a = proj(), b = proj()
     syncService.markSynced(a)

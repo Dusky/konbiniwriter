@@ -91,6 +91,10 @@ const api: KonbiniAPI = {
   debt: {
     save: (pid, items) => svc.saveDebt(pid, items),
   },
+  sync: {
+    readBundle: (pid) => svc.readBundle(pid),
+    applyMerge: (pid, merged) => svc.applyMerge(pid, merged),
+  },
   settings: {
     save: (pid, patch) => svc.saveSettings(pid, patch),
   },

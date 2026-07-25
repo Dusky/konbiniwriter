@@ -113,6 +113,7 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
       { id: 'stats', label: 'Writing Stats…', section: 'Project', run: openView('stats') },
       { id: 'prefs', label: 'Preferences…', section: 'Project', hint: kbd('mod+,'), run: openView('prefs') },
       { id: 'themes', label: 'Themes / Skins…', section: 'Project', run: openView('themes') },
+      { id: 'sync', label: 'Sync — reconcile external changes…', section: 'Project', run: openView('sync') },
     ]
 
     if (aiEnabled) {
