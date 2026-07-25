@@ -430,7 +430,11 @@ weak spots, voice-drift vs. the fingerprint, tracked across drafts so a writer c
 - ✅ **Slop signal per scene** — a slop-proof column (flag count, severity-banded)
   beside the craft score, proof-one / proof-all, expandable flag detail. Shared
   `lib/slop.ts` runner; persists to `aux/slop.json`.
-- 🔲 Next: voice-drift vs. fingerprint, cross-draft trend line.
+- ✅ **Voice-drift vs. fingerprint** — per-scene "does this still sound like *you*?"
+  score (1–10) against `settings.voiceFingerprint`, gated on a fingerprint
+  being set. New registry prompt `builtin:evaluation:voice-drift`, shared
+  `lib/voice.ts`, persists to `aux/voice.json`.
+- 🔲 Next: cross-draft trend line (watch the scores improve over drafts).
 
 ### 5.3 Cross-device sync & backup 🔲  *(retention — biggest infra lift)*
 Optional, keeps "your data is yours": E2E-encrypted or git-backed sync of the

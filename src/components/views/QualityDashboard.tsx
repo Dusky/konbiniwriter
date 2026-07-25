@@ -4,6 +4,7 @@ import { useAIStore } from '../../store/aiStore'
 import { wordCount } from '@shared/utils'
 import { runJudge, judgeOverall, scoreBand, type JudgeResult } from '../../lib/judge'
 import { runSlop, type SlopResult } from '../../lib/slop'
+import { runVoiceDrift, type VoiceResult } from '../../lib/voice'
 import ModalShell from '../common/ModalShell'
 import Icon from '../common/Icon'
 
@@ -24,11 +25,17 @@ export default function QualityDashboard({ onClose, embedded }: Props): React.Re
   const setJudgeResult = useProjectStore((s) => s.setJudgeResult)
   const slopResults = useProjectStore((s) => s.slopResults)
   const setSlopResult = useProjectStore((s) => s.setSlopResult)
+  const voiceResults = useProjectStore((s) => s.voiceResults)
+  const setVoiceResult = useProjectStore((s) => s.setVoiceResult)
   const selectNode = useProjectStore((s) => s.selectNode)
   const aiEnabled = useAIStore((s) => s.enabled)
 
+  const fingerprint = (project?.settings.voiceFingerprint ?? '').trim()
+  const hasVoice = fingerprint.length > 0
+
   const [running, setRunning] = useState<Set<string>>(new Set())
   const [proofing, setProofing] = useState<Set<string>>(new Set())
+  const [voicing, setVoicing] = useState<Set<string>>(new Set())
   const [batch, setBatch] = useState<{ label: string; done: number; total: number } | null>(null)
   const [weakFirst, setWeakFirst] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -73,6 +80,18 @@ export default function QualityDashboard({ onClose, embedded }: Props): React.Re
     }
   }
 
+  const voiceOne = async (scene: Scene): Promise<void> => {
+    if (!scene.content.trim() || !hasVoice) return
+    setVoicing((s) => new Set(s).add(scene.id))
+    try {
+      setVoiceResult(scene.id, await runVoiceDrift(fingerprint, scene.content))
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setVoicing((s) => { const n = new Set(s); n.delete(scene.id); return n })
+    }
+  }
+
   const runBatch = async (label: string, fn: (s: Scene) => Promise<void>) => {
     const todo = scenes.filter((s) => s.content.trim())
     setBatch({ label, done: 0, total: todo.length })
@@ -90,7 +109,8 @@ export default function QualityDashboard({ onClose, embedded }: Props): React.Re
     const overall = r ? judgeOverall(r.scores) : null
     const stale = !!(r && r.words !== undefined && Math.abs(r.words - s.words) > Math.max(20, s.words * 0.1))
     const slop: SlopResult | undefined = slopResults.get(s.id)
-    return { ...s, result: r, overall, stale, slop }
+    const voice: VoiceResult | undefined = voiceResults.get(s.id)
+    return { ...s, result: r, overall, stale, slop, voice }
   })
   const rows = weakFirst
     ? [...withScore].sort((a, b) => (a.overall ?? 99) - (b.overall ?? 99))
@@ -111,6 +131,11 @@ export default function QualityDashboard({ onClose, embedded }: Props): React.Re
             <button className="btn sm" disabled={!!batch || scenes.length === 0} onClick={() => runBatch('Proofing', proofOne)} title="Flag slop in every scene">
               {batch?.label === 'Proofing' ? `Proofing ${batch.done}/${batch.total}…` : 'Proof all'}
             </button>
+            {hasVoice && (
+              <button className="btn sm" disabled={!!batch || scenes.length === 0} onClick={() => runBatch('Voice', voiceOne)} title="Score every scene against your voice fingerprint">
+                {batch?.label === 'Voice' ? `Voice ${batch.done}/${batch.total}…` : 'Voice all'}
+              </button>
+            )}
             <button className="btn sm primary" disabled={!!batch || scenes.length === 0} onClick={() => runBatch('Evaluating', evalOne)}>
               {batch?.label === 'Evaluating' ? `Evaluating ${batch.done}/${batch.total}…` : 'Evaluate all'}
             </button>
@@ -148,6 +173,14 @@ export default function QualityDashboard({ onClose, embedded }: Props): React.Re
                       >
                         {proofBusy ? '…' : r.slop ? `⌇ ${r.slop.flags.length}` : '⌇'}
                       </button>
+                      <button
+                        className={`ql-badge voice ${r.voice ? scoreBand(r.voice.score) : 'none'}`}
+                        disabled={!hasVoice || voicing.has(r.id) || !r.content.trim()}
+                        onClick={() => r.voice ? setExpanded((e) => e === `voice:${r.id}` ? null : `voice:${r.id}`) : voiceOne(r)}
+                        title={!hasVoice ? 'Set a voice fingerprint in Foundation to score voice match' : r.voice ? `Voice match ${r.voice.score}/10 — click for detail` : 'Score this scene against your voice'}
+                      >
+                        {voicing.has(r.id) ? '…' : r.voice ? `♪ ${r.voice.score}` : '♪'}
+                      </button>
                       {r.overall !== null ? (
                         <button className={`ql-badge ${scoreBand(r.overall)}`} onClick={() => setExpanded((e) => e === r.id ? null : r.id)} title="Show dimension breakdown">
                           {r.overall.toFixed(1)}{r.stale && <span className="ql-stale" title="Scene changed since this score">•</span>}
@@ -169,6 +202,15 @@ export default function QualityDashboard({ onClose, embedded }: Props): React.Re
                           </div>
                         ))}
                         {r.result.verdict && <div className="ql-verdict">{r.result.verdict}</div>}
+                      </div>
+                    )}
+                    {expanded === `voice:${r.id}` && r.voice && (
+                      <div className="ql-detail">
+                        <div className="ql-dim">
+                          <span className={`ql-dim-score ${scoreBand(r.voice.score)}`}>{r.voice.score}</span>
+                          <span className="ql-dim-name">voice match</span>
+                          <span className="ql-dim-note">{r.voice.note}</span>
+                        </div>
                       </div>
                     )}
                     {expanded === `slop:${r.id}` && r.slop && (

@@ -575,6 +575,11 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 .ql-badge.slop.ok { color: var(--accent); border-color: color-mix(in oklch, var(--accent) 55%, transparent); }
 .ql-badge.slop.weak { color: var(--st-idea); border-color: color-mix(in oklch, var(--st-idea) 55%, transparent); }
 .ql-badge.slop.none { border-style: dashed; }
+/* Voice badge: soft-tinted so all three signals (craft/slop/voice) read distinctly. */
+.ql-badge.voice { min-width: 40px; background: var(--bg-3); color: var(--text-3); }
+.ql-badge.voice.strong { background: color-mix(in oklch, var(--st-final) 22%, var(--bg-3)); color: var(--st-final); }
+.ql-badge.voice.ok { background: color-mix(in oklch, var(--accent) 22%, var(--bg-3)); color: var(--accent); }
+.ql-badge.voice.weak { background: color-mix(in oklch, var(--st-idea) 22%, var(--bg-3)); color: var(--st-idea); }
 .ql-stale { margin-left: 3px; opacity: 0.8; }
 .ql-detail { padding: 4px 2px 12px; display: flex; flex-direction: column; gap: 6px; }
 .ql-dim { display: grid; grid-template-columns: 26px 130px 1fr; gap: 8px; align-items: baseline; font-size: 12px; }

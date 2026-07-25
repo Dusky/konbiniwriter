@@ -198,6 +198,36 @@ Return ONLY valid JSON. If no issues, return [].`,
     modifiedAt: ISO(),
   },
   {
+    id: 'builtin:evaluation:voice-drift',
+    name: 'Voice Drift',
+    description: 'Score how closely a passage matches the author’s voice fingerprint.',
+    feature: 'evaluation',
+    model: 'claude-haiku-4-5',
+    temperature: 0.2,
+    maxTokens: 500,
+    template: `You are assessing whether a passage matches an author's established voice.
+
+<voice_fingerprint>
+{{fingerprint}}
+</voice_fingerprint>
+
+<passage>
+{{content}}
+</passage>
+
+Rate 1–10 how closely the passage matches the voice fingerprint: 10 = indistinguishable from the author's established voice; 5 = competent but generic; 1 = reads like a different writer or generic AI. Weigh diction, sentence rhythm, tone, POV discipline, and characteristic tics.
+
+Return ONLY valid JSON, no prose:
+{ "score": <integer 1-10>, "note": "<the single biggest way it drifts from the voice, or what it nails>" }`,
+    variables: [
+      { name: 'fingerprint', description: 'The author’s voice fingerprint' },
+      { name: 'content', description: 'The prose to check against the voice' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
     id: 'builtin:batch:cast',
     name: 'Generate Cast',
     description: 'Generate a full character roster from the project outline and synopsis.',
