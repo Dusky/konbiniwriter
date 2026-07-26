@@ -73,6 +73,42 @@ export const AGENT_TOOLS: ToolDef[] = [
   },
 ]
 
+/**
+ * Tools that let the assistant reconfigure *itself*, offered only when the author
+ * has opted in (AI Settings → "Let the assistant edit its own instructions").
+ *
+ * Scope is enforced in lib/agentConfig.ts, which is a whitelist of text settings.
+ * Nothing here can reach the provider, the API key, the model or a token budget.
+ */
+export const AGENT_CONFIG_TOOLS: ToolDef[] = [
+  {
+    name: 'read_config',
+    description: 'Read one of the author\'s editable AI settings so you can revise it rather than replace it blindly. Targets: project-instructions, global-instructions, voice (key = profile name, omit for the default), prompt (key = prompt id).',
+    input_schema: {
+      type: 'object',
+      properties: {
+        target: { type: 'string', description: 'project-instructions | global-instructions | voice | prompt' },
+        key: { type: 'string', description: 'Voice profile name, or prompt id. Omit for the project default voice.' },
+      },
+      required: ['target'],
+    },
+  },
+  {
+    name: 'propose_config',
+    description: 'Propose new text for one of the editable AI settings. This does NOT take effect — it queues a diff for the author to review and accept or reject, exactly like a prose edit. Read the setting first so your version is a revision, not a replacement.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        target: { type: 'string', description: 'project-instructions | global-instructions | voice | prompt' },
+        key: { type: 'string', description: 'Voice profile name, or prompt id. Omit for the project default voice.' },
+        new_text: { type: 'string', description: 'The complete new text for this setting.' },
+        why: { type: 'string', description: 'One line on what this changes and why, shown to the author.' },
+      },
+      required: ['target', 'new_text'],
+    },
+  },
+]
+
 /** Capabilities the executors need, supplied by the chat UI (which owns store access). */
 export interface AgentToolContext {
   project: Project
@@ -84,6 +120,9 @@ export interface AgentToolContext {
     content: string,
   ) => Promise<void>
   proposeEdit: (docId: ID, docTitle: string, original: string, proposed: string) => void
+  /** Present only when the author has enabled assistant config edits. */
+  readConfig?: (target: string, key?: string) => string | { error: string }
+  proposeConfig?: (target: string, key: string | undefined, newText: string, why: string) => string | { error: string }
 }
 
 /** A short human label for the "used a tool" indicator in chat. */
@@ -96,6 +135,8 @@ export function toolLabel(name: string, input: Record<string, unknown>): string 
     case 'create_document': return `Created "${String(input.title ?? '')}"`
     case 'create_folder': return `Created folder "${String(input.title ?? '')}"`
     case 'propose_edit': return `Proposed an edit to "${String(input.document ?? '')}" (review it in Changeset)`
+    case 'read_config': return `Read the ${String(input.target ?? 'setting')} setting`
+    case 'propose_config': return `Proposed new ${String(input.target ?? '')} text (review it in Changeset)`
     default: return `Used ${name}`
   }
 }
@@ -181,6 +222,27 @@ export async function executeTool(name: string, input: Record<string, unknown>, 
       if (proposed.trim() === original.trim()) return 'The proposed text is identical to the current text — nothing to change.'
       ctx.proposeEdit(found.id, found.title, original, proposed)
       return `Queued an edit to "${found.title}" for the author to review in Changeset.`
+    }
+    case 'read_config': {
+      // The capability is absent, not merely disabled, when the author hasn't
+      // opted in — so a model that hallucinates the tool gets a clear no.
+      if (!ctx.readConfig) return 'Editing settings is turned off. The author can enable it in AI Settings.'
+      const out = ctx.readConfig(String(input.target ?? ''), input.key ? String(input.key) : undefined)
+      if (typeof out === 'object') return out.error
+      return out.trim() ? out : '(this setting is currently empty)'
+    }
+    case 'propose_config': {
+      if (!ctx.proposeConfig) return 'Editing settings is turned off. The author can enable it in AI Settings.'
+      const text = String(input.new_text ?? '')
+      if (!text.trim()) return 'Refusing to propose an empty setting — say what it should say.'
+      const out = ctx.proposeConfig(
+        String(input.target ?? ''),
+        input.key ? String(input.key) : undefined,
+        text,
+        String(input.why ?? ''),
+      )
+      if (typeof out === 'object') return out.error
+      return out
     }
     default:
       return `Unknown tool: ${name}`

@@ -255,6 +255,14 @@ export interface Proposal {
   // If this proposal was generated to resolve a propagation-debt item, applying
   // it auto-resolves that affected document.
   debtRef?: { debtId: ID; docId: ID }
+  /**
+   * Set when this proposal changes a *setting* rather than a document — the
+   * assistant redrafting standing instructions, a voice fingerprint, or a prompt
+   * template. Studio's apply path branches on it: there is no `.md` to write and
+   * no snapshot to take, so the setting is written through the whitelist in
+   * `lib/agentConfig.ts` instead. `docId` is a synthetic `config:…` marker.
+   */
+  configRef?: { target: string; key?: string }
   // 'selection' proposals carry `original`/`proposed` for just the selected
   // text; applying them splices the resolved text back into the document at
   // `selRange` (or by locating `original` if the range has shifted). Absent

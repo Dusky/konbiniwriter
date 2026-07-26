@@ -9,7 +9,7 @@
 import { useAIStore } from '../store/aiStore'
 import { getValidAccessToken, CLAUDE_CODE_SYSTEM } from './ClaudeOAuth'
 import { sseLines, sseFlush, type SSEBuffer } from './sse'
-import { AGENT_TOOLS, executeTool, type AgentToolContext } from './agentTools'
+import { AGENT_TOOLS, AGENT_CONFIG_TOOLS, executeTool, type AgentToolContext } from './agentTools'
 import type { AIMessage } from './AIClient'
 
 const MAX_STEPS = 6
@@ -144,6 +144,11 @@ export async function runAgent(
   const convo: Msg[] = messages.map((m) => ({ role: m.role, content: m.content }))
   let fullText = ''
 
+  // Advertise the config tools only when the capability is actually wired.
+  // Deriving the list from the context rather than from a flag makes it
+  // impossible to offer the model a tool whose executor will refuse it.
+  const tools = opts.ctx.proposeConfig ? [...AGENT_TOOLS, ...AGENT_CONFIG_TOOLS] : AGENT_TOOLS
+
   try {
     for (let step = 0; step < MAX_STEPS; step++) {
       const body: Record<string, unknown> = {
@@ -151,7 +156,7 @@ export async function runAgent(
         max_tokens: opts.maxTokens,
         messages: convo,
         stream: true,
-        tools: AGENT_TOOLS,
+        tools,
       }
       if (!NO_SAMPLING_PARAMS.test(opts.model)) body.temperature = opts.temperature
       if (sysBlocks.length) body.system = sysBlocks

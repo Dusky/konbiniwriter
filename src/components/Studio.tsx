@@ -2,6 +2,7 @@ import React, { useEffect } from 'react'
 import { useShellStore } from '../store/shellStore'
 import { useProjectStore } from '../store/projectStore'
 import { useAIStore } from '../store/aiStore'
+import { applyConfigChange } from '../lib/agentConfig'
 import { spliceSelection } from '../lib/ProposalService'
 import Titlebar from './shell/Titlebar'
 import Toolbar from './shell/Toolbar'
@@ -154,6 +155,18 @@ export default function Studio(): React.ReactElement {
           proposal={activeProposal}
           onApply={async (content, accepted) => {
             if (!project) return
+
+            // A settings proposal is reviewed through the same modal but is not
+            // a document: there is no .md to write and no prose to snapshot, and
+            // the write goes through the whitelist in lib/agentConfig.ts. Handled
+            // first so none of the document machinery below can touch it.
+            if (activeProposal.configRef) {
+              const err = applyConfigChange(activeProposal.configRef, content)
+              if (err) { useShellStore.getState().setToast(err); return }
+              resolveProposal(activeProposal.id, 'applied')
+              useShellStore.getState().setToast(`${activeProposal.docTitle} updated`, 'info')
+              return
+            }
 
             const docContent = project.docs[activeProposal.docId]?.content ?? ''
             let resolvedContent = content

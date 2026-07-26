@@ -78,6 +78,7 @@ export function createProposal(opts: {
   agentId?: string
   costEstimateCents?: number
   debtRef?: Proposal['debtRef']
+  configRef?: Proposal['configRef']
   scope?: Proposal['scope']
   selRange?: Proposal['selRange']
 }): Proposal {
@@ -102,6 +103,7 @@ export function createProposal(opts: {
     agentId: opts.agentId,
     costEstimateCents: opts.costEstimateCents,
     debtRef: opts.debtRef,
+    configRef: opts.configRef,
     scope: opts.scope,
     selRange: opts.selRange,
   }

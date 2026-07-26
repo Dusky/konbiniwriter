@@ -102,6 +102,7 @@ export default function AISettingsModal({ onClose, embedded }: Props): React.Rea
     customInstructions, setCustomInstructions,
     aiMemoryEnabled, setAiMemoryEnabled,
     aiToolsEnabled, setAiToolsEnabled,
+    aiConfigToolsEnabled, setAiConfigToolsEnabled,
     agentCommand, setAgentCommand,
   } = useAIStore()
 
@@ -631,6 +632,22 @@ export default function AISettingsModal({ onClose, embedded }: Props): React.Rea
               </label>
               <div className="ai-hint">
                 On Claude, the chat can search the manuscript, read the outline, open documents, create new documents, and propose edits across the whole project. Proposed edits are queued in Changeset for your review — never written directly.
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: aiToolsEnabled ? 'pointer' : 'default', marginTop: 10, opacity: aiToolsEnabled ? 1 : 0.5 }}>
+                <input
+                  type="checkbox"
+                  checked={aiConfigToolsEnabled}
+                  disabled={!aiToolsEnabled}
+                  onChange={(e) => setAiConfigToolsEnabled(e.target.checked)}
+                  style={{ accentColor: 'var(--accent)', width: 15, height: 15 }}
+                />
+                <span style={{ fontSize: 13 }}>Let the assistant edit its own instructions</span>
+              </label>
+              <div className="ai-hint">
+                Adds two more tools: the chat can read and propose new text for your standing instructions,
+                a voice fingerprint, or a prompt template — useful for "make my style guide stricter about
+                adverbs". Changes queue in Changeset like any edit, so nothing takes effect until you accept
+                the diff. Your provider, API key, model and token budgets are never editable this way.
               </div>
             </div>
           </Row>

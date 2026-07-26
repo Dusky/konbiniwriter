@@ -72,6 +72,12 @@ These are structural guarantees. Violating any one breaks a core promise.
 2. **No AI write reaches `.md` directly.** Every AI output flows through:
    AI call → `Proposal` → changeset review → `ProposalService.apply()` →
    `updateContent()`. The `window.api.doc.write()` path is the only door.
+   This extends to the app's own configuration: when the assistant proposes new
+   text for an instruction, a voice fingerprint or a prompt, it goes out as a
+   `Proposal` carrying `configRef` and is applied by the same `onApply`. What it
+   is allowed to touch is the whitelist in `lib/agentConfig.ts` — text the author
+   would otherwise type. Provider, API key, model and token budgets are not on
+   that list and must not be added to it.
 
 3. **Every prompt and agent is registry-editable.** `PromptRegistry` and
    `AgentRegistry` are the single source of truth. A hardcoded prompt string

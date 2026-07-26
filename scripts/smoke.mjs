@@ -189,6 +189,20 @@ await setAI(true)
 const onTabs = await railTabs()
 check('turning AI on adds every AI panel (guard is not vacuous)',
   AI_TABS.every((t) => onTabs.includes(t)), onTabs)
+// The one AI capability that can rewrite the app's own configuration must be
+// off until the author asks for it — separately from AI itself being on.
+await page.keyboard.press('Control+k')
+await page.waitForTimeout(300)
+await page.keyboard.type('AI Settings', { delay: 20 })
+await page.waitForTimeout(400)
+await page.keyboard.press('Enter')
+const cfgBox = page.locator('label:has-text("Let the assistant edit its own instructions") input[type=checkbox]')
+await cfgBox.waitFor({ timeout: 10000 }).catch(() => {})
+check('the assistant cannot edit its own settings by default',
+  await cfgBox.count() === 1 && !(await cfgBox.isChecked()))
+await page.locator('.tab-x').last().click()
+await page.waitForTimeout(400)
+
 await setAI(false)
 check('turning AI back off removes them all', (await railTabs()).every((t) => !AI_TABS.includes(t)))
 

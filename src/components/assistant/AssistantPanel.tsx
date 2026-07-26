@@ -9,6 +9,7 @@ import { MEMORY_INSTRUCTION, extractMemories, stripMemories, appendMemories } fr
 import { runAgent } from '../../lib/agent'
 import { toolLabel, type AgentToolContext } from '../../lib/agentTools'
 import { createProposal } from '../../lib/ProposalService'
+import { resolveConfigSlot, configDocId } from '../../lib/agentConfig'
 import Icon from '../common/Icon'
 import ConfirmDialog from '../common/ConfirmDialog'
 import type { Project } from '@shared/types'
@@ -164,6 +165,7 @@ export default function AssistantPanel(): React.ReactElement {
   const chatContextMessages = useAIStore((s) => s.chatContextMessages)
   const aiMemoryEnabled = useAIStore((s) => s.aiMemoryEnabled)
   const aiToolsEnabled = useAIStore((s) => s.aiToolsEnabled)
+  const aiConfigToolsEnabled = useAIStore((s) => s.aiConfigToolsEnabled)
   const service = useAIStore((s) => s.service)
   const provider = useAIStore((s) => s.provider)
   const agentCommand = useAIStore((s) => s.agentCommand)
@@ -173,6 +175,7 @@ export default function AssistantPanel(): React.ReactElement {
   // Tools run only on Claude (native function-calling); other providers keep the
   // plain streaming path and the <remember> sentinel.
   const toolsActive = aiToolsEnabled && provider === 'anthropic'
+  const configToolsActive = toolsActive && aiConfigToolsEnabled
 
   const [threads, setThreads] = useState<ChatThreads>({})
   const [loaded, setLoaded] = useState(false)
@@ -429,6 +432,40 @@ export default function AssistantPanel(): React.ReactElement {
           const proposal = createProposal({ docId, docTitle, command: 'revision', label: `AI edit · ${docTitle}`, group: 'chat', original, proposed, scope: 'document' })
           useProjectStore.getState().queueProposal(proposal)
         },
+        // Spread rather than set unconditionally: `runAgent` decides whether to
+        // advertise the config tools by whether these are present, so an
+        // author who hasn't opted in leaves the model unaware they exist.
+        ...(configToolsActive ? {
+          readConfig: (target: string, key?: string) => {
+            const slot = resolveConfigSlot(target, key, {
+              project: useProjectStore.getState().project,
+              globalInstructions: useAIStore.getState().customInstructions ?? '',
+            })
+            return 'error' in slot ? slot : slot.current
+          },
+          proposeConfig: (target: string, key: string | undefined, newText: string, why: string) => {
+            const slot = resolveConfigSlot(target, key, {
+              project: useProjectStore.getState().project,
+              globalInstructions: useAIStore.getState().customInstructions ?? '',
+            })
+            if ('error' in slot) return slot
+            if (newText.trim() === slot.current.trim()) {
+              return { error: 'That is identical to the current text — nothing to change.' }
+            }
+            useProjectStore.getState().queueProposal(createProposal({
+              docId: configDocId(slot),
+              docTitle: slot.label,
+              command: 'revision',
+              label: why.trim() ? `${slot.label} — ${why.trim()}` : `Change ${slot.label}`,
+              group: 'chat-config',
+              original: slot.current,
+              proposed: newText,
+              scope: 'document',
+              configRef: { target: slot.target, key: slot.key },
+            }))
+            return `Queued a change to ${slot.label} for the author to review in Changeset. It is not in effect yet.`
+          },
+        } : {}),
       }
       const seenTools: string[] = []
       await runAgent(
