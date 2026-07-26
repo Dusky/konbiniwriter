@@ -35,6 +35,7 @@ const SHORTCUTS = [
       ['Outliner', 'mod+3'],
       ['Timeline', 'mod+4'],
       ['Toggle Binder', 'mod+alt+b'],
+      ['Focus Binder', 'mod+shift+b'],
       ['Toggle Inspector', 'mod+alt+i'],
       ['Composition Mode', 'mod+alt+c'],
       ['Focus Mode', 'mod+alt+o'],

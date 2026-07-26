@@ -34,6 +34,10 @@ export interface BinderRowProps {
   status: string
   selected: boolean
   current: boolean
+  /** Holds the tree's single tabIndex=0 and receives DOM focus while roving. */
+  focused: boolean
+  /** 1-based nesting level for `aria-level`. */
+  level: number
   dragging: boolean
   isOver: boolean
   dropPos: DropPos | null
@@ -59,9 +63,17 @@ function BinderRowInner(p: BinderRowProps): React.ReactElement {
   const { id, h } = p
   return (
     <>
-      {p.isOver && p.dropPos === 'before' && <div className="drop-line" />}
+      {p.isOver && p.dropPos === 'before' && <div className="drop-line" aria-hidden />}
       <div
         data-node-id={id}
+        role="treeitem"
+        aria-level={p.level}
+        aria-selected={p.selected}
+        aria-expanded={p.type === 'folder' ? p.expanded : undefined}
+        // Roving tabindex: exactly one row in the tree is tabbable, and arrow
+        // keys move which one. Making every row a tab stop would mean 300 Tab
+        // presses to cross the binder.
+        tabIndex={p.focused ? 0 : -1}
         className={`tree-row${p.selected ? ' sel' : ''}${p.current ? ' cur' : ''}${p.isOver && p.dropPos === 'into' ? ' drop-into' : ''}`}
         style={{ paddingLeft: `${p.depth * 15 + 4}px`, opacity: p.dragging ? 0.4 : 1 }}
         onClick={(e) => h.onClick(id, e)}
@@ -113,7 +125,7 @@ function BinderRowInner(p: BinderRowProps): React.ReactElement {
           <span className="tw-status" style={{ background: p.statusColor }} title={p.status} />
         )}
       </div>
-      {p.isOver && p.dropPos === 'after' && <div className="drop-line" />}
+      {p.isOver && p.dropPos === 'after' && <div className="drop-line" aria-hidden />}
     </>
   )
 }

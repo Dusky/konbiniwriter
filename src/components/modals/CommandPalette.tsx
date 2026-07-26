@@ -96,6 +96,10 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
       { id: 'view-timeline', label: 'View: Timeline', section: 'View', hint: kbd('mod+4'), run: () => proj.setView('timeline') },
       // Layout / modes
       { id: 'toggle-binder', label: 'Toggle Binder', section: 'Layout', hint: kbd('mod+alt+b'), run: () => shell.toggleBinder() },
+      { id: 'focus-binder', label: 'Focus Binder', section: 'Layout', hint: kbd('mod+shift+b'), run: () => {
+        if (!useShellStore.getState().layout.binder) shell.toggleBinder()
+        window.dispatchEvent(new Event('konbini:focus-binder'))
+      } },
       { id: 'toggle-insp', label: 'Toggle Inspector', section: 'Layout', hint: kbd('mod+alt+i'), run: () => shell.toggleRailPanel('inspector') },
       { id: 'split', label: 'Toggle Split Editor', section: 'Layout', hint: kbd('mod+\\'), run: () => proj.toggleSplit() },
       { id: 'focus', label: `Focus Mode: ${proj.focusMode ? 'Off' : 'On'}`, section: 'Layout', hint: kbd('mod+alt+o'), run: () => proj.setFocusMode(!useProjectStore.getState().focusMode) },

@@ -92,6 +92,13 @@ export default function App(): React.ReactElement {
 
     // Navigation & layout
     if (alt && e.key === 'b') { e.preventDefault(); toggleBinder() }
+    // Put the caret in the binder. Without this the tree is 20 Tab presses
+    // deep, which makes its keyboard navigation theoretical.
+    if (shift && !alt && e.key === 'B') {
+      e.preventDefault()
+      if (!useShellStore.getState().layout.binder) toggleBinder()
+      window.dispatchEvent(new Event('konbini:focus-binder'))
+    }
     if (alt && e.key === 'i') { e.preventDefault(); toggleRailPanel('inspector') }
     if (alt && e.key === 't') { e.preventDefault(); setTheme(theme === 'dark' ? 'light' : 'dark') }
     if (alt && e.key === 'c') { e.preventDefault(); setCompositionMode(true) }

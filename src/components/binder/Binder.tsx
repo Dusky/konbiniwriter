@@ -46,6 +46,12 @@ export default function Binder(): React.ReactElement {
   const [drag, setDrag] = useState<DragState | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const renameInputRef = useRef<HTMLInputElement>(null)
+  // Roving-tabindex focus. Deliberately separate from the selection: arrows
+  // move the focus ring, Enter/Space commits it to a selection. Coupling them
+  // would open a tab for every row you pass over on the way down.
+  const [focusId, setFocusId] = useState<ID | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const typeahead = useRef<{ buf: string; at: number }>({ buf: '', at: 0 })
 
   // One shared builder for binder/corkboard/outliner, so a node offers the same
   // actions wherever it's right-clicked. Rename and the delete confirmation are
@@ -72,6 +78,39 @@ export default function Binder(): React.ReactElement {
     })
     return () => cancelAnimationFrame(raf)
   }, [renamingId])
+
+  // Move real DOM focus to follow the roving tabindex — but only when the move
+  // came from the keyboard. A click already focuses its own row, and stealing
+  // focus on every selection change would yank it out of the editor whenever
+  // something else (reveal-in-binder, a new document) moves the selection.
+  const wantFocusRef = useRef(false)
+  useEffect(() => {
+    if (!wantFocusRef.current || !focusId) return
+    wantFocusRef.current = false
+    const el = scrollRef.current?.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(focusId)}"]`)
+    if (!el) return
+    el.focus()
+    el.scrollIntoView({ block: 'nearest' })
+  }, [focusId])
+
+  // ⌘⇧B hands the keyboard to the tree (App.tsx dispatches it). Focusing
+  // whichever row currently holds the tab stop resumes where the writer was.
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout>
+    const h = () => {
+      // Deferred a task: when this comes from the command palette, closing the
+      // palette fires `konbini:focus-editor` from an effect right afterwards.
+      // Effects run before timers, so this claims focus last and keeps it.
+      t = setTimeout(() => {
+        const el = scrollRef.current?.querySelector<HTMLElement>('.tree-row[tabindex="0"]')
+        if (!el) return
+        el.focus()
+        el.scrollIntoView({ block: 'nearest' })
+      }, 0)
+    }
+    window.addEventListener('konbini:focus-binder', h)
+    return () => { window.removeEventListener('konbini:focus-binder', h); clearTimeout(t) }
+  }, [])
 
   if (!project) return <div className="binder" />
 
@@ -107,6 +146,133 @@ export default function Binder(): React.ReactElement {
     if (newId) { selectNode(newId); setRenamingId(newId) }
   }
 
+  // ── Keyboard navigation ──────────────────────────────────────────────────
+  //
+  // The binder is the primary navigation surface of a keyboard-first app, so it
+  // follows the ARIA tree pattern: one tab stop, arrows to move, Enter/Space to
+  // act. Focus and selection are separate — see `focusId` above.
+
+  // Where the tab stop sits right now. Falls back to the active node, then the
+  // first row, so tabbing in always lands somewhere sensible.
+  const focusEff: ID | null =
+    (focusId && flat.some((f) => f.id === focusId) ? focusId : null) ??
+    (selectedId && flat.some((f) => f.id === selectedId) ? selectedId : null) ??
+    flat[0]?.id ?? null
+
+  const focusRow = (id: ID | null | undefined) => {
+    if (!id) return
+    wantFocusRef.current = true
+    setFocusId(id)
+  }
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    // The rename input lives inside a row; let it have its own keys.
+    if (renamingId) return
+    // Act on the row that actually holds DOM focus, falling back to the tab
+    // stop. The two normally agree, but anything that focuses a row from
+    // outside this component would otherwise leave the keys acting on a row
+    // the writer can't see a ring around.
+    const domId = (e.target as HTMLElement).closest?.('[data-node-id]')?.getAttribute('data-node-id')
+    const act: ID | null = (domId && flat.some((f) => f.id === domId) ? domId : null) ?? focusEff
+    const i = flat.findIndex((f) => f.id === act)
+    const cur = act ? project.nodes[act] : null
+
+    // Move focus, optionally sweeping the selection along with it.
+    const step = (to: number, extend: boolean) => {
+      const target = flat[Math.max(0, Math.min(flat.length - 1, to))]
+      if (!target) return
+      focusRow(target.id)
+      // selectRange keeps `selectedId` as the anchor, so holding shift keeps
+      // growing the same range rather than restarting from each new row.
+      if (extend) selectRange(target.id)
+    }
+
+    switch (e.key) {
+      case 'ArrowDown': e.preventDefault(); step(i + 1, e.shiftKey); return
+      case 'ArrowUp':   e.preventDefault(); step(i - 1, e.shiftKey); return
+      case 'Home':      e.preventDefault(); step(0, e.shiftKey); return
+      case 'End':       e.preventDefault(); step(flat.length - 1, e.shiftKey); return
+
+      case 'ArrowRight':
+        e.preventDefault()
+        // Closed folder opens; open folder steps into its first child.
+        if (cur?.type === 'folder' && !filtering) {
+          if (!cur.expanded) void mutate({ type: 'setExpanded', id: cur.id, expanded: true })
+          else if (cur.childIds.length) step(i + 1, false)
+        }
+        return
+
+      case 'ArrowLeft':
+        e.preventDefault()
+        if (filtering) return
+        if (cur?.type === 'folder' && cur.expanded) {
+          void mutate({ type: 'setExpanded', id: cur.id, expanded: false })
+        } else if (cur?.parentId) {
+          focusRow(cur.parentId)
+        }
+        return
+
+      case 'Enter':
+        e.preventDefault()
+        if (act) { setFocusId(act); selectNode(act) }
+        return
+
+      case ' ':
+        // Space would scroll the pane; it's the multi-select key here.
+        e.preventDefault()
+        if (!act) return
+        setFocusId(act)
+        if (e.metaKey || e.ctrlKey) toggleSelect(act)
+        else selectNode(act)
+        return
+
+      case 'F2':
+        e.preventDefault()
+        if (act) setRenamingId(act)
+        return
+
+      case 'Escape':
+        // Drop a multi-selection back to just the active node.
+        if (useProjectStore.getState().selectedIds.length > 1 && selectedId) {
+          e.preventDefault()
+          selectNode(selectedId)
+        }
+        return
+
+      case 'ContextMenu':
+        e.preventDefault()
+        if (!act) return
+        {
+          const el = scrollRef.current?.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(act)}"]`)
+          const r = el?.getBoundingClientRect()
+          if (!useProjectStore.getState().selectedIds.includes(act)) selectNode(act)
+          setCtx({ x: r ? r.left + 24 : 100, y: r ? r.bottom - 4 : 100, id: act })
+        }
+        return
+    }
+
+    // Type-ahead: printable characters jump to the next matching title, the way
+    // a file list does. 700ms of silence starts a new search.
+    if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      const now = Date.now()
+      const ta = typeahead.current
+      ta.buf = now - ta.at > 700 ? e.key : ta.buf + e.key
+      ta.at = now
+      const needle = ta.buf.toLowerCase()
+      // Start one past the current row so repeating a letter cycles matches.
+      const from = ta.buf.length === 1 ? i + 1 : i
+      for (let k = 0; k < flat.length; k++) {
+        const cand = flat[(from + k + flat.length) % flat.length]
+        if (!cand) continue
+        if (project.nodes[cand.id]?.title.toLowerCase().startsWith(needle)) {
+          e.preventDefault()
+          focusRow(cand.id)
+          return
+        }
+      }
+    }
+  }
+
   // Late-bound so `rowHandlers` can stay stable while these close over the
   // current project and drag state.
   const onDragOverRef = useRef<(e: React.DragEvent, id: ID) => void>(() => {})
@@ -132,6 +298,9 @@ export default function Binder(): React.ReactElement {
   const rowHandlers = useMemo<RowHandlers>(() => ({
     onClick: (id, e) => {
       if (useProjectStore.getState().renamingId === id) return
+      // Clicking moves the tab stop, so Tab-ing back in resumes where the
+      // writer last was rather than at the top of the manuscript.
+      setFocusId(id)
       // Shift extends from the active node; Ctrl/Cmd picks nodes one at a
       // time; a plain click collapses back to one.
       if (e.shiftKey) selectRange(id)
@@ -222,9 +391,16 @@ export default function Binder(): React.ReactElement {
       <SidebarResizer edge="right" cssVar="--binder-w" prefKey="pref:binderWidth" min={180} max={480} fallback={264} />
       <div className="binder-hd">Binder</div>
       <BinderFilter />
-      <div className="binder-scroll">
+      <div
+        className="binder-scroll"
+        ref={scrollRef}
+        role="tree"
+        aria-label="Binder"
+        aria-multiselectable
+        onKeyDown={onKeyDown}
+      >
         {flat.length === 0 && (
-          <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-3)', fontSize: 12.5, lineHeight: 1.6 }}>
+          <div role="none" style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-3)', fontSize: 12.5, lineHeight: 1.6 }}>
             {filtering ? (
               <>
                 <div style={{ marginBottom: 10 }}>Nothing matches this filter.</div>
@@ -255,6 +431,8 @@ export default function Binder(): React.ReactElement {
               status={node.meta.status}
               selected={selectedIds.includes(id)}
               current={selectedId === id}
+              focused={focusEff === id}
+              level={depth + 1}
               dragging={drag?.dragId === id}
               isOver={isOver}
               dropPos={isOver ? drag?.dropPos ?? null : null}
