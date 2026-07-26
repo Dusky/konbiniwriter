@@ -193,12 +193,6 @@ export function applyTheme(theme: Theme): void {
   for (const [k, v] of Object.entries(tokens)) root.style.setProperty(k, v)
 }
 
-/** Remove any inline theme tokens (falls back to the CSS base defaults). */
-export function clearThemeVars(): void {
-  const root = document.documentElement
-  for (const token of TOKEN_ORDER) root.style.removeProperty(token)
-}
-
 // ── Built-in skins (anchors chosen to read cleanly; Midnight/Paper mirror the
 // original dark/light look) ─────────────────────────────────────────────────
 export const BUILTIN_THEMES: Theme[] = [

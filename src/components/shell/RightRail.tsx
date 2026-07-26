@@ -22,7 +22,7 @@ export default function RightRail(): React.ReactElement {
   const tabs = RAIL_TABS.filter((t) => !t.ai || aiEnabled)
 
   return (
-    <div className="rail">
+    <aside className="rail" aria-label="Inspector">
       <SidebarResizer edge="left" cssVar="--insp-w" prefKey="pref:inspWidth"
         min={railPanel === 'codex' ? 320 : 240} max={560}
         fallback={railPanel === 'codex' ? 420 : 340} />
@@ -49,6 +49,6 @@ export default function RightRail(): React.ReactElement {
           : railPanel === 'history' ? <HistoryModal rail onClose={() => setRailPanel(null)} />
           : <Inspector />}
       </div>
-    </div>
+    </aside>
   )
 }

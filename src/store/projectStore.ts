@@ -296,6 +296,41 @@ function persistComments(projectId: ID, comments: Comment[]): void {
   flushCommentSave()
 }
 
+/**
+ * Drop score-cache entries whose node no longer exists, and rewrite the aux
+ * files if anything went.
+ *
+ * The three caches (`quality.json`, `slop.json`, `voice.json`) are keyed by node
+ * id, so they were accumulating entries for deleted scenes forever — and since
+ * they sit in the disposable aux tier nothing ever noticed. Returns only the
+ * caches that actually changed, so a mutation that deletes nothing keeps the
+ * existing Map identities and doesn't re-render every panel that reads them.
+ */
+function pruneScoreCaches(
+  s: Pick<ProjectState, 'project' | 'judgeResults' | 'slopResults' | 'voiceResults'>,
+  nodes: Record<ID, KNode>,
+): Partial<ProjectState> {
+  const p = s.project
+  if (!p) return {}
+  /** Returns null when nothing was dropped, so the caller can skip the write. */
+  const kept = <T,>(map: Map<ID, T>, file: string): Map<ID, T> | null => {
+    if (map.size === 0) return null
+    const next = new Map<ID, T>()
+    for (const [id, v] of map) if (nodes[id]) next.set(id, v)
+    if (next.size === map.size) return null
+    window.api.aux.write(p.id, file, JSON.stringify(Object.fromEntries(next))).catch(console.error)
+    return next
+  }
+  const out: Partial<ProjectState> = {}
+  const judge = kept(s.judgeResults, 'quality.json')
+  if (judge) out.judgeResults = judge
+  const slop = kept(s.slopResults, 'slop.json')
+  if (slop) out.slopResults = slop
+  const voice = kept(s.voiceResults, 'voice.json')
+  if (voice) out.voiceResults = voice
+  return out
+}
+
 /** Persist soon, collapsing a burst into one write (anchor drift). */
 function persistCommentsSoon(projectId: ID, comments: Comment[]): void {
   pendingCommentSave = { projectId, comments }
@@ -566,8 +601,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     // trashed documents deliberately keep their notes.
     const comments = s.comments.filter((c) => nodes[c.docId])
     if (comments.length !== s.comments.length) persistComments(s.project.id, comments)
+    // The aux score caches are keyed by node id too, and were outliving the
+    // nodes they describe — disposable files, but they grow forever and a
+    // recycled key would attach a dead scene's score to a live one.
+    const scores = pruneScoreCaches(s, nodes)
     // A fresh mutation invalidates the redo stack.
-    return { project: { ...s.project, rootIds, nodes, docs }, nodeHistory: history, nodeFuture: [], comments }
+    return { project: { ...s.project, rootIds, nodes, docs }, nodeHistory: history, nodeFuture: [], comments, ...scores }
   }),
 
   // Undo/redo move whole-tree snapshots between the past/future stacks and

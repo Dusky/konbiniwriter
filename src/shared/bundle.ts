@@ -37,6 +37,19 @@ export function slimManifest(project: Project): unknown {
   return {
     ...project,
     settings,
+    nodes: Object.fromEntries(
+      Object.entries(project.nodes).map(([k, n]) => {
+        // `_newId` is how a mutation result points at the node it just created;
+        // it belongs to that one round trip and must not survive it. Persisting
+        // it meant a reloaded project came back with a live marker on a node
+        // from a previous session, which is precisely the state that had AI
+        // drafts writing their text into the wrong (or no) document.
+        if (n.ext['_newId'] === undefined) return [k, n]
+        const { _newId: _drop, ...ext } = n.ext
+        void _drop
+        return [k, { ...n, ext }]
+      }),
+    ),
     docs: Object.fromEntries(
       Object.entries(project.docs).map(([k, v]) => [
         k,

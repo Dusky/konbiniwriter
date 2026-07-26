@@ -34,7 +34,7 @@ export default function Toolbar(): React.ReactElement {
   const debtOpen = useProjectStore((s) => s.debt.filter((d) => d.affected.some((a) => !a.resolved)).length)
 
   return (
-    <div className="toolbar">
+    <nav className="toolbar" aria-label="Views and tools">
       <div className="tb-group">
         <button
           className={`tb-btn${layout.binder ? ' on' : ''}`}
@@ -191,6 +191,6 @@ export default function Toolbar(): React.ReactElement {
           <span className="ai-spark"><Icon name="sparkle" size={13} /></span> AI
         </button>
       )}
-    </div>
+    </nav>
   )
 }

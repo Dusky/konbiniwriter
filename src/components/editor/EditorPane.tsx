@@ -64,6 +64,12 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
     },
   }
   const paneCls = `main${dropActive ? ' pane-drop' : ''}`
+  // Landmark roles rather than a <main> element: split view renders two of these
+  // and a page may only have one main. The left pane is the document you are
+  // working in; the right is a secondary region.
+  const paneRole = pane === 'right'
+    ? { role: 'region', 'aria-label': 'Second editor pane' }
+    : { role: 'main', 'aria-label': 'Editor' }
 
   const createFirstDoc = async () => {
     const p = useProjectStore.getState().project
@@ -95,7 +101,7 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
   if (activeViewTab && !splitOpen) {
     const def = VIEW_TABS[activeViewTab]
     return (
-      <div className={paneCls} style={{ display: 'flex', flexDirection: 'column' }} {...dropProps}>
+      <div className={paneCls} {...paneRole} style={{ display: 'flex', flexDirection: 'column' }} {...dropProps}>
         <TabStrip />
         {def ? def.render(() => closeViewTab(activeViewTab)) : null}
       </div>
@@ -133,7 +139,7 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
   // Editor view
   if (!selectedId || !selectedNode) {
     return (
-      <div className={paneCls} style={{ display: 'flex', flexDirection: 'column' }} {...dropProps}>
+      <div className={paneCls} {...paneRole} style={{ display: 'flex', flexDirection: 'column' }} {...dropProps}>
         {tabs}
         {paneHeader}
         <div className="empty-state" style={{ flex: 1 }}>
@@ -164,7 +170,7 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
     // (Main pane only in v1; split panes keep the placeholder.)
     if (hasScenes && !splitOpen) {
       return (
-        <div className={paneCls} style={{ display: 'flex', flexDirection: 'column' }} {...dropProps}>
+        <div className={paneCls} {...paneRole} style={{ display: 'flex', flexDirection: 'column' }} {...dropProps}>
           {tabs}
           <div className="doc-bar">
             <span className="crumb"><Icon name="folder" style={{ verticalAlign: '-2px', marginRight: 4 }} /><b>{selectedNode.title}</b></span>
@@ -180,7 +186,7 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
       )
     }
     return (
-      <div className={paneCls} style={{ display: 'flex', flexDirection: 'column' }} {...dropProps}>
+      <div className={paneCls} {...paneRole} style={{ display: 'flex', flexDirection: 'column' }} {...dropProps}>
         {tabs}
         {paneHeader}
         <div className="empty-state" style={{ flex: 1 }}>
@@ -208,7 +214,7 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
   }
 
   return (
-    <div className={paneCls} style={{ display: 'flex', flexDirection: 'column' }} {...dropProps}>
+    <div className={paneCls} {...paneRole} style={{ display: 'flex', flexDirection: 'column' }} {...dropProps}>
       {tabs}
       {paneHeader}
       <div className="doc-bar">

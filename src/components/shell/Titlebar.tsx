@@ -18,16 +18,18 @@ export default function Titlebar(): React.ReactElement {
   }
 
   return (
-    <div className="titlebar">
+    <header className="titlebar">
       <div className="proj">
         <span className="wm">KONBINI</span>
-        {project && <b>{project.title}</b>}
+        {/* The project title is the page's one h1: a screen reader landing here
+            should hear what document set it is inside, not "banner, button". */}
+        {project && <h1>{project.title}</h1>}
       </div>
       <span style={{ flex: 1 }} />
       <button className="tb-btn" title="Close project — back to projects" onClick={handleClose} style={{ marginLeft: 6, gap: 6 }}>
         <Icon name="x" size={13} /> Close project
       </button>
       <WindowControls />
-    </div>
+    </header>
   )
 }

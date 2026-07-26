@@ -387,7 +387,7 @@ export default function Binder(): React.ReactElement {
   renameCommitRef.current = handleRenameCommit
 
   return (
-    <div className="binder">
+    <nav className="binder" aria-label="Binder">
       <SidebarResizer edge="right" cssVar="--binder-w" prefKey="pref:binderWidth" min={180} max={480} fallback={264} />
       <div className="binder-hd">Binder</div>
       <BinderFilter />
@@ -477,6 +477,6 @@ export default function Binder(): React.ReactElement {
           onCancel={() => setConfirmDelete(null)}
         />
       )}
-    </div>
+    </nav>
   )
 }

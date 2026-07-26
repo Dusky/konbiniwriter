@@ -103,7 +103,7 @@ class NodeProjectService {
     }
     // ── Open ────────────────────────────────────────────────────────────────────
     async open(bundlePath) {
-        const manifestText = await readText(bundlePath, 'project.json');
+        const manifestText = await readText(bundlePath, bundle_1.MANIFEST_FILE);
         if (!manifestText)
             throw new Error('Not a Konbini project (no project.json)');
         const project = JSON.parse(manifestText);
@@ -363,9 +363,9 @@ class NodeProjectService {
     async probe(projectId) {
         const dir = this.getPath(projectId);
         const out = {};
-        const m = await statMtime(path.join(dir, 'project.json'));
+        const m = await statMtime(path.join(dir, bundle_1.MANIFEST_FILE));
         if (m)
-            out['project.json'] = m;
+            out[bundle_1.MANIFEST_FILE] = m;
         try {
             for (const name of await fs.readdir(path.join(dir, 'docs'))) {
                 if (!name.endsWith('.md'))
@@ -382,7 +382,7 @@ class NodeProjectService {
      */
     async readBundle(projectId) {
         const dir = this.getPath(projectId);
-        const manifestText = await readText(dir, 'project.json');
+        const manifestText = await readText(dir, bundle_1.MANIFEST_FILE);
         if (!manifestText)
             throw new Error('Bundle has no project.json');
         const onDisk = JSON.parse(manifestText);
@@ -445,7 +445,7 @@ class NodeProjectService {
         return p;
     }
     async writeManifest(dir, project) {
-        await writeText(dir, (0, bundle_1.serializeManifest)(project), 'project.json');
+        await writeText(dir, (0, bundle_1.serializeManifest)(project), bundle_1.MANIFEST_FILE);
     }
     descendants(proj, id) {
         const acc = [];

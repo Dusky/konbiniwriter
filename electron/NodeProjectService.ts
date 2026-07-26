@@ -9,7 +9,7 @@ import { uid, wordCount, isValidAuxName } from '../src/shared/utils'
 import { buildProjectFromTemplate } from '../src/shared/templates'
 import { buildProjectFromDocs } from '../src/shared/importer'
 import { applyNodeOp, migrateProject } from '../src/shared/nodeOps'
-import { serializeManifest, serializeCodex, serializeDebt, serializeComments, adoptSidecars, CODEX_FILE, DEBT_FILE, COMMENTS_FILE } from '../src/shared/bundle'
+import { serializeManifest, serializeCodex, serializeDebt, serializeComments, adoptSidecars, MANIFEST_FILE, CODEX_FILE, DEBT_FILE, COMMENTS_FILE } from '../src/shared/bundle'
 import { conflictFileName } from '../src/shared/sync'
 import type {
   Project, KNode, DocBody, NodeOp, Snapshot, ID, ImportDoc,
@@ -72,7 +72,7 @@ export class NodeProjectService {
   // ── Open ────────────────────────────────────────────────────────────────────
 
   async open(bundlePath: string): Promise<Project> {
-    const manifestText = await readText(bundlePath, 'project.json')
+    const manifestText = await readText(bundlePath, MANIFEST_FILE)
     if (!manifestText) throw new Error('Not a Konbini project (no project.json)')
 
     const project: Project = JSON.parse(manifestText)
@@ -370,8 +370,8 @@ export class NodeProjectService {
   async probe(projectId: string): Promise<Record<string, number>> {
     const dir = this.getPath(projectId)
     const out: Record<string, number> = {}
-    const m = await statMtime(path.join(dir, 'project.json'))
-    if (m) out['project.json'] = m
+    const m = await statMtime(path.join(dir, MANIFEST_FILE))
+    if (m) out[MANIFEST_FILE] = m
     try {
       for (const name of await fs.readdir(path.join(dir, 'docs'))) {
         if (!name.endsWith('.md')) continue
@@ -387,7 +387,7 @@ export class NodeProjectService {
    */
   async readBundle(projectId: string): Promise<SyncBundle> {
     const dir = this.getPath(projectId)
-    const manifestText = await readText(dir, 'project.json')
+    const manifestText = await readText(dir, MANIFEST_FILE)
     if (!manifestText) throw new Error('Bundle has no project.json')
     const onDisk: Project = JSON.parse(manifestText)
     migrateProject(onDisk)   // an older bundle may predate per-node revs
@@ -451,7 +451,7 @@ export class NodeProjectService {
   }
 
   private async writeManifest(dir: string, project: Project): Promise<void> {
-    await writeText(dir, serializeManifest(project), 'project.json')
+    await writeText(dir, serializeManifest(project), MANIFEST_FILE)
   }
 
   private descendants(proj: Project, id: string): string[] {
