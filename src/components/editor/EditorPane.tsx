@@ -102,9 +102,15 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
     )
   }
 
-  if (view === 'corkboard') return <Corkboard />
-  if (view === 'outliner')  return <Outliner />
-  if (view === 'timeline')  return <Timeline />
+  // In split view the browsing modes belong to the LEFT pane only; the right
+  // pane stays an editor. Otherwise switching to the outliner replaced both
+  // panes with the same table, leaving nothing to browse *into* — and making
+  // "drag a row from the outline into the other pane" impossible to perform.
+  if (!splitOpen || pane === 'left') {
+    if (view === 'corkboard') return <Corkboard />
+    if (view === 'outliner')  return <Outliner />
+    if (view === 'timeline')  return <Timeline />
+  }
 
 
   // Open-document tabs belong to the single main editor (the pane that tracks
@@ -181,7 +187,11 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
           <div className="wm"><Icon name="folder" /></div>
           <div className="big">{selectedNode.title}</div>
           <p style={{ color: 'var(--text-3)', fontSize: 13 }}>
-            {hasScenes ? 'Switch to Corkboard or Outliner to see children' : 'This folder has no documents yet'}
+            {!hasScenes ? 'This folder has no documents yet'
+              // Corkboard and Outliner live in the left pane while split, so
+              // telling the right pane to switch to them would be wrong.
+              : splitOpen ? 'Pick a document above, or drag one in'
+              : 'Switch to Corkboard or Outliner to see children'}
           </p>
         </div>
       </div>
