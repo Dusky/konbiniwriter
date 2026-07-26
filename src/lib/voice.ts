@@ -5,6 +5,8 @@
 
 import { promptRegistry } from './PromptRegistry'
 import { streamCompletion } from './AIClient'
+import { uid } from '@shared/utils'
+import type { ID, Project, ProjectSettings, VoiceProfile } from '@shared/types'
 
 export interface VoiceResult {
   score: number    // 1–10, higher = closer to the fingerprint
@@ -71,6 +73,65 @@ export function generateVoiceFingerprint(
       },
     ).catch(reject)
   })
+}
+
+// ── Voice profiles ───────────────────────────────────────────────────────────
+
+export const DEFAULT_VOICE_NAME = 'Main voice'
+
+/** A new profile, ready to store. */
+export function makeVoiceProfile(name: string, fingerprint: string): VoiceProfile {
+  const now = new Date().toISOString()
+  return { id: uid('voice'), name: name.trim() || DEFAULT_VOICE_NAME, fingerprint, createdAt: now, modifiedAt: now }
+}
+
+/**
+ * Bring a project's settings up to the profile model.
+ *
+ * Projects written before profiles existed carry a single
+ * `settings.voiceFingerprint` string. That becomes one named profile and the
+ * active one, so nothing is lost and nothing needs the author's attention.
+ * Idempotent — safe to run on every load.
+ *
+ * Returns null when there is nothing to change, so callers can skip the write.
+ */
+export function migrateVoiceProfiles(settings: ProjectSettings): Partial<ProjectSettings> | null {
+  const profiles = settings.voiceProfiles
+  if (profiles?.length) {
+    // Already migrated. Repair a dangling active id rather than resolving to
+    // nothing — a deleted profile shouldn't silently turn the voice off.
+    if (settings.activeVoiceId && profiles.some((p) => p.id === settings.activeVoiceId)) return null
+    const first = profiles[0]!
+    return { activeVoiceId: first.id, voiceFingerprint: first.fingerprint }
+  }
+  const legacy = (settings.voiceFingerprint ?? '').trim()
+  if (!legacy) return null
+  const profile = makeVoiceProfile(DEFAULT_VOICE_NAME, legacy)
+  return { voiceProfiles: [profile], activeVoiceId: profile.id, voiceFingerprint: legacy }
+}
+
+/** The profile a document is written in, or the project default. */
+export function voiceProfileFor(project: Project, docId?: ID | null): VoiceProfile | null {
+  const profiles = project.settings.voiceProfiles ?? []
+  if (profiles.length === 0) return null
+  const own = docId ? project.nodes[docId]?.meta.voiceId : undefined
+  return (own ? profiles.find((p) => p.id === own) : undefined)
+    ?? profiles.find((p) => p.id === project.settings.activeVoiceId)
+    ?? profiles[0]
+    ?? null
+}
+
+/**
+ * The fingerprint text in force for a document — the one read path.
+ *
+ * Falls back to the legacy single-string field so a project that hasn't been
+ * migrated yet (or was written by an older build) still has a voice.
+ */
+export function resolveVoice(project: Project | null | undefined, docId?: ID | null): string {
+  if (!project) return ''
+  const profile = voiceProfileFor(project, docId)
+  if (profile) return profile.fingerprint
+  return (project.settings.voiceFingerprint as string | undefined) ?? ''
 }
 
 /**

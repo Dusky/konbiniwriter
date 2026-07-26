@@ -3,6 +3,7 @@ import type { MentionIndex } from './MentionIndex'
 import { mentionsIn } from './MentionIndex'
 import { retrieve } from './RetrievalService'
 import { useAIStore } from '../store/aiStore'
+import { resolveVoice } from './voice'
 
 // Rough token estimate: 1 token ≈ 4 chars for English prose.
 export function estimateTokens(text: string): number {
@@ -216,7 +217,9 @@ export function buildContext(
   }
 
   // Tier 5: project-level voice fingerprint (style guide for prose generation)
-  addTier('Voice fingerprint', (project.settings.voiceFingerprint as string | undefined) ?? '')
+  // Per document, not per project: a book with two POV voices wants the one
+  // this scene is written in.
+  addTier('Voice fingerprint', resolveVoice(project, docId))
 
   // Tier 6: codex entities mentioned in this scene
   addTier('Codex entities', getCodexContext(project, index, docId))

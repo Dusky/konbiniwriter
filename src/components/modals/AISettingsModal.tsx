@@ -7,7 +7,8 @@ import { kbd } from '../../lib/kbd'
 import Icon from '../common/Icon'
 import ModalShell from '../common/ModalShell'
 import VoiceBriefModal from './VoiceBriefModal'
-import { generateVoiceFingerprint, gatherProseSamples } from '../../lib/voice'
+import { generateVoiceFingerprint, gatherProseSamples, makeVoiceProfile, DEFAULT_VOICE_NAME } from '../../lib/voice'
+import type { VoiceProfile } from '@shared/types'
 
 const ANTHROPIC_MODELS = [
   { id: 'claude-fable-5',   label: 'Claude Fable 5 (most capable)' },
@@ -106,7 +107,9 @@ export default function AISettingsModal({ onClose, embedded }: Props): React.Rea
 
   const project = useProjectStore((s) => s.project)
   const setVoiceFingerprint = useProjectStore((s) => s.setVoiceFingerprint)
-  const voiceFingerprint = (project?.settings.voiceFingerprint as string | undefined) ?? ''
+  const saveVoiceProfiles = useProjectStore((s) => s.saveVoiceProfiles)
+  const profiles = (project?.settings.voiceProfiles as VoiceProfile[] | undefined) ?? []
+  const activeVoiceId = project?.settings.activeVoiceId as string | undefined
   const setAiInstructions = useProjectStore((s) => s.setAiInstructions)
   const projectInstructions = (project?.settings.aiInstructions as string | undefined) ?? ''
 
@@ -120,6 +123,48 @@ export default function AISettingsModal({ onClose, embedded }: Props): React.Rea
   const [voiceRefreshed, setVoiceRefreshed] = useState(false)
   const [voiceError, setVoiceError] = useState<string | null>(null)
   const [voiceBriefOpen, setVoiceBriefOpen] = useState(false)
+  const [renamingVoiceId, setRenamingVoiceId] = useState<string | null>(null)
+  /** The profile the brief dialog is editing; null means it's creating one. */
+  const [editingVoice, setEditingVoiceState] = useState<VoiceProfile | null>(null)
+  const setEditingVoice = (v: VoiceProfile | null) => { setEditingVoiceState(v); setVoiceBriefOpen(true) }
+
+  const renameVoice = (id: string, name: string) => {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    saveVoiceProfiles(
+      profiles.map((v) => (v.id === id ? { ...v, name: trimmed, modifiedAt: new Date().toISOString() } : v)),
+      activeVoiceId,
+    )
+  }
+
+  const duplicateVoice = (v: VoiceProfile) => {
+    const copy = makeVoiceProfile(`${v.name} copy`, v.fingerprint)
+    saveVoiceProfiles([...profiles, copy], activeVoiceId)
+  }
+
+  const deleteVoice = (id: string) => {
+    // Documents pointing at a deleted profile fall back to the default via
+    // resolveVoice, so a stale meta.voiceId is harmless — no tree rewrite here.
+    const next = profiles.filter((v) => v.id !== id)
+    if (next.length === 0) return
+    saveVoiceProfiles(next, activeVoiceId === id ? next[0]!.id : activeVoiceId)
+  }
+
+  /** Save the brief dialog's output — into the profile it opened on, or a new one. */
+  const commitVoice = (fingerprint: string) => {
+    const now = new Date().toISOString()
+    if (editingVoice) {
+      saveVoiceProfiles(
+        profiles.map((v) => (v.id === editingVoice.id ? { ...v, fingerprint, modifiedAt: now } : v)),
+        activeVoiceId,
+      )
+      return
+    }
+    const created = makeVoiceProfile(profiles.length ? `Voice ${profiles.length + 1}` : DEFAULT_VOICE_NAME, fingerprint)
+    // The first voice a project gets becomes its default; later ones don't
+    // silently take over what everything already written is measured against.
+    saveVoiceProfiles([...profiles, created], profiles.length ? activeVoiceId : created.id)
+  }
   const voiceAbortRef = useRef<AbortController | null>(null)
   useEffect(() => () => { voiceAbortRef.current?.abort() }, [])
 
@@ -590,27 +635,71 @@ export default function AISettingsModal({ onClose, embedded }: Props): React.Rea
             </div>
           </Row>
 
-          <Row label="Voice fingerprint">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {voiceFingerprint ? (
-                <div style={{ padding: '8px 10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border)', background: 'var(--bg-2)', fontSize: 11, color: 'var(--text-2)', fontFamily: 'var(--mono)', lineHeight: 1.5, maxHeight: 72, overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
-                  {voiceFingerprint.slice(0, 300)}{voiceFingerprint.length > 300 ? '…' : ''}
+          <Row label="Voices">
+            <div className="vp-list">
+              {profiles.length === 0 && (
+                <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                  No voice yet — describe the one you want, or derive it from prose you've already written.
                 </div>
-              ) : (
-                <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Not set — describe the voice you want, or derive one from prose you've already written.</div>
               )}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <button className="btn" style={{ fontSize: 12, padding: '4px 12px' }} disabled={!project} onClick={() => setVoiceBriefOpen(true)}>
-                  Describe a voice…
+              {profiles.map((v) => {
+                const active = v.id === activeVoiceId
+                return (
+                  <div key={v.id} className={`vp-row${active ? ' on' : ''}`}>
+                    <button
+                      className="vp-pick"
+                      title={active ? 'Project default' : 'Make this the project default'}
+                      aria-pressed={active}
+                      onClick={() => saveVoiceProfiles(profiles, v.id)}
+                    >
+                      {/* A ring drawn in CSS; the tick only appears on the default. */}
+                      {active && <Icon name="check" size={12} />}
+                    </button>
+                    {renamingVoiceId === v.id ? (
+                      <input
+                        className="vp-name-input"
+                        autoFocus
+                        defaultValue={v.name}
+                        onBlur={(e) => { renameVoice(v.id, e.target.value); setRenamingVoiceId(null) }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { renameVoice(v.id, e.currentTarget.value); setRenamingVoiceId(null) }
+                          if (e.key === 'Escape') setRenamingVoiceId(null)
+                        }}
+                      />
+                    ) : (
+                      <button className="vp-name" onDoubleClick={() => setRenamingVoiceId(v.id)} onClick={() => setEditingVoice(v)} title={v.fingerprint.slice(0, 400)}>
+                        <span className="vp-name-text">{v.name}</span>
+                        {active && <span className="vp-badge">default</span>}
+                        <span className="vp-preview">{v.fingerprint.replace(/[#*\n]+/g, ' ').trim().slice(0, 60) || 'empty'}</span>
+                      </button>
+                    )}
+                    <div className="vp-tools">
+                      <button title="Rename" aria-label={`Rename ${v.name}`} onClick={() => setRenamingVoiceId(v.id)}><Icon name="edit" size={12} /></button>
+                      <button title="Duplicate" aria-label={`Duplicate ${v.name}`} onClick={() => duplicateVoice(v)}><Icon name="copy" size={12} /></button>
+                      <button
+                        title={profiles.length === 1 ? 'The last voice cannot be deleted' : 'Delete'}
+                        aria-label={`Delete ${v.name}`}
+                        className="vp-del"
+                        disabled={profiles.length === 1}
+                        onClick={() => deleteVoice(v.id)}
+                      ><Icon name="trash" size={12} /></button>
+                    </div>
+                  </div>
+                )
+              })}
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <button className="btn" style={{ fontSize: 12, padding: '4px 12px' }} disabled={!project} onClick={() => { setEditingVoice(null); setVoiceBriefOpen(true) }}>
+                  {profiles.length ? 'Add a voice…' : 'Describe a voice…'}
                 </button>
                 <button className="btn" style={{ fontSize: 12, padding: '4px 12px' }} disabled={!project || voiceRefreshing} onClick={handleRefreshVoice}>
-                  {voiceRefreshing ? 'Refreshing…' : voiceRefreshed ? <>Refreshed <Icon name="check" size={12} style={{ verticalAlign: '-1px', marginLeft: 3 }} /></> : 'Refresh from manuscript'}
+                  {voiceRefreshing ? 'Refreshing…' : voiceRefreshed ? <>Refreshed <Icon name="check" size={12} style={{ verticalAlign: '-1px', marginLeft: 3 }} /></> : 'Refresh default from manuscript'}
                 </button>
                 {voiceError && <span style={{ fontSize: 11, color: 'var(--danger)' }}>{voiceError}</span>}
               </div>
               <div className="ai-hint">
-                <b>Describe a voice</b> writes the style guide from your description — use it before there's prose to learn from.
-                <b> Refresh</b> re-derives it from your compiled documents. Either way it's saved to the project and editable.
+                The default applies to every document that doesn't name its own — set a document's voice in the Inspector.
+                Click a voice to edit it; <b>Describe</b> writes one from your description, <b>Refresh</b> re-derives the default from your compiled prose.
               </div>
             </div>
           </Row>
@@ -661,9 +750,9 @@ export default function AISettingsModal({ onClose, embedded }: Props): React.Rea
 
         {voiceBriefOpen && (
           <VoiceBriefModal
-            initial={voiceFingerprint}
-            onSave={(fp) => { setVoiceFingerprint(fp); setVoiceRefreshed(false); setVoiceError(null) }}
-            onClose={() => setVoiceBriefOpen(false)}
+            initial={editingVoice?.fingerprint ?? ''}
+            onSave={(fp) => { commitVoice(fp); setVoiceRefreshed(false); setVoiceError(null) }}
+            onClose={() => { setVoiceBriefOpen(false); setEditingVoiceState(null) }}
           />
         )}
     </ModalShell>

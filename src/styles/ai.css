@@ -851,3 +851,30 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 .vb-add-ref { align-self: flex-start; display: inline-flex; align-items: center; gap: 5px; }
 .vb-actions { display: flex; align-items: center; gap: var(--s3); margin-top: var(--s1); }
 .vb-error { font-size: var(--t-xs); color: var(--danger); }
+
+/* ── Voice profiles ──────────────────────────────────────────────────────── */
+.vp-list { display: flex; flex-direction: column; gap: var(--s2); width: 100%; }
+.vp-row { display: flex; align-items: center; gap: var(--s2); padding: 6px 8px;
+  border: 0.5px solid var(--border); border-radius: var(--r-md); background: var(--bg-2); }
+.vp-row.on { border-color: var(--accent); }
+.vp-pick { width: 18px; height: 18px; flex: none; display: grid; place-items: center;
+  border-radius: 50%; border: 1.5px solid var(--border-2); background: transparent;
+  color: var(--accent-fg); cursor: pointer; padding: 0; }
+.vp-row.on .vp-pick { background: var(--accent); border-color: var(--accent); }
+.vp-name { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: var(--s2);
+  background: transparent; border: 0; padding: 0; text-align: left; cursor: pointer;
+  font-size: var(--t-base); color: var(--text); }
+/* The name sets the row height, so it must not wrap; the preview is what gives. */
+.vp-name-text { flex: none; white-space: nowrap; }
+.vp-name-input { flex: 1; min-width: 0; background: var(--bg-3); border: 1px solid var(--accent);
+  color: var(--text); font: inherit; border-radius: 4px; padding: 2px 6px; outline: none; }
+.vp-badge { font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent);
+  border: 0.5px solid var(--accent); border-radius: var(--r-full); padding: 1px 5px; flex: none; }
+.vp-preview { font-size: var(--t-xs); color: var(--text-3); overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.vp-tools { display: flex; gap: 2px; flex: none; }
+.vp-tools button { width: 24px; height: 24px; display: grid; place-items: center; border: 0;
+  border-radius: 6px; background: transparent; color: var(--text-3); cursor: pointer; }
+.vp-tools button:hover { background: var(--bg-3); color: var(--text); }
+.vp-tools button:disabled { opacity: .35; cursor: default; }
+.vp-tools .vp-del:hover { color: var(--danger); }

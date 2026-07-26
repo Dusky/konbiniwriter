@@ -10,7 +10,7 @@ import type { ID, CodexEntry, CodexFact, CodexCategory } from '@shared/types'
 import ModalShell from '../common/ModalShell'
 import Icon from '../common/Icon'
 import VoiceBriefModal from './VoiceBriefModal'
-import { generateVoiceFingerprint, gatherProseSamples, voiceSourceFor } from '../../lib/voice'
+import { generateVoiceFingerprint, gatherProseSamples, voiceSourceFor, resolveVoice } from '../../lib/voice'
 
 type DocStepId = 'concept' | 'world' | 'characters' | 'outline'
 type WizardStepId = 'seeds' | DocStepId | 'voice'
@@ -65,7 +65,7 @@ export default function FoundationModal({ onClose, embedded }: Props): React.Rea
   const [addCanon, setAddCanon] = useState(true)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [voice, setVoice] = useState(project?.settings.voiceFingerprint ?? '')
+  const [voice, setVoice] = useState(resolveVoice(project))
   const [voiceSaved, setVoiceSaved] = useState(false)
   const [voiceBriefOpen, setVoiceBriefOpen] = useState(false)
   const abortRef = useRef<AbortController | null>(null)

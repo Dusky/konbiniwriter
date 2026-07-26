@@ -55,10 +55,40 @@ export interface ProjectSettings {
   comments?: Comment[]       // margin notes anchored to spans of prose (sidecar)
   collections?: Collection[]  // saved binder queries
   dictionary?: string[]      // words the writer marked correct (project vocabulary)
-  voiceFingerprint?: string  // foundation: prose style guide, injected as context
+  /**
+   * Named prose style guides. A book with two POV voices needs two, and a
+   * document can point at one that isn't the project default.
+   */
+  voiceProfiles?: VoiceProfile[]
+  /** Which profile applies to documents that don't name their own. */
+  activeVoiceId?: ID
+  /**
+   * The active profile's text, mirrored here.
+   *
+   * This was the whole feature before profiles existed, and it is still what a
+   * bundle written by an older build carries. Kept in sync on every profile
+   * change so downgrading, or reading the manifest with anything else, still
+   * finds the voice that was in force. `resolveVoice()` is the read path —
+   * nothing should reach for this field directly.
+   */
+  voiceFingerprint?: string
   aiInstructions?: string    // per-project AI instructions & notes (CLAUDE.md analog)
   autopilotRun?: AutopilotRunState | null  // in-progress autopilot run, for resume
   [k: string]: unknown
+}
+
+/**
+ * A named prose style guide.
+ *
+ * `fingerprint` is the same markdown a single-voice project used to keep in
+ * `settings.voiceFingerprint`; the name is what makes a second one usable.
+ */
+export interface VoiceProfile {
+  id: ID
+  name: string
+  fingerprint: string
+  createdAt: ISO
+  modifiedAt: ISO
 }
 
 // A persisted Autopilot run so an interrupted run (stop, close, refresh) can be
@@ -128,6 +158,12 @@ export interface DocMeta {
    * read it as `keywords ?? []`.
    */
   keywords?: string[]
+  /**
+   * Which voice profile this document is written in. Undefined means "the
+   * project's active profile" — the common case, and what every document in a
+   * single-voice book carries.
+   */
+  voiceId?: ID
 }
 
 export interface DocBody {

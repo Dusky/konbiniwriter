@@ -6,6 +6,7 @@ import type { NodeQuery, Collection } from '@shared/query'
 import { isEmptyQuery } from '@shared/query'
 import { trimAnchor } from '@shared/comments'
 import { uid, wordCount } from '@shared/utils'
+import { makeVoiceProfile, migrateVoiceProfiles, DEFAULT_VOICE_NAME } from '../lib/voice'
 import { type MentionIndex, buildIndex, updateIndex } from '../lib/MentionIndex'
 import type { JudgeResult, QualityPoint } from '../lib/judge'
 import type { SlopResult } from '../lib/slop'
@@ -183,6 +184,7 @@ interface ProjectState {
   /** Merge a patch into project settings (persisted). For book metadata etc. */
   updateProjectSettings: (patch: Partial<ProjectSettings>) => void
   setVoiceFingerprint: (text: string) => void
+  saveVoiceProfiles: (profiles: import('@shared/types').VoiceProfile[], activeId?: ID) => void
   setAiInstructions: (text: string) => void
   setAutopilotRun: (run: import('@shared/types').AutopilotRunState | null) => void
 
@@ -397,6 +399,15 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   loadProject: (project) => {
     useShellStore.getState().setRailPanel('inspector')
+    // A bundle written before voice profiles existed carries one unnamed
+    // fingerprint string. Promote it to a named profile on open so the rest of
+    // the app only ever sees the profile model — and persist, so the next open
+    // isn't a migration again.
+    const voicePatch = migrateVoiceProfiles(project.settings)
+    if (voicePatch) {
+      project = { ...project, settings: { ...project.settings, ...voicePatch } }
+      window.api.settings.save(project.id, voicePatch).catch(console.error)
+    }
     set({
       project,
       selectedId: null,
@@ -948,12 +959,46 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     window.api.settings.save(p.id, patch).catch(console.error)
   },
 
+  /**
+   * Write the *active* profile's text. Kept for the callers that just mean
+   * "this is the voice now" (Foundation, refresh-from-manuscript) without
+   * caring which profile holds it.
+   */
   setVoiceFingerprint: (text) => {
     const p = get().project
     if (!p) return
-    const updated = { ...p, settings: { ...p.settings, voiceFingerprint: text } }
-    set({ project: updated })
-    window.api.settings.save(p.id, { voiceFingerprint: text }).catch(console.error)
+    const profiles = p.settings.voiceProfiles ?? []
+    const activeId = p.settings.activeVoiceId
+    const now = new Date().toISOString()
+    const next = profiles.length
+      ? profiles.map((v) => (v.id === activeId || (!activeId && v === profiles[0])
+          ? { ...v, fingerprint: text, modifiedAt: now }
+          : v))
+      : [makeVoiceProfile(DEFAULT_VOICE_NAME, text)]
+    const patch = {
+      voiceProfiles: next,
+      activeVoiceId: activeId && next.some((v) => v.id === activeId) ? activeId : next[0]!.id,
+      voiceFingerprint: text,
+    }
+    set({ project: { ...p, settings: { ...p.settings, ...patch } } })
+    window.api.settings.save(p.id, patch).catch(console.error)
+  },
+
+  /** Persist a whole profile list (+ which one is active) in one write. */
+  saveVoiceProfiles: (profiles, activeId) => {
+    const p = get().project
+    if (!p) return
+    const active = activeId && profiles.some((v) => v.id === activeId) ? activeId : profiles[0]?.id
+    const patch = {
+      voiceProfiles: profiles,
+      activeVoiceId: active,
+      // Mirror for older builds and anything reading the manifest directly.
+      voiceFingerprint: profiles.find((v) => v.id === active)?.fingerprint ?? '',
+    }
+    set({ project: { ...p, settings: { ...p.settings, ...patch } } })
+    window.api.settings.save(p.id, patch).catch((e: Error) => {
+      useShellStore.getState().setToast('Voice profiles could not be saved: ' + e.message)
+    })
   },
 
   setAiInstructions: (text) => {
