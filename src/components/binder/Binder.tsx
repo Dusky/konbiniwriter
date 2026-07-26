@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useProjectStore, flattenVisible, subtreeWordCount, isDescendant } from '../../store/projectStore'
 import { useShellStore } from '../../store/shellStore'
-import ContextMenu, { type MenuItem } from '../common/ContextMenu'
+import ContextMenu from '../common/ContextMenu'
+import { useNodeMenu } from '../common/useNodeMenu'
 import ConfirmDialog from '../common/ConfirmDialog'
 import Icon from '../common/Icon'
 import SidebarResizer from '../common/SidebarResizer'
@@ -41,6 +42,16 @@ export default function Binder(): React.ReactElement {
   const [drag, setDrag] = useState<DragState | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const renameInputRef = useRef<HTMLInputElement>(null)
+
+  // One shared builder for binder/corkboard/outliner, so a node offers the same
+  // actions wherever it's right-clicked. Rename and the delete confirmation are
+  // binder-only (nothing else can show the input or the dialog), so they're
+  // injected rather than duplicated. Setting renamingId is enough — the effect
+  // below seeds the field and focuses it.
+  const nodeMenu = useNodeMenu({
+    onRename: setRenamingId,
+    onConfirmDelete: setConfirmDelete,
+  })
 
   // When rename mode opens for a node — from any trigger (create, context menu,
   // keyboard) — seed the field with the node's current title and reliably move
@@ -145,26 +156,6 @@ export default function Binder(): React.ReactElement {
 
     setDrag(null)
     await mutate({ type: 'move', id: dragId, newParentId, atIndex })
-  }
-
-  // ── Context menu items ───────────────────────────────────────────────────
-
-  const ctxItems = (id: ID): MenuItem[] => {
-    const node = project.nodes[id]
-    const inTrash = node?.parentId === project.trashId
-    return [
-      { label: 'New Document',  action: () => mutate({ type: 'create', parentId: id, nodeType: 'document' }) },
-      { label: 'New Scene',     action: () => mutate({ type: 'create', parentId: id, nodeType: 'scene' }) },
-      { label: 'New Folder',    action: () => mutate({ type: 'create', parentId: id, nodeType: 'folder' }) },
-      { label: '---', action: () => {} },
-      { label: 'Rename',        action: () => { setRenamingId(id); setRenameValue(node?.title ?? '') } },
-      { label: 'Duplicate',     action: () => mutate({ type: 'duplicate', id }) },
-      { label: 'History & Snapshots', action: () => { selectNode(id); setRailPanel('history') }, disabled: node?.type === 'folder' },
-      { label: '---', action: () => {} },
-      inTrash
-        ? { label: 'Delete Permanently', action: () => setConfirmDelete(id), danger: true }
-        : { label: 'Move to Trash', action: () => mutate({ type: 'trash', id }), danger: true },
-    ]
   }
 
   return (
@@ -283,7 +274,7 @@ export default function Binder(): React.ReactElement {
         <ContextMenu
           x={ctx.x}
           y={ctx.y}
-          items={ctxItems(ctx.id)}
+          items={nodeMenu(ctx.id)}
           onClose={() => setCtx(null)}
         />
       )}

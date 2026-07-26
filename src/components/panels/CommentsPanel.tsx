@@ -2,6 +2,8 @@ import React, { useMemo, useState, useEffect, useRef } from 'react'
 import { useProjectStore } from '../../store/projectStore'
 import { anchoredFor, excerpt, type AnchoredComment } from '@shared/comments'
 import Icon from '../common/Icon'
+import ContextMenu, { type MenuItem } from '../common/ContextMenu'
+import { useShellStore } from '../../store/shellStore'
 
 /**
  * Margin notes for the active document.
@@ -25,6 +27,8 @@ export default function CommentsPanel(): React.ReactElement {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const [showResolved, setShowResolved] = useState(false)
+  const [ctx, setCtx] = useState<{ x: number; y: number; c: AnchoredComment } | null>(null)
+  const setToast = useShellStore((s) => s.setToast)
   const listRef = useRef<HTMLDivElement>(null)
 
   const node = project && selectedId ? project.nodes[selectedId] : null
@@ -55,6 +59,24 @@ export default function CommentsPanel(): React.ReactElement {
   }
 
   const startEdit = (c: AnchoredComment) => { setEditingId(c.id); setDraft(c.body) }
+
+  const commentMenu = (c: AnchoredComment): MenuItem[] => {
+    const copy = (text: string, what: string) => {
+      navigator.clipboard.writeText(text)
+        .then(() => setToast(`${what} copied`, 'info'))
+        .catch(() => setToast('Clipboard is not available'))
+    }
+    return [
+      { label: 'Go to Text', icon: 'text-search', disabled: c.orphaned, action: () => reveal(c) },
+      { label: 'Edit Note', icon: 'edit', action: () => startEdit(c) },
+      { label: c.resolved ? 'Reopen' : 'Resolve', icon: c.resolved ? 'undo' : 'check', action: () => toggleResolved(c.id) },
+      { label: '---' },
+      { label: 'Copy Note', action: () => copy(c.body, 'Note') },
+      { label: 'Copy Quoted Text', disabled: !c.anchor.quote, action: () => copy(c.anchor.quote, 'Quote') },
+      { label: '---' },
+      { label: 'Delete', icon: 'trash', danger: true, action: () => deleteComment(c.id) },
+    ]
+  }
 
   const commitEdit = (id: string) => {
     const body = draft.trim()
@@ -107,6 +129,7 @@ export default function CommentsPanel(): React.ReactElement {
               data-cid={c.id}
               className={`cmt${c.resolved ? ' done' : ''}${c.orphaned ? ' orphan' : ''}${focusedCommentId === c.id ? ' focus' : ''}`}
               onClick={() => reveal(c)}
+              onContextMenu={(e) => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, c }) }}
             >
               <div className="cmt-quote">
                 {c.orphaned
@@ -159,6 +182,9 @@ export default function CommentsPanel(): React.ReactElement {
             </div>
           ))}
         </div>
+      )}
+      {ctx && (
+        <ContextMenu x={ctx.x} y={ctx.y} items={commentMenu(ctx.c)} onClose={() => setCtx(null)} />
       )}
     </div>
   )

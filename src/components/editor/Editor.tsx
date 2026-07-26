@@ -19,6 +19,7 @@ import Icon from '../common/Icon'
 import { createProposal } from '../../lib/ProposalService'
 import { BEAT_PROMPT_ID } from '../../lib/beat'
 import { COWRITE_COMMANDS, type CowriteCommand } from '../../lib/cowrite'
+import { kbd } from '../../lib/kbd'
 import { promptRegistry } from '../../lib/PromptRegistry'
 import { streamCompletion } from '../../lib/AIClient'
 
@@ -473,27 +474,56 @@ export default function Editor({ docId }: Props): React.ReactElement {
 
   const editorMenuItems = useCallback((hasSelection: boolean, slip: NameSlipSpan | null): MenuItem[] => {
     const items: MenuItem[] = []
-    // A misspelled name is the reason the menu was opened; put it first.
+    const view = viewRef.current
+    const selected = view && hasSelection
+      ? view.state.doc.sliceString(view.state.selection.main.from, view.state.selection.main.to).trim()
+      : ''
+
+    // A misspelled name is why the menu was opened; it goes first.
     if (slip) {
-      items.push({ label: `Change to “${slip.suggestion}”`, action: () => fixSlip(slip) })
-      items.push({ label: `Add “${slip.word}” to Dictionary`, action: () => addDictionaryWord(slip.word) })
-      items.push({ label: '---', action: () => {} })
+      items.push({ label: `Change to “${slip.suggestion}”`, icon: 'check', action: () => fixSlip(slip) })
+      items.push({ label: `Add “${slip.word}” to Dictionary`, icon: 'book', action: () => addDictionaryWord(slip.word) })
+      items.push({ label: '---' })
     }
+
     if (hasSelection) {
-      items.push({ label: 'Cut', action: doCut }, { label: 'Copy', action: doCopy })
+      items.push(
+        { label: 'Cut', icon: 'copy', hint: kbd('mod+x'), action: doCut },
+        { label: 'Copy', icon: 'copy', hint: kbd('mod+c'), action: doCopy },
+      )
     }
-    items.push({ label: 'Paste', action: () => { void doPaste() } })
-    if (!hasSelection) items.push({ label: 'Select All', action: doSelectAll })
+    items.push({ label: 'Paste', hint: kbd('mod+v'), action: () => { void doPaste() } })
+    if (!hasSelection) items.push({ label: 'Select All', hint: kbd('mod+a'), action: doSelectAll })
+
     if (hasSelection) {
-      items.push({ label: '---', action: () => {} })
-      items.push({ label: 'Add Comment', action: addCommentAtSelection })
+      items.push(
+        { label: '---' },
+        { label: 'Add Comment', icon: 'comment', hint: kbd('mod+shift+m'), action: addCommentAtSelection },
+        // A selected phrase is usually a name or a place; the fastest thing to
+        // do with it is look it up or make a document out of it.
+        { label: 'Copy as Wikilink', disabled: !selected, action: () => { void navigator.clipboard.writeText(`[[${selected}]]`) } },
+        { label: 'Search Project for Selection', icon: 'search', disabled: !selected, action: () => {
+          useProjectStore.getState().setBinderQuery({ text: selected })
+        } },
+      )
+      if (selected && !selected.includes(' ')) {
+        items.push({ label: `Add “${selected}” to Dictionary`, icon: 'book', action: () => addDictionaryWord(selected) })
+      }
     }
+
     if (aiEnabled && hasSelection) {
-      items.push({ label: '---', action: () => {} })
-      for (const c of COWRITE_COMMANDS) items.push({ label: c.label, action: () => startCowrite(c.id) })
+      items.push(
+        { label: '---' },
+        { label: 'Co-write', icon: 'sparkle', items: COWRITE_COMMANDS.map((c) => ({ label: c.label, action: () => startCowrite(c.id) })) },
+      )
     }
-    items.push({ label: '---', action: () => {} })
-    items.push({ label: 'History & Snapshots', action: () => setRailPanel('history') })
+
+    items.push(
+      { label: '---' },
+      { label: 'Read Aloud from Here', icon: 'audio-lines', hint: kbd('mod+shift+l'), action: () => window.dispatchEvent(new Event('konbini:read-aloud')) },
+      { label: 'Comments', icon: 'comment', action: () => setRailPanel('comments') },
+      { label: 'History & Snapshots', icon: 'history', hint: kbd('mod+shift+s'), action: () => setRailPanel('history') },
+    )
     return items
   }, [aiEnabled, doCut, doCopy, doPaste, doSelectAll, startCowrite, setRailPanel, addCommentAtSelection, fixSlip, addDictionaryWord])
 

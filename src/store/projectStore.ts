@@ -3,6 +3,7 @@ import { useShellStore } from './shellStore'
 import type { Project, KNode, DocBody, DocMeta, NodeType, ViewMode, SaveStatus, Snapshot, ID, Proposal, CodexEntry, DebtItem, ProjectSettings } from '@shared/types'
 import type { Comment, CommentOrigin } from '@shared/comments'
 import type { NodeQuery, Collection } from '@shared/query'
+import { isEmptyQuery } from '@shared/query'
 import { trimAnchor } from '@shared/comments'
 import { uid, wordCount } from '@shared/utils'
 import { type MentionIndex, buildIndex, updateIndex } from '../lib/MentionIndex'
@@ -66,6 +67,12 @@ interface ProjectState {
   selectNode: (id: ID | null) => void
   /** Close an open editor tab; if it was active, activate a neighbour. */
   closeTab: (id: ID) => void
+  /** Close every editor tab except one, which becomes active. */
+  closeOtherTabs: (keepId: ID) => void
+  /** Close every editor tab. */
+  closeAllTabs: () => void
+  /** Expand a node's ancestors (and drop any binder filter) so it's visible. */
+  revealInBinder: (id: ID) => void
   /** Open (or focus) an app-view tab in the main pane. */
   openViewTab: (v: ViewTabId) => void
   /** Focus an already-open app-view tab. */
@@ -387,6 +394,39 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }
     return { openTabs }
   }),
+
+  closeOtherTabs: (keepId) => set((s) => (
+    s.openTabs.includes(keepId)
+      ? { openTabs: [keepId], selectedId: keepId, cursor: null }
+      : {}
+  )),
+
+  closeAllTabs: () => set({ openTabs: [], selectedId: null, cursor: null }),
+
+  // Selecting a node doesn't help if it's inside a collapsed folder or hidden
+  // behind a filter — the binder just doesn't move. Clear the way first.
+  revealInBinder: (id) => {
+    const s = get()
+    if (!s.project) return
+    const ancestors: ID[] = []
+    let cur = s.project.nodes[id]?.parentId ?? null
+    while (cur) {
+      const n = s.project.nodes[cur]
+      if (!n) break
+      if (!n.expanded) ancestors.push(cur)
+      cur = n.parentId
+    }
+    if (!isEmptyQuery(s.binderQuery)) set({ binderQuery: {}, activeCollectionId: null })
+    for (const aid of ancestors) {
+      const node = s.project.nodes[aid]
+      if (!node) continue
+      set((st) => st.project
+        ? { project: { ...st.project, nodes: { ...st.project.nodes, [aid]: { ...st.project.nodes[aid], expanded: true } } } }
+        : {})
+      window.api.node.mutate(s.project.id, { type: 'setExpanded', id: aid, expanded: true }).catch(console.error)
+    }
+    get().selectNode(id)
+  },
 
   openViewTab: (v) => set((s) => ({
     openViewTabs: s.openViewTabs.includes(v) ? s.openViewTabs : [...s.openViewTabs, v],
