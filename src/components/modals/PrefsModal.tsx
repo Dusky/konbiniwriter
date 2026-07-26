@@ -4,6 +4,7 @@ import { useProjectStore } from '../../store/projectStore'
 import { BUILTIN_THEMES } from '../../lib/theme'
 import ModalShell from '../common/ModalShell'
 import Icon from '../common/Icon'
+import PrefSpecimen from './PrefSpecimen'
 
 interface Props { onClose: () => void; embedded?: boolean }
 
@@ -146,6 +147,10 @@ export default function PrefsModal({ onClose, embedded }: Props): React.ReactEle
             />
             <span className="pref-num" style={{ width: 42 }}>{editorColWidth}px</span>
           </Row>
+
+          {/* Preferences opens as a tab over the main pane, so the editor these
+              three controls change isn't on screen while you change it. */}
+          <PrefSpecimen colWidth={editorColWidth} />
 
           <Row label="Accent">
             <div className="pref-swatches">

@@ -292,6 +292,16 @@ button { font-family: inherit; cursor: default; }
   font-weight: 600; }
 .binder-scroll { flex: 1; overflow-y: auto; padding: 4px 6px 12px; }
 
+/* ── Preferences: live type specimen ── */
+.pref-spec { margin: 0 0 var(--s3); padding: var(--s3) 14px; border-radius: var(--r-md);
+  border: 0.5px solid var(--border); background: var(--bg-2); }
+.pref-spec-body { font-family: var(--editor-font); font-size: var(--editor-size);
+  line-height: 1.65; color: var(--text-2); }
+.pref-spec-note { margin-top: var(--s2); font-size: var(--t-xs); color: var(--text-3);
+  font-variant-numeric: tabular-nums; }
+.pref-spec-note.comfortable { color: var(--st-final); }
+.pref-spec-ideal { color: var(--text-3); }
+
 /* ── Read-aloud transport ── */
 .ra-bar { flex: none; display: flex; align-items: center; gap: 6px;
   padding: 5px 10px; background: var(--bg-2); border-bottom: 0.5px solid var(--border);
