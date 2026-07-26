@@ -35,6 +35,7 @@ export function useNodeMenu(opts: Options = {}): (nodeId: ID) => MenuItem[] {
   const splitOpen = useProjectStore((s) => s.splitOpen)
   const toggleSplit = useProjectStore((s) => s.toggleSplit)
   const setBinderQuery = useProjectStore((s) => s.setBinderQuery)
+  const actionTargets = useProjectStore((s) => s.actionTargets)
   const setRailPanel = useShellStore((s) => s.setRailPanel)
   const setToast = useShellStore((s) => s.setToast)
 
@@ -42,10 +43,6 @@ export function useNodeMenu(opts: Options = {}): (nodeId: ID) => MenuItem[] {
     if (!project) return []
     const node = project.nodes[nodeId]
     if (!node) return []
-
-    const isFolder = node.type === 'folder'
-    const inTrash = node.parentId === project.trashId
-    const siblingParent = isFolder ? nodeId : node.parentId
 
     const mutate = async (op: NodeOp) => {
       try {
@@ -55,15 +52,26 @@ export function useNodeMenu(opts: Options = {}): (nodeId: ID) => MenuItem[] {
       }
     }
 
-    const setMeta = (patch: Parameters<typeof updateMeta>[1]) => {
-      updateMeta(nodeId, patch)
-      void mutate({ type: 'updateMeta', id: nodeId, patch })
-    }
-
     const copy = (text: string, what: string) => {
       navigator.clipboard.writeText(text)
         .then(() => setToast(`${what} copied`, 'info'))
         .catch(() => setToast('Clipboard is not available'))
+    }
+
+    // Right-clicking inside a multi-selection acts on all of it. This has to
+    // come AFTER mutate/copy are initialised: returning earlier would leave
+    // those `const` bindings in the temporal dead zone, and every action in the
+    // multi menu — which only reads them when clicked — would throw.
+    const targets = actionTargets(nodeId)
+    if (targets.length > 1) return manyMenu(targets)
+
+    const isFolder = node.type === 'folder'
+    const inTrash = node.parentId === project.trashId
+    const siblingParent = isFolder ? nodeId : node.parentId
+
+    const setMeta = (patch: Parameters<typeof updateMeta>[1]) => {
+      updateMeta(nodeId, patch)
+      void mutate({ type: 'updateMeta', id: nodeId, patch })
     }
 
     const takeSnapshot = async () => {
@@ -78,6 +86,60 @@ export function useNodeMenu(opts: Options = {}): (nodeId: ID) => MenuItem[] {
     const openInSplit = () => {
       if (!splitOpen) toggleSplit()
       setSplitId(nodeId)
+    }
+
+    /**
+     * The menu for a multi-selection. Deliberately only the actions that mean
+     * something applied to many nodes at once — no Rename, no Open, no
+     * snapshots of a folder. Metadata edits and trashing go through the batch
+     * ops so the whole selection is one round trip and one manifest write.
+     */
+    function manyMenu(ids: ID[]): MenuItem[] {
+      const titles = ids.map((i) => project!.nodes[i]?.title).filter(Boolean) as string[]
+      const allInTrash = ids.every((i) => project!.nodes[i]?.parentId === project!.trashId)
+      const anyCompiled = ids.some((i) => project!.nodes[i]?.meta.includeInCompile)
+      return [
+        { label: `${ids.length} items selected`, header: true },
+        {
+          label: 'Set Status',
+          icon: 'gauge',
+          items: STATUS_ORDER.map((st) => ({
+            label: STATUS_META[st].label,
+            action: () => void mutate({ type: 'updateMetaMany', ids, patch: { status: st as StatusId } }),
+          })),
+        },
+        {
+          label: 'Set Label',
+          icon: 'sticky-note',
+          items: LABEL_ORDER.map((lb) => ({
+            label: LABEL_META[lb].label,
+            action: () => void mutate({ type: 'updateMetaMany', ids, patch: { label: lb as LabelId } }),
+          })),
+        },
+        {
+          // One switch for the lot: if any are in, the action is to take them
+          // all out, which is what "toggle" has to mean for a mixed selection.
+          label: anyCompiled ? 'Exclude from Compile' : 'Include in Compile',
+          action: () => void mutate({ type: 'updateMetaMany', ids, patch: { includeInCompile: !anyCompiled } }),
+        },
+        { label: '---' },
+        { label: 'Copy Titles', action: () => copy(titles.join('\n'), `${titles.length} titles`) },
+        { label: 'Copy as Wikilinks', action: () => copy(titles.map((t) => `[[${t}]]`).join('\n'), `${titles.length} wikilinks`) },
+        { label: '---' },
+        allInTrash
+          ? {
+              label: `Delete ${ids.length} Permanently`,
+              icon: 'trash',
+              danger: true,
+              action: () => void mutate({ type: 'deleteMany', ids }),
+            }
+          : {
+              label: `Move ${ids.length} to Trash`,
+              icon: 'trash',
+              danger: true,
+              action: () => void mutate({ type: 'trashMany', ids }),
+            },
+      ]
     }
 
     const items: MenuItem[] = [

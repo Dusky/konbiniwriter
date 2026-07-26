@@ -24,6 +24,12 @@ export type ViewTabId =
 interface ProjectState {
   project: Project | null
   selectedId: ID | null
+  /**
+   * The multi-selection, in binder order. Always contains `selectedId` when
+   * anything is selected — a plain click collapses it to one node, so every
+   * existing single-node path keeps working untouched.
+   */
+  selectedIds: ID[]
   /** Documents open as editor tabs, in tab order. selectedId is the active tab. */
   openTabs: ID[]
   /** App-view surfaces open as tabs (Stats, Foundation, …), in tab order. */
@@ -65,6 +71,17 @@ interface ProjectState {
 
   // — selection & view —
   selectNode: (id: ID | null) => void
+  /** Ctrl/Cmd-click: add or remove one node from the selection. */
+  toggleSelect: (id: ID) => void
+  /** Shift-click: select everything between the anchor and `id` in binder order. */
+  selectRange: (id: ID) => void
+  /**
+   * The ids an action should apply to when invoked on `id` — the whole
+   * selection if `id` is part of it, otherwise just `id`. Right-clicking
+   * outside a selection acts on what you clicked, which is what every file
+   * manager does.
+   */
+  actionTargets: (id: ID) => ID[]
   /** Close an open editor tab; if it was active, activate a neighbour. */
   closeTab: (id: ID) => void
   /** Close every editor tab except one, which becomes active. */
@@ -227,6 +244,22 @@ export function isDescendant(project: Project, ancestorId: ID, targetId: ID): bo
   return descendants(project, ancestorId).includes(targetId)
 }
 
+/** Put ids into binder (depth-first) order, so a selection reads like the tree. */
+function orderByBinder(project: Project, ids: ID[]): ID[] {
+  const want = new Set(ids)
+  const out: ID[] = []
+  const walk = (list: ID[]) => {
+    for (const id of list) {
+      if (want.has(id)) out.push(id)
+      walk(project.nodes[id]?.childIds ?? [])
+    }
+  }
+  walk(project.rootIds)
+  // Anything not reachable from the roots (shouldn't happen) is kept, not lost.
+  for (const id of ids) if (!out.includes(id)) out.push(id)
+  return out
+}
+
 // ── comment persistence ──────────────────────────────────────────────────────
 //
 // Two write paths on purpose. Creating, editing, resolving, or deleting a
@@ -282,6 +315,7 @@ const EMPTY_INDEX: MentionIndex = { aliasToDocIds: new Map(), docToAliases: new 
 export const useProjectStore = create<ProjectState>((set, get) => ({
   project: null,
   selectedId: null,
+  selectedIds: [],
   openTabs: [],
   openViewTabs: [],
   activeViewTab: null,
@@ -325,6 +359,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     set({
       project,
       selectedId: null,
+      selectedIds: [],
       openTabs: [],
       openViewTabs: [],
       activeViewTab: null,
@@ -364,14 +399,14 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   unloadProject: () => {
     flushCommentSave()   // don't drop a debounced anchor update on close
     useShellStore.getState().setRailPanel('inspector')
-    set({ project: null, selectedId: null, openTabs: [], openViewTabs: [], activeViewTab: null, mentionIndex: EMPTY_INDEX, codex: [], debt: [], comments: [], focusedCommentId: null, collections: [], dictionary: [], binderQuery: {}, activeCollectionId: null, proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], nodeFuture: [], judgeResults: new Map(), slopResults: new Map(), voiceResults: new Map(), qualityHistory: [], sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, autopilotPreset: [], focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null })
+    set({ project: null, selectedId: null, selectedIds: [], openTabs: [], openViewTabs: [], activeViewTab: null, mentionIndex: EMPTY_INDEX, codex: [], debt: [], comments: [], focusedCommentId: null, collections: [], dictionary: [], binderQuery: {}, activeCollectionId: null, proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], nodeFuture: [], judgeResults: new Map(), slopResults: new Map(), voiceResults: new Map(), qualityHistory: [], sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, autopilotPreset: [], focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null })
   },
 
   selectNode: (id) => set((s) => {
     // Selecting a document leaves any view tab (returns the main pane to the editor).
-    if (!id || !s.project) return { selectedId: id, cursor: null, activeViewTab: null }
+    if (!id || !s.project) return { selectedId: id, selectedIds: [], cursor: null, activeViewTab: null }
     const node = s.project.nodes[id]
-    if (!node) return { selectedId: id, cursor: null, activeViewTab: null }
+    if (!node) return { selectedId: id, selectedIds: [id], cursor: null, activeViewTab: null }
     // Auto-switch view based on node type
     const newView = node.type === 'folder'
       ? (s.view === 'editor' ? 'corkboard' : s.view)
@@ -380,8 +415,43 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const openTabs = node.type !== 'folder' && !s.openTabs.includes(id)
       ? [...s.openTabs, id]
       : s.openTabs
-    return { selectedId: id, view: newView, cursor: null, openTabs, activeViewTab: null }
+    // A plain click always collapses the selection to one node.
+    return { selectedId: id, selectedIds: [id], view: newView, cursor: null, openTabs, activeViewTab: null }
   }),
+
+  toggleSelect: (id) => set((s) => {
+    if (!s.project?.nodes[id]) return {}
+    const has = s.selectedIds.includes(id)
+    const next = has ? s.selectedIds.filter((x) => x !== id) : [...s.selectedIds, id]
+    const ordered = orderByBinder(s.project, next)
+    // Deselecting the active node hands "active" to whatever is left, so the
+    // editor never ends up showing something that isn't selected at all.
+    const selectedId = ordered.includes(s.selectedId ?? '')
+      ? s.selectedId
+      : ordered[ordered.length - 1] ?? null
+    return { selectedIds: ordered, selectedId }
+  }),
+
+  selectRange: (id) => set((s) => {
+    if (!s.project?.nodes[id]) return {}
+    const anchor = s.selectedId
+    // Range needs two ends; with nothing active this is just a click.
+    if (!anchor || anchor === id) return { selectedId: id, selectedIds: [id] }
+    // Ranges run over what's actually on screen — collapsed children aren't
+    // part of a visual sweep the writer can see.
+    const visible = flattenVisible(s.project).map((v) => v.id)
+    const a = visible.indexOf(anchor)
+    const b = visible.indexOf(id)
+    if (a === -1 || b === -1) return { selectedId: id, selectedIds: [id] }
+    const [lo, hi] = a < b ? [a, b] : [b, a]
+    // The anchor stays active so a further shift-click extends from the same end.
+    return { selectedIds: visible.slice(lo, hi + 1), selectedId: anchor }
+  }),
+
+  actionTargets: (id) => {
+    const { selectedIds } = get()
+    return selectedIds.length > 1 && selectedIds.includes(id) ? selectedIds : [id]
+  },
 
   closeTab: (id) => set((s) => {
     const idx = s.openTabs.indexOf(id)

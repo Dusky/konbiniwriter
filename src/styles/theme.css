@@ -437,8 +437,10 @@ button { font-family: inherit; cursor: default; }
   padding-right: var(--row-pad); font-size: var(--row-font); color: var(--text-2);
   position: relative; white-space: nowrap; }
 .tree-row:hover { background: var(--bg-2); color: var(--text); }
+/* Every row in a multi-selection gets the fill; only the *active* one gets the
+   accent bar, so it stays obvious which node the editor and Inspector follow. */
 .tree-row.sel { background: var(--sel-bg); color: var(--text); }
-.tree-row.sel::before { content: ''; position: absolute; left: 0; top: 3px; bottom: 3px; width: 2.5px;
+.tree-row.cur::before { content: ''; position: absolute; left: 0; top: 3px; bottom: 3px; width: 2.5px;
   border-radius: 2px; background: var(--sel-bar); }
 .tw-twist { width: 16px; height: 100%; display: grid; place-items: center; color: var(--text-3); flex: none; }
 .tw-twist svg { width: 9px; height: 9px; transition: transform .12s; }

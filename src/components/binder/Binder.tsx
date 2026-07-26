@@ -24,6 +24,9 @@ interface DragState {
 export default function Binder(): React.ReactElement {
   const project = useProjectStore((s) => s.project)
   const selectedId = useProjectStore((s) => s.selectedId)
+  const selectedIds = useProjectStore((s) => s.selectedIds)
+  const toggleSelect = useProjectStore((s) => s.toggleSelect)
+  const selectRange = useProjectStore((s) => s.selectRange)
   const renamingId = useProjectStore((s) => s.renamingId)
   const selectNode = useProjectStore((s) => s.selectNode)
   const applyMutation = useProjectStore((s) => s.applyMutation)
@@ -191,10 +194,24 @@ export default function Binder(): React.ReactElement {
             <React.Fragment key={id}>
               {isOver && dropPos === 'before' && <div className="drop-line" />}
               <div
-                className={`tree-row${selectedId === id ? ' sel' : ''}${isOver && dropPos === 'into' ? ' drop-into' : ''}`}
+                data-node-id={id}
+                className={`tree-row${selectedIds.includes(id) ? ' sel' : ''}${selectedId === id ? ' cur' : ''}${isOver && dropPos === 'into' ? ' drop-into' : ''}`}
                 style={{ paddingLeft: `${depth * 15 + 4}px`, opacity: drag?.dragId === id ? 0.4 : 1 }}
-                onClick={() => { if (renamingId !== id) selectNode(id) }}
-                onContextMenu={(e) => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, id }) }}
+                onClick={(e) => {
+                  if (renamingId === id) return
+                  // Shift extends from the active node; Ctrl/Cmd picks nodes
+                  // one at a time; a plain click collapses back to one.
+                  if (e.shiftKey) selectRange(id)
+                  else if (e.metaKey || e.ctrlKey) toggleSelect(id)
+                  else selectNode(id)
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault()
+                  // Right-clicking outside the selection acts on what you
+                  // clicked — so make that the selection first.
+                  if (!useProjectStore.getState().selectedIds.includes(id)) selectNode(id)
+                  setCtx({ x: e.clientX, y: e.clientY, id })
+                }}
                 draggable={!filtering}
                 onDragStart={(e) => {
                   // Carries a node id so an editor pane can accept the drop too;

@@ -186,6 +186,10 @@ export type NodeOp =
   | { type: 'setExpanded'; id: ID; expanded: boolean }
   | { type: 'setProjectTitle'; title: string }
   | { type: 'setTree'; rootIds: ID[]; nodes: Record<ID, KNode> }  // undo/redo restore
+  // Batch variants: one round trip and one manifest write for a multi-selection.
+  | { type: 'updateMetaMany'; ids: ID[]; patch: Partial<DocMeta> }
+  | { type: 'trashMany'; ids: ID[] }
+  | { type: 'deleteMany'; ids: ID[] }
 
 // ── Proposal / Changeset (Phase 2 spine — defined here so the seam is clear) ─
 
