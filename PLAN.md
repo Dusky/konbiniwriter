@@ -560,22 +560,24 @@ disconnected from the sentence it's about).
   non-AI panel unreachable. Now derived from `shell/railTabs.ts`, shared with the
   tab strip.
 
-### 6.2 Keywords + Collections 🔲
+### 6.2 Keywords + Collections ✅
 The binder can be browsed but never queried. Keyword field on `KNode`, editor in
 the Inspector, and saved Collections (saved searches) — "every scene with Mira,
 POV Alex, status Draft, under 1,500 words". `labelColor` exists but only paints
 corkboard cards. This is what stops the binder falling out of the writer's head
 around 40k words.
 
-### 6.3 Per-project spelling dictionary 🔲
+### 6.3 Per-project spelling dictionary ✅
 The editor delegates to native browser spellcheck, so invented names squiggle
 forever with no persistent "add to dictionary". Cheap, and the Codex already
 knows every proper noun in the book, so the dictionary can seed itself.
 
-### 6.4 Read-aloud proofing 🔲
+### 6.4 Read-aloud proofing ✅
 Web Speech API — no dependency, no key, no service. Sentence highlight, rate and
 voice control, play-from-cursor. Highest-yield revision technique there is, and
-it pairs directly with the anti-slop dashboard.
+it pairs directly with the anti-slop dashboard. (⌘⇧L, not ⌘⇧U — on Linux
+Ctrl+Shift+U is IBus's Unicode-input chord and eats the keypress before the app
+ever sees it.)
 
 ### 6.5 Deadline math 🔲
 `wordTarget`, streaks and session counts already exist; there's no "finish by
@@ -589,6 +591,67 @@ operation that does both.
 ### 6.7 Footnotes / endnotes 🔲
 Narrower, and currently *lossy*: `rtf.ts` discards Scrivener footnotes on import.
 The DOCX/EPUB builders could carry them.
+
+---
+
+## Phase 7 — Audit remediation ✅
+
+A full audit (`AUDIT.md`, with a status table at the top) found the codebase
+structurally healthy but *operationally unproven*: the bugs it turned up were all
+correct-in-isolation and wrong in the running app. Eleven of fourteen findings
+are fixed; the three left open are cosmetic and listed in `CLAUDE.md`'s known
+debt rather than buried in the report.
+
+The two that changed how the project works:
+
+- **Performance.** Typing cost ~128 ms/keystroke on a 300-node project — the app
+  was unusable at the scale it is designed for. Now 14.3 ms, no long tasks.
+  A memoised `wordCount`, a duplicate of it hiding in `Binder.tsx` that was
+  eating 61.5% of CPU samples, and a memoised `BinderRow`.
+- **An invariant smoke test that runs in CI.** `scripts/smoke.mjs` drives the
+  real studio in a real browser and asserts invariants 1, 2, 4, 5 and 6 plus the
+  WCAG floors and document structure — reading *persisted bytes* wherever the
+  claim is about durability. It caught a real bug on its first full run.
+
+Also: the binder became keyboard-drivable (full ARIA tree, roving tabindex,
+type-ahead, ⌘⇧B to focus it), multi-select reached the outliner and corkboard,
+and the muted text ramp now clears WCAG AA on every surface in all nine themes —
+skins clamp their derived mix until the floor is met, because a percentage
+cannot promise a ratio.
+
+---
+
+## Phase 8 — Voice as a first-class object ✅
+
+The voice fingerprint is the most load-bearing string in the AI layer, and it
+had exactly one way in: derive it from prose you had already written. Three
+changes, in order of how much each unlocks:
+
+### 8.1 Write a fingerprint from a description ✅
+"Describe a voice…" in AI Settings and Foundation. Say how the prose should
+sound, optionally paste a passage to emulate, edit the streamed result, save.
+A separate registry prompt from the analyser — that one *reports* what it finds
+in samples, this one has to *author* a voice and commit to specifics the brief
+doesn't state.
+
+### 8.2 Named voice profiles, per project and per document ✅
+`settings.voiceFingerprint` became a list with one marked default, and a document
+can point at another (`meta.voiceId`). `resolveVoice(project, docId)` is the
+single read path; ContextBuilder resolves per document, so a dual-POV novel
+drafts and scores each thread against the voice it is actually written in
+instead of reading as constant drift. Legacy projects migrate on open; the old
+field survives as a documented mirror so a `.konbini` bundle stays readable
+without this app.
+
+### 8.3 The assistant can propose settings changes ✅
+`read_config` / `propose_config`, bounded by the whitelist in
+`lib/agentConfig.ts`: standing instructions, voice fingerprints, prompt
+templates — text the author would otherwise type. Provider, API key, model and
+token budgets are **not** on that list. Off by default behind its own opt-in,
+and `runAgent` derives whether to advertise the tools from whether the capability
+is wired, so a tool can never be offered that the executor will refuse. Changes
+go out as a `Proposal` carrying `configRef` and are applied by Studio's single
+`onApply` — same diff, same accept/reject, no `.md` write and no snapshot.
 
 ---
 
