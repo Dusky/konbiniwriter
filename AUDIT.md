@@ -9,6 +9,30 @@ could not verify it and says what would settle it.
 
 ---
 
+## 0. Status — what has since been fixed
+
+Worked through in commits `8cbcc08` … `12fd4f9`. The findings below are left as
+written so the reasoning stays readable; this table is the current state.
+
+| ID | Finding | Status |
+|---|---|---|
+| C1 | Typing costs ~128 ms/keystroke at 300 nodes | **Fixed** — 128 ms → 14.3 ms, long tasks gone. Memoised `wordCount`, removed a shadowing duplicate in `Binder.tsx` (61.5% of CPU samples), memoised `BinderRow`. |
+| H1 | Binder is keyboard-inaccessible | **Fixed** — full ARIA tree: roving tabindex, ↑↓/Home/End/←→/Enter/Space/F2/Escape/Menu key, Shift+↑↓ sweeps a selection, type-ahead. ⌘⇧B focuses the tree. |
+| H2 | No multi-select in outliner/corkboard | **Fixed** — shared `useNodeSelect`. Two bugs found underneath: a plain click ejected you to the editor, and the corkboard kept its browsed folder in the selection so a bulk trash would have taken the chapter. |
+| M1 | `--text-3` fails WCAG AA | **Fixed** — and it was broader: `--dim`, `--hl-quote` and Sepia's `--text-2` failed too. Floors now measured against the worst surface, and skins clamp their derived mix until the floor is met. |
+| M2 | Node ids not collision-safe across devices | **Fixed** — `uid()` mixes per-process entropy from `crypto.getRandomValues`. |
+| M3 | Three invariants unguarded | **Fixed** — `scripts/smoke.mjs`, 33 checks driving the real app, in CI. It immediately caught `_newId` leaking into `project.json`. |
+| M4 | Raw control bytes hide `Scrivenings.tsx` from grep | **Fixed** — unicode escapes. (This file had the same bytes and was also binary to `grep`.) |
+| M5 | Aux score caches never pruned | **Fixed** — purged in `applyMutation` beside the comment purge. |
+| L1 | `CLAUDE.md` known-debt section is wrong | **Fixed** — replaced with the outstanding debt; the CSS token list is complete and the contrast rule is written down. |
+| L2 | 2 dead exports | **Fixed** — `clearThemeVars` deleted; `MANIFEST_FILE` now actually used by the 15 call sites that hardcoded the string. |
+| L3 | 23 module-only exports | Open — cosmetic, recorded in `CLAUDE.md`. |
+| L4 | No landmarks, no `<h1>` | **Fixed** — header/nav/main/aside/footer, project title as the one h1, asserted in the smoke test. |
+| L5 | Folder dropped into a split pane dead-ends | Open — recorded in `CLAUDE.md`. |
+| L6 | Binder drag ignores a multi-selection | Open — recorded in `CLAUDE.md`. |
+
+---
+
 ## 1. Summary
 
 The architecture is in good shape. The seams described in `CLAUDE.md` are real
