@@ -1,16 +1,20 @@
 import React, { useState } from 'react'
+import { setNodeDrag } from '../../lib/nodeDnd'
 import { useProjectStore, flattenVisible } from '../../store/projectStore'
 import { STATUS_META, LABEL_META, wordCount } from '@shared/utils'
 import ContextMenu from '../common/ContextMenu'
 import Icon from '../common/Icon'
 import { useNodeMenu } from '../common/useNodeMenu'
+import { useNodeSelect } from '../common/useNodeSelect'
 
 export default function Outliner(): React.ReactElement {
   const project = useProjectStore((s) => s.project)
   const selectedId = useProjectStore((s) => s.selectedId)
+  const selectedIds = useProjectStore((s) => s.selectedIds)
   const selectNode = useProjectStore((s) => s.selectNode)
   const setView = useProjectStore((s) => s.setView)
   const nodeMenu = useNodeMenu()
+  const { onSelectClick, promoteForMenu } = useNodeSelect({ keepView: true })
   const [ctx, setCtx] = useState<{ x: number; y: number; id: string } | null>(null)
 
   if (!project) return <div className="main" />
@@ -51,10 +55,16 @@ export default function Outliner(): React.ReactElement {
               return (
                 <tr
                   key={id}
-                  className={selectedId === id ? 'sel' : ''}
-                  onClick={() => selectNode(id)}
+                  data-node-id={id}
+                  // Same two classes as the binder: every row in a selection
+                  // gets the fill, only the active one gets the marker.
+                  className={`${selectedIds.includes(id) ? 'sel' : ''}${selectedId === id ? ' cur' : ''}`}
+                  aria-selected={selectedIds.includes(id)}
+                  draggable
+                  onDragStart={(e) => setNodeDrag(e.dataTransfer, id)}
+                  onClick={(e) => onSelectClick(id, e)}
                   onDoubleClick={() => { selectNode(id); if (node.type !== 'folder') setView('editor') }}
-                  onContextMenu={(e) => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, id }) }}
+                  onContextMenu={(e) => { e.preventDefault(); promoteForMenu(id); setCtx({ x: e.clientX, y: e.clientY, id }) }}
                 >
                   <td>
                     <div className="o-title" style={{ paddingLeft: depth * 16 }}>

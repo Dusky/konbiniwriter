@@ -96,6 +96,10 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
       { id: 'view-timeline', label: 'View: Timeline', section: 'View', hint: kbd('mod+4'), run: () => proj.setView('timeline') },
       // Layout / modes
       { id: 'toggle-binder', label: 'Toggle Binder', section: 'Layout', hint: kbd('mod+alt+b'), run: () => shell.toggleBinder() },
+      { id: 'focus-binder', label: 'Focus Binder', section: 'Layout', hint: kbd('mod+shift+b'), run: () => {
+        if (!useShellStore.getState().layout.binder) shell.toggleBinder()
+        window.dispatchEvent(new Event('konbini:focus-binder'))
+      } },
       { id: 'toggle-insp', label: 'Toggle Inspector', section: 'Layout', hint: kbd('mod+alt+i'), run: () => shell.toggleRailPanel('inspector') },
       { id: 'split', label: 'Toggle Split Editor', section: 'Layout', hint: kbd('mod+\\'), run: () => proj.toggleSplit() },
       { id: 'focus', label: `Focus Mode: ${proj.focusMode ? 'Off' : 'On'}`, section: 'Layout', hint: kbd('mod+alt+o'), run: () => proj.setFocusMode(!useProjectStore.getState().focusMode) },
@@ -108,6 +112,9 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
       { id: 'new-folder', label: 'New Folder', section: 'Create', hint: kbd('mod+alt+n'), run: () => createNode('folder') },
       // Project tools
       { id: 'history', label: 'History & Snapshots…', section: 'Document', hint: kbd('mod+shift+s'), run: () => shell.setRailPanel('history') },
+      { id: 'read-aloud', label: 'Read Aloud', section: 'Document', hint: kbd('mod+shift+l'), run: () => window.dispatchEvent(new Event('konbini:read-aloud')) },
+      { id: 'comments', label: 'Comments…', section: 'Document', run: () => shell.setRailPanel('comments') },
+      { id: 'add-comment', label: 'Add Comment on Selection', section: 'Document', hint: kbd('mod+shift+m'), run: () => window.dispatchEvent(new Event('konbini:add-comment')) },
       { id: 'search', label: 'Search Project…', section: 'Project', hint: kbd('mod+shift+f'), run: openModal('search') },
       { id: 'compile', label: 'Compile / Export…', section: 'Project', hint: kbd('mod+shift+e'), run: openModal('compile') },
       { id: 'stats', label: 'Writing Stats…', section: 'Project', run: openView('stats') },

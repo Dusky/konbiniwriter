@@ -526,6 +526,135 @@ only has to move bytes and hand a bundle in.
 
 ---
 
+## Phase 6 — The obvious missing pieces 🔲
+
+Gaps a writer hits on day one that have nothing to do with AI or services.
+Ordered by how much each changes what the app *is*.
+
+### 6.1 Anchored comments ✅
+Margin notes attached to a span of prose — the markup layer the studio was
+missing, and the natural home for AI critique (which currently lands in a panel
+disconnected from the sentence it's about).
+
+- `shared/comments.ts` — schema + the anchoring rules. Anchors carry the quoted
+  text, not just offsets, because offsets go stale silently whenever the
+  document changes while closed (snapshot restore, applied proposal, sync merge,
+  external editor). `reanchor` re-locates by quote and picks the occurrence
+  nearest the old position; when the quote is gone it marks the comment
+  **orphaned** rather than pointing it at whatever text now occupies those
+  offsets. Showing a note beside the wrong sentence is worse than detaching it.
+- **Two mechanisms, different failures.** CodeMirror maps anchors through every
+  change while the doc is open — the only thing that can survive a rewrite of
+  the quoted text. `reanchor` is the recovery path for everything else.
+- `comments.json` sidecar at the bundle root (with codex/debt — primary content,
+  not the disposable `aux/` tier), so sync can merge notes independently of the
+  manifest. Writer-initiated changes persist immediately; anchor drift (which
+  fires on nearly every keystroke) is debounced and flushed on close.
+- Comments rail panel: quote + note + resolve/edit/delete, orphans shown
+  distinctly, click a highlight to focus its note and vice versa. ⌘⇧M, editor
+  context menu, command palette.
+- Deleting a node purges its comments centrally in `applyMutation` — the one
+  place every structural mutation lands. Trashing keeps them (the node lives on).
+- Fixed along the way: `Studio` forced the rail back to Inspector with AI off
+  using a hand-written allowlist of non-AI panels, which made any newly added
+  non-AI panel unreachable. Now derived from `shell/railTabs.ts`, shared with the
+  tab strip.
+
+### 6.2 Keywords + Collections ✅
+The binder can be browsed but never queried. Keyword field on `KNode`, editor in
+the Inspector, and saved Collections (saved searches) — "every scene with Mira,
+POV Alex, status Draft, under 1,500 words". `labelColor` exists but only paints
+corkboard cards. This is what stops the binder falling out of the writer's head
+around 40k words.
+
+### 6.3 Per-project spelling dictionary ✅
+The editor delegates to native browser spellcheck, so invented names squiggle
+forever with no persistent "add to dictionary". Cheap, and the Codex already
+knows every proper noun in the book, so the dictionary can seed itself.
+
+### 6.4 Read-aloud proofing ✅
+Web Speech API — no dependency, no key, no service. Sentence highlight, rate and
+voice control, play-from-cursor. Highest-yield revision technique there is, and
+it pairs directly with the anti-slop dashboard. (⌘⇧L, not ⌘⇧U — on Linux
+Ctrl+Shift+U is IBus's Unicode-input chord and eats the keypress before the app
+ever sees it.)
+
+### 6.5 Deadline math 🔲
+`wordTarget`, streaks and session counts already exist; there's no "finish by
+Nov 1 → 1,840 words/day, you're 3 days behind". Arithmetic and a progress bar.
+
+### 6.6 Character rename completion 🔲
+Find & replace rewrites `[[Mira]]` in prose but not the node's own title, so
+renaming a character leaves the binder stale. One reviewable, snapshot-protected
+operation that does both.
+
+### 6.7 Footnotes / endnotes 🔲
+Narrower, and currently *lossy*: `rtf.ts` discards Scrivener footnotes on import.
+The DOCX/EPUB builders could carry them.
+
+---
+
+## Phase 7 — Audit remediation ✅
+
+A full audit (`AUDIT.md`, with a status table at the top) found the codebase
+structurally healthy but *operationally unproven*: the bugs it turned up were all
+correct-in-isolation and wrong in the running app. Eleven of fourteen findings
+are fixed; the three left open are cosmetic and listed in `CLAUDE.md`'s known
+debt rather than buried in the report.
+
+The two that changed how the project works:
+
+- **Performance.** Typing cost ~128 ms/keystroke on a 300-node project — the app
+  was unusable at the scale it is designed for. Now 14.3 ms, no long tasks.
+  A memoised `wordCount`, a duplicate of it hiding in `Binder.tsx` that was
+  eating 61.5% of CPU samples, and a memoised `BinderRow`.
+- **An invariant smoke test that runs in CI.** `scripts/smoke.mjs` drives the
+  real studio in a real browser and asserts invariants 1, 2, 4, 5 and 6 plus the
+  WCAG floors and document structure — reading *persisted bytes* wherever the
+  claim is about durability. It caught a real bug on its first full run.
+
+Also: the binder became keyboard-drivable (full ARIA tree, roving tabindex,
+type-ahead, ⌘⇧B to focus it), multi-select reached the outliner and corkboard,
+and the muted text ramp now clears WCAG AA on every surface in all nine themes —
+skins clamp their derived mix until the floor is met, because a percentage
+cannot promise a ratio.
+
+---
+
+## Phase 8 — Voice as a first-class object ✅
+
+The voice fingerprint is the most load-bearing string in the AI layer, and it
+had exactly one way in: derive it from prose you had already written. Three
+changes, in order of how much each unlocks:
+
+### 8.1 Write a fingerprint from a description ✅
+"Describe a voice…" in AI Settings and Foundation. Say how the prose should
+sound, optionally paste a passage to emulate, edit the streamed result, save.
+A separate registry prompt from the analyser — that one *reports* what it finds
+in samples, this one has to *author* a voice and commit to specifics the brief
+doesn't state.
+
+### 8.2 Named voice profiles, per project and per document ✅
+`settings.voiceFingerprint` became a list with one marked default, and a document
+can point at another (`meta.voiceId`). `resolveVoice(project, docId)` is the
+single read path; ContextBuilder resolves per document, so a dual-POV novel
+drafts and scores each thread against the voice it is actually written in
+instead of reading as constant drift. Legacy projects migrate on open; the old
+field survives as a documented mirror so a `.konbini` bundle stays readable
+without this app.
+
+### 8.3 The assistant can propose settings changes ✅
+`read_config` / `propose_config`, bounded by the whitelist in
+`lib/agentConfig.ts`: standing instructions, voice fingerprints, prompt
+templates — text the author would otherwise type. Provider, API key, model and
+token budgets are **not** on that list. Off by default behind its own opt-in,
+and `runAgent` derives whether to advertise the tools from whether the capability
+is wired, so a tool can never be offered that the executor will refuse. Changes
+go out as a `Proposal` carrying `configRef` and are applied by Studio's single
+`onApply` — same diff, same accept/reject, no `.md` write and no snapshot.
+
+---
+
 ## Electron packaging (any phase, when needed)
 
 1. `src/preload/index.ts` — `contextBridge.exposeInMainWorld('api', { ... })` with the same `KonbiniAPI` interface

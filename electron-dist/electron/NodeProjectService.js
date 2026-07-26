@@ -103,16 +103,16 @@ class NodeProjectService {
     }
     // ── Open ────────────────────────────────────────────────────────────────────
     async open(bundlePath) {
-        const manifestText = await readText(bundlePath, 'project.json');
+        const manifestText = await readText(bundlePath, bundle_1.MANIFEST_FILE);
         if (!manifestText)
             throw new Error('Not a Konbini project (no project.json)');
         const project = JSON.parse(manifestText);
         // Upgrade an older bundle once, on open, so the file on disk stops
         // lagging what we hold in memory.
         const didMigrate = (0, nodeOps_1.migrateProject)(project);
-        // Codex/debt live in sidecar files so sync can merge them apart from
-        // the manifest; older bundles still carry them inline.
-        const owesSidecars = (0, bundle_1.adoptSidecars)(project, await readText(bundlePath, bundle_1.CODEX_FILE), await readText(bundlePath, bundle_1.DEBT_FILE));
+        // Codex/debt/comments live in sidecar files so sync can merge them apart
+        // from the manifest; older bundles still carry codex and debt inline.
+        const owesSidecars = (0, bundle_1.adoptSidecars)(project, await readText(bundlePath, bundle_1.CODEX_FILE), await readText(bundlePath, bundle_1.DEBT_FILE), await readText(bundlePath, bundle_1.COMMENTS_FILE));
         for (const nodeId of Object.keys(project.docs)) {
             const content = await readText(bundlePath, 'docs', `${nodeId}.md`);
             project.docs[nodeId] = { content: content ?? '', snapshots: project.docs[nodeId]?.snapshots ?? [] };
@@ -332,6 +332,13 @@ class NodeProjectService {
         proj.modified = new Date().toISOString();
         await writeText(dir, (0, bundle_1.serializeDebt)(items), bundle_1.DEBT_FILE);
     }
+    async saveComments(projectId, comments) {
+        const dir = this.getPath(projectId);
+        const proj = this.getProject(projectId);
+        proj.settings.comments = comments;
+        proj.modified = new Date().toISOString();
+        await writeText(dir, (0, bundle_1.serializeComments)(comments), bundle_1.COMMENTS_FILE);
+    }
     // ── Aux files ─────────────────────────────────────────────────────────────
     async readAux(projectId, name) {
         if (!(0, utils_1.isValidAuxName)(name))
@@ -356,9 +363,9 @@ class NodeProjectService {
     async probe(projectId) {
         const dir = this.getPath(projectId);
         const out = {};
-        const m = await statMtime(path.join(dir, 'project.json'));
+        const m = await statMtime(path.join(dir, bundle_1.MANIFEST_FILE));
         if (m)
-            out['project.json'] = m;
+            out[bundle_1.MANIFEST_FILE] = m;
         try {
             for (const name of await fs.readdir(path.join(dir, 'docs'))) {
                 if (!name.endsWith('.md'))
@@ -375,7 +382,7 @@ class NodeProjectService {
      */
     async readBundle(projectId) {
         const dir = this.getPath(projectId);
-        const manifestText = await readText(dir, 'project.json');
+        const manifestText = await readText(dir, bundle_1.MANIFEST_FILE);
         if (!manifestText)
             throw new Error('Bundle has no project.json');
         const onDisk = JSON.parse(manifestText);
@@ -438,7 +445,7 @@ class NodeProjectService {
         return p;
     }
     async writeManifest(dir, project) {
-        await writeText(dir, (0, bundle_1.serializeManifest)(project), 'project.json');
+        await writeText(dir, (0, bundle_1.serializeManifest)(project), bundle_1.MANIFEST_FILE);
     }
     descendants(proj, id) {
         const acc = [];

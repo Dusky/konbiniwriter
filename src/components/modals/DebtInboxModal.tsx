@@ -4,6 +4,7 @@ import { useAIStore } from '../../store/aiStore'
 import { debtService } from '../../lib/DebtService'
 import type { DebtItem, DebtLayer, ID } from '@shared/types'
 import Icon from '../common/Icon'
+import { resolveVoice } from '../../lib/voice'
 
 const LAYER_COLOR: Record<DebtLayer, string> = {
   canon: 'var(--accent)',
@@ -75,7 +76,7 @@ export default function DebtInboxModal({ onClose }: Props): React.ReactElement {
     checkAbort.current = controller
     try {
       const { items, hasVoice, checked } = await debtService.checkVoiceDrift({
-        project, docId: selectedId, voice: project.settings.voiceFingerprint ?? '', signal: controller.signal,
+        project, docId: selectedId, voice: resolveVoice(project, selectedId), signal: controller.signal,
       })
       items.forEach((it) => raiseDebt(it))
       setCheckResult(
@@ -96,7 +97,7 @@ export default function DebtInboxModal({ onClose }: Props): React.ReactElement {
 
   const draftVoiceFix = async (item: DebtItem, docId: ID) => {
     if (!project) return
-    const voice = project.settings.voiceFingerprint ?? ''
+    const voice = resolveVoice(project, selectedId)
     if (!voice.trim()) { setError('No voice fingerprint saved. Generate one in Foundation first.'); return }
     const key = `${item.id}:${docId}`
     setDrafting(key)

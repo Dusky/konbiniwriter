@@ -1,7 +1,12 @@
-import React, { useEffect, useRef, useCallback, useState } from 'react'
+import React, { useEffect, useRef, useCallback, useMemo, useState } from 'react'
 import { EditorView } from '@codemirror/view'
 import { EditorState, Compartment } from '@codemirror/state'
-import { focusModeEffect, konbiniExtensions, makeTypewriterPlugin, setSlopSpansEffect, type SlopSpan } from './extensions'
+import { focusModeEffect, konbiniExtensions, makeTypewriterPlugin, setSlopSpansEffect, setCommentSpansEffect, commentField, setNameSlipsEffect, nameSlipField, setSpokenRangeEffect, type SlopSpan, type CommentSpan, type NameSlipSpan } from './extensions'
+import { anchoredFor, type Comment } from '@shared/comments'
+import { buildVocabulary, findNameSlips } from '@shared/dictionary'
+import { sentenceIndexAt, splitSentences } from '@shared/speech'
+import { readAloud } from '../../lib/ReadAloud'
+import ReadAloudBar from './ReadAloudBar'
 import { livePreview } from './livePreview'
 import { useProjectStore } from '../../store/projectStore'
 import { useShellStore } from '../../store/shellStore'
@@ -14,6 +19,7 @@ import Icon from '../common/Icon'
 import { createProposal } from '../../lib/ProposalService'
 import { BEAT_PROMPT_ID } from '../../lib/beat'
 import { COWRITE_COMMANDS, type CowriteCommand } from '../../lib/cowrite'
+import { kbd } from '../../lib/kbd'
 import { promptRegistry } from '../../lib/PromptRegistry'
 import { streamCompletion } from '../../lib/AIClient'
 
@@ -22,6 +28,18 @@ import { streamCompletion } from '../../lib/AIClient'
 // appears otherwise). Flip to 'always' to show the custom menu on every
 // right-click.
 const EDITOR_MENU_MODE: 'selection' | 'always' = 'selection'
+
+/**
+ * The comment highlights a document should be showing right now.
+ *
+ * Orphaned comments are excluded: their stored offsets no longer describe any
+ * real span, so there is nothing honest to paint.
+ */
+function commentSpansFor(comments: Comment[], docId: string, content: string): CommentSpan[] {
+  return anchoredFor(comments, docId, content)
+    .filter((c) => !c.orphaned && c.live.to > c.live.from)
+    .map((c) => ({ id: c.id, from: c.live.from, to: c.live.to, resolved: c.resolved }))
+}
 
 interface Props {
   docId: string
@@ -48,13 +66,28 @@ export default function Editor({ docId }: Props): React.ReactElement {
   const livePreviewOn = useShellStore((s) => s.livePreview)
   const setRailPanel = useShellStore((s) => s.setRailPanel)
   const queueProposal = useProjectStore((s) => s.queueProposal)
+  const comments = useProjectStore((s) => s.comments)
+  const addComment = useProjectStore((s) => s.addComment)
+  const remapComment = useProjectStore((s) => s.remapComment)
+  const setFocusedComment = useProjectStore((s) => s.setFocusedComment)
+  const codex = useProjectStore((s) => s.codex)
+  const dictionary = useProjectStore((s) => s.dictionary)
+  const addDictionaryWord = useProjectStore((s) => s.addDictionaryWord)
 
   const content = project?.docs[docId]?.content ?? ''
 
+  // Codex names, aliases, and document titles are all project vocabulary.
+  const vocabulary = useMemo(
+    () => buildVocabulary(project, codex, dictionary),
+    [project, codex, dictionary],
+  )
+
   const [cowrite, setCowrite] = useState<{ selection: string; selRange: { from: number; to: number }; anchorRect: DOMRect; autoRun?: CowriteCommand } | null>(null)
   const [beat, setBeat] = useState<{ anchorRect: DOMRect; cursor: number; preceding: string } | null>(null)
-  const [editorMenu, setEditorMenu] = useState<{ x: number; y: number; hasSelection: boolean } | null>(null)
+  const [editorMenu, setEditorMenu] = useState<{ x: number; y: number; hasSelection: boolean; slip: NameSlipSpan | null } | null>(null)
   const [wikilinkTip, setWikilinkTip] = useState<{ title: string; synopsis: string; preview: string; x: number; y: number } | null>(null)
+
+  const [readAloudOpen, setReadAloudOpen] = useState(false)
 
   // Find & Replace state
   const [findReplaceOpen, setFindReplaceOpen] = useState(false)
@@ -206,6 +239,166 @@ export default function Editor({ docId }: Props): React.ReactElement {
     [setCursor]
   )
 
+  // ── Comments ───────────────────────────────────────────────────────────────
+
+  // CodeMirror has already mapped these anchors through the change; push the
+  // new positions (and the text they now cover) back to the store. A span that
+  // collapsed to nothing is skipped deliberately: leaving the old quote in
+  // place lets `reanchor` mark the comment orphaned instead of silently
+  // re-pointing it at whatever text moved into those offsets.
+  const handleCommentSpans = useCallback((spans: CommentSpan[]) => {
+    const view = viewRef.current
+    if (!view) return
+    const doc = view.state.doc
+    for (const s of spans) {
+      if (s.from >= s.to) continue
+      remapComment(s.id, { from: s.from, to: s.to, quote: doc.sliceString(s.from, s.to) })
+    }
+  }, [remapComment])
+
+  // Keep the editor's highlights in step with the store. This only covers
+  // *changes*; the initial set is seeded by the mount effect below, which runs
+  // after this one and is the first point at which a view exists.
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+    const next = commentSpansFor(comments, docId, content)
+    const cur = view.state.field(commentField)
+    const same = cur.length === next.length && cur.every((s, i) =>
+      s.id === next[i].id && s.from === next[i].from && s.to === next[i].to && s.resolved === next[i].resolved)
+    if (same) return
+    view.dispatch({ effects: setCommentSpansEffect.of(next) })
+  }, [comments, content, docId])
+
+  // ── Name slips ─────────────────────────────────────────────────────────────
+
+  // Recomputed after typing settles rather than on every keystroke: the token
+  // under the caret is half-written most of the time, and flagging it as a
+  // mistake while the writer is still typing it is pure noise.
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+    if (!vocabulary.length) {
+      if (view.state.field(nameSlipField).length) view.dispatch({ effects: setNameSlipsEffect.of([]) })
+      return
+    }
+    const t = setTimeout(() => {
+      const v = viewRef.current
+      if (!v) return
+      const slips = findNameSlips(v.state.doc.toString(), vocabulary)
+      v.dispatch({ effects: setNameSlipsEffect.of(slips) })
+    }, 600)
+    return () => clearTimeout(t)
+  }, [content, docId, vocabulary])
+
+  /** The name slip under a document position, if any. */
+  const slipAt = useCallback((pos: number): NameSlipSpan | null => {
+    const view = viewRef.current
+    if (!view) return null
+    return view.state.field(nameSlipField).find((s) => pos >= s.from && pos <= s.to) ?? null
+  }, [])
+
+  const fixSlip = useCallback((slip: NameSlipSpan) => {
+    const view = viewRef.current
+    if (!view) return
+    view.dispatch({ changes: { from: slip.from, to: slip.to, insert: slip.suggestion } })
+    view.focus()
+  }, [])
+
+  // ── Read aloud ─────────────────────────────────────────────────────────────
+
+  // Reading starts at the caret, not the top: proofing is something you do to
+  // the paragraph you just wrote.
+  const startReading = useCallback(() => {
+    const view = viewRef.current
+    if (!view) return
+    const text = view.state.doc.toString()
+    const head = view.state.selection.main.head
+    readAloud.start(text, sentenceIndexAt(splitSentences(text), head))
+  }, [])
+
+  useEffect(() => {
+    const onStart = () => startReading()
+    const onToggle = () => {
+      if (readAloudOpen) { readAloud.stop(); setReadAloudOpen(false); return }
+      // Read the caret BEFORE opening the bar. Inserting it above the editor
+      // reflows the contenteditable, and the browser re-places the selection at
+      // the end of the document when that happens — so a deferred read would
+      // always start from the bottom instead of from where the writer is.
+      startReading()
+      setReadAloudOpen(true)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      // Not Ctrl+Shift+U: that's the IBus Unicode-input sequence on Linux, and
+      // it collapses the caret to the end of the field before we see the event.
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'l') {
+        e.preventDefault()
+        onToggle()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('konbini:read-aloud-start', onStart)
+    window.addEventListener('konbini:read-aloud', onToggle)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('konbini:read-aloud-start', onStart)
+      window.removeEventListener('konbini:read-aloud', onToggle)
+    }
+  }, [startReading, readAloudOpen])
+
+  // Follow the spoken sentence: highlight it and keep it on screen.
+  useEffect(() => readAloud.subscribe((st) => {
+    const view = viewRef.current
+    if (!view) return
+    const s = st.speaking && st.index >= 0 ? st.sentences[st.index] : null
+    const range = s && s.to <= view.state.doc.length ? { from: s.from, to: s.to } : null
+    view.dispatch({
+      effects: range
+        ? [setSpokenRangeEffect.of(range), EditorView.scrollIntoView(range.from, { y: 'center' })]
+        : [setSpokenRangeEffect.of(null)],
+    })
+  }), [])
+
+  // Speech outlives the component unless it's stopped; a voice reading a
+  // document that is no longer open is the worst possible bug here.
+  useEffect(() => () => readAloud.stop(), [docId])
+
+  const addCommentAtSelection = useCallback(() => {
+    const view = viewRef.current
+    if (!view) return
+    const { from, to } = view.state.selection.main
+    if (from === to) {
+      useShellStore.getState().setToast('Select the text you want to comment on.')
+      return
+    }
+    const id = addComment({ docId, from, to, body: '' })
+    if (!id) return
+    setRailPanel('comments')
+    setFocusedComment(id)
+  }, [docId, addComment, setRailPanel, setFocusedComment])
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'm') {
+        e.preventDefault()
+        addCommentAtSelection()
+      }
+    }
+    const evt = () => addCommentAtSelection()
+    window.addEventListener('keydown', handler)
+    window.addEventListener('konbini:add-comment', evt)
+    return () => { window.removeEventListener('keydown', handler); window.removeEventListener('konbini:add-comment', evt) }
+  }, [addCommentAtSelection])
+
+  // Clicking a highlighted span surfaces its note in the rail.
+  const handleCommentClick = useCallback((e: React.MouseEvent) => {
+    const el = (e.target as HTMLElement | null)?.closest?.('[data-comment-id]')
+    const id = el?.getAttribute('data-comment-id')
+    if (!id) return
+    setRailPanel('comments')
+    setFocusedComment(id)
+  }, [setRailPanel, setFocusedComment])
+
   // Show co-write bar on mouseup if there's a selection and AI is enabled
   const handleMouseUp = useCallback(() => {
     if (!aiEnabled) return
@@ -279,33 +472,75 @@ export default function Editor({ docId }: Props): React.ReactElement {
     setCowrite({ selection, selRange: { from: selFrom, to: selTo }, anchorRect: rect, autoRun: cmd })
   }, [])
 
-  const editorMenuItems = useCallback((hasSelection: boolean): MenuItem[] => {
+  const editorMenuItems = useCallback((hasSelection: boolean, slip: NameSlipSpan | null): MenuItem[] => {
     const items: MenuItem[] = []
+    const view = viewRef.current
+    const selected = view && hasSelection
+      ? view.state.doc.sliceString(view.state.selection.main.from, view.state.selection.main.to).trim()
+      : ''
+
+    // A misspelled name is why the menu was opened; it goes first.
+    if (slip) {
+      items.push({ label: `Change to “${slip.suggestion}”`, icon: 'check', action: () => fixSlip(slip) })
+      items.push({ label: `Add “${slip.word}” to Dictionary`, icon: 'book', action: () => addDictionaryWord(slip.word) })
+      items.push({ label: '---' })
+    }
+
     if (hasSelection) {
-      items.push({ label: 'Cut', action: doCut }, { label: 'Copy', action: doCopy })
+      items.push(
+        { label: 'Cut', icon: 'copy', hint: kbd('mod+x'), action: doCut },
+        { label: 'Copy', icon: 'copy', hint: kbd('mod+c'), action: doCopy },
+      )
     }
-    items.push({ label: 'Paste', action: () => { void doPaste() } })
-    if (!hasSelection) items.push({ label: 'Select All', action: doSelectAll })
+    items.push({ label: 'Paste', hint: kbd('mod+v'), action: () => { void doPaste() } })
+    if (!hasSelection) items.push({ label: 'Select All', hint: kbd('mod+a'), action: doSelectAll })
+
+    if (hasSelection) {
+      items.push(
+        { label: '---' },
+        { label: 'Add Comment', icon: 'comment', hint: kbd('mod+shift+m'), action: addCommentAtSelection },
+        // A selected phrase is usually a name or a place; the fastest thing to
+        // do with it is look it up or make a document out of it.
+        { label: 'Copy as Wikilink', disabled: !selected, action: () => { void navigator.clipboard.writeText(`[[${selected}]]`) } },
+        { label: 'Search Project for Selection', icon: 'search', disabled: !selected, action: () => {
+          useProjectStore.getState().setBinderQuery({ text: selected })
+        } },
+      )
+      if (selected && !selected.includes(' ')) {
+        items.push({ label: `Add “${selected}” to Dictionary`, icon: 'book', action: () => addDictionaryWord(selected) })
+      }
+    }
+
     if (aiEnabled && hasSelection) {
-      items.push({ label: '---', action: () => {} })
-      for (const c of COWRITE_COMMANDS) items.push({ label: c.label, action: () => startCowrite(c.id) })
+      items.push(
+        { label: '---' },
+        { label: 'Co-write', icon: 'sparkle', items: COWRITE_COMMANDS.map((c) => ({ label: c.label, action: () => startCowrite(c.id) })) },
+      )
     }
-    items.push({ label: '---', action: () => {} })
-    items.push({ label: 'History & Snapshots', action: () => setRailPanel('history') })
+
+    items.push(
+      { label: '---' },
+      { label: 'Read Aloud from Here', icon: 'audio-lines', hint: kbd('mod+shift+l'), action: () => window.dispatchEvent(new Event('konbini:read-aloud')) },
+      { label: 'Comments', icon: 'comment', action: () => setRailPanel('comments') },
+      { label: 'History & Snapshots', icon: 'history', hint: kbd('mod+shift+s'), action: () => setRailPanel('history') },
+    )
     return items
-  }, [aiEnabled, doCut, doCopy, doPaste, doSelectAll, startCowrite, setRailPanel])
+  }, [aiEnabled, doCut, doCopy, doPaste, doSelectAll, startCowrite, setRailPanel, addCommentAtSelection, fixSlip, addDictionaryWord])
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     const view = viewRef.current
     if (!view) return
     const sel = view.state.selection.main
     const hasSelection = sel.from !== sel.to
+    const pos = view.posAtCoords({ x: e.clientX, y: e.clientY })
+    const slip = pos === null ? null : slipAt(pos)
     // In 'selection' mode, fall through to the browser's native menu (which
-    // carries spellcheck suggestions) when nothing is selected.
-    if (EDITOR_MENU_MODE === 'selection' && !hasSelection) return
+    // carries spellcheck suggestions) when nothing is selected — unless we have
+    // something better to offer, i.e. a name we know is misspelled.
+    if (EDITOR_MENU_MODE === 'selection' && !hasSelection && !slip) return
     e.preventDefault()
-    setEditorMenu({ x: e.clientX, y: e.clientY, hasSelection })
-  }, [])
+    setEditorMenu({ x: e.clientX, y: e.clientY, hasSelection, slip })
+  }, [slipAt])
 
   // Mount / remount when docId changes
   useEffect(() => {
@@ -314,7 +549,7 @@ export default function Editor({ docId }: Props): React.ReactElement {
     const state = EditorState.create({
       doc: content,
       extensions: [
-        ...konbiniExtensions(handleChange, handleCursor),
+        ...konbiniExtensions(handleChange, handleCursor, handleCommentSpans),
         livePreviewCompartment.current.of(livePreviewOn ? livePreview : []),
         typewriterCompartment.current.of(typewriterMode ? makeTypewriterPlugin() : []),
       ],
@@ -322,6 +557,12 @@ export default function Editor({ docId }: Props): React.ReactElement {
 
     const view = new EditorView({ state, parent: containerRef.current })
     viewRef.current = view
+
+    // Seed comment highlights for the document just opened. The sync effect
+    // above can't do it: React runs effects in declaration order, so it fires
+    // while viewRef is still null and then won't re-run until a dep changes.
+    const initialSpans = commentSpansFor(useProjectStore.getState().comments, docId, content)
+    if (initialSpans.length) view.dispatch({ effects: setCommentSpansEffect.of(initialSpans) })
 
     // Focus the editor and publish the initial cursor position
     view.focus()
@@ -533,7 +774,7 @@ export default function Editor({ docId }: Props): React.ReactElement {
   }, [livePreviewOn])
 
   return (
-    <div style={{ height: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }} onMouseUp={handleMouseUp} onMouseMove={handleMouseMove} onMouseLeave={() => setWikilinkTip(null)} onContextMenu={handleContextMenu}>
+    <div style={{ height: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }} onMouseUp={handleMouseUp} onMouseMove={handleMouseMove} onMouseLeave={() => setWikilinkTip(null)} onContextMenu={handleContextMenu} onClick={handleCommentClick}>
       {findReplaceOpen && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px',
@@ -614,6 +855,7 @@ export default function Editor({ docId }: Props): React.ReactElement {
           ><Icon name="x" size={14} /></button>
         </div>
       )}
+      {readAloudOpen && <ReadAloudBar onClose={() => { readAloud.stop(); setReadAloudOpen(false) }} />}
       <div ref={containerRef} style={{ flex: 1, minHeight: 0 }} />
       {wikilinkTip && (
         <div style={{
@@ -650,7 +892,7 @@ export default function Editor({ docId }: Props): React.ReactElement {
         <ContextMenu
           x={editorMenu.x}
           y={editorMenu.y}
-          items={editorMenuItems(editorMenu.hasSelection)}
+          items={editorMenuItems(editorMenu.hasSelection, editorMenu.slip)}
           onClose={() => setEditorMenu(null)}
         />
       )}

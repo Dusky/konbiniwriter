@@ -305,6 +305,9 @@ const api = {
     debt: {
         save: (pid, items) => NodeProjectService_1.nodeProjectService.saveDebt(pid, items),
     },
+    comments: {
+        save: (pid, comments) => NodeProjectService_1.nodeProjectService.saveComments(pid, comments),
+    },
     sync: {
         probe: (pid) => NodeProjectService_1.nodeProjectService.probe(pid),
         readBundle: (pid) => NodeProjectService_1.nodeProjectService.readBundle(pid),
@@ -315,6 +318,13 @@ const api = {
     },
     compile: {
         run: (pid, rid, ids, fmt) => NodeProjectService_1.nodeProjectService.compile(pid, rid, ids, fmt),
+    },
+    spell: {
+        // Electron's session owns the spellchecker dictionary. Fire-and-forget:
+        // on platforms that defer to the OS dictionary (macOS) the main process
+        // reports it did nothing, and there is nothing useful to say about that.
+        addWord: (word) => { void electron_1.ipcRenderer.invoke('spell:add', word); },
+        removeWord: (word) => { void electron_1.ipcRenderer.invoke('spell:remove', word); },
     },
     prefs: {
         get: (key) => {

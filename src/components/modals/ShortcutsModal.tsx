@@ -23,6 +23,8 @@ const SHORTCUTS = [
       ['Find in Document', 'mod+f'],
       ['Find & Replace', 'mod+h'],
       ['Search Project', 'mod+shift+f'],
+      ['Add Comment', 'mod+shift+m'],
+      ['Read Aloud', 'mod+shift+l'],
     ],
   },
   {
@@ -33,6 +35,7 @@ const SHORTCUTS = [
       ['Outliner', 'mod+3'],
       ['Timeline', 'mod+4'],
       ['Toggle Binder', 'mod+alt+b'],
+      ['Focus Binder', 'mod+shift+b'],
       ['Toggle Inspector', 'mod+alt+i'],
       ['Composition Mode', 'mod+alt+c'],
       ['Focus Mode', 'mod+alt+o'],

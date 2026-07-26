@@ -52,7 +52,7 @@ export default function StatusBar(): React.ReactElement {
   }
 
   return (
-    <div className="statusbar">
+    <footer className="statusbar">
       {selectedNode && (
         <span>
           <b>{selectedNode.title}</b>
@@ -150,6 +150,6 @@ export default function StatusBar(): React.ReactElement {
             : ''}
         </span>
       </div>
-    </div>
+    </footer>
   )
 }

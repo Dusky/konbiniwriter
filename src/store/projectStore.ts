@@ -1,7 +1,12 @@
 import { create } from 'zustand'
 import { useShellStore } from './shellStore'
 import type { Project, KNode, DocBody, DocMeta, NodeType, ViewMode, SaveStatus, Snapshot, ID, Proposal, CodexEntry, DebtItem, ProjectSettings } from '@shared/types'
+import type { Comment, CommentOrigin } from '@shared/comments'
+import type { NodeQuery, Collection } from '@shared/query'
+import { isEmptyQuery } from '@shared/query'
+import { trimAnchor } from '@shared/comments'
 import { uid, wordCount } from '@shared/utils'
+import { makeVoiceProfile, migrateVoiceProfiles, DEFAULT_VOICE_NAME } from '../lib/voice'
 import { type MentionIndex, buildIndex, updateIndex } from '../lib/MentionIndex'
 import type { JudgeResult, QualityPoint } from '../lib/judge'
 import type { SlopResult } from '../lib/slop'
@@ -20,6 +25,12 @@ export type ViewTabId =
 interface ProjectState {
   project: Project | null
   selectedId: ID | null
+  /**
+   * The multi-selection, in binder order. Always contains `selectedId` when
+   * anything is selected — a plain click collapses it to one node, so every
+   * existing single-node path keeps working untouched.
+   */
+  selectedIds: ID[]
   /** Documents open as editor tabs, in tab order. selectedId is the active tab. */
   openTabs: ID[]
   /** App-view surfaces open as tabs (Stats, Foundation, …), in tab order. */
@@ -40,6 +51,12 @@ interface ProjectState {
   activeProposalId: ID | null
   codex: CodexEntry[]
   debt: DebtItem[]
+  comments: Comment[]
+  /** Comment the rail should scroll to and flash — cleared once consumed. */
+  focusedCommentId: ID | null
+  collections: Collection[]
+  /** Words the writer has marked correct for this project. */
+  dictionary: string[]
   slopSpans: import('../components/editor/extensions').SlopSpan[]
   slopRunning: boolean
   nodeHistory: Array<{ rootIds: ID[]; nodes: Record<ID, KNode> }>
@@ -54,9 +71,32 @@ interface ProjectState {
   unloadProject: () => void
 
   // — selection & view —
-  selectNode: (id: ID | null) => void
+  /**
+   * `keepView` is for the browsing views. Selecting a document normally means
+   * "show me this document", which switches to the editor — but in the
+   * outliner or corkboard that ejects you from the surface you were reading,
+   * so a single click there selects and a double click opens.
+   */
+  selectNode: (id: ID | null, opts?: { keepView?: boolean }) => void
+  /** Ctrl/Cmd-click: add or remove one node from the selection. */
+  toggleSelect: (id: ID) => void
+  /** Shift-click: select everything between the anchor and `id` in binder order. */
+  selectRange: (id: ID) => void
+  /**
+   * The ids an action should apply to when invoked on `id` — the whole
+   * selection if `id` is part of it, otherwise just `id`. Right-clicking
+   * outside a selection acts on what you clicked, which is what every file
+   * manager does.
+   */
+  actionTargets: (id: ID) => ID[]
   /** Close an open editor tab; if it was active, activate a neighbour. */
   closeTab: (id: ID) => void
+  /** Close every editor tab except one, which becomes active. */
+  closeOtherTabs: (keepId: ID) => void
+  /** Close every editor tab. */
+  closeAllTabs: () => void
+  /** Expand a node's ancestors (and drop any binder filter) so it's visible. */
+  revealInBinder: (id: ID) => void
   /** Open (or focus) an app-view tab in the main pane. */
   openViewTab: (v: ViewTabId) => void
   /** Focus an already-open app-view tab. */
@@ -97,6 +137,36 @@ interface ProjectState {
   upsertCodexEntry: (entry: CodexEntry) => void
   deleteCodexEntry: (id: ID) => void
 
+  // — comments (margin notes anchored to spans of prose) —
+  /** Create a comment on a range; returns its id. Quote is taken from `content`. */
+  addComment: (input: {
+    docId: ID; from: number; to: number; body: string
+    author?: string; origin?: CommentOrigin; agentId?: string
+  }) => ID | null
+  editComment: (id: ID, body: string) => void
+  /** Move a comment's anchor — used by the editor as the writer edits around it. */
+  remapComment: (id: ID, anchor: { from: number; to: number; quote: string }) => void
+  toggleCommentResolved: (id: ID) => void
+  deleteComment: (id: ID) => void
+  setFocusedComment: (id: ID | null) => void
+
+  // — binder filter & saved collections —
+  /** The query the binder is currently filtered by. Empty query = no filter. */
+  binderQuery: NodeQuery
+  /** The saved collection the filter came from, when it came from one. */
+  activeCollectionId: ID | null
+  setBinderQuery: (q: NodeQuery) => void
+  clearBinderQuery: () => void
+  /** Apply a saved collection's query to the binder. */
+  applyCollection: (id: ID) => void
+  saveCollection: (name: string, query: NodeQuery) => ID | null
+  renameCollection: (id: ID, name: string) => void
+  deleteCollection: (id: ID) => void
+
+  // — project dictionary —
+  addDictionaryWord: (word: string) => void
+  removeDictionaryWord: (word: string) => void
+
   // — propagation debt —
   raiseDebt: (item: DebtItem) => void
   resolveDebtAffected: (debtId: ID, docId: ID) => void
@@ -114,6 +184,7 @@ interface ProjectState {
   /** Merge a patch into project settings (persisted). For book metadata etc. */
   updateProjectSettings: (patch: Partial<ProjectSettings>) => void
   setVoiceFingerprint: (text: string) => void
+  saveVoiceProfiles: (profiles: import('@shared/types').VoiceProfile[], activeId?: ID) => void
   setAiInstructions: (text: string) => void
   setAutopilotRun: (run: import('@shared/types').AutopilotRunState | null) => void
 
@@ -181,6 +252,105 @@ export function isDescendant(project: Project, ancestorId: ID, targetId: ID): bo
   return descendants(project, ancestorId).includes(targetId)
 }
 
+/** Put ids into binder (depth-first) order, so a selection reads like the tree. */
+function orderByBinder(project: Project, ids: ID[]): ID[] {
+  const want = new Set(ids)
+  const out: ID[] = []
+  const walk = (list: ID[]) => {
+    for (const id of list) {
+      if (want.has(id)) out.push(id)
+      walk(project.nodes[id]?.childIds ?? [])
+    }
+  }
+  walk(project.rootIds)
+  // Anything not reachable from the roots (shouldn't happen) is kept, not lost.
+  for (const id of ids) if (!out.includes(id)) out.push(id)
+  return out
+}
+
+// ── comment persistence ──────────────────────────────────────────────────────
+//
+// Two write paths on purpose. Creating, editing, resolving, or deleting a
+// comment is the writer acting, and lands immediately. Re-anchoring is the
+// comment following text the writer is typing around — that fires on nearly
+// every keystroke, so it's coalesced. Worst case on a hard crash mid-debounce
+// is a stale offset, which `reanchor` recovers from on the next open; the
+// comment itself is never at risk.
+
+const COMMENT_SAVE_DEBOUNCE_MS = 400
+let commentSaveTimer: ReturnType<typeof setTimeout> | null = null
+let pendingCommentSave: { projectId: ID; comments: Comment[] } | null = null
+
+/** Write whatever comment state is queued, now. */
+export function flushCommentSave(): void {
+  if (commentSaveTimer) { clearTimeout(commentSaveTimer); commentSaveTimer = null }
+  const p = pendingCommentSave
+  pendingCommentSave = null
+  if (!p) return
+  window.api.comments.save(p.projectId, p.comments).catch((e: Error) => {
+    useShellStore.getState().setToast('Comments could not be saved: ' + e.message)
+  })
+}
+
+/** Persist now (writer-initiated change). */
+function persistComments(projectId: ID, comments: Comment[]): void {
+  pendingCommentSave = { projectId, comments }
+  flushCommentSave()
+}
+
+/**
+ * Drop score-cache entries whose node no longer exists, and rewrite the aux
+ * files if anything went.
+ *
+ * The three caches (`quality.json`, `slop.json`, `voice.json`) are keyed by node
+ * id, so they were accumulating entries for deleted scenes forever — and since
+ * they sit in the disposable aux tier nothing ever noticed. Returns only the
+ * caches that actually changed, so a mutation that deletes nothing keeps the
+ * existing Map identities and doesn't re-render every panel that reads them.
+ */
+function pruneScoreCaches(
+  s: Pick<ProjectState, 'project' | 'judgeResults' | 'slopResults' | 'voiceResults'>,
+  nodes: Record<ID, KNode>,
+): Partial<ProjectState> {
+  const p = s.project
+  if (!p) return {}
+  /** Returns null when nothing was dropped, so the caller can skip the write. */
+  const kept = <T,>(map: Map<ID, T>, file: string): Map<ID, T> | null => {
+    if (map.size === 0) return null
+    const next = new Map<ID, T>()
+    for (const [id, v] of map) if (nodes[id]) next.set(id, v)
+    if (next.size === map.size) return null
+    window.api.aux.write(p.id, file, JSON.stringify(Object.fromEntries(next))).catch(console.error)
+    return next
+  }
+  const out: Partial<ProjectState> = {}
+  const judge = kept(s.judgeResults, 'quality.json')
+  if (judge) out.judgeResults = judge
+  const slop = kept(s.slopResults, 'slop.json')
+  if (slop) out.slopResults = slop
+  const voice = kept(s.voiceResults, 'voice.json')
+  if (voice) out.voiceResults = voice
+  return out
+}
+
+/** Persist soon, collapsing a burst into one write (anchor drift). */
+function persistCommentsSoon(projectId: ID, comments: Comment[]): void {
+  pendingCommentSave = { projectId, comments }
+  if (commentSaveTimer) clearTimeout(commentSaveTimer)
+  commentSaveTimer = setTimeout(flushCommentSave, COMMENT_SAVE_DEBOUNCE_MS)
+}
+
+/**
+ * Collections ride in project settings rather than a sidecar of their own:
+ * they're a handful of small JSON objects, edited deliberately and rarely, so
+ * the extra file (and the extra merge surface) would buy nothing.
+ */
+function persistCollections(projectId: ID, collections: Collection[]): void {
+  window.api.settings.save(projectId, { collections }).catch((e: Error) => {
+    useShellStore.getState().setToast('Collections could not be saved: ' + e.message)
+  })
+}
+
 // ── store ────────────────────────────────────────────────────────────────────
 
 const EMPTY_INDEX: MentionIndex = { aliasToDocIds: new Map(), docToAliases: new Map() }
@@ -188,6 +358,7 @@ const EMPTY_INDEX: MentionIndex = { aliasToDocIds: new Map(), docToAliases: new 
 export const useProjectStore = create<ProjectState>((set, get) => ({
   project: null,
   selectedId: null,
+  selectedIds: [],
   openTabs: [],
   openViewTabs: [],
   activeViewTab: null,
@@ -204,6 +375,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   activeProposalId: null,
   codex: [],
   debt: [],
+  comments: [],
+  focusedCommentId: null,
+  collections: [],
+  dictionary: [],
+  binderQuery: {},
+  activeCollectionId: null,
   slopSpans: [],
   slopRunning: false,
   nodeHistory: [],
@@ -222,9 +399,19 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   loadProject: (project) => {
     useShellStore.getState().setRailPanel('inspector')
+    // A bundle written before voice profiles existed carries one unnamed
+    // fingerprint string. Promote it to a named profile on open so the rest of
+    // the app only ever sees the profile model — and persist, so the next open
+    // isn't a migration again.
+    const voicePatch = migrateVoiceProfiles(project.settings)
+    if (voicePatch) {
+      project = { ...project, settings: { ...project.settings, ...voicePatch } }
+      window.api.settings.save(project.id, voicePatch).catch(console.error)
+    }
     set({
       project,
       selectedId: null,
+      selectedIds: [],
       openTabs: [],
       openViewTabs: [],
       activeViewTab: null,
@@ -234,6 +421,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       mentionIndex: buildIndex(project.docs),
       codex: (project.settings.codex as CodexEntry[] | undefined) ?? [],
       debt: (project.settings.debt as DebtItem[] | undefined) ?? [],
+      comments: (project.settings.comments as Comment[] | undefined) ?? [],
+      focusedCommentId: null,
+      collections: (project.settings.collections as Collection[] | undefined) ?? [],
+      dictionary: (project.settings.dictionary as string[] | undefined) ?? [],
+      binderQuery: {},
+      activeCollectionId: null,
       proposals: [],
       activeProposalId: null,
       nodeHistory: [],
@@ -256,25 +449,61 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     })
   },
   unloadProject: () => {
+    flushCommentSave()   // don't drop a debounced anchor update on close
     useShellStore.getState().setRailPanel('inspector')
-    set({ project: null, selectedId: null, openTabs: [], openViewTabs: [], activeViewTab: null, mentionIndex: EMPTY_INDEX, codex: [], debt: [], proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], nodeFuture: [], judgeResults: new Map(), slopResults: new Map(), voiceResults: new Map(), qualityHistory: [], sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, autopilotPreset: [], focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null })
+    set({ project: null, selectedId: null, selectedIds: [], openTabs: [], openViewTabs: [], activeViewTab: null, mentionIndex: EMPTY_INDEX, codex: [], debt: [], comments: [], focusedCommentId: null, collections: [], dictionary: [], binderQuery: {}, activeCollectionId: null, proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], nodeFuture: [], judgeResults: new Map(), slopResults: new Map(), voiceResults: new Map(), qualityHistory: [], sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, autopilotPreset: [], focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null })
   },
 
-  selectNode: (id) => set((s) => {
+  selectNode: (id, opts) => set((s) => {
     // Selecting a document leaves any view tab (returns the main pane to the editor).
-    if (!id || !s.project) return { selectedId: id, cursor: null, activeViewTab: null }
+    if (!id || !s.project) return { selectedId: id, selectedIds: [], cursor: null, activeViewTab: null }
     const node = s.project.nodes[id]
-    if (!node) return { selectedId: id, cursor: null, activeViewTab: null }
+    if (!node) return { selectedId: id, selectedIds: [id], cursor: null, activeViewTab: null }
     // Auto-switch view based on node type
-    const newView = node.type === 'folder'
+    const newView = opts?.keepView ? s.view : node.type === 'folder'
       ? (s.view === 'editor' ? 'corkboard' : s.view)
       : 'editor'
     // Opening a document surfaces it as a tab (folders don't get tabs).
     const openTabs = node.type !== 'folder' && !s.openTabs.includes(id)
       ? [...s.openTabs, id]
       : s.openTabs
-    return { selectedId: id, view: newView, cursor: null, openTabs, activeViewTab: null }
+    // A plain click always collapses the selection to one node.
+    return { selectedId: id, selectedIds: [id], view: newView, cursor: null, openTabs, activeViewTab: null }
   }),
+
+  toggleSelect: (id) => set((s) => {
+    if (!s.project?.nodes[id]) return {}
+    const has = s.selectedIds.includes(id)
+    const next = has ? s.selectedIds.filter((x) => x !== id) : [...s.selectedIds, id]
+    const ordered = orderByBinder(s.project, next)
+    // Deselecting the active node hands "active" to whatever is left, so the
+    // editor never ends up showing something that isn't selected at all.
+    const selectedId = ordered.includes(s.selectedId ?? '')
+      ? s.selectedId
+      : ordered[ordered.length - 1] ?? null
+    return { selectedIds: ordered, selectedId }
+  }),
+
+  selectRange: (id) => set((s) => {
+    if (!s.project?.nodes[id]) return {}
+    const anchor = s.selectedId
+    // Range needs two ends; with nothing active this is just a click.
+    if (!anchor || anchor === id) return { selectedId: id, selectedIds: [id] }
+    // Ranges run over what's actually on screen — collapsed children aren't
+    // part of a visual sweep the writer can see.
+    const visible = flattenVisible(s.project).map((v) => v.id)
+    const a = visible.indexOf(anchor)
+    const b = visible.indexOf(id)
+    if (a === -1 || b === -1) return { selectedId: id, selectedIds: [id] }
+    const [lo, hi] = a < b ? [a, b] : [b, a]
+    // The anchor stays active so a further shift-click extends from the same end.
+    return { selectedIds: visible.slice(lo, hi + 1), selectedId: anchor }
+  }),
+
+  actionTargets: (id) => {
+    const { selectedIds } = get()
+    return selectedIds.length > 1 && selectedIds.includes(id) ? selectedIds : [id]
+  },
 
   closeTab: (id) => set((s) => {
     const idx = s.openTabs.indexOf(id)
@@ -287,6 +516,39 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }
     return { openTabs }
   }),
+
+  closeOtherTabs: (keepId) => set((s) => (
+    s.openTabs.includes(keepId)
+      ? { openTabs: [keepId], selectedId: keepId, cursor: null }
+      : {}
+  )),
+
+  closeAllTabs: () => set({ openTabs: [], selectedId: null, cursor: null }),
+
+  // Selecting a node doesn't help if it's inside a collapsed folder or hidden
+  // behind a filter — the binder just doesn't move. Clear the way first.
+  revealInBinder: (id) => {
+    const s = get()
+    if (!s.project) return
+    const ancestors: ID[] = []
+    let cur = s.project.nodes[id]?.parentId ?? null
+    while (cur) {
+      const n = s.project.nodes[cur]
+      if (!n) break
+      if (!n.expanded) ancestors.push(cur)
+      cur = n.parentId
+    }
+    if (!isEmptyQuery(s.binderQuery)) set({ binderQuery: {}, activeCollectionId: null })
+    for (const aid of ancestors) {
+      const node = s.project.nodes[aid]
+      if (!node) continue
+      set((st) => st.project
+        ? { project: { ...st.project, nodes: { ...st.project.nodes, [aid]: { ...st.project.nodes[aid], expanded: true } } } }
+        : {})
+      window.api.node.mutate(s.project.id, { type: 'setExpanded', id: aid, expanded: true }).catch(console.error)
+    }
+    get().selectNode(id)
+  },
 
   openViewTab: (v) => set((s) => ({
     openViewTabs: s.openViewTabs.includes(v) ? s.openViewTabs : [...s.openViewTabs, v],
@@ -344,8 +606,18 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     if (!s.project) return {}
     const snapshot = { rootIds: s.project.rootIds, nodes: s.project.nodes }
     const history = [...s.nodeHistory, snapshot].slice(-50)
+    // A node deleted outright takes its comments with it. This is the single
+    // place every structural mutation lands, so purging here covers all the
+    // delete call sites at once. Trashing keeps the node in the tree, so
+    // trashed documents deliberately keep their notes.
+    const comments = s.comments.filter((c) => nodes[c.docId])
+    if (comments.length !== s.comments.length) persistComments(s.project.id, comments)
+    // The aux score caches are keyed by node id too, and were outliving the
+    // nodes they describe — disposable files, but they grow forever and a
+    // recycled key would attach a dead scene's score to a live one.
+    const scores = pruneScoreCaches(s, nodes)
     // A fresh mutation invalidates the redo stack.
-    return { project: { ...s.project, rootIds, nodes, docs }, nodeHistory: history, nodeFuture: [] }
+    return { project: { ...s.project, rootIds, nodes, docs }, nodeHistory: history, nodeFuture: [], comments, ...scores }
   }),
 
   // Undo/redo move whole-tree snapshots between the past/future stacks and
@@ -469,6 +741,129 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     return { codex }
   }),
 
+  addComment: ({ docId, from, to, body, author = 'You', origin = 'author', agentId }) => {
+    const s = get()
+    if (!s.project) return null
+    const content = s.project.docs[docId]?.content ?? ''
+    // Anchor to the trimmed span: a comment that starts on leading whitespace
+    // drifts the moment the paragraph reflows.
+    const span = trimAnchor(content, from, to)
+    const now = new Date().toISOString()
+    const comment: Comment = {
+      id: uid('cm'),
+      docId,
+      anchor: { from: span.from, to: span.to, quote: content.slice(span.from, span.to) },
+      body,
+      author,
+      origin,
+      ...(agentId ? { agentId } : {}),
+      createdAt: now,
+      modifiedAt: now,
+      resolved: false,
+    }
+    set({ comments: [...s.comments, comment] })
+    persistComments(s.project.id, [...s.comments, comment])
+    return comment.id
+  },
+
+  editComment: (id, body) => set((s) => {
+    const comments = s.comments.map((c) =>
+      c.id === id ? { ...c, body, modifiedAt: new Date().toISOString() } : c)
+    if (s.project) persistComments(s.project.id, comments)
+    return { comments }
+  }),
+
+  // Position-only update: the writer edited around (or inside) the span and the
+  // editor mapped the anchor forward. Deliberately does NOT touch modifiedAt —
+  // moving with the text isn't the writer revising the note.
+  remapComment: (id, anchor) => set((s) => {
+    const before = s.comments.find((c) => c.id === id)
+    if (!before) return {}
+    const { from, to, quote } = before.anchor
+    if (from === anchor.from && to === anchor.to && quote === anchor.quote) return {}
+    const comments = s.comments.map((c) => c.id === id ? { ...c, anchor } : c)
+    if (s.project) persistCommentsSoon(s.project.id, comments)
+    return { comments }
+  }),
+
+  toggleCommentResolved: (id) => set((s) => {
+    const comments = s.comments.map((c) =>
+      c.id === id ? { ...c, resolved: !c.resolved, modifiedAt: new Date().toISOString() } : c)
+    if (s.project) persistComments(s.project.id, comments)
+    return { comments }
+  }),
+
+  deleteComment: (id) => set((s) => {
+    const comments = s.comments.filter((c) => c.id !== id)
+    if (s.project) persistComments(s.project.id, comments)
+    return { comments, focusedCommentId: s.focusedCommentId === id ? null : s.focusedCommentId }
+  }),
+
+  setFocusedComment: (focusedCommentId) => set({ focusedCommentId }),
+
+  // Editing the filter by hand detaches it from whichever collection it came
+  // from — otherwise the binder would claim to be showing a saved collection
+  // while actually showing something else.
+  setBinderQuery: (binderQuery) => set({ binderQuery, activeCollectionId: null }),
+  clearBinderQuery: () => set({ binderQuery: {}, activeCollectionId: null }),
+
+  applyCollection: (id) => set((s) => {
+    const c = s.collections.find((x) => x.id === id)
+    if (!c) return {}
+    return { binderQuery: c.query, activeCollectionId: id }
+  }),
+
+  saveCollection: (name, query) => {
+    const s = get()
+    if (!s.project) return null
+    const now = new Date().toISOString()
+    const collection: Collection = { id: uid('col'), name: name.trim() || 'Untitled', query, createdAt: now, modifiedAt: now }
+    const collections = [...s.collections, collection]
+    set({ collections, activeCollectionId: collection.id })
+    persistCollections(s.project.id, collections)
+    return collection.id
+  },
+
+  renameCollection: (id, name) => set((s) => {
+    const collections = s.collections.map((c) =>
+      c.id === id ? { ...c, name: name.trim() || c.name, modifiedAt: new Date().toISOString() } : c)
+    if (s.project) persistCollections(s.project.id, collections)
+    return { collections }
+  }),
+
+  deleteCollection: (id) => set((s) => {
+    const collections = s.collections.filter((c) => c.id !== id)
+    if (s.project) persistCollections(s.project.id, collections)
+    // Deleting the collection that's driving the binder drops the filter with
+    // it, rather than leaving an anonymous filter the writer can't identify.
+    return s.activeCollectionId === id
+      ? { collections, binderQuery: {}, activeCollectionId: null }
+      : { collections }
+  }),
+
+  // Adding a word is how a false positive gets silenced forever, so it has to
+  // be cheap and permanent. The native spellchecker is told too, where the
+  // platform allows it (Electron); in the browser there is no such hook, and
+  // the word still counts for Konbini's own name check.
+  addDictionaryWord: (word) => set((s) => {
+    const w = word.trim()
+    if (!w || !s.project) return {}
+    if (s.dictionary.some((x) => x.toLowerCase() === w.toLowerCase())) return {}
+    const dictionary = [...s.dictionary, w].sort((a, b) => a.localeCompare(b))
+    window.api.settings.save(s.project.id, { dictionary }).catch(console.error)
+    window.api.spell?.addWord(w)
+    return { dictionary }
+  }),
+
+  removeDictionaryWord: (word) => set((s) => {
+    if (!s.project) return {}
+    const dictionary = s.dictionary.filter((x) => x.toLowerCase() !== word.toLowerCase())
+    if (dictionary.length === s.dictionary.length) return {}
+    window.api.settings.save(s.project.id, { dictionary }).catch(console.error)
+    window.api.spell?.removeWord(word)
+    return { dictionary }
+  }),
+
   raiseDebt: (item) => set((s) => {
     // Supersede any existing unresolved item from the same source + title
     // (re-editing the same fact updates the open item instead of stacking).
@@ -564,12 +959,46 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     window.api.settings.save(p.id, patch).catch(console.error)
   },
 
+  /**
+   * Write the *active* profile's text. Kept for the callers that just mean
+   * "this is the voice now" (Foundation, refresh-from-manuscript) without
+   * caring which profile holds it.
+   */
   setVoiceFingerprint: (text) => {
     const p = get().project
     if (!p) return
-    const updated = { ...p, settings: { ...p.settings, voiceFingerprint: text } }
-    set({ project: updated })
-    window.api.settings.save(p.id, { voiceFingerprint: text }).catch(console.error)
+    const profiles = p.settings.voiceProfiles ?? []
+    const activeId = p.settings.activeVoiceId
+    const now = new Date().toISOString()
+    const next = profiles.length
+      ? profiles.map((v) => (v.id === activeId || (!activeId && v === profiles[0])
+          ? { ...v, fingerprint: text, modifiedAt: now }
+          : v))
+      : [makeVoiceProfile(DEFAULT_VOICE_NAME, text)]
+    const patch = {
+      voiceProfiles: next,
+      activeVoiceId: activeId && next.some((v) => v.id === activeId) ? activeId : next[0]!.id,
+      voiceFingerprint: text,
+    }
+    set({ project: { ...p, settings: { ...p.settings, ...patch } } })
+    window.api.settings.save(p.id, patch).catch(console.error)
+  },
+
+  /** Persist a whole profile list (+ which one is active) in one write. */
+  saveVoiceProfiles: (profiles, activeId) => {
+    const p = get().project
+    if (!p) return
+    const active = activeId && profiles.some((v) => v.id === activeId) ? activeId : profiles[0]?.id
+    const patch = {
+      voiceProfiles: profiles,
+      activeVoiceId: active,
+      // Mirror for older builds and anything reading the manifest directly.
+      voiceFingerprint: profiles.find((v) => v.id === active)?.fingerprint ?? '',
+    }
+    set({ project: { ...p, settings: { ...p.settings, ...patch } } })
+    window.api.settings.save(p.id, patch).catch((e: Error) => {
+      useShellStore.getState().setToast('Voice profiles could not be saved: ' + e.message)
+    })
   },
 
   setAiInstructions: (text) => {

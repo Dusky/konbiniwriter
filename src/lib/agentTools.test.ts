@@ -23,7 +23,7 @@ function project(): Project {
 }
 
 function ctx(p: Project): AgentToolContext {
-  return { project: p, appendNote: vi.fn(), createDocument: vi.fn(async () => {}), proposeEdit: vi.fn() }
+  return { project: p, appendNote: vi.fn(), createNode: vi.fn(async () => {}), proposeEdit: vi.fn() }
 }
 
 describe('executeTool', () => {
@@ -54,9 +54,46 @@ describe('executeTool', () => {
     expect(c.proposeEdit).toHaveBeenCalledTimes(1)
   })
 
-  it('create_document forwards title/parent/content', async () => {
+  it('create_document resolves the parent folder to its id', async () => {
     const c = ctx(project())
-    await executeTool('create_document', { title: 'Chapter 2', parent: 'Part One', content: 'hi' }, c)
-    expect(c.createDocument).toHaveBeenCalledWith('Chapter 2', 'Part One', 'hi')
+    const out = await executeTool('create_document', { title: 'Chapter 2', parent: 'Part One', content: 'hi' }, c)
+    expect(c.createNode).toHaveBeenCalledWith('document', 'Chapter 2', 'part', 'hi')
+    expect(out).toMatch(/under "Part One"/)
+  })
+
+  it('create_document reports an unknown parent instead of silently using the root', async () => {
+    const c = ctx(project())
+    const out = await executeTool('create_document', { title: 'Ch 9', parent: 'Nonexistent Part' }, c)
+    expect(c.createNode).not.toHaveBeenCalled()
+    expect(out).toMatch(/No folder titled "Nonexistent Part"/)
+    expect(out).toContain('"Part One"')          // lists what does exist
+    expect(out).toMatch(/create_folder/)          // and says how to fix it
+  })
+
+  it('create_document with no parent says so explicitly', async () => {
+    const c = ctx(project())
+    const out = await executeTool('create_document', { title: 'Loose Note' }, c)
+    expect(c.createNode).toHaveBeenCalledWith('document', 'Loose Note', null, '')
+    expect(out).toMatch(/at the top level/)
+  })
+
+  it('create_folder makes a folder, not a document', async () => {
+    const c = ctx(project())
+    const out = await executeTool('create_folder', { title: 'Part Two' }, c)
+    expect(c.createNode).toHaveBeenCalledWith('folder', 'Part Two', null, '')
+    expect(out).toMatch(/Created folder "Part Two"/)
+  })
+
+  it('create_folder can nest under an existing folder', async () => {
+    const c = ctx(project())
+    await executeTool('create_folder', { title: 'Sub', parent: 'Part One' }, c)
+    expect(c.createNode).toHaveBeenCalledWith('folder', 'Sub', 'part', '')
+  })
+
+  it('a blank title is refused for both', async () => {
+    const c = ctx(project())
+    expect(await executeTool('create_document', { title: '  ' }, c)).toMatch(/title is required/)
+    expect(await executeTool('create_folder', { title: '' }, c)).toMatch(/title is required/)
+    expect(c.createNode).not.toHaveBeenCalled()
   })
 })

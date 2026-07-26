@@ -1,6 +1,9 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useProjectStore } from '../../store/projectStore'
+import { useShellStore } from '../../store/shellStore'
 import Icon from '../common/Icon'
+import ContextMenu, { type MenuItem } from '../common/ContextMenu'
+import { kbd } from '../../lib/kbd'
 import { VIEW_TABS } from '../views/viewTabs'
 
 // Horizontal strip of open tabs above the editor: document tabs (backed by a
@@ -17,12 +20,48 @@ export default function TabStrip(): React.ReactElement | null {
   const activeViewTab = useProjectStore((s) => s.activeViewTab)
   const selectViewTab = useProjectStore((s) => s.selectViewTab)
   const closeViewTab = useProjectStore((s) => s.closeViewTab)
+  const closeOtherTabs = useProjectStore((s) => s.closeOtherTabs)
+  const closeAllTabs = useProjectStore((s) => s.closeAllTabs)
+  const revealInBinder = useProjectStore((s) => s.revealInBinder)
+  const setSplitId = useProjectStore((s) => s.setSplitId)
+  const splitOpen = useProjectStore((s) => s.splitOpen)
+  const toggleSplit = useProjectStore((s) => s.toggleSplit)
+  const setToast = useShellStore((s) => s.setToast)
+
+  const [ctx, setCtx] = useState<{ x: number; y: number; id: string } | null>(null)
 
   if (!project) return null
   // Drop tabs whose node no longer exists (e.g. deleted while open).
   const tabs = openTabs.filter((id) => project.nodes[id])
   const viewTabs = openViewTabs.filter((v) => VIEW_TABS[v])
   if (tabs.length === 0 && viewTabs.length === 0) return null
+
+  // A tab strip you can't manage is a tab strip that fills up and stays full.
+  const tabMenu = (id: string): MenuItem[] => {
+    const node = project.nodes[id]
+    if (!node) return []
+    const copy = (text: string, what: string) => {
+      navigator.clipboard.writeText(text)
+        .then(() => setToast(`${what} copied`, 'info'))
+        .catch(() => setToast('Clipboard is not available'))
+    }
+    return [
+      { label: 'Close', icon: 'x', action: () => closeTab(id) },
+      { label: 'Close Others', disabled: openTabs.length < 2, action: () => closeOtherTabs(id) },
+      { label: 'Close All', disabled: openTabs.length === 0, action: () => closeAllTabs() },
+      { label: '---' },
+      {
+        label: 'Open in Split',
+        icon: 'columns',
+        hint: kbd('mod+\\'),
+        action: () => { if (!splitOpen) toggleSplit(); setSplitId(id) },
+      },
+      { label: 'Reveal in Binder', icon: 'panel-left', action: () => revealInBinder(id) },
+      { label: '---' },
+      { label: 'Copy Title', action: () => copy(node.title, 'Title') },
+      { label: 'Copy as Wikilink', action: () => copy(`[[${node.title}]]`, 'Wikilink') },
+    ]
+  }
 
   const closeBtn = (onClose: () => void, label: string) => (
     <button
@@ -48,6 +87,7 @@ export default function TabStrip(): React.ReactElement | null {
             className={`tab${active ? ' on' : ''}`}
             onClick={() => selectNode(id)}
             onMouseDown={(e) => { if (e.button === 1) { e.preventDefault(); closeTab(id) } }}
+            onContextMenu={(e) => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, id }) }}
             title={node.title}
           >
             <span className="tab-label">{node.title}</span>
@@ -74,6 +114,9 @@ export default function TabStrip(): React.ReactElement | null {
           </div>
         )
       })}
+      {ctx && (
+        <ContextMenu x={ctx.x} y={ctx.y} items={tabMenu(ctx.id)} onClose={() => setCtx(null)} />
+      )}
     </div>
   )
 }

@@ -72,6 +72,12 @@ These are structural guarantees. Violating any one breaks a core promise.
 2. **No AI write reaches `.md` directly.** Every AI output flows through:
    AI call → `Proposal` → changeset review → `ProposalService.apply()` →
    `updateContent()`. The `window.api.doc.write()` path is the only door.
+   This extends to the app's own configuration: when the assistant proposes new
+   text for an instruction, a voice fingerprint or a prompt, it goes out as a
+   `Proposal` carrying `configRef` and is applied by the same `onApply`. What it
+   is allowed to touch is the whitelist in `lib/agentConfig.ts` — text the author
+   would otherwise type. Provider, API key, model and token budgets are not on
+   that list and must not be added to it.
 
 3. **Every prompt and agent is registry-editable.** `PromptRegistry` and
    `AgentRegistry` are the single source of truth. A hardcoded prompt string
@@ -88,8 +94,8 @@ These are structural guarantees. Violating any one breaks a core promise.
 
 7. **`window.api` is the only platform-I/O seam.** Components never touch
    `localStorage`, `fs`, `showDirectoryPicker`, or `ipcRenderer` directly.
-   (Known debt: a few stores still use `localStorage` for preferences — see
-   below. Don't add more.)
+   The only direct `localStorage` calls left in the tree are inside
+   `browserApi.ts`, which *is* the seam's browser implementation.
 
 ---
 
@@ -132,11 +138,25 @@ The renderer never knows which one is active.
 
 ## Conventions
 
-- **CSS tokens** (in `src/styles/theme.css`, OKLCH): valid are `--text`,
-  `--text-2`, `--text-3`, `--bg`, `--bg-2`, `--bg-3`, `--border`,
-  `--border-2`, `--accent`, `--accent-fg`, `--st-idea`, `--st-prog`,
-  `--st-final`, `--st-draft`. **Never invent tokens** like `--text-1`,
-  `--ui-2`, `--accent-ok`, `--accent-danger` — they don't exist.
+- **CSS tokens** live in `src/styles/theme.css` (OKLCH). **Never invent one** —
+  `--text-1`, `--ui-2`, `--accent-ok`, `--accent-danger` don't exist and fail
+  silently. The real set:
+  - text: `--text` `--text-2` `--text-3` `--dim`
+  - surfaces: `--bg` `--bg-2` `--bg-3` `--sidebar` `--titlebar` `--editor-bg`
+  - lines: `--border` `--border-2`
+  - accent/selection: `--accent` `--accent-fg` `--accent-soft` `--sel-bg` `--sel-bar`
+  - semantic state (the *only* seam for success/error/warning):
+    `--success` `--danger` `--warn` `--warn-bg` `--warn-border` `--warn-text`
+  - status dots: `--st-idea` `--st-todo` `--st-prog` `--st-draft` `--st-rev` `--st-final`
+  - editor syntax: `--hl-marker` `--hl-head` `--hl-em` `--hl-quote` `--hl-link` `--hl-code`
+  - elevation/motion/metrics: `--shadow` `--shadow-1..3` `--dur-1` `--dur-2`
+    `--ease` `--row-h` `--row-font` `--row-pad` `--h-sm/md/lg` `--t-xs` `--r-sm/md/full`
+- **Contrast is a rule, not a preference.** Muted text carries information
+  (counts, timestamps, paths), so `--text`/`--text-2`/`--text-3` hold ≥4.5:1 and
+  `--dim` ≥3:1 against **every** surface they can land on — including `--bg-3`,
+  not just `--bg`. Skins derive their ramp by mixing toward the background and
+  `deriveTokens` clamps the mix until the floor is met; a percentage cannot
+  promise a ratio. `npm run smoke` measures all nine themes.
 - **Zustand 5**: `subscribe` takes a single listener arg (no selector
   overload). State resets (focus/composition/split) belong in both
   `loadProject` and `unloadProject`.
@@ -160,7 +180,18 @@ npm run electron:dev        # terminal 2: compile electron/ + launch window
 
 npm run build               # typecheck + production web build
 npm run electron:build      # web build + electron-builder package
+
+npm test                    # vitest — pure functions
+npm run smoke               # invariant smoke test (needs `npm run dev` running)
+npm run smoke:ci            # starts its own dev server, then runs the smoke test
 ```
+
+**`npm test` passing is not evidence the app works.** Every serious bug this
+project has shipped compiled cleanly and passed the unit suite; they were only
+visible by driving the app. `scripts/smoke.mjs` drives the real studio in a real
+browser and asserts invariants 1, 2, 4, 5 and 6 plus the contrast floors, reading
+*persisted bytes* wherever the claim is about durability. Run it before you
+believe a change is done.
 
 Electron note: `electron-dist/package.json` pins `{"type":"commonjs"}` so the
 compiled CJS output runs under the root `"type":"module"`. The
@@ -170,10 +201,20 @@ compiled CJS output runs under the root `"type":"module"`. The
 
 ## Known debt (don't expand it)
 
-- A few modules still read/write `localStorage` directly instead of going
-  through `window.api` (aiStore, shellStore, StatsService, RecentsService,
-  PromptRegistry). Acceptable for now; route new preferences through the seam
-  and migrate these when convenient.
+- **23 exports are used only inside their own module** (`slopField`,
+  `NODE_MIME`, `DEFAULT_PROMPTS`, …). Cosmetic — it widens the public surface
+  for no reason. Prefer module-private for anything a second file doesn't need.
+- **Dropping a folder into a split pane dead-ends** on a placeholder;
+  Scrivenings is main-pane-only (`EditorPane.tsx`).
+- **Binder drag moves only the grabbed row**, ignoring a multi-selection.
+- **No unit coverage for `projectStore`, the three project services,
+  `HistoryService`, `MentionIndex` or `PromptRegistry`.** The invariant smoke
+  test covers the behaviour that matters most; these are still untested as
+  units.
+
+(The old entry here — "a few stores still use `localStorage` directly" — is
+resolved. aiStore, shellStore, StatsService, RecentsService and PromptRegistry
+all go through `window.api.prefs` now.)
 
 ---
 
@@ -181,5 +222,5 @@ compiled CJS output runs under the root `"type":"module"`. The
 
 - Develop on the assigned feature branch; commit with clear messages; push.
 - Don't create PRs unless asked. Don't push to `main`.
-- After changes, verify both builds pass. Keep `PLAN.md`'s progress tracker
-  current when you complete a phase item.
+- After changes, verify both builds pass **and `npm run smoke:ci` is green**.
+  Keep `PLAN.md`'s progress tracker current when you complete a phase item.

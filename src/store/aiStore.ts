@@ -97,6 +97,14 @@ interface AIState {
   // When on (Claude only), the chat assistant can call tools to search, read,
   // create, and propose edits across the whole project.
   aiToolsEnabled: boolean
+  /**
+   * Whether the assistant may propose changes to its own text settings.
+   * Off by default and separate from `aiToolsEnabled`: reading the manuscript
+   * and rewriting the author's standing instructions are different levels of
+   * trust, even though both end up in the review queue.
+   */
+  aiConfigToolsEnabled: boolean
+  setAiConfigToolsEnabled: (on: boolean) => void
   setAiToolsEnabled: (on: boolean) => void
 
   // Shell command for the "Local agent" service (runs in the project folder).
@@ -238,6 +246,8 @@ export const useAIStore = create<AIState>((set) => ({
   setAiMemoryEnabled: (aiMemoryEnabled) => { save(`${SK}:aiMemoryEnabled`, aiMemoryEnabled ? 'true' : 'false'); set({ aiMemoryEnabled }) },
 
   aiToolsEnabled: load(`${SK}:aiToolsEnabled`, 'true') !== 'false',
+  aiConfigToolsEnabled: load(`${SK}:aiConfigToolsEnabled`, 'false') === 'true',
+  setAiConfigToolsEnabled: (aiConfigToolsEnabled) => { save(`${SK}:aiConfigToolsEnabled`, aiConfigToolsEnabled ? 'true' : 'false'); set({ aiConfigToolsEnabled }) },
   setAiToolsEnabled: (aiToolsEnabled) => { save(`${SK}:aiToolsEnabled`, aiToolsEnabled ? 'true' : 'false'); set({ aiToolsEnabled }) },
 
   agentCommand: load(`${SK}:agentCommand`, 'claude -p --permission-mode acceptEdits'),

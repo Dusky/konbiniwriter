@@ -2,6 +2,9 @@
 // shared/types.ts — canonical data model. Imported by main AND renderer.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import type { Comment } from './comments'
+import type { Collection } from './query'
+
 export type ID = string
 export type ISO = string
 
@@ -49,10 +52,43 @@ export interface ProjectSettings {
   wordTarget?: number        // project-level word-count goal
   codex?: CodexEntry[]       // stored as JSON, typed at load time
   debt?: DebtItem[]          // propagation-debt inbox (persisted with project)
-  voiceFingerprint?: string  // foundation: prose style guide, injected as context
+  comments?: Comment[]       // margin notes anchored to spans of prose (sidecar)
+  collections?: Collection[]  // saved binder queries
+  dictionary?: string[]      // words the writer marked correct (project vocabulary)
+  /**
+   * Named prose style guides. A book with two POV voices needs two, and a
+   * document can point at one that isn't the project default.
+   */
+  voiceProfiles?: VoiceProfile[]
+  /** Which profile applies to documents that don't name their own. */
+  activeVoiceId?: ID
+  /**
+   * The active profile's text, mirrored here.
+   *
+   * This was the whole feature before profiles existed, and it is still what a
+   * bundle written by an older build carries. Kept in sync on every profile
+   * change so downgrading, or reading the manifest with anything else, still
+   * finds the voice that was in force. `resolveVoice()` is the read path —
+   * nothing should reach for this field directly.
+   */
+  voiceFingerprint?: string
   aiInstructions?: string    // per-project AI instructions & notes (CLAUDE.md analog)
   autopilotRun?: AutopilotRunState | null  // in-progress autopilot run, for resume
   [k: string]: unknown
+}
+
+/**
+ * A named prose style guide.
+ *
+ * `fingerprint` is the same markdown a single-voice project used to keep in
+ * `settings.voiceFingerprint`; the name is what makes a second one usable.
+ */
+export interface VoiceProfile {
+  id: ID
+  name: string
+  fingerprint: string
+  createdAt: ISO
+  modifiedAt: ISO
 }
 
 // A persisted Autopilot run so an interrupted run (stop, close, refresh) can be
@@ -116,6 +152,18 @@ export interface DocMeta {
   synopsis: string
   target: number
   includeInCompile: boolean
+  /**
+   * Free-form tags used to query the binder ("mira", "pov-alex", "needs-research").
+   * Optional so bundles written before keywords existed load without migration —
+   * read it as `keywords ?? []`.
+   */
+  keywords?: string[]
+  /**
+   * Which voice profile this document is written in. Undefined means "the
+   * project's active profile" — the common case, and what every document in a
+   * single-voice book carries.
+   */
+  voiceId?: ID
 }
 
 export interface DocBody {
@@ -174,6 +222,10 @@ export type NodeOp =
   | { type: 'setExpanded'; id: ID; expanded: boolean }
   | { type: 'setProjectTitle'; title: string }
   | { type: 'setTree'; rootIds: ID[]; nodes: Record<ID, KNode> }  // undo/redo restore
+  // Batch variants: one round trip and one manifest write for a multi-selection.
+  | { type: 'updateMetaMany'; ids: ID[]; patch: Partial<DocMeta> }
+  | { type: 'trashMany'; ids: ID[] }
+  | { type: 'deleteMany'; ids: ID[] }
 
 // ── Proposal / Changeset (Phase 2 spine — defined here so the seam is clear) ─
 
@@ -203,6 +255,14 @@ export interface Proposal {
   // If this proposal was generated to resolve a propagation-debt item, applying
   // it auto-resolves that affected document.
   debtRef?: { debtId: ID; docId: ID }
+  /**
+   * Set when this proposal changes a *setting* rather than a document — the
+   * assistant redrafting standing instructions, a voice fingerprint, or a prompt
+   * template. Studio's apply path branches on it: there is no `.md` to write and
+   * no snapshot to take, so the setting is written through the whitelist in
+   * `lib/agentConfig.ts` instead. `docId` is a synthetic `config:…` marker.
+   */
+  configRef?: { target: string; key?: string }
   // 'selection' proposals carry `original`/`proposed` for just the selected
   // text; applying them splices the resolved text back into the document at
   // `selRange` (or by locating `original` if the range has shifted). Absent
@@ -363,6 +423,9 @@ export interface KonbiniAPI {
   debt: {
     save(projectId: ID, items: DebtItem[]): Promise<void>
   }
+  comments: {
+    save(projectId: ID, comments: Comment[]): Promise<void>
+  }
   settings: {
     save(projectId: ID, patch: Partial<ProjectSettings>): Promise<void>
   }
@@ -407,6 +470,19 @@ export interface KonbiniAPI {
       input: { projectId: ID; command: string; prompt: string },
       handlers: { onChunk: (text: string) => void; onDone: (code: number) => void; onError: (err: string) => void; onAbort?: () => void },
     ): { abort: () => void }
+  }
+  /**
+   * The platform's own spellchecker dictionary.
+   *
+   * Absent in the browser: a web page can ask for squiggles but cannot add a
+   * word to the dictionary behind them, so there is nothing honest to
+   * implement. Present in Electron, where the session exposes it — though on
+   * platforms that defer to the OS dictionary (macOS) the add is a no-op there
+   * too. Konbini's own name check (shared/dictionary.ts) works either way.
+   */
+  spell?: {
+    addWord(word: string): void
+    removeWord(word: string): void
   }
   /** Global key-value preference store. Synchronous so stores can hydrate at construction time. */
   prefs: {

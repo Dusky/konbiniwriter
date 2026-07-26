@@ -1,5 +1,6 @@
 import React from 'react'
-import { useShellStore, type RailPanel } from '../../store/shellStore'
+import { useShellStore } from '../../store/shellStore'
+import { RAIL_TABS } from './railTabs'
 import { useAIStore } from '../../store/aiStore'
 import Icon from '../common/Icon'
 import SidebarResizer from '../common/SidebarResizer'
@@ -8,28 +9,20 @@ import AssistantPanel from '../assistant/AssistantPanel'
 import CodexPanel from '../panels/CodexPanel'
 import ReaderPanel from '../panels/ReaderPanel'
 import CriticPanel from '../panels/CriticPanel'
+import CommentsPanel from '../panels/CommentsPanel'
 import HistoryModal from '../modals/HistoryModal'
 
-// The right rail hosts exactly one panel; the tab strip makes the choices
-// visible and switchable so nothing silently vanishes. Inspector is always
-// available; the rest require AI on.
-const TABS: { id: Exclude<RailPanel, null>; label: string; ai: boolean }[] = [
-  { id: 'inspector', label: 'Inspector', ai: false },
-  { id: 'history',   label: 'History',   ai: false },
-  { id: 'assistant', label: 'Chat',      ai: true },
-  { id: 'codex',     label: 'Codex',     ai: true },
-  { id: 'reader',    label: 'Readers',   ai: true },
-  { id: 'critic',    label: 'Critic',    ai: true },
-]
 
 export default function RightRail(): React.ReactElement {
   const railPanel = useShellStore((s) => s.railPanel)
   const setRailPanel = useShellStore((s) => s.setRailPanel)
   const aiEnabled = useAIStore((s) => s.enabled)
-  const tabs = TABS.filter((t) => !t.ai || aiEnabled)
+  // The rail hosts exactly one panel; the tab strip makes the choices visible
+  // and switchable so nothing silently vanishes. AI panels appear only with AI on.
+  const tabs = RAIL_TABS.filter((t) => !t.ai || aiEnabled)
 
   return (
-    <div className="rail">
+    <aside className="rail" aria-label="Inspector">
       <SidebarResizer edge="left" cssVar="--insp-w" prefKey="pref:inspWidth"
         min={railPanel === 'codex' ? 320 : 240} max={560}
         fallback={railPanel === 'codex' ? 420 : 340} />
@@ -48,13 +41,14 @@ export default function RightRail(): React.ReactElement {
         <button className="rail-close" onClick={() => setRailPanel(null)} title="Close panel" aria-label="Close panel"><Icon name="x" size={14} /></button>
       </div>
       <div className="rail-body">
-        {railPanel === 'codex' ? <CodexPanel />
+        {railPanel === 'comments' ? <CommentsPanel />
+          : railPanel === 'codex' ? <CodexPanel />
           : railPanel === 'reader' ? <ReaderPanel />
           : railPanel === 'critic' ? <CriticPanel />
           : railPanel === 'assistant' ? <AssistantPanel />
           : railPanel === 'history' ? <HistoryModal rail onClose={() => setRailPanel(null)} />
           : <Inspector />}
       </div>
-    </div>
+    </aside>
   )
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { applyNodeOp, migrateProject, nextRev, touchNode, type NodeOpIO } from './nodeOps'
+import { applyNodeOp, migrateProject, nextRev, touchNode, outermost, type NodeOpIO } from './nodeOps'
 import { buildProjectFromTemplate } from './templates'
 import type { Project, ID } from './types'
 
@@ -70,6 +70,30 @@ describe('structural ops', () => {
     expect(created.rev).toBeGreaterThan(0)
   })
 
+  it('_newId marks only the most recent create', async () => {
+    const p = proj()
+    const a = io()
+    await applyNodeOp(p, { type: 'create', parentId: null, nodeType: 'folder', title: 'First' }, a)
+    const first = Object.values(p.nodes).find((n) => n.ext['_newId'])!
+    expect(first.title).toBe('First')
+
+    await applyNodeOp(p, { type: 'create', parentId: null, nodeType: 'document', title: 'Second' }, a)
+    const marked = Object.values(p.nodes).filter((n) => n.ext['_newId'])
+    // Exactly one marker, and it is the node just created — callers use
+    // `find(n => n.ext._newId)` to locate it, and `find` returns the first
+    // match in insertion order, so a stale marker would win.
+    expect(marked).toHaveLength(1)
+    expect(marked[0].title).toBe('Second')
+  })
+
+  it('duplicate does not leave a stale _newId behind', async () => {
+    const p = proj()
+    const a = io()
+    await applyNodeOp(p, { type: 'create', parentId: null, nodeType: 'document', title: 'Solo' }, a)
+    await applyNodeOp(p, { type: 'create', parentId: null, nodeType: 'document', title: 'Latest' }, a)
+    expect(Object.values(p.nodes).find((n) => n.ext['_newId'])!.title).toBe('Latest')
+  })
+
   it('delete removes the subtree and its doc files', async () => {
     const p = proj()
     const folder = Object.values(p.nodes).find((n) => n.type === 'folder' && n.childIds.length > 0)!
@@ -86,6 +110,105 @@ describe('structural ops', () => {
     const child = folder.childIds[0]
     await applyNodeOp(p, { type: 'move', id: folder.id, newParentId: child, atIndex: 0 }, io())
     expect(p.nodes[folder.id].parentId).not.toBe(child)
+  })
+})
+
+describe('outermost', () => {
+  it('drops ids that already travel with a selected ancestor', () => {
+    const p = proj()
+    const folder = Object.values(p.nodes).find((n) => n.type === 'folder' && n.childIds.length > 0)!
+    const child = folder.childIds[0]
+    expect(outermost(p, [folder.id, child])).toEqual([folder.id])
+  })
+
+  it('keeps unrelated ids', () => {
+    const p = proj()
+    const folders = Object.values(p.nodes).filter((n) => n.type === 'folder').slice(0, 2)
+    const ids = folders.map((f) => f.id)
+    // Only keep the pair if neither contains the other.
+    const kept = outermost(p, ids)
+    expect(kept.length).toBeGreaterThanOrEqual(1)
+    expect(kept.every((id) => ids.includes(id))).toBe(true)
+  })
+
+  it('preserves the caller-supplied order', () => {
+    const p = proj()
+    const docs = Object.values(p.nodes).filter((n) => n.type !== 'folder').slice(0, 3).map((n) => n.id)
+    expect(outermost(p, docs)).toEqual(docs)
+  })
+})
+
+describe('batch ops', () => {
+  it('updateMetaMany patches every listed node in one pass', async () => {
+    const p = proj()
+    const ids = Object.values(p.nodes).filter((n) => n.type !== 'folder').slice(0, 3).map((n) => n.id)
+    await applyNodeOp(p, { type: 'updateMetaMany', ids, patch: { status: 'revised' } }, io())
+    for (const id of ids) expect(p.nodes[id].meta.status).toBe('revised')
+  })
+
+  it('updateMetaMany bumps rev on each node it touched', async () => {
+    const p = proj()
+    const ids = Object.values(p.nodes).filter((n) => n.type !== 'folder').slice(0, 2).map((n) => n.id)
+    const before = ids.map((id) => p.nodes[id].rev)
+    await applyNodeOp(p, { type: 'updateMetaMany', ids, patch: { label: 'note' } }, io())
+    ids.forEach((id, i) => expect(p.nodes[id].rev).toBeGreaterThan(before[i]))
+  })
+
+  it('updateMetaMany leaves unlisted nodes alone', async () => {
+    const p = proj()
+    const all = Object.values(p.nodes).filter((n) => n.type !== 'folder').map((n) => n.id)
+    const [target, ...rest] = all
+    const untouched = rest.map((id) => p.nodes[id].meta.status)
+    await applyNodeOp(p, { type: 'updateMetaMany', ids: [target], patch: { status: 'final' } }, io())
+    rest.forEach((id, i) => expect(p.nodes[id].meta.status).toBe(untouched[i]))
+  })
+
+  it('trashMany moves every selected node to the Trash', async () => {
+    const p = proj()
+    const ids = Object.values(p.nodes)
+      .filter((n) => n.type !== 'folder' && n.parentId !== p.trashId).slice(0, 2).map((n) => n.id)
+    await applyNodeOp(p, { type: 'trashMany', ids }, io())
+    for (const id of ids) expect(p.nodes[id].parentId).toBe(p.trashId)
+  })
+
+  it('trashMany does not move a child twice when its folder is also selected', async () => {
+    const p = proj()
+    const folder = Object.values(p.nodes).find((n) => n.type === 'folder' && n.childIds.length > 0)!
+    const child = folder.childIds[0]
+    await applyNodeOp(p, { type: 'trashMany', ids: [folder.id, child] }, io())
+    // The folder goes to Trash and keeps its child; the child is NOT hoisted
+    // out of it into the Trash as a sibling.
+    expect(p.nodes[folder.id].parentId).toBe(p.trashId)
+    expect(p.nodes[child].parentId).toBe(folder.id)
+    expect(p.nodes[p.trashId!].childIds).not.toContain(child)
+  })
+
+  it('deleteMany removes every selected subtree and its doc files', async () => {
+    const p = proj()
+    const ids = Object.values(p.nodes).filter((n) => n.type !== 'folder').slice(0, 2).map((n) => n.id)
+    const a = io()
+    await applyNodeOp(p, { type: 'deleteMany', ids }, a)
+    for (const id of ids) expect(p.nodes[id]).toBeUndefined()
+    expect(a.removed).toEqual(expect.arrayContaining(ids))
+  })
+
+  it('deleteMany deletes a folder once, not once per selected descendant', async () => {
+    const p = proj()
+    const folder = Object.values(p.nodes).find((n) => n.type === 'folder' && n.childIds.length > 0)!
+    const child = folder.childIds[0]
+    const a = io()
+    await applyNodeOp(p, { type: 'deleteMany', ids: [folder.id, child] }, a)
+    expect(p.nodes[folder.id]).toBeUndefined()
+    expect(p.nodes[child]).toBeUndefined()
+    expect(a.removed.filter((id) => id === child)).toHaveLength(1)
+  })
+
+  it('an empty batch is a no-op', async () => {
+    const p = proj()
+    const before = JSON.stringify(p.nodes)
+    await applyNodeOp(p, { type: 'updateMetaMany', ids: [], patch: { status: 'final' } }, io())
+    await applyNodeOp(p, { type: 'trashMany', ids: [] }, io())
+    expect(JSON.stringify(p.nodes)).toBe(before)
   })
 })
 

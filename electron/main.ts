@@ -142,6 +142,17 @@ ipcMain.handle('app:env', () => ({
   platform: process.platform,
 }))
 
+// ── IPC: spellchecker dictionary ──────────────────────────────────────────────
+// The renderer can't reach the spellchecker's dictionary itself. On platforms
+// that use the OS dictionary (macOS) these return false and there is nothing
+// further to do — Konbini's own name check covers that case (shared/dictionary.ts).
+
+ipcMain.handle('spell:add', (e, word: string) =>
+  e.sender.session.addWordToSpellCheckerDictionary(word))
+
+ipcMain.handle('spell:remove', (e, word: string) =>
+  e.sender.session.removeWordFromSpellCheckerDictionary(word))
+
 // Synchronous userData path — the preload needs it before the renderer's stores
 // hydrate their prefs at construction time.
 ipcMain.on('app:userDataSync', (e) => { e.returnValue = app.getPath('userData') })

@@ -10,6 +10,7 @@
 // Pure w.r.t. DOM and Node: imported by both the renderer and Electron main.
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.descendantIds = descendantIds;
+exports.outermost = outermost;
 exports.touchNode = touchNode;
 exports.migrateProject = migrateProject;
 exports.nextRev = nextRev;
@@ -23,6 +24,25 @@ function descendantIds(p, id) {
     } };
     walk(id);
     return acc;
+}
+/**
+ * Drop ids that already travel with an ancestor in the same set.
+ *
+ * Selecting a folder and one of its scenes and hitting Trash must not move the
+ * scene twice — the folder takes it along, and the second op would then act on
+ * a node whose parent has already changed.
+ */
+function outermost(p, ids) {
+    const set = new Set(ids);
+    return ids.filter((id) => {
+        let cur = p.nodes[id]?.parentId ?? null;
+        while (cur) {
+            if (set.has(cur))
+                return false;
+            cur = p.nodes[cur]?.parentId ?? null;
+        }
+        return true;
+    });
 }
 /**
  * Stamp a node as locally modified.
@@ -92,6 +112,15 @@ async function applyNodeOp(p, op, io) {
     const touch = (id) => touchNode(p, id, now);
     switch (op.type) {
         case 'create': {
+            // `_newId` marks the node this op just created so the caller can find it
+            // (to select it, focus a rename box, or write its initial content). It is
+            // a one-shot marker: leaving stale ones behind meant `find(n => n.ext._newId)`
+            // returned the FIRST node ever created in the session rather than the
+            // newest, so every caller after the first create acted on the wrong node.
+            for (const n of Object.values(p.nodes)) {
+                if (n.ext['_newId'] !== undefined)
+                    delete n.ext['_newId'];
+            }
             const id = (0, utils_1.uid)(op.nodeType);
             const title = op.title
                 ?? (op.nodeType === 'folder' ? 'New Folder' : op.nodeType === 'scene' ? 'New Scene' : 'New Document');
@@ -238,6 +267,26 @@ async function applyNodeOp(p, op, io) {
             // so merely opening a folder never wins a sync merge against real edits.
             if (p.nodes[op.id])
                 p.nodes[op.id].expanded = op.expanded;
+            break;
+        // ── Batch ops ───────────────────────────────────────────────────────────
+        // Bulk edits delegate to the single-node cases rather than reimplementing
+        // them, so the tree semantics and revision bookkeeping stay in one place.
+        // The point of the batch is that the caller makes ONE round trip and the
+        // manifest is written once, not that the rules differ.
+        case 'updateMetaMany':
+            for (const id of op.ids) {
+                await applyNodeOp(p, { type: 'updateMeta', id, patch: op.patch }, io);
+            }
+            break;
+        case 'trashMany':
+            for (const id of outermost(p, op.ids)) {
+                await applyNodeOp(p, { type: 'trash', id }, io);
+            }
+            break;
+        case 'deleteMany':
+            for (const id of outermost(p, op.ids)) {
+                await applyNodeOp(p, { type: 'delete', id }, io);
+            }
             break;
         case 'setTree':
             // Undo/redo: replace the whole tree. Docs are untouched (content edits are

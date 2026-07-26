@@ -16,7 +16,7 @@ import { uid, wordCount, isValidAuxName } from '@shared/utils'
 import { buildProjectFromTemplate } from '@shared/templates'
 import { buildProjectFromDocs } from '@shared/importer'
 import { applyNodeOp, migrateProject } from '@shared/nodeOps'
-import { serializeManifest, serializeCodex, serializeDebt, adoptSidecars, CODEX_FILE, DEBT_FILE } from '@shared/bundle'
+import { serializeManifest, serializeCodex, serializeDebt, serializeComments, adoptSidecars, MANIFEST_FILE, CODEX_FILE, DEBT_FILE, COMMENTS_FILE } from '@shared/bundle'
 import { conflictFileName } from '@shared/sync'
 
 export function isOPFSSupported(): boolean {
@@ -92,19 +92,20 @@ export class OPFSProjectService {
     const root = await this.getRoot()
     const bundleHandle = await root.getDirectoryHandle(`${projectId}.konbini`)
 
-    const manifestText = await readText(bundleHandle, 'project.json')
+    const manifestText = await readText(bundleHandle, MANIFEST_FILE)
     if (!manifestText) throw new Error('Not a Konbini project (no project.json)')
 
     const project: Project = JSON.parse(manifestText)
     // Upgrade an older bundle once, on open, so the file on disk stops
     // lagging what we hold in memory.
     const didMigrate = migrateProject(project)
-    // Codex/debt live in sidecar files so sync can merge them apart from
-    // the manifest; older bundles still carry them inline.
+    // Codex/debt/comments live in sidecar files so sync can merge them apart
+    // from the manifest; older bundles still carry codex and debt inline.
     const owesSidecars = adoptSidecars(
       project,
       await readText(bundleHandle, CODEX_FILE),
       await readText(bundleHandle, DEBT_FILE),
+      await readText(bundleHandle, COMMENTS_FILE),
     )
 
     // Eagerly load all doc content
@@ -316,8 +317,8 @@ export class OPFSProjectService {
     const h = this.getHandle(projectId)
     const out: Record<string, number> = {}
     try {
-      const fh = await h.getFileHandle('project.json')
-      out['project.json'] = (await fh.getFile()).lastModified
+      const fh = await h.getFileHandle(MANIFEST_FILE)
+      out[MANIFEST_FILE] = (await fh.getFile()).lastModified
     } catch { /* missing manifest shows up as an absent key */ }
     try {
       const docs = await h.getDirectoryHandle('docs')
@@ -335,7 +336,7 @@ export class OPFSProjectService {
    */
   async readBundle(projectId: string): Promise<SyncBundle> {
     const h = this.getHandle(projectId)
-    const manifestText = await readText(h, 'project.json')
+    const manifestText = await readText(h, MANIFEST_FILE)
     if (!manifestText) throw new Error('Bundle has no project.json')
     const onDisk: Project = JSON.parse(manifestText)
     migrateProject(onDisk)   // an older bundle may predate per-node revs
@@ -422,6 +423,14 @@ export class OPFSProjectService {
     await writeText(h, serializeDebt(items), DEBT_FILE)
   }
 
+  async saveComments(projectId: string, comments: import('@shared/comments').Comment[]): Promise<void> {
+    const h = this.getHandle(projectId)
+    const p = this.getProject(projectId)
+    p.settings.comments = comments
+    p.modified = new Date().toISOString()
+    await writeText(h, serializeComments(comments), COMMENTS_FILE)
+  }
+
   // ── Aux files ─────────────────────────────────────────────────────────────
 
   async readAux(projectId: string, name: string): Promise<string | null> {
@@ -443,7 +452,7 @@ export class OPFSProjectService {
   }
 
   private async writeManifest(h: FileSystemDirectoryHandle, project: Project): Promise<void> {
-    await writeText(h, serializeManifest(project), 'project.json')
+    await writeText(h, serializeManifest(project), MANIFEST_FILE)
   }
 
   private descendants(p: Project, id: string): string[] {

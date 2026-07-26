@@ -4,7 +4,7 @@ import { useAIStore } from '../../store/aiStore'
 import { wordCount } from '@shared/utils'
 import { runJudge, judgeOverall, scoreBand, type JudgeResult } from '../../lib/judge'
 import { runSlop, type SlopResult } from '../../lib/slop'
-import { runVoiceDrift, type VoiceResult } from '../../lib/voice'
+import { runVoiceDrift, resolveVoice, type VoiceResult } from '../../lib/voice'
 import ModalShell from '../common/ModalShell'
 import Icon from '../common/Icon'
 
@@ -51,7 +51,7 @@ export default function QualityDashboard({ onClose, embedded }: Props): React.Re
   const selectNode = useProjectStore((s) => s.selectNode)
   const aiEnabled = useAIStore((s) => s.enabled)
 
-  const fingerprint = (project?.settings.voiceFingerprint ?? '').trim()
+  const fingerprint = resolveVoice(project).trim()
   const hasVoice = fingerprint.length > 0
 
   const [running, setRunning] = useState<Set<string>>(new Set())
@@ -105,7 +105,9 @@ export default function QualityDashboard({ onClose, embedded }: Props): React.Re
     if (!scene.content.trim() || !hasVoice) return
     setVoicing((s) => new Set(s).add(scene.id))
     try {
-      setVoiceResult(scene.id, await runVoiceDrift(fingerprint, scene.content))
+      // Each scene is scored against the voice *it* is written in, not the
+      // project default — otherwise a second POV voice reads as pure drift.
+      setVoiceResult(scene.id, await runVoiceDrift(resolveVoice(project, scene.id), scene.content))
     } catch (e) {
       setError((e as Error).message)
     } finally {

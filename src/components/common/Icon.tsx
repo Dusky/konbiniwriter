@@ -7,7 +7,7 @@ import {
   Focus, NotebookText, History, FileOutput, TextSearch, ChartColumn,
   Undo2, Redo2, Flame, StickyNote, Clapperboard,
   Palette, Rocket, Trophy, Library, Gauge, ChevronLeft,
-  Waves, AudioLines, TrendingUp, TrendingDown,
+  Waves, AudioLines, TrendingUp, TrendingDown, MessageSquareText,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -24,7 +24,7 @@ export type IconName =
   | 'file-output' | 'text-search' | 'chart' | 'undo' | 'redo' | 'flame'
   | 'sticky-note' | 'clapperboard' | 'palette' | 'rocket' | 'trophy' | 'library' | 'gauge'
   | 'chevron-left' | 'chevron-right' | 'waves' | 'audio-lines'
-  | 'trending-up' | 'trending-down'
+  | 'trending-up' | 'trending-down' | 'comment'
 
 const MAP: Record<IconName, LucideIcon> = {
   search: Search,
@@ -68,6 +68,7 @@ const MAP: Record<IconName, LucideIcon> = {
   redo: Redo2,
   flame: Flame,
   'sticky-note': StickyNote,
+  comment: MessageSquareText,
   clapperboard: Clapperboard,
   palette: Palette,
   rocket: Rocket,

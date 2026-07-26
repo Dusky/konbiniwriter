@@ -2,12 +2,14 @@ import React, { useEffect } from 'react'
 import { useShellStore } from '../store/shellStore'
 import { useProjectStore } from '../store/projectStore'
 import { useAIStore } from '../store/aiStore'
+import { applyConfigChange } from '../lib/agentConfig'
 import { spliceSelection } from '../lib/ProposalService'
 import Titlebar from './shell/Titlebar'
 import Toolbar from './shell/Toolbar'
 import StatusBar from './shell/StatusBar'
 import Binder from './binder/Binder'
 import RightRail from './shell/RightRail'
+import { isAIPanel } from './shell/railTabs'
 import EditorPane from './editor/EditorPane'
 import CompositionMode from './editor/CompositionMode'
 import CompileModal from './modals/CompileModal'
@@ -88,8 +90,9 @@ export default function Studio(): React.ReactElement {
 
   React.useEffect(() => {
     // AI turned off while an AI panel was docked — fall back to the inspector.
-    // Inspector and History are non-AI panels, so they're allowed with AI off.
-    if (!aiEnabled && railPanel && railPanel !== 'inspector' && railPanel !== 'history') setRailPanel('inspector')
+    // Which panels count as AI lives in railTabs, beside the tab strip, so a
+    // new non-AI panel can't be silently locked out here.
+    if (!aiEnabled && isAIPanel(railPanel)) setRailPanel('inspector')
   }, [aiEnabled, railPanel, setRailPanel])
 
   // Keyboard-first: closing any modal hands focus back to the editor so the
@@ -152,6 +155,18 @@ export default function Studio(): React.ReactElement {
           proposal={activeProposal}
           onApply={async (content, accepted) => {
             if (!project) return
+
+            // A settings proposal is reviewed through the same modal but is not
+            // a document: there is no .md to write and no prose to snapshot, and
+            // the write goes through the whitelist in lib/agentConfig.ts. Handled
+            // first so none of the document machinery below can touch it.
+            if (activeProposal.configRef) {
+              const err = applyConfigChange(activeProposal.configRef, content)
+              if (err) { useShellStore.getState().setToast(err); return }
+              resolveProposal(activeProposal.id, 'applied')
+              useShellStore.getState().setToast(`${activeProposal.docTitle} updated`, 'info')
+              return
+            }
 
             const docContent = project.docs[activeProposal.docId]?.content ?? ''
             let resolvedContent = content

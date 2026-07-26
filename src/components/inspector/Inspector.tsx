@@ -6,6 +6,7 @@ import { STATUS_META, STATUS_ORDER, LABEL_META, LABEL_ORDER, wordCount, charCoun
 import type { StatusId, LabelId } from '@shared/types'
 import { backlinksFor } from '../../lib/MentionIndex'
 import { runJudge, type JudgeScore } from '../../lib/judge'
+import KeywordEditor from './KeywordEditor'
 
 function scoreColor(score: number): string {
   return score >= 8 ? 'var(--success)' : score >= 5 ? 'var(--accent)' : 'var(--danger)'
@@ -15,6 +16,7 @@ export default function Inspector(): React.ReactElement {
   const project = useProjectStore((s) => s.project)
   const selectedId = useProjectStore((s) => s.selectedId)
   const updateMeta = useProjectStore((s) => s.updateMeta)
+  const voiceProfiles = (project?.settings.voiceProfiles as import('@shared/types').VoiceProfile[] | undefined) ?? []
   const applyMutation = useProjectStore((s) => s.applyMutation)
   const aiEnabled = useAIStore((s) => s.enabled)
 
@@ -154,6 +156,41 @@ export default function Inspector(): React.ReactElement {
               )
             })}
           </div>
+        </div>
+
+        {/* Voice — only worth showing once the project has more than one. */}
+        {voiceProfiles.length > 1 && node.type !== 'folder' && (
+          <div className="insp-sec">
+            <h4>Voice</h4>
+            <div className="pill-row">
+              <button
+                className={`pill${!node.meta.voiceId ? ' on' : ''}`}
+                title="Follow the project default"
+                onClick={() => handleMeta({ voiceId: undefined })}
+              >
+                Default
+              </button>
+              {voiceProfiles.map((v) => (
+                <button
+                  key={v.id}
+                  className={`pill${node.meta.voiceId === v.id ? ' on' : ''}`}
+                  title={v.fingerprint.slice(0, 400)}
+                  onClick={() => handleMeta({ voiceId: v.id })}
+                >
+                  {v.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Keywords */}
+        <div className="insp-sec">
+          <h4>Keywords</h4>
+          <KeywordEditor
+            keywords={node.meta.keywords ?? []}
+            onChange={(keywords) => handleMeta({ keywords })}
+          />
         </div>
 
         {/* Synopsis */}

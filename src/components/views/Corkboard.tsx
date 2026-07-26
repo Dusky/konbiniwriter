@@ -1,13 +1,16 @@
 import React, { useRef, useState } from 'react'
+import { setNodeDrag } from '../../lib/nodeDnd'
 import { useProjectStore } from '../../store/projectStore'
 import { useShellStore } from '../../store/shellStore'
 import { STATUS_META, LABEL_META, wordCount } from '@shared/utils'
 import ContextMenu from '../common/ContextMenu'
 import { useNodeMenu } from '../common/useNodeMenu'
+import { useNodeSelect } from '../common/useNodeSelect'
 
 export default function Corkboard(): React.ReactElement {
   const project = useProjectStore((s) => s.project)
   const selectedId = useProjectStore((s) => s.selectedId)
+  const selectedIds = useProjectStore((s) => s.selectedIds)
   const selectNode = useProjectStore((s) => s.selectNode)
   const setView = useProjectStore((s) => s.setView)
   const updateMeta = useProjectStore((s) => s.updateMeta)
@@ -20,11 +23,17 @@ export default function Corkboard(): React.ReactElement {
   // on the card's right edge.
   const [dropAt, setDropAt] = useState<{ overId: string; after: boolean } | null>(null)
 
-  if (!project) return <div className="main" />
+  // Which folder the board is showing. Selecting a *document* browses its
+  // parent rather than falling back to the roots — otherwise clicking a card
+  // (which makes that card the selection) would throw the board back to the
+  // top level, and the selection could never contain anything but the folder.
+  // Computed before the early return because the selection hook needs it.
+  const selNode = project && selectedId ? project.nodes[selectedId] : undefined
+  const parentId = !selNode ? null : selNode.type === 'folder' ? selNode.id : selNode.parentId
+  const childIds = !project ? [] : parentId ? project.nodes[parentId]?.childIds ?? [] : project.rootIds
+  const { onSelectClick, promoteForMenu } = useNodeSelect({ rangeScope: childIds, keepView: true })
 
-  // Show children of selected folder, or root nodes if none selected
-  const parentId = selectedId && project.nodes[selectedId]?.type === 'folder' ? selectedId : null
-  const childIds = parentId ? project.nodes[parentId]?.childIds ?? [] : project.rootIds
+  if (!project) return <div className="main" />
 
   const handleSynopsisChange = (nodeId: string, synopsis: string) => {
     updateMeta(nodeId, { synopsis })
@@ -72,7 +81,9 @@ export default function Corkboard(): React.ReactElement {
             return (
               <div
                 key={id}
-                className={`card${selectedId === id ? ' sel' : ''}`}
+                data-node-id={id}
+                className={`card${selectedIds.includes(id) ? ' sel' : ''}`}
+                aria-selected={selectedIds.includes(id)}
                 style={{
                   '--card-label': labelColor,
                   opacity: dragId === id ? 0.4 : 1,
@@ -81,7 +92,7 @@ export default function Corkboard(): React.ReactElement {
                     : undefined,
                 } as React.CSSProperties}
                 draggable
-                onDragStart={() => setDragId(id)}
+                onDragStart={(e) => { setNodeDrag(e.dataTransfer, id); setDragId(id) }}
                 onDragEnd={() => { setDragId(null); setDropAt(null) }}
                 onDragOver={(e) => {
                   e.preventDefault()
@@ -90,9 +101,9 @@ export default function Corkboard(): React.ReactElement {
                   setDropAt({ overId: id, after: e.clientX > rect.left + rect.width / 2 })
                 }}
                 onDrop={(e) => { e.preventDefault(); handleDrop() }}
-                onClick={() => selectNode(id)}
+                onClick={(e) => onSelectClick(id, e)}
                 onDoubleClick={() => { selectNode(id); setView('editor') }}
-                onContextMenu={(e) => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, id }) }}
+                onContextMenu={(e) => { e.preventDefault(); promoteForMenu(id); setCtx({ x: e.clientX, y: e.clientY, id }) }}
               >
                 <div className="pin" />
                 <div className="ct">
@@ -104,7 +115,10 @@ export default function Corkboard(): React.ReactElement {
                   placeholder="Synopsis…"
                   value={node.meta.synopsis}
                   onChange={(e) => handleSynopsisChange(id, e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
+                  // The synopsis covers most of the card, so swallowing every
+                  // click here would make ⌘/shift-click miss almost the whole
+                  // target. Plain clicks still land in the field to edit.
+                  onClick={(e) => { if (!e.shiftKey && !e.metaKey && !e.ctrlKey) e.stopPropagation() }}
                 />
                 <div className="cf">
                   <span>{node.type}</span>
