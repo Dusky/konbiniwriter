@@ -9,6 +9,8 @@ import { uid } from '@shared/utils'
 import type { ID, CodexEntry, CodexFact, CodexCategory } from '@shared/types'
 import ModalShell from '../common/ModalShell'
 import Icon from '../common/Icon'
+import VoiceBriefModal from './VoiceBriefModal'
+import { generateVoiceFingerprint, gatherProseSamples, voiceSourceFor } from '../../lib/voice'
 
 type DocStepId = 'concept' | 'world' | 'characters' | 'outline'
 type WizardStepId = 'seeds' | DocStepId | 'voice'
@@ -65,6 +67,7 @@ export default function FoundationModal({ onClose, embedded }: Props): React.Rea
   const [error, setError] = useState<string | null>(null)
   const [voice, setVoice] = useState(project?.settings.voiceFingerprint ?? '')
   const [voiceSaved, setVoiceSaved] = useState(false)
+  const [voiceBriefOpen, setVoiceBriefOpen] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => () => { abortRef.current?.abort() }, [])
@@ -167,27 +170,34 @@ export default function FoundationModal({ onClose, embedded }: Props): React.Rea
 
   const gatherSamples = (): string => {
     const p = useProjectStore.getState().project
-    if (!p) return ''
-    let s = ''
-    for (const id of Object.keys(p.docs)) {
-      const node = p.nodes[id]
-      if (!node || node.type === 'folder' || !node.meta.includeInCompile) continue
-      const c = (p.docs[id]?.content ?? '').trim()
-      if (c) { s += c + '\n\n'; if (s.length > 6000) break }
-    }
-    s = s.slice(0, 6000)
-    if (s.trim()) return s
-    const desc = [text.concept, text.world].filter((x) => x.trim()).join('\n\n')
-    return desc ? `No prose samples yet. Intended work:\n\n${desc}` : ''
+    return p ? gatherProseSamples(p) : ''
   }
 
+  /**
+   * Two genuinely different jobs behind one button.
+   *
+   * With prose in the project, this *analyses* what the author already writes.
+   * Without any, it *authors* a target voice from the concept and world — which
+   * used to be done by feeding the concept to the analysis prompt under a
+   * "No prose samples yet" preamble, and produced a style guide that mostly
+   * paraphrased the concept back.
+   */
   const runVoice = async () => {
     if (running || sending) return
     setRunning('voice'); setError(null); setVoiceSaved(false)
-    const samples = gatherSamples()
-    if (!samples.trim()) { setError('Generate a concept or write some prose first.'); setRunning(null); return }
+    const source = voiceSourceFor({
+      samples: gatherSamples(),
+      brief: [text.concept, text.world].filter((x) => x.trim()).join('\n\n'),
+    })
+    if (!source) {
+      setError('Generate a concept or write some prose first — or describe the voice you want.')
+      setRunning(null)
+      return
+    }
+    const controller = new AbortController()
+    abortRef.current = controller
     try {
-      const result = await gen('builtin:foundation:voice', { samples }, setVoice)
+      const result = await generateVoiceFingerprint(source, setVoice, controller.signal)
       setVoice(result)
     } catch (e) {
       if ((e as Error).name !== 'AbortError') setError((e as Error).message)
@@ -439,8 +449,11 @@ export default function FoundationModal({ onClose, embedded }: Props): React.Rea
           <div className="fnd-step">
             <div className="fnd-row">
               <span style={{ fontSize: 'var(--t-sm)', color: 'var(--text-3)', flex: 1 }}>
-                Derived from your manuscript prose, or from the concept if no prose exists yet. Injected into every AI call.
+                Derived from your manuscript prose, or written from the concept if no prose exists yet. Injected into every AI call.
               </span>
+              <button className="btn sm" disabled={isBusy} onClick={() => setVoiceBriefOpen(true)}>
+                Describe…
+              </button>
               <button className="btn sm" disabled={isBusy} onClick={runVoice}>
                 {running === 'voice' ? 'Generating…' : voice.trim() ? 'Regenerate' : 'Generate'}
               </button>
@@ -538,6 +551,14 @@ export default function FoundationModal({ onClose, embedded }: Props): React.Rea
             </button>
           )}
         </div>
+
+        {voiceBriefOpen && (
+          <VoiceBriefModal
+            initial={voice}
+            onSave={(fp) => { setVoice(fp); setVoiceFingerprint(fp); setVoiceSaved(true) }}
+            onClose={() => setVoiceBriefOpen(false)}
+          />
+        )}
     </ModalShell>
   )
 }

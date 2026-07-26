@@ -15,6 +15,104 @@ export interface VoiceResult {
 
 export const VOICE_PROMPT_ID = 'builtin:evaluation:voice-drift'
 
+/** Analyse existing prose. */
+export const VOICE_FROM_SAMPLES_ID = 'builtin:foundation:voice'
+/** Author a target voice from a description, before any prose exists. */
+export const VOICE_FROM_BRIEF_ID = 'builtin:foundation:voice-brief'
+
+/** How much of a brief / reference passage is worth sending. */
+const BRIEF_LIMIT = 4000
+const REFERENCE_LIMIT = 6000
+
+export type VoiceSource =
+  | { from: 'samples'; samples: string }
+  | { from: 'brief'; brief: string; reference?: string }
+
+/**
+ * Produce a voice fingerprint, streaming as it goes.
+ *
+ * Both callers (Foundation's voice step and AI Settings) were hand-rolling this
+ * against `streamCompletion` with their own abort handling and their own copy of
+ * the model/token plumbing. One runner, so a fix to either path is a fix to
+ * both, and so the prompt id stays the registry's business rather than a string
+ * duplicated across components.
+ *
+ * `onChunk` receives the text accumulated so far, not the delta — callers render
+ * it straight into a textarea.
+ */
+export function generateVoiceFingerprint(
+  source: VoiceSource,
+  onChunk: (soFar: string) => void,
+  signal?: AbortSignal,
+): Promise<string> {
+  const id = source.from === 'samples' ? VOICE_FROM_SAMPLES_ID : VOICE_FROM_BRIEF_ID
+  const template = promptRegistry.get(id)
+  if (!template) return Promise.reject(new Error(`Missing prompt template: ${id}`))
+
+  const vars: Record<string, string> = source.from === 'samples'
+    ? { samples: source.samples }
+    : {
+        brief: source.brief.slice(0, BRIEF_LIMIT),
+        // The prompt branches on this being empty, so pass '' rather than
+        // leaving the variable unrendered.
+        reference: (source.reference ?? '').slice(0, REFERENCE_LIMIT),
+      }
+  const rendered = promptRegistry.render(id, vars)
+
+  return new Promise<string>((resolve, reject) => {
+    let full = ''
+    streamCompletion(
+      [{ role: 'user', content: rendered }],
+      { model: template.model, maxTokens: template.maxTokens, temperature: template.temperature, signal },
+      {
+        onChunk: (c) => { full += c; onChunk(full) },
+        onDone: (result) => resolve(result.trim()),
+        onError: reject,
+      },
+    ).catch(reject)
+  })
+}
+
+/**
+ * Pick which job this is: analyse prose that exists, or author a voice from a
+ * description.
+ *
+ * Prose wins when there is any — a fingerprint derived from what the author
+ * actually writes beats one derived from what they said they wanted. Returns
+ * null when there is neither, so the caller can say so instead of sending an
+ * empty prompt.
+ */
+export function voiceSourceFor(input: { samples?: string; brief?: string; reference?: string }): VoiceSource | null {
+  const samples = (input.samples ?? '').trim()
+  if (samples) return { from: 'samples', samples }
+  const brief = (input.brief ?? '').trim()
+  if (brief) return { from: 'brief', brief, reference: (input.reference ?? '').trim() }
+  return null
+}
+
+/**
+ * The compiled prose a fingerprint should be derived from.
+ *
+ * Only documents marked for compile: notes, outlines and character sheets are
+ * the author writing *about* the book, not in its voice, and feeding them in
+ * drags the fingerprint toward memo prose.
+ */
+export function gatherProseSamples(
+  project: { nodes: Record<string, { type: string; meta: { includeInCompile: boolean } }>; docs: Record<string, { content?: string }> },
+  limit = 6000,
+): string {
+  let samples = ''
+  for (const id of Object.keys(project.docs)) {
+    const node = project.nodes[id]
+    if (!node || node.type === 'folder' || !node.meta.includeInCompile) continue
+    const c = (project.docs[id]?.content ?? '').trim()
+    if (!c) continue
+    samples += c + '\n\n'
+    if (samples.length > limit) break
+  }
+  return samples.slice(0, limit)
+}
+
 /** Parse the voice scorer's raw output. Null when unreadable (never fabricates). */
 export function parseVoice(raw: string): { score: number; note: string } | null {
   const m = raw.match(/\{[\s\S]*\}/)

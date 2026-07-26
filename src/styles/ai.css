@@ -835,3 +835,19 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 .pref-swatches { display: flex; gap: var(--s2); flex-wrap: wrap; }
 .pref-swatch { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
 .pref-swatch.on { border-color: var(--text); outline: 2px solid var(--bg); outline-offset: -4px; }
+
+/* ── Voice from a brief ──────────────────────────────────────────────────── */
+.vb-modal { max-width: 640px; max-height: 88vh; display: flex; flex-direction: column; }
+/* The shared .modal-hd is a flex *row*, so a subtitle sibling would sit beside
+   the title and overlap it. This header stacks. */
+.vb-modal .modal-hd { flex-direction: column; align-items: flex-start; gap: var(--s1); }
+.vb-sub { font-size: var(--t-xs); color: var(--text-3); line-height: 1.5; max-width: 58ch; }
+.vb-body { display: flex; flex-direction: column; gap: var(--s2); overflow-y: auto; }
+.vb-label { font-size: var(--t-xs); font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--text-3); margin-top: var(--s2); }
+.vb-optional { text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--dim); }
+.vb-examples { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+.vb-examples-hd { font-size: var(--t-xs); color: var(--text-3); }
+.vb-add-ref { align-self: flex-start; display: inline-flex; align-items: center; gap: 5px; }
+.vb-actions { display: flex; align-items: center; gap: var(--s3); margin-top: var(--s1); }
+.vb-error { font-size: var(--t-xs); color: var(--danger); }

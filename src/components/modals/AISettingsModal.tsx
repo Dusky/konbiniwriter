@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useAIStore, AI_SERVICES, type AIService } from '../../store/aiStore'
 import { useProjectStore } from '../../store/projectStore'
-import { promptRegistry } from '../../lib/PromptRegistry'
-import { streamCompletion } from '../../lib/AIClient'
 import { formatUSD } from '../../lib/Pricing'
 import { createPKCE, authorizeUrl, completeSignIn, type PKCE } from '../../lib/ClaudeOAuth'
 import { kbd } from '../../lib/kbd'
 import Icon from '../common/Icon'
 import ModalShell from '../common/ModalShell'
+import VoiceBriefModal from './VoiceBriefModal'
+import { generateVoiceFingerprint, gatherProseSamples } from '../../lib/voice'
 
 const ANTHROPIC_MODELS = [
   { id: 'claude-fable-5',   label: 'Claude Fable 5 (most capable)' },
@@ -119,36 +119,26 @@ export default function AISettingsModal({ onClose, embedded }: Props): React.Rea
   const [voiceRefreshing, setVoiceRefreshing] = useState(false)
   const [voiceRefreshed, setVoiceRefreshed] = useState(false)
   const [voiceError, setVoiceError] = useState<string | null>(null)
+  const [voiceBriefOpen, setVoiceBriefOpen] = useState(false)
   const voiceAbortRef = useRef<AbortController | null>(null)
   useEffect(() => () => { voiceAbortRef.current?.abort() }, [])
 
   const handleRefreshVoice = async () => {
     if (!project || voiceRefreshing) return
-    let samples = ''
-    for (const id of Object.keys(project.docs)) {
-      const node = project.nodes[id]
-      if (!node || node.type === 'folder' || !node.meta.includeInCompile) continue
-      const c = (project.docs[id]?.content ?? '').trim()
-      if (c) { samples += c + '\n\n'; if (samples.length > 6000) break }
-    }
-    samples = samples.slice(0, 6000)
-    if (!samples.trim()) { setVoiceError('No compiled prose found — write some chapters first.'); return }
-    const template = promptRegistry.get('builtin:foundation:voice')
-    if (!template) { setVoiceError('Missing voice prompt.'); return }
-    const rendered = promptRegistry.render('builtin:foundation:voice', { samples })
+    const samples = gatherProseSamples(project)
+    if (!samples.trim()) { setVoiceError('No compiled prose found — describe the voice instead, or write some chapters first.'); return }
     setVoiceRefreshing(true); setVoiceError(null); setVoiceRefreshed(false)
     const controller = new AbortController()
     voiceAbortRef.current = controller
-    let full = ''
-    await streamCompletion(
-      [{ role: 'user', content: rendered }],
-      { model: template.model, maxTokens: template.maxTokens, temperature: template.temperature, signal: controller.signal },
-      {
-        onChunk: (c) => { full += c },
-        onDone: (result) => { setVoiceFingerprint(result.trim()); setVoiceRefreshing(false); setVoiceRefreshed(true) },
-        onError: (err) => { if ((err as Error).name !== 'AbortError') setVoiceError((err as Error).message); setVoiceRefreshing(false) },
-      },
-    ).catch((err) => { if ((err as Error).name !== 'AbortError') setVoiceError((err as Error).message); setVoiceRefreshing(false) })
+    try {
+      const result = await generateVoiceFingerprint({ from: 'samples', samples }, () => {}, controller.signal)
+      setVoiceFingerprint(result)
+      setVoiceRefreshed(true)
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') setVoiceError((err as Error).message)
+    } finally {
+      setVoiceRefreshing(false)
+    }
   }
 
   const [maxTokensDraft, setMaxTokensDraft] = useState(String(chatMaxTokens))
@@ -607,15 +597,21 @@ export default function AISettingsModal({ onClose, embedded }: Props): React.Rea
                   {voiceFingerprint.slice(0, 300)}{voiceFingerprint.length > 300 ? '…' : ''}
                 </div>
               ) : (
-                <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Not set — generate it in Foundation, or refresh from manuscript below.</div>
+                <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Not set — describe the voice you want, or derive one from prose you've already written.</div>
               )}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button className="btn" style={{ fontSize: 12, padding: '4px 12px' }} disabled={!project} onClick={() => setVoiceBriefOpen(true)}>
+                  Describe a voice…
+                </button>
                 <button className="btn" style={{ fontSize: 12, padding: '4px 12px' }} disabled={!project || voiceRefreshing} onClick={handleRefreshVoice}>
                   {voiceRefreshing ? 'Refreshing…' : voiceRefreshed ? <>Refreshed <Icon name="check" size={12} style={{ verticalAlign: '-1px', marginLeft: 3 }} /></> : 'Refresh from manuscript'}
                 </button>
                 {voiceError && <span style={{ fontSize: 11, color: 'var(--danger)' }}>{voiceError}</span>}
               </div>
-              <div className="ai-hint">Gathers prose from compiled documents and re-derives the style guide. Saved automatically.</div>
+              <div className="ai-hint">
+                <b>Describe a voice</b> writes the style guide from your description — use it before there's prose to learn from.
+                <b> Refresh</b> re-derives it from your compiled documents. Either way it's saved to the project and editable.
+              </div>
             </div>
           </Row>
 
@@ -662,6 +658,14 @@ export default function AISettingsModal({ onClose, embedded }: Props): React.Rea
           )}
           {enabled && <button className="btn" onClick={onClose}>Done</button>}
         </div>
+
+        {voiceBriefOpen && (
+          <VoiceBriefModal
+            initial={voiceFingerprint}
+            onSave={(fp) => { setVoiceFingerprint(fp); setVoiceRefreshed(false); setVoiceError(null) }}
+            onClose={() => setVoiceBriefOpen(false)}
+          />
+        )}
     </ModalShell>
   )
 }

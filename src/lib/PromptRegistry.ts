@@ -534,6 +534,55 @@ Be specific and prescriptive (rules, not vibes). Return only the markdown.`,
     modifiedAt: ISO(),
   },
   {
+    id: 'builtin:foundation:voice-brief',
+    name: 'Foundation · Voice from a Brief',
+    description: 'Author a prose style guide from a description of the target voice, before any prose exists.',
+    feature: 'autopilot',
+    phase: 'foundation',
+    model: 'claude-opus-4-8',
+    temperature: 0.6,
+    maxTokens: 2000,
+    // Deliberately a separate prompt from `builtin:foundation:voice` rather than
+    // a mode of it. That one *analyses* prose the author has already written and
+    // reports what it finds; this one *authors* a target voice from a
+    // description, and has to invent specifics the brief doesn't state. Telling
+    // an analyst to analyse a wish is how you get a style guide that just
+    // paraphrases the wish back.
+    template: `You are a prose stylist drafting a VOICE FINGERPRINT — a concise, prescriptive style guide an author and their AI co-writer will follow to hold one consistent voice across a novel.
+
+The author has described the voice they want:
+
+<brief>
+{{brief}}
+</brief>
+
+<reference>
+{{reference}}
+</reference>
+
+If the reference section is empty, work from the brief alone. If it contains prose, treat it as a *target* to emulate — describe what makes it work, don't summarise its content.
+
+Turn the brief into concrete, followable rules. Where it is vague, commit to a specific choice that serves the stated intent rather than hedging — an author can edit a decision, but cannot act on "varies as appropriate".
+
+Return short markdown sections:
+- POV & tense
+- Sentence rhythm & length
+- Diction & register (word choice, formality)
+- Imagery & figurative language
+- Dialogue style
+- Pacing tendencies
+- Things to avoid
+
+Include a one-line example of the voice under the rhythm and dialogue sections. Be prescriptive (rules, not vibes). Return only the markdown — no preamble, no commentary.`,
+    variables: [
+      { name: 'brief', description: 'The author’s description of the voice they want' },
+      { name: 'reference', description: 'Optional prose to emulate (may be empty)' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
     id: 'builtin:evaluation:outline-gate',
     name: 'Outline Quality Gate',
     description: 'Score a novel outline for structural quality and decide pass/revise.',
