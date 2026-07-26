@@ -112,6 +112,15 @@ async function applyNodeOp(p, op, io) {
     const touch = (id) => touchNode(p, id, now);
     switch (op.type) {
         case 'create': {
+            // `_newId` marks the node this op just created so the caller can find it
+            // (to select it, focus a rename box, or write its initial content). It is
+            // a one-shot marker: leaving stale ones behind meant `find(n => n.ext._newId)`
+            // returned the FIRST node ever created in the session rather than the
+            // newest, so every caller after the first create acted on the wrong node.
+            for (const n of Object.values(p.nodes)) {
+                if (n.ext['_newId'] !== undefined)
+                    delete n.ext['_newId'];
+            }
             const id = (0, utils_1.uid)(op.nodeType);
             const title = op.title
                 ?? (op.nodeType === 'folder' ? 'New Folder' : op.nodeType === 'scene' ? 'New Scene' : 'New Document');

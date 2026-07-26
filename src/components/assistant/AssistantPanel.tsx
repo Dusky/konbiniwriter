@@ -410,18 +410,20 @@ export default function AssistantPanel(): React.ReactElement {
           const cur = (useProjectStore.getState().project?.settings.aiInstructions as string | undefined) ?? ''
           setAiInstructions(appendMemories(cur, [note]))
         },
-        createDocument: async (docTitle, parentTitle, content) => {
+        createNode: async (nodeType, title, parentId, content) => {
           const proj = useProjectStore.getState().project
           if (!proj) return
-          let parentId: string | null = null
-          if (parentTitle) {
-            const pf = Object.values(proj.nodes).find((n) => n.type === 'folder' && n.title.trim().toLowerCase() === parentTitle.trim().toLowerCase())
-            parentId = pf?.id ?? null
-          }
-          const result = await window.api.node.mutate(proj.id, { type: 'create', nodeType: 'document', title: docTitle, parentId })
+          const result = await window.api.node.mutate(proj.id, { type: 'create', nodeType, title, parentId })
           useProjectStore.getState().applyMutation(result)
           const newId = Object.values(result.nodes).find((n) => n.ext['_newId'])?.id
-          if (newId && content) useProjectStore.getState().updateContent(newId, content)
+          if (newId && content) {
+            useProjectStore.getState().updateContent(newId, content)
+            // updateContent only touches the store. Autosave runs for the
+            // *active* editor only, so a document the AI just created — which
+            // isn't open — would keep its text in memory and write nothing to
+            // disk, leaving a blank .md and losing the draft on reload.
+            await window.api.doc.write(proj.id, newId, content)
+          }
         },
         proposeEdit: (docId, docTitle, original, proposed) => {
           const proposal = createProposal({ docId, docTitle, command: 'revision', label: `AI edit · ${docTitle}`, group: 'chat', original, proposed, scope: 'document' })

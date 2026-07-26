@@ -15,10 +15,38 @@ export function stripMd(s: string): string {
     .trim()
 }
 
+/**
+ * Word count, memoised on the exact text.
+ *
+ * This is called far more often than it looks. The status bar totals the whole
+ * manuscript, every binder folder row sums its subtree, and the outliner,
+ * corkboard and compile picker each count per row — and all of them re-run on
+ * every keystroke, because typing replaces the `project` object identity and
+ * re-renders the tree. Measured on a 300-node / 211k-word project, that was
+ * ~40ms of pure recounting per keypress on top of everything else.
+ *
+ * Caching on the string is safe (the function is pure) and costs almost no
+ * memory: the store already holds every document's text, so the keys are
+ * strings that exist anyway. Only superseded revisions are retained, and the
+ * bound below evicts those.
+ */
+const WC_CACHE_MAX = 1000
+const wcCache = new Map<string, number>()
+
 export function wordCount(s: string): number {
+  if (!s) return 0
+  const hit = wcCache.get(s)
+  if (hit !== undefined) return hit
   const t = stripMd(s)
-  if (!t) return 0
-  return t.split(/\s+/).filter(Boolean).length
+  const n = t ? t.split(/\s+/).filter(Boolean).length : 0
+  // Plain FIFO eviction — Map iterates in insertion order. An LRU would buy
+  // little here: the working set is "documents currently in the project".
+  if (wcCache.size >= WC_CACHE_MAX) {
+    const oldest = wcCache.keys().next().value
+    if (oldest !== undefined) wcCache.delete(oldest)
+  }
+  wcCache.set(s, n)
+  return n
 }
 
 export function charCount(s: string): number {

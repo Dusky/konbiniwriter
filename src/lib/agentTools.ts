@@ -48,6 +48,18 @@ export const AGENT_TOOLS: ToolDef[] = [
     },
   },
   {
+    name: 'create_folder',
+    description: 'Create a new folder in the binder, optionally inside an existing folder. Use this BEFORE create_document when you need a new part/chapter grouping to put documents in.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        parent: { type: 'string', description: 'Title of an existing folder to nest it under (optional).' },
+      },
+      required: ['title'],
+    },
+  },
+  {
     name: 'propose_edit',
     description: 'Propose replacing a document\'s full text with a revised version. This does NOT write directly — it queues a change for the author to review and accept or reject. Use for rewrites/revisions of existing prose.',
     input_schema: {
@@ -65,7 +77,12 @@ export const AGENT_TOOLS: ToolDef[] = [
 export interface AgentToolContext {
   project: Project
   appendNote: (note: string) => void
-  createDocument: (title: string, parentTitle: string | undefined, content: string) => Promise<void>
+  createNode: (
+    nodeType: 'document' | 'folder',
+    title: string,
+    parentId: ID | null,
+    content: string,
+  ) => Promise<void>
   proposeEdit: (docId: ID, docTitle: string, original: string, proposed: string) => void
 }
 
@@ -77,6 +94,7 @@ export function toolLabel(name: string, input: Record<string, unknown>): string 
     case 'get_document': return `Read "${String(input.title ?? '')}"`
     case 'remember': return `Remembered: ${String(input.note ?? '')}`
     case 'create_document': return `Created "${String(input.title ?? '')}"`
+    case 'create_folder': return `Created folder "${String(input.title ?? '')}"`
     case 'propose_edit': return `Proposed an edit to "${String(input.document ?? '')}" (review it in Changeset)`
     default: return `Used ${name}`
   }
@@ -128,12 +146,32 @@ export async function executeTool(name: string, input: Record<string, unknown>, 
       ctx.appendNote(note)
       return `Saved to project notes: ${note}`
     }
-    case 'create_document': {
+    case 'create_document':
+    case 'create_folder': {
+      const nodeType = name === 'create_folder' ? 'folder' : 'document'
       const title = String(input.title ?? '').trim()
       if (!title) return 'A title is required.'
-      const parent = input.parent ? String(input.parent) : undefined
-      await ctx.createDocument(title, parent, String(input.content ?? ''))
-      return `Created document "${title}"${parent ? ` under "${parent}"` : ''}.`
+
+      // Resolve the parent up front. Falling back to the root silently — as
+      // this used to — meant the model was told "created under Part One" while
+      // the document actually landed at the top level, and it had no way to
+      // notice or correct itself.
+      let parentId: ID | null = null
+      const wanted = input.parent ? String(input.parent).trim() : ''
+      if (wanted) {
+        const folder = Object.values(project.nodes).find(
+          (n) => n.type === 'folder' && n.title.trim().toLowerCase() === wanted.toLowerCase())
+        if (!folder) {
+          const names = Object.values(project.nodes)
+            .filter((n) => n.type === 'folder').map((n) => `"${n.title}"`).join(', ')
+          return `No folder titled "${wanted}". Existing folders: ${names || '(none)'}. `
+            + 'Create it with create_folder first, or omit `parent` to place this at the top level.'
+        }
+        parentId = folder.id
+      }
+
+      await ctx.createNode(nodeType, title, parentId, String(input.content ?? ''))
+      return `Created ${nodeType} "${title}"${wanted ? ` under "${wanted}"` : ' at the top level'}.`
     }
     case 'propose_edit': {
       const found = findDoc(project, String(input.document ?? ''))

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { useProjectStore, flattenVisible, subtreeWordCount, isDescendant } from '../../store/projectStore'
 import { useShellStore } from '../../store/shellStore'
 import ContextMenu from '../common/ContextMenu'
@@ -7,8 +7,9 @@ import ConfirmDialog from '../common/ConfirmDialog'
 import Icon from '../common/Icon'
 import SidebarResizer from '../common/SidebarResizer'
 import BinderFilter from './BinderFilter'
+import BinderRow, { type RowHandlers } from './BinderRow'
 import { kbd } from '../../lib/kbd'
-import { STATUS_META, fmtWords } from '@shared/utils'
+import { STATUS_META, fmtWords, wordCount } from '@shared/utils'
 import type { ID, NodeType } from '@shared/types'
 import { isEmptyQuery, runQuery } from '@shared/query'
 import { setNodeDrag } from '../../lib/nodeDnd'
@@ -106,10 +107,58 @@ export default function Binder(): React.ReactElement {
     if (newId) { selectNode(newId); setRenamingId(newId) }
   }
 
+  // Late-bound so `rowHandlers` can stay stable while these close over the
+  // current project and drag state.
+  const onDragOverRef = useRef<(e: React.DragEvent, id: ID) => void>(() => {})
+  const onDropRef = useRef<(e: React.DragEvent, id: ID) => Promise<void>>(async () => {})
+  const mutateRef = useRef<(op: Parameters<typeof window.api.node.mutate>[1]) => Promise<unknown>>(async () => null)
+  const renameCommitRef = useRef<(id: ID, title: string) => Promise<void>>(async () => {})
+
   const handleRenameCommit = async (id: ID, title: string) => {
     setRenamingId(null)
     if (title.trim()) await mutate({ type: 'rename', id, title: title.trim() })
   }
+
+  // ── Row handlers ─────────────────────────────────────────────────────────
+  //
+  // One stable object for all rows. These must NOT change identity while the
+  // writer is typing, or BinderRow's memo is defeated and every row reconciles
+  // on each keystroke — which is the whole cost this indirection exists to
+  // avoid. So anything that changes per-keystroke (`project`) is read fresh
+  // from the store inside the callback rather than captured.
+  const dragRef = useRef(drag)
+  dragRef.current = drag
+
+  const rowHandlers = useMemo<RowHandlers>(() => ({
+    onClick: (id, e) => {
+      if (useProjectStore.getState().renamingId === id) return
+      // Shift extends from the active node; Ctrl/Cmd picks nodes one at a
+      // time; a plain click collapses back to one.
+      if (e.shiftKey) selectRange(id)
+      else if (e.metaKey || e.ctrlKey) toggleSelect(id)
+      else selectNode(id)
+    },
+    onContextMenu: (id, e) => {
+      e.preventDefault()
+      // Right-clicking outside the selection acts on what you clicked — so
+      // make that the selection first.
+      if (!useProjectStore.getState().selectedIds.includes(id)) selectNode(id)
+      setCtx({ x: e.clientX, y: e.clientY, id })
+    },
+    onDragStart: (id, e) => {
+      // Carries a node id so an editor pane can accept the drop too; within
+      // the binder this is still a reorder. See lib/nodeDnd.
+      setNodeDrag(e.dataTransfer, id)
+      setDrag({ dragId: id, overId: null, dropPos: null })
+    },
+    onDragOver: (id, e) => onDragOverRef.current(e, id),
+    onDrop: (id, e) => { void onDropRef.current(e, id) },
+    onDragEnd: () => setDrag(null),
+    onToggleExpand: (id, expanded) => { void mutateRef.current({ type: 'setExpanded', id, expanded }) },
+    onRenameChange: setRenameValue,
+    onRenameCommit: (id, v) => { void renameCommitRef.current(id, v) },
+    onRenameCancel: () => setRenamingId(null),
+  }), [selectNode, selectRange, toggleSelect, setRenamingId])
 
   // ── Drag & Drop ──────────────────────────────────────────────────────────
 
@@ -161,6 +210,13 @@ export default function Binder(): React.ReactElement {
     await mutate({ type: 'move', id: dragId, newParentId, atIndex })
   }
 
+  // Refresh the late-bound refs every render so the stable handler object
+  // above always calls the current closures.
+  onDragOverRef.current = onDragOver
+  onDropRef.current = onDrop
+  mutateRef.current = mutate
+  renameCommitRef.current = handleRenameCommit
+
   return (
     <div className="binder">
       <SidebarResizer edge="right" cssVar="--binder-w" prefKey="pref:binderWidth" min={180} max={480} fallback={264} />
@@ -185,91 +241,29 @@ export default function Binder(): React.ReactElement {
         {flat.map(({ id, depth }) => {
           const node = project.nodes[id]
           if (!node) return null
-          const words = node.type !== 'folder' ? wordCount(project.docs[id]?.content ?? '') : subtreeWordCount(project, id)
-          const statusColor = STATUS_META[node.meta.status]?.color ?? 'var(--text-3)'
           const isOver = drag?.overId === id
-          const dropPos = isOver ? drag?.dropPos : null
-
           return (
-            <React.Fragment key={id}>
-              {isOver && dropPos === 'before' && <div className="drop-line" />}
-              <div
-                data-node-id={id}
-                className={`tree-row${selectedIds.includes(id) ? ' sel' : ''}${selectedId === id ? ' cur' : ''}${isOver && dropPos === 'into' ? ' drop-into' : ''}`}
-                style={{ paddingLeft: `${depth * 15 + 4}px`, opacity: drag?.dragId === id ? 0.4 : 1 }}
-                onClick={(e) => {
-                  if (renamingId === id) return
-                  // Shift extends from the active node; Ctrl/Cmd picks nodes
-                  // one at a time; a plain click collapses back to one.
-                  if (e.shiftKey) selectRange(id)
-                  else if (e.metaKey || e.ctrlKey) toggleSelect(id)
-                  else selectNode(id)
-                }}
-                onContextMenu={(e) => {
-                  e.preventDefault()
-                  // Right-clicking outside the selection acts on what you
-                  // clicked — so make that the selection first.
-                  if (!useProjectStore.getState().selectedIds.includes(id)) selectNode(id)
-                  setCtx({ x: e.clientX, y: e.clientY, id })
-                }}
-                draggable={!filtering}
-                onDragStart={(e) => {
-                  // Carries a node id so an editor pane can accept the drop too;
-                  // within the binder this is still a reorder. See lib/nodeDnd.
-                  setNodeDrag(e.dataTransfer, id)
-                  setDrag({ dragId: id, overId: null, dropPos: null })
-                }}
-                onDragOver={(e) => onDragOver(e, id)}
-                onDrop={(e) => onDrop(e, id)}
-                onDragEnd={() => setDrag(null)}
-              >
-                {/* Expand twist for folders */}
-                {node.type === 'folder' && !filtering ? (
-                  <span
-                    className={`tw-twist${node.expanded ? ' open' : ''}`}
-                    onClick={(e) => { e.stopPropagation(); mutate({ type: 'setExpanded', id, expanded: !node.expanded }) }}
-                  >
-                    <svg viewBox="0 0 9 9" fill="currentColor"><path d="M2 1l5 3.5L2 8z" /></svg>
-                  </span>
-                ) : (
-                  <span className="tw-twist" />
-                )}
-
-                {/* Icon */}
-                <span className="tw-icon">
-                  <Icon name={node.type === 'folder' ? 'folder' : node.type === 'scene' ? 'document' : 'edit'} />
-                </span>
-
-                {/* Label / rename input */}
-                <span className="tw-label">
-                  {renamingId === id ? (
-                    <input
-                      ref={renameInputRef}
-                      value={renameValue}
-                      onChange={(e) => setRenameValue(e.target.value)}
-                      onBlur={() => handleRenameCommit(id, renameValue)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleRenameCommit(id, renameValue)
-                        if (e.key === 'Escape') setRenamingId(null)
-                        e.stopPropagation()
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  ) : (
-                    node.title
-                  )}
-                </span>
-
-                {/* Word count */}
-                {words > 0 && <span className="tw-count">{fmtWords(words)}</span>}
-
-                {/* Status dot */}
-                {node.type !== 'folder' && (
-                  <span className="tw-status" style={{ background: statusColor }} title={node.meta.status} />
-                )}
-              </div>
-              {isOver && dropPos === 'after' && <div className="drop-line" />}
-            </React.Fragment>
+            <BinderRow
+              key={id}
+              id={id}
+              depth={depth}
+              title={node.title}
+              type={node.type}
+              expanded={node.expanded}
+              words={node.type !== 'folder' ? wordCount(project.docs[id]?.content ?? '') : subtreeWordCount(project, id)}
+              statusColor={STATUS_META[node.meta.status]?.color ?? 'var(--text-3)'}
+              status={node.meta.status}
+              selected={selectedIds.includes(id)}
+              current={selectedId === id}
+              dragging={drag?.dragId === id}
+              isOver={isOver}
+              dropPos={isOver ? drag?.dropPos ?? null : null}
+              filtering={filtering}
+              renaming={renamingId === id}
+              renameValue={renamingId === id ? renameValue : undefined}
+              renameInputRef={renamingId === id ? renameInputRef : undefined}
+              h={rowHandlers}
+            />
           )
         })}
       </div>
@@ -307,9 +301,4 @@ export default function Binder(): React.ReactElement {
       )}
     </div>
   )
-}
-
-function wordCount(s: string): number {
-  const t = s.replace(/[#>*_~\-[\]`]/g, ' ').replace(/\s+/g, ' ').trim()
-  return t ? t.split(/\s+/).length : 0
 }

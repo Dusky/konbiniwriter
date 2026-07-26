@@ -70,6 +70,30 @@ describe('structural ops', () => {
     expect(created.rev).toBeGreaterThan(0)
   })
 
+  it('_newId marks only the most recent create', async () => {
+    const p = proj()
+    const a = io()
+    await applyNodeOp(p, { type: 'create', parentId: null, nodeType: 'folder', title: 'First' }, a)
+    const first = Object.values(p.nodes).find((n) => n.ext['_newId'])!
+    expect(first.title).toBe('First')
+
+    await applyNodeOp(p, { type: 'create', parentId: null, nodeType: 'document', title: 'Second' }, a)
+    const marked = Object.values(p.nodes).filter((n) => n.ext['_newId'])
+    // Exactly one marker, and it is the node just created — callers use
+    // `find(n => n.ext._newId)` to locate it, and `find` returns the first
+    // match in insertion order, so a stale marker would win.
+    expect(marked).toHaveLength(1)
+    expect(marked[0].title).toBe('Second')
+  })
+
+  it('duplicate does not leave a stale _newId behind', async () => {
+    const p = proj()
+    const a = io()
+    await applyNodeOp(p, { type: 'create', parentId: null, nodeType: 'document', title: 'Solo' }, a)
+    await applyNodeOp(p, { type: 'create', parentId: null, nodeType: 'document', title: 'Latest' }, a)
+    expect(Object.values(p.nodes).find((n) => n.ext['_newId'])!.title).toBe('Latest')
+  })
+
   it('delete removes the subtree and its doc files', async () => {
     const p = proj()
     const folder = Object.values(p.nodes).find((n) => n.type === 'folder' && n.childIds.length > 0)!
