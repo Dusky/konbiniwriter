@@ -2,9 +2,26 @@
 
 let _uid = 0
 
+/**
+ * Per-process entropy, mixed into every id.
+ *
+ * Without it an id is time + a counter that restarts at 0 on every reload, so
+ * two devices creating a node in the same millisecond from a cold start produce
+ * the *same* id. Cross-device sync merges the node tree per id, so a collision
+ * silently fuses two different scenes into one. Invariant 6 says node ids are
+ * stable and never reused; this is what makes that true rather than likely.
+ */
+const _salt = (() => {
+  const g = globalThis as { crypto?: { getRandomValues?: (a: Uint32Array) => Uint32Array } }
+  if (g.crypto?.getRandomValues) {
+    return g.crypto.getRandomValues(new Uint32Array(1))[0].toString(36)
+  }
+  return Math.floor(Math.random() * 0xffffffff).toString(36)
+})()
+
 export function uid(prefix = 'id'): string {
   _uid += 1
-  return `${prefix}-${Date.now().toString(36)}-${_uid.toString(36)}`
+  return `${prefix}-${Date.now().toString(36)}-${_salt}-${_uid.toString(36)}`
 }
 
 export function stripMd(s: string): string {
