@@ -10,6 +10,7 @@ import { kbd } from '../../lib/kbd'
 import { STATUS_META, fmtWords } from '@shared/utils'
 import type { ID, NodeType } from '@shared/types'
 import { isEmptyQuery, runQuery } from '@shared/query'
+import { setNodeDrag } from '../../lib/nodeDnd'
 
 type DropPos = 'before' | 'into' | 'after'
 
@@ -205,9 +206,9 @@ export default function Binder(): React.ReactElement {
                 onContextMenu={(e) => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, id }) }}
                 draggable={!filtering}
                 onDragStart={(e) => {
-                  // Firefox refuses to start a drag unless data is set.
-                  e.dataTransfer.setData('text/plain', id)
-                  e.dataTransfer.effectAllowed = 'move'
+                  // Carries a node id so an editor pane can accept the drop too;
+                  // within the binder this is still a reorder. See lib/nodeDnd.
+                  setNodeDrag(e.dataTransfer, id)
                   setDrag({ dragId: id, overId: null, dropPos: null })
                 }}
                 onDragOver={(e) => onDragOver(e, id)}

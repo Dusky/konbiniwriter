@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useProjectStore, descendants } from '../../store/projectStore'
 import { useShellStore } from '../../store/shellStore'
 import { kbd } from '../../lib/kbd'
@@ -7,6 +7,8 @@ import Scrivenings from './Scrivenings'
 import EditorBar from './EditorBar'
 import TabStrip from './TabStrip'
 import Icon from '../common/Icon'
+import DocPicker from './DocPicker'
+import { isNodeDrag, getNodeDrag } from '../../lib/nodeDnd'
 import Corkboard from '../views/Corkboard'
 import Outliner from '../views/Outliner'
 import Timeline from '../views/Timeline'
@@ -29,6 +31,39 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
   const applyMutation = useProjectStore((s) => s.applyMutation)
   const setRenamingId = useProjectStore((s) => s.setRenamingId)
   const setModal = useShellStore((s) => s.setModal)
+  const [dropActive, setDropActive] = useState(false)
+
+  // Show a document in *this* pane. The right pane tracks its own id; the left
+  // pane is the one that follows the global selection.
+  const openHere = (id: string) => {
+    if (pane === 'right') setSplitId(id)
+    else selectNode(id)
+  }
+
+  // Dropping a node from the binder, outliner or corkboard opens it here.
+  // Only the drag's *types* are readable during dragover — browsers withhold
+  // the payload until drop — so the affordance keys off that.
+  const dropProps = {
+    onDragOver: (e: React.DragEvent) => {
+      if (!isNodeDrag(e.dataTransfer)) return
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'copy'
+      if (!dropActive) setDropActive(true)
+    },
+    onDragLeave: (e: React.DragEvent) => {
+      // Ignore moves between the pane's own children.
+      if (e.currentTarget.contains(e.relatedTarget as Node | null)) return
+      setDropActive(false)
+    },
+    onDrop: (e: React.DragEvent) => {
+      setDropActive(false)
+      const id = getNodeDrag(e.dataTransfer)
+      if (!id || !useProjectStore.getState().project?.nodes[id]) return
+      e.preventDefault()
+      openHere(id)
+    },
+  }
+  const paneCls = `main${dropActive ? ' pane-drop' : ''}`
 
   const createFirstDoc = async () => {
     const p = useProjectStore.getState().project
@@ -60,7 +95,7 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
   if (activeViewTab && !splitOpen) {
     const def = VIEW_TABS[activeViewTab]
     return (
-      <div className="main" style={{ display: 'flex', flexDirection: 'column' }}>
+      <div className={paneCls} style={{ display: 'flex', flexDirection: 'column' }} {...dropProps}>
         <TabStrip />
         {def ? def.render(() => closeViewTab(activeViewTab)) : null}
       </div>
@@ -71,16 +106,6 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
   if (view === 'outliner')  return <Outliner />
   if (view === 'timeline')  return <Timeline />
 
-  // Collect all non-folder nodes for the picker
-  const docNodes = Object.values(project.nodes).filter((n) => n.type !== 'folder')
-
-  const handlePickerChange = (id: string) => {
-    if (pane === 'right') {
-      setSplitId(id)
-    } else {
-      selectNode(id)
-    }
-  }
 
   // Open-document tabs belong to the single main editor (the pane that tracks
   // the global selection). In split mode each pane has its own picker instead.
@@ -95,27 +120,14 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
       <span style={{ fontSize: 12, color: 'var(--text-2)', fontWeight: 500, flexShrink: 0 }}>
         {pane === 'left' ? 'Left' : 'Right'}
       </span>
-      <select
-        value={selectedId ?? ''}
-        onChange={(e) => handlePickerChange(e.target.value)}
-        style={{
-          flex: 1, minWidth: 0, fontSize: 12, padding: '2px 6px',
-          borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
-          background: 'var(--bg-2)', color: 'var(--text)', cursor: 'pointer',
-        }}
-      >
-        <option value="" disabled>— pick a document —</option>
-        {docNodes.map((n) => (
-          <option key={n.id} value={n.id}>{n.title}</option>
-        ))}
-      </select>
+      <DocPicker value={selectedId ?? null} onPick={openHere} />
     </div>
   ) : null
 
   // Editor view
   if (!selectedId || !selectedNode) {
     return (
-      <div className="main" style={{ display: 'flex', flexDirection: 'column' }}>
+      <div className={paneCls} style={{ display: 'flex', flexDirection: 'column' }} {...dropProps}>
         {tabs}
         {paneHeader}
         <div className="empty-state" style={{ flex: 1 }}>
@@ -146,7 +158,7 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
     // (Main pane only in v1; split panes keep the placeholder.)
     if (hasScenes && !splitOpen) {
       return (
-        <div className="main" style={{ display: 'flex', flexDirection: 'column' }}>
+        <div className={paneCls} style={{ display: 'flex', flexDirection: 'column' }} {...dropProps}>
           {tabs}
           <div className="doc-bar">
             <span className="crumb"><Icon name="folder" style={{ verticalAlign: '-2px', marginRight: 4 }} /><b>{selectedNode.title}</b></span>
@@ -162,7 +174,7 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
       )
     }
     return (
-      <div className="main" style={{ display: 'flex', flexDirection: 'column' }}>
+      <div className={paneCls} style={{ display: 'flex', flexDirection: 'column' }} {...dropProps}>
         {tabs}
         {paneHeader}
         <div className="empty-state" style={{ flex: 1 }}>
@@ -186,7 +198,7 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
   }
 
   return (
-    <div className="main" style={{ display: 'flex', flexDirection: 'column' }}>
+    <div className={paneCls} style={{ display: 'flex', flexDirection: 'column' }} {...dropProps}>
       {tabs}
       {paneHeader}
       <div className="doc-bar">

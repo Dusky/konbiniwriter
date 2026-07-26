@@ -292,6 +292,43 @@ button { font-family: inherit; cursor: default; }
   font-weight: 600; }
 .binder-scroll { flex: 1; overflow-y: auto; padding: 4px 6px 12px; }
 
+/* ── Split-pane document picker ── */
+.dp { position: relative; flex: 1; min-width: 0; }
+.dp-trigger { display: flex; align-items: center; gap: 6px; width: 100%;
+  padding: 3px 8px; border-radius: var(--r-sm); border: 0.5px solid var(--border);
+  background: var(--bg-2); color: var(--text); font-size: var(--t-xs);
+  cursor: pointer; text-align: left;
+  transition: border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease); }
+.dp-trigger:hover { border-color: var(--border-2); background: var(--bg-3); }
+.dp-trigger-t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dp-pop { position: absolute; z-index: 60; top: calc(100% + 4px); left: 0; right: 0;
+  min-width: 260px; display: flex; flex-direction: column;
+  background: var(--bg-2); border: 0.5px solid var(--border-2);
+  border-radius: var(--r-md); box-shadow: var(--shadow-2); overflow: hidden;
+  animation: k-rise var(--dur-1) var(--ease); }
+.dp-search { padding: 7px 10px; border: none; border-bottom: 0.5px solid var(--border);
+  background: transparent; color: var(--text); font: inherit; font-size: var(--t-xs);
+  outline: none; }
+.dp-list { max-height: 300px; overflow-y: auto; padding: 4px; }
+.dp-item { display: flex; flex-direction: column; gap: 1px; width: 100%;
+  padding: 4px 8px; border: none; border-radius: var(--r-sm); background: transparent;
+  color: var(--text); cursor: pointer; text-align: left; }
+.dp-item.on { background: var(--bg-3); }
+.dp-item.cur .dp-title { color: var(--accent); }
+.dp-title { font-size: var(--t-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dp-path { font-size: var(--t-xs); color: var(--text-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dp-empty { padding: 14px 10px; font-size: var(--t-xs); color: var(--text-3); text-align: center; }
+.dp-foot { padding: 5px 10px; border-top: 0.5px solid var(--border);
+  font-size: var(--t-xs); color: var(--text-3); font-variant-numeric: tabular-nums; }
+
+/* A pane accepting a dragged document. Inset so it reads as "drops here"
+   without shifting any layout. */
+.pane-drop { position: relative; }
+.pane-drop::after { content: ''; position: absolute; inset: 3px; pointer-events: none;
+  border: 2px dashed var(--accent); border-radius: var(--r-md);
+  background: color-mix(in oklch, var(--accent) 7%, transparent); z-index: 40; }
+
 /* ── Preferences: live type specimen ── */
 .pref-spec { margin: 0 0 var(--s3); padding: var(--s3) 14px; border-radius: var(--r-md);
   border: 0.5px solid var(--border); background: var(--bg-2); }

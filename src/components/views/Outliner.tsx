@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { setNodeDrag } from '../../lib/nodeDnd'
 import { useProjectStore, flattenVisible } from '../../store/projectStore'
 import { STATUS_META, LABEL_META, wordCount } from '@shared/utils'
 import ContextMenu from '../common/ContextMenu'
@@ -52,6 +53,8 @@ export default function Outliner(): React.ReactElement {
                 <tr
                   key={id}
                   className={selectedId === id ? 'sel' : ''}
+                  draggable
+                  onDragStart={(e) => setNodeDrag(e.dataTransfer, id)}
                   onClick={() => selectNode(id)}
                   onDoubleClick={() => { selectNode(id); if (node.type !== 'folder') setView('editor') }}
                   onContextMenu={(e) => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, id }) }}

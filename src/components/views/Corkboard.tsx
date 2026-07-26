@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react'
+import { setNodeDrag } from '../../lib/nodeDnd'
 import { useProjectStore } from '../../store/projectStore'
 import { useShellStore } from '../../store/shellStore'
 import { STATUS_META, LABEL_META, wordCount } from '@shared/utils'
@@ -81,7 +82,7 @@ export default function Corkboard(): React.ReactElement {
                     : undefined,
                 } as React.CSSProperties}
                 draggable
-                onDragStart={() => setDragId(id)}
+                onDragStart={(e) => { setNodeDrag(e.dataTransfer, id); setDragId(id) }}
                 onDragEnd={() => { setDragId(null); setDropAt(null) }}
                 onDragOver={(e) => {
                   e.preventDefault()
