@@ -70,7 +70,13 @@ interface ProjectState {
   unloadProject: () => void
 
   // — selection & view —
-  selectNode: (id: ID | null) => void
+  /**
+   * `keepView` is for the browsing views. Selecting a document normally means
+   * "show me this document", which switches to the editor — but in the
+   * outliner or corkboard that ejects you from the surface you were reading,
+   * so a single click there selects and a double click opens.
+   */
+  selectNode: (id: ID | null, opts?: { keepView?: boolean }) => void
   /** Ctrl/Cmd-click: add or remove one node from the selection. */
   toggleSelect: (id: ID) => void
   /** Shift-click: select everything between the anchor and `id` in binder order. */
@@ -402,13 +408,13 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     set({ project: null, selectedId: null, selectedIds: [], openTabs: [], openViewTabs: [], activeViewTab: null, mentionIndex: EMPTY_INDEX, codex: [], debt: [], comments: [], focusedCommentId: null, collections: [], dictionary: [], binderQuery: {}, activeCollectionId: null, proposals: [], activeProposalId: null, slopSpans: [], slopRunning: false, nodeHistory: [], nodeFuture: [], judgeResults: new Map(), slopResults: new Map(), voiceResults: new Map(), qualityHistory: [], sessionWordsAdded: 0, autopilotQueue: [], autopilotRunning: false, autopilotCurrent: null, autopilotPreset: [], focusMode: false, compositionMode: false, splitOpen: false, splitId: null, cursor: null, pendingReveal: null })
   },
 
-  selectNode: (id) => set((s) => {
+  selectNode: (id, opts) => set((s) => {
     // Selecting a document leaves any view tab (returns the main pane to the editor).
     if (!id || !s.project) return { selectedId: id, selectedIds: [], cursor: null, activeViewTab: null }
     const node = s.project.nodes[id]
     if (!node) return { selectedId: id, selectedIds: [id], cursor: null, activeViewTab: null }
     // Auto-switch view based on node type
-    const newView = node.type === 'folder'
+    const newView = opts?.keepView ? s.view : node.type === 'folder'
       ? (s.view === 'editor' ? 'corkboard' : s.view)
       : 'editor'
     // Opening a document surfaces it as a tab (folders don't get tabs).

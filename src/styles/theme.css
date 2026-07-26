@@ -711,6 +711,9 @@ button { font-family: inherit; cursor: default; }
 .otable td { padding: calc(var(--row-pad) + 2px) 12px; border-bottom: 0.5px solid var(--border); color: var(--text-2); vertical-align: middle; }
 .otable tr:hover td { background: var(--bg-2); }
 .otable tr.sel td { background: var(--sel-bg); }
+/* As in the binder: the fill marks the whole selection, the bar marks which
+   one of them the editor and Inspector are following. */
+.otable tr.cur td:first-child { box-shadow: inset 2.5px 0 0 var(--sel-bar); }
 .otable .o-title { color: var(--text); display: flex; align-items: center; gap: 8px; }
 .otable .o-title svg { width: 14px; height: 14px; opacity: .8; flex: none; }
 .otable .o-syn { color: var(--text-3); max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
