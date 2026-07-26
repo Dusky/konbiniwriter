@@ -39,7 +39,11 @@
   --titlebar:  oklch(0.150 0.006 285);
   --text:      oklch(0.918 0.006 285);
   --text-2:    oklch(0.660 0.006 285);
-  --text-3:    oklch(0.470 0.006 285);
+  /* Contrast floor: --text-3 carries real information (timestamps, counts,
+     folder paths, the measure readout), so it has to clear WCAG AA 4.5:1 —
+     against the *darkest* surface it can sit on, which is --bg-3, not --bg.
+     The old 0.470 measured 2.79:1 on --bg and 2.45:1 on --bg-3. */
+  --text-3:    oklch(0.620 0.006 285);
   --border:    oklch(0.270 0.006 285);
   --border-2:  oklch(0.330 0.007 285);
   --accent-fg: oklch(0.99 0 0);
@@ -54,10 +58,16 @@
   --hl-marker: oklch(0.46 0.02 300);
   --hl-head:   var(--accent);
   --hl-em:     oklch(0.80 0.05 70);
-  --hl-quote:  oklch(0.58 0.02 285);
+  /* Blockquotes are prose, so this has to hold AA against --editor-bg — which
+     skins move. Deriving from the (floor-clamped) --text-2 makes it track the
+     active theme instead of a hardcoded lightness that only worked for the
+     default background. */
+  --hl-quote:  color-mix(in oklch, var(--text-2), var(--accent) 12%);
   --hl-link:   oklch(0.74 0.10 300);
   --hl-code:   oklch(0.72 0.08 190);
-  --dim:       oklch(0.40 0.006 285);
+  /* --dim is for decorative and disabled marks, so it targets 3:1 rather than
+     4.5:1 — but 1.68:1 was invisible, not subtle. */
+  --dim:       oklch(0.517 0.006 285);
 
   --st-idea:  oklch(0.66 0.12 20);
   --st-todo:  oklch(0.58 0.008 285);
@@ -85,7 +95,7 @@
   --titlebar:  oklch(0.945 0.003 90);
   --text:      oklch(0.245 0.008 285);
   --text-2:    oklch(0.480 0.008 285);
-  --text-3:    oklch(0.620 0.006 285);
+  --text-3:    oklch(0.510 0.006 285);
   --border:    oklch(0.880 0.004 90);
   --border-2:  oklch(0.820 0.005 90);
   --accent-fg: oklch(0.99 0 0);
@@ -99,10 +109,10 @@
   --hl-marker: oklch(0.74 0.02 300);
   --hl-head:   var(--accent);
   --hl-em:     oklch(0.50 0.09 50);
-  --hl-quote:  oklch(0.58 0.02 285);
+  --hl-quote:  color-mix(in oklch, var(--text-2), var(--accent) 12%);
   --hl-link:   oklch(0.52 0.13 300);
   --hl-code:   oklch(0.50 0.08 190);
-  --dim:       oklch(0.72 0.006 285);
+  --dim:       oklch(0.610 0.006 285);
 
   --success: oklch(0.55 0.13 150);
   --danger:  oklch(0.55 0.15 20);

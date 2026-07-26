@@ -68,6 +68,37 @@ function recipes(base: ThemeBase): Record<string, string> {
 }
 
 /**
+ * WCAG contrast floors for the derived text ramp, and how far each token is
+ * allowed to mix toward the background before the floor takes over.
+ *
+ * The mix percentages alone can't be trusted: they're relative to whatever
+ * `text` and `bg` anchors the writer picked, so the same 60% that reads as a
+ * soft grey in one skin lands at 2.0:1 in another. Measured across the seven
+ * built-in skins, *every one* failed AA on --text-3 at the old 60%. So the
+ * percentage is a starting point and the measured ratio is the rule.
+ *
+ * --text-3 carries real information (timestamps, counts, folder paths), so it
+ * takes the AA 4.5:1 floor. --dim is decorative and disabled marks, so 3:1.
+ */
+const RAMP_FLOORS = [
+  { token: '--text-2', startPct: 38, floor: 5.5 },
+  { token: '--text-3', startPct: 60, floor: 4.5 },
+  { token: '--dim',    startPct: 76, floor: 3.0 },
+] as const
+
+/** Relative luminance of any CSS colour, via a real rasterisation. */
+function luminance(color: string): number {
+  const [r, g, b] = rasterise(color)
+  const f = (v: number) => { const x = v / 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4 }
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
+}
+
+function contrast(a: string, b: string): number {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((p, q) => q - p)
+  return (hi + 0.05) / (lo + 0.05)
+}
+
+/**
  * Resolve the anchor recipes to concrete colour strings using the browser engine.
  * Returns an ordered token→value map ready to set as inline vars.
  */
@@ -87,26 +118,68 @@ export function deriveTokens(anchors: ThemeAnchors, base: ThemeBase): Record<str
     el.style.color = recipe[token]
     out[token] = getComputedStyle(el).color
   }
+
+  // Every surface a piece of text can land on. Checking only --bg would pass
+  // tokens that then fail on a card or an input, which is where most of the
+  // small print actually lives.
+  const surfaces = ['--bg', '--bg-2', '--bg-3', '--editor-bg', '--sidebar', '--titlebar']
+    .map((t) => out[t])
+    .filter((c): c is string => !!c)
+
+  const mixAt = (pct: number): string => {
+    el.style.color = `color-mix(in oklch, var(--k-text), var(--k-bg) ${pct}%)`
+    return getComputedStyle(el).color
+  }
+  const worst = (c: string) => surfaces.reduce((m, s) => Math.min(m, contrast(c, s)), Infinity)
+
+  // Walk back toward the text anchor until the floor is met. 0% is the anchor
+  // itself — if that still fails, the writer's own text colour is unreadable on
+  // their own background and there is nothing left to give.
+  const chosen: Record<string, number> = {}
+  for (const { token, startPct, floor } of RAMP_FLOORS) {
+    let pct = startPct
+    while (pct > 0 && worst(mixAt(pct)) < floor) pct -= 2
+    chosen[token] = pct
+  }
+  // Keep the ramp ordered. Clamping can push --text-3 past --text-2, which
+  // would render the "quieter" tone louder than the one above it.
+  if (chosen['--text-2']! >= chosen['--text-3']!) {
+    chosen['--text-2'] = Math.max(0, chosen['--text-3']! - 8)
+  }
+  if (chosen['--dim']! <= chosen['--text-3']!) chosen['--dim'] = chosen['--text-3']!
+  for (const { token } of RAMP_FLOORS) out[token] = mixAt(chosen[token]!)
+
   el.remove()
   return out
+}
+
+/**
+ * Paint a colour into a 1×1 canvas and read the bytes back.
+ *
+ * We can't trust `fillStyle` or `getComputedStyle().color` to *serialise* into
+ * sRGB — some Chromium builds echo the source `oklch(…)` string, whose L/C/H
+ * would be misread as R/G/B. Painting forces a real conversion into the canvas
+ * (sRGB) space, so this returns true bytes for oklch(), color-mix(), hex and
+ * named colours alike. Opaque black underneath so any alpha composites rather
+ * than reading back as premultiplied nonsense.
+ */
+function rasterise(color: string): [number, number, number] {
+  const cv = document.createElement('canvas')
+  cv.width = cv.height = 1
+  const ctx = cv.getContext('2d')
+  if (!ctx) return [0, 0, 0]
+  ctx.fillStyle = '#000'
+  ctx.fillRect(0, 0, 1, 1)
+  ctx.fillStyle = color
+  ctx.fillRect(0, 0, 1, 1)
+  const d = ctx.getImageData(0, 0, 1, 1).data
+  return [d[0]!, d[1]!, d[2]!]
 }
 
 /** Resolve any CSS colour to a #rrggbb hex (for <input type=color> values). */
 export function toHex(color: string): string {
   if (typeof document === 'undefined') return '#000000'
-  // Rasterise a single pixel and read it back. We can't trust `fillStyle` or
-  // `getComputedStyle().color` to *serialise* into sRGB — some Chromium builds
-  // echo the source `oklch(…)` string, whose L/C/H would be misread as R/G/B.
-  // Painting forces a real conversion into the canvas (sRGB) space, so
-  // getImageData returns true bytes for oklch(), color-mix(), hex, named, etc.
-  const cv = document.createElement('canvas')
-  cv.width = cv.height = 1
-  const ctx = cv.getContext('2d')
-  if (!ctx) return '#000000'
-  ctx.clearRect(0, 0, 1, 1)
-  ctx.fillStyle = color
-  ctx.fillRect(0, 0, 1, 1)
-  const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data
+  const [r, g, b] = rasterise(color)
   const h = (n: number) => n.toString(16).padStart(2, '0')
   return `#${h(r)}${h(g)}${h(b)}`
 }
