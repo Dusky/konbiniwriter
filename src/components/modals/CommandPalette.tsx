@@ -108,6 +108,7 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
       { id: 'new-folder', label: 'New Folder', section: 'Create', hint: kbd('mod+alt+n'), run: () => createNode('folder') },
       // Project tools
       { id: 'history', label: 'History & Snapshots…', section: 'Document', hint: kbd('mod+shift+s'), run: () => shell.setRailPanel('history') },
+      { id: 'read-aloud', label: 'Read Aloud', section: 'Document', hint: kbd('mod+shift+l'), run: () => window.dispatchEvent(new Event('konbini:read-aloud')) },
       { id: 'comments', label: 'Comments…', section: 'Document', run: () => shell.setRailPanel('comments') },
       { id: 'add-comment', label: 'Add Comment on Selection', section: 'Document', hint: kbd('mod+shift+m'), run: () => window.dispatchEvent(new Event('konbini:add-comment')) },
       { id: 'search', label: 'Search Project…', section: 'Project', hint: kbd('mod+shift+f'), run: openModal('search') },

@@ -208,6 +208,37 @@ const nameSlipPlugin = ViewPlugin.fromClass(class {
   }
 }, { decorations: (v) => v.decorations })
 
+// ── Read-aloud: highlight the sentence currently being spoken ────────────────
+
+export const setSpokenRangeEffect = StateEffect.define<{ from: number; to: number } | null>()
+
+export const spokenField = StateField.define<{ from: number; to: number } | null>({
+  create: () => null,
+  update(range, tr) {
+    for (const e of tr.effects) if (e.is(setSpokenRangeEffect)) return e.value
+    // Editing while it reads would put the highlight on the wrong words.
+    if (tr.docChanged) return null
+    return range
+  },
+})
+
+const spokenPlugin = ViewPlugin.fromClass(class {
+  decorations: ReturnType<typeof Decoration.set>
+  constructor(view: EditorView) { this.decorations = this.build(view) }
+  update(update: ViewUpdate) {
+    if (update.docChanged || update.state.field(spokenField) !== update.startState.field(spokenField)) {
+      this.decorations = this.build(update.view)
+    }
+  }
+  build(view: EditorView) {
+    const r = view.state.field(spokenField)
+    if (!r || r.from >= r.to || r.to > view.state.doc.length) return Decoration.none
+    const builder = new RangeSetBuilder<Decoration>()
+    builder.add(r.from, r.to, Decoration.mark({ class: 'cm-spoken' }))
+    return builder.finish()
+  }
+}, { decorations: (v) => v.decorations })
+
 // ── Typewriter scroll: keep the caret near 40% from the top ──────────────────
 export function makeTypewriterPlugin() {
   return ViewPlugin.fromClass(class {
@@ -255,6 +286,11 @@ export const konbiniTheme = EditorView.theme({
     textDecorationColor: 'oklch(0.70 0.14 60)',
     cursor: 'help',
   },
+  // The sentence being read aloud — a moving reading guide, not an annotation.
+  '.cm-spoken': {
+    background: 'color-mix(in oklch, var(--accent) 22%, transparent)',
+    borderRadius: '2px',
+  },
   '.cm-comment-done': {
     background: 'transparent',
     borderBottom: '1px dotted var(--border-2)',
@@ -288,6 +324,8 @@ export function konbiniExtensions(
     commentPlugin,
     nameSlipField,
     nameSlipPlugin,
+    spokenField,
+    spokenPlugin,
     konbiniTheme,
     EditorView.lineWrapping,
     ...(onChange || onCursor || onCommentSpans ? [EditorView.updateListener.of((u) => {

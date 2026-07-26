@@ -292,6 +292,25 @@ button { font-family: inherit; cursor: default; }
   font-weight: 600; }
 .binder-scroll { flex: 1; overflow-y: auto; padding: 4px 6px 12px; }
 
+/* ── Read-aloud transport ── */
+.ra-bar { flex: none; display: flex; align-items: center; gap: 6px;
+  padding: 5px 10px; background: var(--bg-2); border-bottom: 0.5px solid var(--border);
+  flex-wrap: wrap; }
+.ra-btn { display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 8px; border-radius: var(--r-sm); border: 0.5px solid var(--border);
+  background: var(--bg-2); color: var(--text); font-size: var(--t-xs); cursor: pointer;
+  transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease); }
+.ra-btn:hover { border-color: var(--border-2); background: var(--bg-3); }
+.ra-btn.primary { background: var(--accent-soft); border-color: transparent; }
+.ra-pos { font-size: var(--t-xs); color: var(--text-3); font-variant-numeric: tabular-nums; }
+.ra-note { font-size: var(--t-xs); color: var(--text-3); }
+.ra-rate { display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--t-xs); color: var(--text-3); font-variant-numeric: tabular-nums; }
+.ra-rate input { width: 84px; accent-color: var(--accent); }
+.ra-voice { max-width: 170px; padding: 3px 6px; border-radius: var(--r-sm);
+  border: 0.5px solid var(--border); background: var(--bg-2); color: var(--text);
+  font: inherit; font-size: var(--t-xs); outline: none; }
+
 /* ── Binder filter + saved collections ── */
 .bf { flex: none; border-bottom: 0.5px solid var(--border); }
 .bf-bar { display: flex; align-items: center; gap: 4px; padding: 4px 6px; }

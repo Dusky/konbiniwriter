@@ -1,9 +1,12 @@
 import React, { useEffect, useRef, useCallback, useMemo, useState } from 'react'
 import { EditorView } from '@codemirror/view'
 import { EditorState, Compartment } from '@codemirror/state'
-import { focusModeEffect, konbiniExtensions, makeTypewriterPlugin, setSlopSpansEffect, setCommentSpansEffect, commentField, setNameSlipsEffect, nameSlipField, type SlopSpan, type CommentSpan, type NameSlipSpan } from './extensions'
+import { focusModeEffect, konbiniExtensions, makeTypewriterPlugin, setSlopSpansEffect, setCommentSpansEffect, commentField, setNameSlipsEffect, nameSlipField, setSpokenRangeEffect, type SlopSpan, type CommentSpan, type NameSlipSpan } from './extensions'
 import { anchoredFor, type Comment } from '@shared/comments'
 import { buildVocabulary, findNameSlips } from '@shared/dictionary'
+import { sentenceIndexAt, splitSentences } from '@shared/speech'
+import { readAloud } from '../../lib/ReadAloud'
+import ReadAloudBar from './ReadAloudBar'
 import { livePreview } from './livePreview'
 import { useProjectStore } from '../../store/projectStore'
 import { useShellStore } from '../../store/shellStore'
@@ -82,6 +85,8 @@ export default function Editor({ docId }: Props): React.ReactElement {
   const [beat, setBeat] = useState<{ anchorRect: DOMRect; cursor: number; preceding: string } | null>(null)
   const [editorMenu, setEditorMenu] = useState<{ x: number; y: number; hasSelection: boolean; slip: NameSlipSpan | null } | null>(null)
   const [wikilinkTip, setWikilinkTip] = useState<{ title: string; synopsis: string; preview: string; x: number; y: number } | null>(null)
+
+  const [readAloudOpen, setReadAloudOpen] = useState(false)
 
   // Find & Replace state
   const [findReplaceOpen, setFindReplaceOpen] = useState(false)
@@ -298,6 +303,64 @@ export default function Editor({ docId }: Props): React.ReactElement {
     view.dispatch({ changes: { from: slip.from, to: slip.to, insert: slip.suggestion } })
     view.focus()
   }, [])
+
+  // ── Read aloud ─────────────────────────────────────────────────────────────
+
+  // Reading starts at the caret, not the top: proofing is something you do to
+  // the paragraph you just wrote.
+  const startReading = useCallback(() => {
+    const view = viewRef.current
+    if (!view) return
+    const text = view.state.doc.toString()
+    const head = view.state.selection.main.head
+    readAloud.start(text, sentenceIndexAt(splitSentences(text), head))
+  }, [])
+
+  useEffect(() => {
+    const onStart = () => startReading()
+    const onToggle = () => {
+      if (readAloudOpen) { readAloud.stop(); setReadAloudOpen(false); return }
+      // Read the caret BEFORE opening the bar. Inserting it above the editor
+      // reflows the contenteditable, and the browser re-places the selection at
+      // the end of the document when that happens — so a deferred read would
+      // always start from the bottom instead of from where the writer is.
+      startReading()
+      setReadAloudOpen(true)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      // Not Ctrl+Shift+U: that's the IBus Unicode-input sequence on Linux, and
+      // it collapses the caret to the end of the field before we see the event.
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'l') {
+        e.preventDefault()
+        onToggle()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('konbini:read-aloud-start', onStart)
+    window.addEventListener('konbini:read-aloud', onToggle)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('konbini:read-aloud-start', onStart)
+      window.removeEventListener('konbini:read-aloud', onToggle)
+    }
+  }, [startReading, readAloudOpen])
+
+  // Follow the spoken sentence: highlight it and keep it on screen.
+  useEffect(() => readAloud.subscribe((st) => {
+    const view = viewRef.current
+    if (!view) return
+    const s = st.speaking && st.index >= 0 ? st.sentences[st.index] : null
+    const range = s && s.to <= view.state.doc.length ? { from: s.from, to: s.to } : null
+    view.dispatch({
+      effects: range
+        ? [setSpokenRangeEffect.of(range), EditorView.scrollIntoView(range.from, { y: 'center' })]
+        : [setSpokenRangeEffect.of(null)],
+    })
+  }), [])
+
+  // Speech outlives the component unless it's stopped; a voice reading a
+  // document that is no longer open is the worst possible bug here.
+  useEffect(() => () => readAloud.stop(), [docId])
 
   const addCommentAtSelection = useCallback(() => {
     const view = viewRef.current
@@ -762,6 +825,7 @@ export default function Editor({ docId }: Props): React.ReactElement {
           ><Icon name="x" size={14} /></button>
         </div>
       )}
+      {readAloudOpen && <ReadAloudBar onClose={() => { readAloud.stop(); setReadAloudOpen(false) }} />}
       <div ref={containerRef} style={{ flex: 1, minHeight: 0 }} />
       {wikilinkTip && (
         <div style={{

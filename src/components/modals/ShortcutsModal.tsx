@@ -24,6 +24,7 @@ const SHORTCUTS = [
       ['Find & Replace', 'mod+h'],
       ['Search Project', 'mod+shift+f'],
       ['Add Comment', 'mod+shift+m'],
+      ['Read Aloud', 'mod+shift+l'],
     ],
   },
   {
