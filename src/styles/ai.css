@@ -176,10 +176,19 @@
 .assistant { min-width: 0; z-index: 5;
   background: var(--bg-2); border-left: 0.5px solid var(--border-2);
   display: flex; flex-direction: column; }
-.asst-hd { height: 42px; flex: none; display: flex; align-items: center; gap: 9px; padding: 0 10px 0 16px;
+/* Two rows: the conversation's name needs room to be read, and it was fighting
+   four buttons for it in a rail that can be dragged narrow. */
+.asst-hd { flex: none; display: grid; grid-template-columns: auto 1fr auto;
+  align-items: center; gap: 4px 9px; padding: 7px 10px 7px 16px;
   border-bottom: 0.5px solid var(--border); }
 .asst-mark { color: var(--accent); font-size: 14px; }
-.asst-title { font-size: 13.5px; font-weight: 600; flex: 1; }
+.asst-title { font-size: 13.5px; font-weight: 600; min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+/* Row 2 spans the full width and right-aligns the controls. */
+.asst-hd-tools { grid-column: 1 / -1; display: flex; align-items: center; gap: 9px;
+  justify-content: flex-end; min-width: 0; }
+.asst-thread-name { display: block; font-weight: 400; font-size: var(--t-xs);
+  color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .asst-review { margin: 10px; display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 9px;
   border: 0.5px solid color-mix(in oklch, var(--accent) 45%, transparent); background: var(--accent-soft);
   color: var(--text); font-size: 12.5px; text-align: left; }
@@ -878,3 +887,11 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 .vp-tools button:hover { background: var(--bg-3); color: var(--text); }
 .vp-tools button:disabled { opacity: .35; cursor: default; }
 .vp-tools .vp-del:hover { color: var(--danger); }
+
+/* A conversation spans documents, so the transcript marks where the subject
+   moved — shown only when it changes, not on every message. */
+.asst-doc-mark { display: inline-flex; align-items: center; gap: 5px; align-self: flex-start;
+  margin: var(--s3) 0 2px; padding: 2px 8px; border-radius: var(--r-full);
+  border: 0.5px dashed var(--border-2); background: var(--bg);
+  font-size: var(--t-xs); color: var(--text-3); }
+.asst-doc-mark:first-child { margin-top: 0; }

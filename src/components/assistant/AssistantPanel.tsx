@@ -13,6 +13,7 @@ import { resolveConfigSlot, configDocId } from '../../lib/agentConfig'
 import Icon from '../common/Icon'
 import ConfirmDialog from '../common/ConfirmDialog'
 import type { Project } from '@shared/types'
+import { uid } from '@shared/utils'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -22,6 +23,13 @@ interface Message {
   memories?: string[]
   /** Human labels for tools this reply used (for the UI indicator). */
   toolUses?: string[]
+  /**
+   * The document that was open when this was asked.
+   *
+   * A thread now spans documents, so scrolling back through one is confusing
+   * without it — "make this tighter" means nothing three files later.
+   */
+  docTitle?: string
 }
 
 type ChatThreads = Record<string, Message[]>
@@ -29,8 +37,39 @@ type ChatThreads = Record<string, Message[]>
 const CHAT_FILE = 'chat.json'
 const WRITE_DEBOUNCE_MS = 1000
 
-function threadKey(nodeId: string | null): string {
-  return nodeId ?? '__project__'
+/**
+ * The thread every project starts in.
+ *
+ * Threads used to be keyed by the open document, which meant opening a file to
+ * look at it swapped your conversation out from under you, and getting the
+ * conversation back dragged the editor to wherever that chat had started. One
+ * assistant you can walk through the manuscript with is the point; the open
+ * document is *context*, not the conversation's identity.
+ *
+ * Existing per-document threads keep their node-id keys, so nothing is lost and
+ * chat.json stays readable by an older build — they just become named threads.
+ */
+const DEFAULT_THREAD = '__project__'
+
+/** Which thread the panel was last in, per project. */
+const threadPrefKey = (projectId: string) => `konbini:chat:thread:${projectId}`
+
+/**
+ * What to call a thread in the list.
+ *
+ * Threads migrated from the per-document era keep their document's title, so
+ * nothing a writer saved looks renamed. Threads started since name themselves
+ * from their opening question, which is more use than the title of whichever
+ * file happened to be open at the time.
+ */
+function threadLabel(key: string, msgs: Message[], project: Project | null): string {
+  if (key === DEFAULT_THREAD) return 'Project-wide'
+  const node = project?.nodes[key]
+  if (node) return node.title
+  const first = msgs.find((m) => m.role === 'user')?.content ?? ''
+  const line = stripMemories(first).replace(/\s+/g, ' ').trim()
+  if (!line) return 'Untitled chat'
+  return line.length > 48 ? line.slice(0, 47) + '…' : line
 }
 
 // ── Markdown renderer ────────────────────────────────────────────────────────
@@ -159,7 +198,6 @@ function chipStyle(auto: boolean): React.CSSProperties {
 export default function AssistantPanel(): React.ReactElement {
   const project = useProjectStore((s) => s.project)
   const selectedId = useProjectStore((s) => s.selectedId)
-  const selectNode = useProjectStore((s) => s.selectNode)
   const mentionIndex = useProjectStore((s) => s.mentionIndex)
   const chatMaxTokens = useAIStore((s) => s.chatMaxTokens)
   const chatContextMessages = useAIStore((s) => s.chatContextMessages)
@@ -183,6 +221,8 @@ export default function AssistantPanel(): React.ReactElement {
   const [streaming, setStreaming] = useState(false)
   const [showContext, setShowContext] = useState(false)
   const [showThreads, setShowThreads] = useState(false)
+  // The conversation you are in, independent of the document you are looking at.
+  const [activeThreadId, setActiveThreadId] = useState<string>(DEFAULT_THREAD)
   const abortRef = useRef<AbortController | null>(null)
   const agentAbortRef = useRef<{ abort: () => void } | null>(null)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
@@ -190,8 +230,21 @@ export default function AssistantPanel(): React.ReactElement {
   const threadsRef = useRef<ChatThreads>({})
   const writeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const key = threadKey(selectedId)
+  const key = activeThreadId
   const messages = threads[key] ?? []
+
+  // Restore the last thread when a project opens, so reopening the app puts you
+  // back in the conversation you were having rather than a blank one.
+  useEffect(() => {
+    if (!project) return
+    const saved = window.api.prefs.get(threadPrefKey(project.id))
+    setActiveThreadId(saved || DEFAULT_THREAD)
+  }, [project?.id])
+
+  const switchThread = (id: string) => {
+    setActiveThreadId(id)
+    if (project) window.api.prefs.set(threadPrefKey(project.id), id)
+  }
 
   // Every saved chat thread, so switching documents never hides past chats:
   // opening one navigates to its document (or the project-wide thread).
@@ -200,16 +253,25 @@ export default function AssistantPanel(): React.ReactElement {
       .filter(([, msgs]) => msgs.length > 0)
       .map(([k, msgs]) => ({
         key: k,
-        label: k === '__project__' ? 'Project-wide' : (project?.nodes[k]?.title ?? 'Deleted document'),
+        label: threadLabel(k, msgs, project),
         count: msgs.length,
         preview: stripMemories(msgs[msgs.length - 1]?.content ?? '').replace(/\s+/g, ' ').slice(0, 72),
       }))
       .sort((a, b) => (a.key === key ? -1 : b.key === key ? 1 : a.label.localeCompare(b.label)))
   }, [threads, project, key])
 
+  // Switches the conversation only. It deliberately does NOT move the editor:
+  // wanting to re-read what you discussed yesterday is not wanting to be
+  // navigated somewhere.
   function openThread(k: string) {
-    selectNode(k === '__project__' ? null : k)
+    switchThread(k)
     setShowThreads(false)
+  }
+
+  function newThread() {
+    switchThread(uid('chat'))
+    setShowThreads(false)
+    setTimeout(() => inputRef.current?.focus(), 0)
   }
 
   const node = selectedId && project ? project.nodes[selectedId] : null
@@ -348,7 +410,9 @@ export default function AssistantPanel(): React.ReactElement {
     if (!text || streaming || !project) return
 
     const threadId = key
-    const userMsg: Message = { role: 'user', content: text }
+    // Stamp which document was in context: a thread spans files now, so
+    // "tighten this" needs to say what "this" was.
+    const userMsg: Message = { role: 'user', content: text, docTitle: hasContext ? contextLabel : undefined }
     const newMessages = [...messages, userMsg]
 
     setThreads((prev) => ({ ...prev, [threadId]: [...newMessages, { role: 'assistant', content: '' }] }))
@@ -547,14 +611,19 @@ export default function AssistantPanel(): React.ReactElement {
     <div className="assistant">
       <div className="asst-hd">
         <span className="asst-mark"><Icon name="sparkle" /></span>
-        <span className="asst-title">
+        <span className="asst-title" title={threadLabel(key, messages, project)}>
           Assistant
-          {contextLabel && (
-            <span className="muted" style={{ fontWeight: 400, marginLeft: 8, fontSize: 12 }}>
-              {hasContext ? `· ${contextLabel}` : '· no document context'}
-            </span>
-          )}
+          <span className="asst-thread-name">{threadLabel(key, messages, project)}</span>
         </span>
+        <div className="asst-hd-tools">
+        <button
+          className="linkish sm"
+          onClick={newThread}
+          title="Start a new conversation"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+        >
+          <Icon name="plus" size={12} /> New
+        </button>
         {threadEntries.length > 0 && (
           <button
             className={`linkish sm${showThreads ? ' on' : ''}`}
@@ -577,10 +646,14 @@ export default function AssistantPanel(): React.ReactElement {
         {messages.length > 0 && (
           <button className="btn sm" onClick={() => setConfirmClear(true)}>Clear</button>
         )}
+        </div>
       </div>
 
       {showThreads && (
         <div style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--bg)', maxHeight: 260, overflowY: 'auto' }}>
+          <div className="hint" style={{ padding: '6px 14px 2px' }}>
+            Switching a conversation doesn't move the editor.
+          </div>
           {threadEntries.map((t) => (
             <button key={t.key} className={`asst-thread${t.key === key ? ' on' : ''}`} onClick={() => openThread(t.key)}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -642,7 +715,7 @@ export default function AssistantPanel(): React.ReactElement {
       {confirmClear && (
         <ConfirmDialog
           title="Clear Chat"
-          message="This deletes the entire conversation thread for this document. This cannot be undone."
+          message="This deletes this conversation. Your other chats are untouched. This cannot be undone."
           confirmLabel="Clear Thread"
           onConfirm={clearChat}
           onCancel={() => setConfirmClear(false)}
@@ -675,15 +748,26 @@ export default function AssistantPanel(): React.ReactElement {
         {messages.length === 0 && (
           <div className="asst-empty">
             {hasContext
-              ? <>Ask anything about <em>{contextLabel}</em> — plot, characters, prose, craft.</>
-              : 'Select a document in the binder to give the AI context, or just ask a question.'}
+              ? <>Ask anything about <em>{contextLabel}</em> — plot, characters, prose, craft.
+                  Open another document and this same conversation follows you there.</>
+              : 'Ask anything. Open a document and it becomes context for this conversation automatically.'}
           </div>
         )}
         {messages.map((msg, i) => {
           const isLast = i === messages.length - 1
           const isStreamingThis = streaming && isLast && msg.role === 'assistant'
+          // Only when it changes: a marker on every message in a single-file
+          // stretch is noise, but the moment the subject moves you need to see it.
+          const prevDoc = messages.slice(0, i).reverse().find((m) => m.role === 'user')?.docTitle
+          const showDoc = msg.role === 'user' && msg.docTitle && msg.docTitle !== prevDoc
           return (
-            <div key={i} className={`msg ${msg.role === 'user' ? 'user' : 'ai'}`}>
+            <React.Fragment key={i}>
+            {showDoc && (
+              <div className="asst-doc-mark">
+                <Icon name="document" size={11} /> {msg.docTitle}
+              </div>
+            )}
+            <div className={`msg ${msg.role === 'user' ? 'user' : 'ai'}`}>
               {msg.role === 'assistant' && <span className="msg-mark"><Icon name="sparkle" /></span>}
               <div className="msg-body">
                 {msg.isError ? (
@@ -733,6 +817,7 @@ export default function AssistantPanel(): React.ReactElement {
                 )}
               </div>
             </div>
+            </React.Fragment>
           )
         })}
         <div ref={messagesEndRef} />
