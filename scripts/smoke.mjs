@@ -324,6 +324,90 @@ if (newSnaps.length) {
     !bodies.includes('REVIEWED_REPLACEMENT'))
 }
 
+// ── deadline math ───────────────────────────────────────────────────────────
+section('Deadline · a date and a target become a daily number, honestly')
+
+// The failure this guards against isn't arithmetic, it's discouragement: pacing
+// from the project's creation would tell someone who sets a deadline mid-book
+// that they are tens of thousands of words behind on day one. A deadline stores
+// where the book stood when the promise was made, and resetting the date is a
+// new promise, not a carried-forward debt.
+
+const dayKeyOf = (offsetDays) => {
+  const d = new Date()
+  d.setDate(d.getDate() + offsetDays)
+  const p = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
+// Ten days into a twenty-day run, with almost nothing written: solidly behind.
+await page.evaluate(async ({ pid, startedOn, date }) => {
+  const root = await (await navigator.storage.getDirectory()).getDirectoryHandle('konbini-projects')
+  const bundle = await root.getDirectoryHandle(`${pid}.konbini`)
+  const manifest = JSON.parse(await (await (await bundle.getFileHandle('project.json')).getFile()).text())
+  manifest.settings.wordTarget = 50_000
+  manifest.settings.deadline = { date, startedOn, startWords: 0 }
+  const fh = await bundle.getFileHandle('project.json', { create: true })
+  const w = await fh.createWritable(); await w.write(JSON.stringify(manifest)); await w.close()
+}, { pid: PID, startedOn: dayKeyOf(-10), date: dayKeyOf(10) })
+await page.reload()
+await page.locator('.recent-row').first().click()
+await page.waitForSelector('.tree-row', { timeout: 30000 })
+await page.waitForTimeout(700)
+
+const sbText = await page.locator('.statusbar').innerText()
+check('the status bar shows the pace while you write', /\/day/.test(sbText), sbText.replace(/\n/g, ' '))
+check('and says plainly that you are behind', /behind/.test(sbText), sbText.replace(/\n/g, ' '))
+
+await page.keyboard.press('Control+k')
+await page.waitForTimeout(300)
+await page.keyboard.type('Writing Stats', { delay: 20 })
+await page.waitForTimeout(400)
+await page.keyboard.press('Enter')
+await page.waitForSelector('.stats-pace', { timeout: 10000 }).catch(() => {})
+check('Stats shows the pace panel', await page.locator('.stats-pace').count() === 1)
+check('being behind is visible, not just stated',
+  (await page.locator('.stats-pace').getAttribute('class') ?? '').includes('behind'))
+const paceText = await page.locator('.stats-pace').innerText()
+check('it reports the days left and the words remaining',
+  /writing days? left/.test(paceText) && /to go/.test(paceText), paceText.replace(/\n/g, ' '))
+
+// Moving the date is a new promise. Re-anchoring is what keeps a deadline from
+// carrying a debt the author has just decided to renegotiate.
+await page.locator('input[aria-label="Deadline date"]').fill(dayKeyOf(30))
+await page.waitForTimeout(800)
+check('moving the deadline re-anchors instead of carrying the shortfall forward',
+  !/behind/.test(await page.locator('.stats-pace').innerText()),
+  await page.locator('.stats-pace').innerText())
+
+const dlManifest = JSON.parse(await readBundle(page, 'project.json'))
+check('the new promise is persisted with its own baseline',
+  dlManifest.settings?.deadline?.date === dayKeyOf(30)
+  && dlManifest.settings?.deadline?.startedOn === dayKeyOf(0), dlManifest.settings?.deadline)
+
+// Writing days, not calendar days — the number that matters is sessions.
+const perDayBefore = (await page.locator('.stats-pace-hd b').innerText()).match(/[\d,]+/)?.[0]
+for (const i of [1, 2, 3, 4, 5]) await page.locator('.stats-pace-days .chip').nth(i).click()
+await page.waitForTimeout(700)
+const perDayAfter = (await page.locator('.stats-pace-hd b').innerText()).match(/[\d,]+/)?.[0]
+check('dropping to weekends raises the daily number',
+  !!perDayAfter && !!perDayBefore
+  && Number(perDayAfter.replace(/,/g, '')) > Number(perDayBefore.replace(/,/g, '')),
+  { perDayBefore, perDayAfter })
+
+await page.locator('.tab-x').last().click()
+await page.waitForTimeout(300)
+// Leave the fixture without a deadline so later sections read a clean status bar.
+await page.evaluate(async ({ pid }) => {
+  const root = await (await navigator.storage.getDirectory()).getDirectoryHandle('konbini-projects')
+  const bundle = await root.getDirectoryHandle(`${pid}.konbini`)
+  const manifest = JSON.parse(await (await (await bundle.getFileHandle('project.json')).getFile()).text())
+  delete manifest.settings.deadline
+  delete manifest.settings.wordTarget
+  const fh = await bundle.getFileHandle('project.json', { create: true })
+  const w = await fh.createWritable(); await w.write(JSON.stringify(manifest)); await w.close()
+}, { pid: PID })
+
 // ── rename everywhere ───────────────────────────────────────────────────────
 section('Rename · a character rename leaves nothing pointing at the old name')
 

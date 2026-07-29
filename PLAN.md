@@ -579,9 +579,20 @@ it pairs directly with the anti-slop dashboard. (⌘⇧L, not ⌘⇧U — on Lin
 Ctrl+Shift+U is IBus's Unicode-input chord and eats the keypress before the app
 ever sees it.)
 
-### 6.5 Deadline math 🔲
-`wordTarget`, streaks and session counts already exist; there's no "finish by
-Nov 1 → 1,840 words/day, you're 3 days behind". Arithmetic and a progress bar.
+### 6.5 Deadline math ✅
+`lib/deadline.ts` turns a date and a word target into a daily number and an
+honest answer to "am I behind?". The arithmetic is trivial; the part that
+mattered was the baseline. Pacing from the project's creation date would tell
+someone who sets a deadline mid-book that they were 40,000 words behind on the
+day they made the promise — so a deadline stores `startWords`, and progress is
+measured from there. Moving the date re-anchors, because that is a new promise,
+not a debt to carry forward.
+
+It paces **writing days**, not calendar days: a weekends-only author has six
+sessions before a deadline three weeks out, not twenty-one, and the daily number
+has to say so. The pace lives in the status bar (where you are while writing)
+and in Stats, where a track shows written-so-far against a marker for where a
+steady pace would have put you — the gap is the whole message.
 
 ### 6.6 Character rename completion ✅
 Find & replace rewrote `[[Mira]]` in prose and stopped, which left the rest of
@@ -607,9 +618,20 @@ rename would otherwise leave the binder filtering on a name the book no longer
 contains. Reachable from the palette and from a codex entry, where an author
 actually is when they change their mind about a name.
 
-### 6.7 Footnotes / endnotes 🔲
-Narrower, and currently *lossy*: `rtf.ts` discards Scrivener footnotes on import.
-The DOCX/EPUB builders could carry them.
+### 6.7 Footnotes / endnotes ✅
+This was the only place in the app that *lost* work: `rtf.ts` listed `footnote`
+as a skip-destination, so importing a researched Scrivener manuscript silently
+discarded every note in it.
+
+`shared/footnotes.ts` is the one parser — ordinary Markdown syntax (`[^1]` in the
+prose, `[^1]: the note` at the foot), because a `.konbini` bundle is plain
+Markdown a writer can open anywhere, and a footnote has to survive being read by
+something that has never heard of Konbini. The importer now writes that syntax;
+DOCX emits real Word footnotes via `FootnoteReferenceRun` (numbered across the
+whole document, not per chapter); EPUB emits `epub:type="noteref"` /
+`"footnote"`, so a reader can pop the note up instead of jumping to the end and
+finding its way back. Markdown export needed nothing — the notes already *are*
+Markdown.
 
 ---
 

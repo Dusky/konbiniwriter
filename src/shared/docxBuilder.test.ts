@@ -37,3 +37,36 @@ describe('buildDocx', () => {
     expect(header).toContain('PAGE')          // page-number field
   })
 })
+
+describe('footnotes', () => {
+  const noted = [
+    { title: 'One', markdown: 'She paid the toll.[^1] She crossed.\n\n[^1]: Two coins, always.' },
+    { title: 'Two', markdown: 'A later note.[^a]\n\n[^a]: Filed second.' },
+  ]
+
+  it('writes real Word footnotes, not literal [^1] in the prose', async () => {
+    const bytes = await buildDocx({ title: 'B', style: 'manuscript', chapters: noted })
+    const { doc, zip } = await docXml(bytes)
+    expect(doc).toContain('footnoteReference')
+    expect(doc).not.toContain('[^1]')
+    const fn = await zip.file('word/footnotes.xml')?.async('string')
+    expect(fn).toContain('Two coins, always.')
+  })
+
+  it('never prints the definition line as body text', async () => {
+    const { doc } = await docXml(await buildDocx({ title: 'B', style: 'manuscript', chapters: noted }))
+    expect(doc).not.toContain('Two coins, always.')
+  })
+
+  it('numbers across the whole document, not per chapter', async () => {
+    const { zip } = await docXml(await buildDocx({ title: 'B', style: 'manuscript', chapters: noted }))
+    const fn = await zip.file('word/footnotes.xml')?.async('string') ?? ''
+    // Chapter two's note is the document's second, even though its label is 'a'.
+    expect(fn.indexOf('Two coins')).toBeLessThan(fn.indexOf('Filed second'))
+  })
+
+  it('leaves a document without notes exactly as it was', async () => {
+    const { doc } = await docXml(await buildDocx({ title: 'B', style: 'manuscript', chapters }))
+    expect(doc).not.toContain('footnoteReference')
+  })
+})

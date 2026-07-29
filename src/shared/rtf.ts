@@ -12,7 +12,9 @@ const SKIP_DESTINATIONS = new Set([
   'fonttbl', 'colortbl', 'stylesheet', 'info', 'pict', 'object', 'themedata',
   'colorschememapping', 'latentstyles', 'datastore', 'generator', 'listtable',
   'listoverridetable', 'rsidtbl', 'xmlnstbl', 'filetbl', 'revtbl', 'upr',
-  'header', 'footer', 'footnote', 'annotation', 'bkmkstart', 'bkmkend',
+  'header', 'footer', 'annotation', 'bkmkstart', 'bkmkend',
+  // The auto-number separators, not the notes themselves — see below.
+  'chftnsep', 'chftnsepc',
 ])
 
 interface Ctx { skip: boolean; bold: boolean; italic: boolean }
@@ -32,6 +34,18 @@ export function rtfToText(rtf: string): string {
   const stack: Ctx[] = []
   let ctx: Ctx = { skip: false, bold: false, italic: false }
 
+  // Footnotes. RTF puts the note's text in a `{\footnote …}` group that sits
+  // immediately after the reference mark in the prose, so text emitted while
+  // inside that group is diverted into `note` and the body gets a Markdown
+  // `[^n]` reference in its place. Discarding the group — which is what this
+  // did before — silently threw away the author's annotations on import.
+  const notes: string[] = []
+  let note = ''
+  let noteDepth = 0
+  const inNote = () => noteDepth > 0
+  const buf = (): string => (inNote() ? note : out)
+  const setBuf = (v: string) => { if (inNote()) note = v; else out = v }
+
   // Track where each open delimiter *ends* in `out`. If the run turns out to be
   // empty we rewind and drop the opener rather than emitting `****`. Cleaning up
   // afterwards with a regex is not an option: an empty `*…*` pair is textually
@@ -39,33 +53,33 @@ export function rtfToText(rtf: string): string {
   let boldOpenAt = -1
   let italicOpenAt = -1
 
-  const emit = (s: string) => { if (!ctx.skip) out += s }
+  const emit = (s: string) => { if (!ctx.skip) setBuf(buf() + s) }
   const closeEmphasis = () => {
     if (italicOpenAt >= 0) {
-      if (out.length === italicOpenAt) out = out.slice(0, italicOpenAt - 1)
-      else out += '*'
+      if (buf().length === italicOpenAt) setBuf(buf().slice(0, italicOpenAt - 1))
+      else setBuf(buf() + '*')
       italicOpenAt = -1
     }
     if (boldOpenAt >= 0) {
-      if (out.length === boldOpenAt) out = out.slice(0, boldOpenAt - 2)
-      else out += '**'
+      if (buf().length === boldOpenAt) setBuf(buf().slice(0, boldOpenAt - 2))
+      else setBuf(buf() + '**')
       boldOpenAt = -1
     }
   }
   const syncEmphasis = () => {
     if (ctx.skip) return
     if (!ctx.italic && italicOpenAt >= 0) {
-      if (out.length === italicOpenAt) out = out.slice(0, italicOpenAt - 1)
-      else out += '*'
+      if (buf().length === italicOpenAt) setBuf(buf().slice(0, italicOpenAt - 1))
+      else setBuf(buf() + '*')
       italicOpenAt = -1
     }
     if (!ctx.bold && boldOpenAt >= 0) {
-      if (out.length === boldOpenAt) out = out.slice(0, boldOpenAt - 2)
-      else out += '**'
+      if (buf().length === boldOpenAt) setBuf(buf().slice(0, boldOpenAt - 2))
+      else setBuf(buf() + '**')
       boldOpenAt = -1
     }
-    if (ctx.bold && boldOpenAt < 0) { out += '**'; boldOpenAt = out.length }
-    if (ctx.italic && italicOpenAt < 0) { out += '*'; italicOpenAt = out.length }
+    if (ctx.bold && boldOpenAt < 0) { setBuf(buf() + '**'); boldOpenAt = buf().length }
+    if (ctx.italic && italicOpenAt < 0) { setBuf(buf() + '*'); italicOpenAt = buf().length }
   }
 
   while (i < rtf.length) {
@@ -78,6 +92,12 @@ export function rtfToText(rtf: string): string {
     }
     if (ch === '}') {
       closeEmphasis()
+      // Closing the footnote group files the note and returns writing to prose.
+      if (inNote() && stack.length === noteDepth) {
+        notes.push(note.replace(/\s+/g, ' ').trim())
+        note = ''
+        noteDepth = 0
+      }
       ctx = stack.pop() ?? { skip: false, bold: false, italic: false }
       i++
       continue
@@ -105,6 +125,19 @@ export function rtfToText(rtf: string): string {
         continue
       }
       if (SKIP_DESTINATIONS.has(word)) { ctx.skip = true; continue }
+      if (word === 'footnote') {
+        // The reference goes where the mark was; the note text is diverted.
+        if (!inNote()) {
+          closeEmphasis()
+          out += `[^${notes.length + 1}]`
+          noteDepth = stack.length
+        }
+        continue
+      }
+      // `\chftn` is RTF's auto-number. It appears both at the reference site
+      // and again in front of the note's own text; we supply our own numbering
+      // in both places, so it emits nothing.
+      if (word === 'chftn') continue
       switch (word) {
         case 'par': case 'pard': closeEmphasis(); emit('\n\n'); break
         case 'line': closeEmphasis(); emit('\n'); break
@@ -131,8 +164,13 @@ export function rtfToText(rtf: string): string {
   }
   closeEmphasis()
 
-  return out
+  const body = out
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim()
+  if (notes.length === 0) return body
+  // Definitions at the foot of the document, in Markdown's own syntax, so the
+  // `.md` stays readable in any editor.
+  const defs = notes.map((t, n) => `[^${n + 1}]: ${t}`).join('\n')
+  return body ? `${body}\n\n${defs}` : defs
 }
