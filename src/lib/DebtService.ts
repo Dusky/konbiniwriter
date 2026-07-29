@@ -16,7 +16,7 @@ import { streamCompletion } from './AIClient'
 
 const REVISION_PROMPT_ID = 'builtin:revision:canon'
 const CONTINUITY_PROMPT_ID = 'builtin:evaluation:continuity'
-const VOICE_DRIFT_PROMPT_ID = 'builtin:evaluation:voice-drift'
+const VOICE_DRIFT_PROMPT_ID = 'builtin:evaluation:voice-audit'
 const VOICE_FIX_PROMPT_ID = 'builtin:revision:voice'
 
 // Proposal commands whose original/proposed span the WHOLE document, so a

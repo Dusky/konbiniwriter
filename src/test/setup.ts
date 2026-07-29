@@ -27,6 +27,20 @@ const api = {
   comments: { save: noop },
   settings: { save: noop },
   aux: { read: async () => null, write: noop, remove: noop },
+  // Structural mutations and document writes are optimistic in the store: it
+  // updates state, then fires these and only reacts on failure. Stubs that
+  // resolve are enough for a unit test, and let the store's own bookkeeping
+  // (undo stacks, save status) be asserted without a filesystem.
+  node: { mutate: async () => ({ rootIds: [], nodes: {}, docs: {} }) },
+  doc: { read: async () => '', write: noop },
+  snapshot: {
+    take: async (_pid: string, _nid: string, title = '') => ({
+      id: 'snap-test', title, takenAt: new Date().toISOString(), content: '', words: 0, kind: 'auto' as const,
+    }),
+    restore: async () => ({ content: '', snapshot: { id: '', title: '', takenAt: '', content: '', words: 0 } }),
+    list: async () => [],
+    delete: noop,
+  },
   shell: {
     platform: 'linux' as const,
     minimize() {},

@@ -949,8 +949,14 @@ Rewrite the chapter to address every editor note — sharpen the prose, add conc
     modifiedAt: ISO(),
   },
   {
-    id: 'builtin:evaluation:voice-drift',
-    name: 'Voice Drift Check',
+    // Distinct from `builtin:evaluation:voice-drift`, which scores a passage
+    // 1–10. This one *locates* the drifts and is what the debt inbox reads.
+    // They shared an id until 2026-07: `get()` returns the first match, so this
+    // template was unreachable and the inbox rendered the scorer's — with
+    // neither of its variables filled, sending an empty fingerprint and an
+    // empty scene, then parsing an array out of a `{score, note}` reply.
+    id: 'builtin:evaluation:voice-audit',
+    name: 'Voice Drift Audit',
     description: 'Flag where a scene drifts from the established voice fingerprint.',
     feature: 'evaluation',
     model: 'claude-opus-4-8',
@@ -1359,9 +1365,22 @@ export class PromptRegistry {
     this.overrides = new Map(stored.map((p) => [p.id, p]))
   }
 
+  /**
+   * Builtins with any user edit applied, followed by the user's own prompts.
+   *
+   * The second half is not optional: `duplicate()` writes a new prompt into the
+   * overrides, and listing only builtin ids meant the copy existed, persisted,
+   * and was never visible anywhere in the app. `AgentRegistry.all()` has always
+   * done it this way; this one had drifted.
+   */
   all(feature?: PromptFeature): PromptTemplate[] {
-    const base = DEFAULT_PROMPTS.filter((p) => !feature || p.feature === feature)
-    return base.map((p) => this.overrides.get(p.id) ?? p)
+    const builtinIds = new Set(DEFAULT_PROMPTS.map((p) => p.id))
+    const builtins = DEFAULT_PROMPTS
+      .filter((p) => !feature || p.feature === feature)
+      .map((p) => this.overrides.get(p.id) ?? p)
+    const mine = [...this.overrides.values()]
+      .filter((p) => !builtinIds.has(p.id) && (!feature || p.feature === feature))
+    return [...builtins, ...mine]
   }
 
   get(id: string): PromptTemplate | null {

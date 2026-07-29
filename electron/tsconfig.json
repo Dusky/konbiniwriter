@@ -20,5 +20,8 @@
     "../src/shared/utils.ts",
     "../src/shared/templates.ts"
   ],
-  "exclude": ["../node_modules", "../dist", "../electron-dist"]
+  // Tests are not part of the app: compiling them into electron-dist ships
+  // vitest into the packaged binary, and the CJS output then gets picked up as
+  // a second, broken copy of the suite.
+  "exclude": ["../node_modules", "../dist", "../electron-dist", "*.test.ts"]
 }

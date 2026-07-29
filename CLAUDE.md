@@ -215,10 +215,12 @@ compiled CJS output runs under the root `"type":"module"`. The
 
 ## Known debt (don't expand it)
 
-- **No unit coverage for `projectStore`, the three project services,
-  `HistoryService`, `MentionIndex` or `PromptRegistry`.** The invariant smoke
-  test covers the behaviour that matters most; these are still untested as
-  units.
+- **The two browser project services have no unit tests.** `NodeProjectService`
+  is tested against a real temp directory (`electron/NodeProjectService.test.ts`)
+  and states the contract all three share; `BrowserProjectService` and
+  `OPFSProjectService` are covered only by `scripts/smoke.mjs`, which drives OPFS
+  in a real browser. A change that breaks one backend and not the others shows
+  up as a disagreement between those two, which is weaker than testing each.
 - **~49 exported *types* are named only by their own module.** Left alone on
   purpose: most are the parameter or return type of an exported function
   (`DocxOptions`, `StreamCallbacks`, `ContextPacket`), and an exported function

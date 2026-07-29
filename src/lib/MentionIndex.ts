@@ -43,6 +43,10 @@ export function updateIndex(
   docId: ID,
   content: string,
 ): MentionIndex {
+  // Copying the outer Maps is not enough: the Sets inside them are shared with
+  // the index we were handed, so mutating one in place would rewrite history
+  // for whoever still holds the old index. Every Set this touches is replaced,
+  // not edited.
   const aliasToDocIds = new Map(index.aliasToDocIds)
   const docToAliases = new Map(index.docToAliases)
 
@@ -50,18 +54,19 @@ export function updateIndex(
   const prev = docToAliases.get(docId) ?? new Set<string>()
   for (const alias of prev) {
     const ids = aliasToDocIds.get(alias)
-    if (ids) {
-      ids.delete(docId)
-      if (ids.size === 0) aliasToDocIds.delete(alias)
-    }
+    if (!ids) continue
+    const next = new Set(ids)
+    next.delete(docId)
+    if (next.size === 0) aliasToDocIds.delete(alias)
+    else aliasToDocIds.set(alias, next)
   }
 
   // Add fresh entries
   const fresh = new Set(extractMentions(content))
   docToAliases.set(docId, fresh)
   for (const alias of fresh) {
-    if (!aliasToDocIds.has(alias)) aliasToDocIds.set(alias, new Set())
-    aliasToDocIds.get(alias)!.add(docId)
+    const ids = aliasToDocIds.get(alias)
+    aliasToDocIds.set(alias, ids ? new Set(ids).add(docId) : new Set([docId]))
   }
 
   return { aliasToDocIds, docToAliases }

@@ -622,6 +622,25 @@ rename would otherwise leave the binder filtering on a name the book no longer
 contains. Reachable from the palette and from a codex entry, where an author
 actually is when they change their mind about a name.
 
+### 6.9 Unit coverage for the untested layers ✅
+`projectStore`, `MentionIndex`, `PromptRegistry`, `HistoryService` and the
+project layer had never been tested as units. Writing those tests found four
+bugs that a green `tsc` and a green suite had been hiding:
+
+- **`builtin:evaluation:voice-drift` was two different prompts.** `get()` returns
+  the first match, so the debt inbox's voice audit was unreachable — it rendered
+  the *scorer's* template with the auditor's variables, sending an empty
+  fingerprint and an empty scene, then parsing an array out of a `{score, note}`
+  reply. The auditor now has its own id.
+- **`PromptRegistry.all()` never listed user prompts**, so "Duplicate" created a
+  prompt that persisted and was visible nowhere. `AgentRegistry` had always done
+  it correctly; this had drifted.
+- **`updateIndex` mutated the index it was given** — it copied the outer Maps but
+  shared the Sets inside them, so updating rewrote history for anything still
+  holding the previous index.
+- **The electron build compiled tests into `electron-dist`**, shipping vitest
+  into the packaged binary.
+
 ### 6.8 The last of the known debt ✅
 Three items that had sat in `CLAUDE.md` as "cosmetic":
 
