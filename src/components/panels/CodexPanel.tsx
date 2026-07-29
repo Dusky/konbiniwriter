@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react'
 import { useProjectStore } from '../../store/projectStore'
 import { useAIStore } from '../../store/aiStore'
+import { useShellStore } from '../../store/shellStore'
 import { backlinksFor } from '../../lib/MentionIndex'
 import { debtService } from '../../lib/DebtService'
 import { promptRegistry } from '../../lib/PromptRegistry'
@@ -406,6 +407,13 @@ export default function CodexPanel(): React.ReactElement {
 
               <div className="cdx-detail-foot">
                 {scanError && <span style={{ fontSize: 'var(--t-xs)', color: 'var(--danger)' }}>{scanError}</span>}
+                {/* Renaming a character starts here, not in find & replace:
+                    this is where the author is when they change their mind
+                    about a name, and replace alone would leave this very entry
+                    filed under the old one. */}
+                <button className="btn sm" onClick={() => useShellStore.getState().openRename(selected.name)}>
+                  Rename everywhere…
+                </button>
                 <span className="tb-spacer" />
                 <button className="btn sm" onClick={() => setConfirmDelete(selected.id)} style={{ color: 'var(--danger)' }}>
                   Delete entry

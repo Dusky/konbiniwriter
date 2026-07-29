@@ -1018,3 +1018,40 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 .adv-field textarea { resize: vertical; line-height: 1.6; }
 .adv-field textarea:focus, .adv-field select:focus { border-color: var(--accent); }
 .adv-start { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; }
+
+/* ── Rename everywhere ──────────────────────────────────────────────────────
+   The preview is the review, so the inventory has to be scannable: counts
+   first, detail on demand. */
+
+.rn-fields { display: flex; align-items: center; gap: var(--s2); }
+.rn-fields .srch-input { flex: 1; min-width: 0; }
+.rn-fields > svg { flex: none; color: var(--text-3); }
+.rn-opts { display: flex; align-items: center; gap: var(--s2); margin-top: var(--s3); flex-wrap: wrap; }
+.rn-opts-note { font-size: var(--t-xs); color: var(--text-3); flex: 1; min-width: 180px; line-height: 1.5; }
+.rn-summary { margin-top: var(--s3); padding: var(--s2) var(--s3); border-radius: var(--r-md);
+  background: var(--bg-3); font-size: var(--t-sm); color: var(--text-2); }
+.rn-summary b { color: var(--text); }
+.rn-none { color: var(--text-3); }
+
+.rn-groups { margin-top: var(--s2); display: flex; flex-direction: column; }
+.rn-group { border-bottom: 0.5px solid var(--border); }
+.rn-group:last-child { border-bottom: 0; }
+.rn-group-hd { display: flex; align-items: center; gap: 6px; width: 100%; padding: var(--s2) 2px;
+  border: 0; background: transparent; color: var(--text-2); font-size: var(--t-sm);
+  text-align: left; cursor: pointer; }
+.rn-group-hd:hover { color: var(--text); }
+.rn-group-title { flex: 1; }
+.rn-group-count { font-family: var(--mono); font-size: var(--t-xs); color: var(--text-3); }
+.rn-group-body { padding: 0 0 var(--s2) 20px; display: flex; flex-direction: column; gap: 2px;
+  max-height: 180px; overflow-y: auto; }
+.rn-item { display: flex; align-items: baseline; gap: var(--s2); font-size: var(--t-xs); color: var(--text-2); }
+.rn-item > span:first-child { flex: 1; min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.rn-item-n { font-family: var(--mono); color: var(--text-3); }
+.rn-item-to { color: var(--text-3); flex: none; max-width: 55%; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+
+.rn-review { display: flex; align-items: center; gap: var(--s2); margin-top: var(--s4);
+  font-size: var(--t-sm); cursor: pointer; }
+.rn-review input { accent-color: var(--accent); width: 15px; height: 15px; }
+.rn-note { margin-top: var(--s1); font-size: var(--t-xs); line-height: 1.5; color: var(--text-3); }

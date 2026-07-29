@@ -24,6 +24,7 @@ export type ModalId =
   | 'about'
   | 'search'
   | 'debt'
+  | 'rename'
   | null
 
 // ── Project ───────────────────────────────────────────────────────────────────

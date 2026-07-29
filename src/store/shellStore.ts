@@ -52,6 +52,12 @@ interface ShellState {
   historyRetentionDays: number   // 0 = keep forever
   accent: string
   modal: ModalId
+  /**
+   * Name the rename modal opens pre-filled with. Transient: set alongside the
+   * modal by whatever knew the name (a codex entry, a binder row), cleared
+   * when the modal closes so the next ⌘K rename starts blank.
+   */
+  renameSeed: string
   toasts: Toast[]
   recents: RecentEntry[]
   layout: { binder: boolean }
@@ -59,6 +65,8 @@ interface ShellState {
   // actions
   setScreen: (s: Screen) => void
   setModal: (m: ModalId) => void
+  /** Open the rename modal pre-filled with a name. */
+  openRename: (name: string) => void
   setRailPanel: (p: RailPanel) => void
   toggleRailPanel: (p: Exclude<RailPanel, null>) => void
   setTheme: (t: Theme) => void
@@ -156,13 +164,15 @@ export const useShellStore = create<ShellState>((set, get) => ({
   })(),
   accent: THEME0.accent,
   modal: null,
+  renameSeed: '',
   toasts: [],
   recents: [],
   layout: { binder: true },
   railPanel: 'inspector',
 
   setScreen: (screen) => set({ screen }),
-  setModal: (modal) => set({ modal }),
+  setModal: (modal) => set(modal === 'rename' ? { modal } : { modal, renameSeed: '' }),
+  openRename: (renameSeed) => set({ renameSeed, modal: 'rename' }),
   setRailPanel: (railPanel) => set({ railPanel }),
   toggleRailPanel: (p) => set((s) => ({ railPanel: s.railPanel === p ? null : p })),
   // Base toggle (dark/light) picks the default skin for that base.
