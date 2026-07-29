@@ -17,7 +17,7 @@ export interface NodeOpIO {
   removeDoc(nodeId: ID): Promise<void>
 }
 
-export function descendantIds(p: Project, id: ID): ID[] {
+function descendantIds(p: Project, id: ID): ID[] {
   const acc: ID[] = []
   const walk = (i: ID) => { for (const c of p.nodes[i]?.childIds ?? []) { acc.push(c); walk(c) } }
   walk(id)

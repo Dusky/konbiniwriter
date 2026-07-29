@@ -15,12 +15,12 @@ export interface VoiceResult {
   words?: number
 }
 
-export const VOICE_PROMPT_ID = 'builtin:evaluation:voice-drift'
+const VOICE_PROMPT_ID = 'builtin:evaluation:voice-drift'
 
 /** Analyse existing prose. */
-export const VOICE_FROM_SAMPLES_ID = 'builtin:foundation:voice'
+const VOICE_FROM_SAMPLES_ID = 'builtin:foundation:voice'
 /** Author a target voice from a description, before any prose exists. */
-export const VOICE_FROM_BRIEF_ID = 'builtin:foundation:voice-brief'
+const VOICE_FROM_BRIEF_ID = 'builtin:foundation:voice-brief'
 
 /** How much of a brief / reference passage is worth sending. */
 const BRIEF_LIMIT = 4000

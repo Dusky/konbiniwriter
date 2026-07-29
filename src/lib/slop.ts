@@ -9,7 +9,7 @@ export type SlopSeverity = 'low' | 'medium' | 'high'
 export interface SlopFlag { excerpt: string; reason: string; severity: SlopSeverity }
 export interface SlopResult { flags: SlopFlag[]; at?: string; words?: number }
 
-export const SLOP_PROMPT_ID = 'builtin:evaluation:slop'
+const SLOP_PROMPT_ID = 'builtin:evaluation:slop'
 
 /** Parse the slop scorer's raw output into flags. Tolerant of prose around the JSON. */
 export function parseSlopFlags(raw: string): SlopFlag[] {

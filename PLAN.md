@@ -1,7 +1,8 @@
 # Konbini — Build Plan
 
-> **Last updated:** 2026-06-07  
-> **Current phase:** 1a complete, 1b built (needs polish), 1c partial
+> **Last updated:** 2026-07-29  
+> **Current phase:** Phases 1–9 built. Remaining work is polish and the
+> untested-as-units gap in `CLAUDE.md`, not missing features.
 
 ---
 
@@ -29,7 +30,7 @@
 - [x] Close and reopen: work intact (bundle on disk)
 - [x] Composition mode (full-screen, Esc exits, chrome on hover)
 
-### Phase 1b — Full studio surfaces ✅ (built, needs polish)
+### Phase 1b — Full studio surfaces ✅
 
 - [x] Corkboard — editable synopsis index cards
 - [x] Outliner — read-only metadata table
@@ -37,17 +38,17 @@
 - [x] Snapshots — take / list / restore + line-diff preview
 - [x] Compile — subtree picker, Markdown + .docx export
 - [x] In-document find — CM6 search panel (Ctrl/Cmd+F)
-- [ ] Project-wide search — scan all docs by keyword (Phase 2 shares index infrastructure)
+- [x] Project-wide search — `SearchModal` (⌘⇧F), and project-wide *replace* through the proposal pipeline
 - [x] Focus mode: dims by paragraph block (contiguous non-blank lines around cursor)
 
-### Phase 1c — Project lifecycle + chrome 🔲
+### Phase 1c — Project lifecycle + chrome ✅
 
 - [x] Launch screen — brand panel, new/open/recents
 - [x] New Project modal — 4 templates, folder picker
 - [x] Open Project — FS handle picker
 - [x] Recent projects reopen directly: FSA `FileSystemDirectoryHandle`s are persisted in IndexedDB (`HandleStore`) keyed by project ID and resolved via `requestPermission({ mode: 'readwrite' })` on the recent-row click; falls back to the picker if the handle is gone/denied. OPFS + Electron reopen by location.
-- [ ] Preferences modal — theme, editor font (mono/serif/sans), editor size (14–22px), density (compact/balanced/roomy)
-- [ ] Full keyboard map wired: ⌘⌥N (new folder), ⌘⇧D (new doc), ⌘⇧N (new scene), ⌘D (duplicate)
+- [x] Preferences modal — theme, editor font, editor size, density; skins moved into their own Themes screen with a contrast-clamped derivation engine
+- [x] Full keyboard map wired: ⌘⌥N (new folder), ⌘⇧D (new doc), ⌘⇧N (new scene), ⌘D (duplicate — acts on the whole multi-selection)
 - [x] Right-click context menus across surfaces. `ContextMenu` lives in `components/common/`; shared `useNodeMenu` builder wired into Corkboard cards + Outliner rows (Open, New Doc/Scene, Duplicate, Snapshot, History, Trash); History + Snapshot version items get Restore/Compare/Delete menus. Editor menu wired via the single `runCowrite` seam (Cut/Copy/Paste, Select All, co-write commands when text is selected, Take Snapshot, Document History). Editor mode is `EDITOR_MENU_MODE` in `Editor.tsx` — currently `'selection'` (custom menu only with a selection, native spellcheck menu otherwise); flip to `'always'` for a custom menu on every right-click.
 - [x] Binder: new-node inline rename flow — single effect seeds the title and focuses+selects the input on the next frame, fixing the post-create focus races
 - [x] Status bar: show cursor position (line:col)
@@ -55,7 +56,10 @@
 
 ---
 
-## Phase 2 — Proposal Spine + Prompt/Agent Registry + Co-write 🔲
+## Phase 2 — Proposal Spine + Prompt/Agent Registry + Co-write ✅
+
+*(Design notes below are the original spec, kept for the reasoning. See the
+progress tracker for what actually shipped.)*
 
 Build in this order. Each unlocks the next.
 
@@ -251,7 +255,7 @@ Codex entities stored in `project.json` under a top-level `codex` key (uses the 
 
 ---
 
-## Phase 3 — Assisted Mode 🔲
+## Phase 3 — Assisted Mode ✅
 
 ### Batch generators
 
@@ -295,7 +299,7 @@ Run against any selection or document. All thresholds and rubrics are registry-e
 
 ---
 
-## Phase 4 — Autopilot 🔲
+## Phase 4 — Autopilot ✅
 
 ### AutopilotRunner
 
@@ -526,7 +530,7 @@ only has to move bytes and hand a bundle in.
 
 ---
 
-## Phase 6 — The obvious missing pieces 🔲
+## Phase 6 — The obvious missing pieces ✅
 
 Gaps a writer hits on day one that have nothing to do with AI or services.
 Ordered by how much each changes what the app *is*.
@@ -617,6 +621,31 @@ already used (`pov-mira` → `pov-sera`), because tags are slugs; a case-sensiti
 rename would otherwise leave the binder filtering on a name the book no longer
 contains. Reachable from the palette and from a codex entry, where an author
 actually is when they change their mind about a name.
+
+### 6.8 The last of the known debt ✅
+Three items that had sat in `CLAUDE.md` as "cosmetic":
+
+**Binder drag ignored the multi-selection.** Dragging three selected chapters
+moved only the row under the pointer. It now drags whatever `actionTargets`
+resolves — the same rule the context menu uses — and drops them contiguous and
+in order. The moves run one at a time with the insertion index re-read from live
+state between them: moving a node out of a position *before* the target shifts
+every index after it, so counting would scatter the group. A folder in the
+selection carries its own children, so descendants of another dragged node are
+filtered out rather than pulled loose.
+
+**A folder dropped into a split pane dead-ended** on a placeholder, which made
+the drop look broken rather than unsupported. Scrivenings now renders in either
+pane; clicking a scene header opens it in *that* pane rather than hijacking the
+global selection, which is the only thing that made it main-pane-only.
+
+**Exported values nothing imported** — 30 of them, now module-private. The ~49
+exported *types* left are deliberate: most are the parameter or return type of an
+exported function, and a function whose signature can't be named is worse than a
+wide surface.
+
+Also swept up: ⌘D (duplicate) was in the shortcuts list and the plan but was
+never wired to anything.
 
 ### 6.7 Footnotes / endnotes ✅
 This was the only place in the app that *lost* work: `rtf.ts` listed `footnote`
@@ -884,7 +913,7 @@ These are structural guarantees, not conventions. Violating any of them breaks a
 - AI settings (BYOK key + validation, multi-provider, global toggle) ✅
 - Co-write mode (Rewrite/Expand/Tighten/Describe/Brainstorm → proposal → review) ✅
 
-### Phase 3 — Assisted Mode 🔲 STARTED
+### Phase 3 — Assisted Mode ✅ COMPLETE
 - Batch generators (cast, beat sheet, chapter draft, evaluate prose) ✅
 - Slop scorer (CM6 wavy underlines, Proof button) ✅
 - Reader panel, AI Chat, Autopilot runner, Writing Stats, Timeline drag, split editor, typewriter scroll ✅
@@ -937,7 +966,7 @@ These are structural guarantees, not conventions. Violating any of them breaks a
   loop across canon / outline / voice.
 - **Phase 3 complete.**
 
-### Phase 4 — Autopilot 🔲 STARTED (gated runner)
+### Phase 4 — Autopilot ✅ COMPLETE (gated runner)
 - `AutopilotRunner` (`AutopilotModal`): sequential node processing through changeset review ✅
 - Gated runner ✅ — when a drafting prompt is selected, each generated draft runs through
   `runQualityGate` (score → auto-revise) **before** its proposal is queued; live phase/score

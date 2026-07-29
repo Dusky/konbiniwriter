@@ -10,6 +10,7 @@ const SHORTCUTS = [
       ['New Folder', 'mod+alt+n'],
       ['New Document', 'mod+shift+d'],
       ['New Scene', 'mod+shift+n'],
+      ['Duplicate Selection', 'mod+d'],
       ['History / Snapshots', 'mod+shift+s'],
       ['Compile', 'mod+shift+e'],
       ['Close Project', 'mod+w'],

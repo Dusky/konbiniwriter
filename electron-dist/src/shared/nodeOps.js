@@ -9,7 +9,6 @@
 //
 // Pure w.r.t. DOM and Node: imported by both the renderer and Electron main.
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.descendantIds = descendantIds;
 exports.outermost = outermost;
 exports.touchNode = touchNode;
 exports.migrateProject = migrateProject;

@@ -102,7 +102,7 @@ function contrast(a: string, b: string): number {
  * Resolve the anchor recipes to concrete colour strings using the browser engine.
  * Returns an ordered token→value map ready to set as inline vars.
  */
-export function deriveTokens(anchors: ThemeAnchors, base: ThemeBase): Record<string, string> {
+function deriveTokens(anchors: ThemeAnchors, base: ThemeBase): Record<string, string> {
   if (typeof document === 'undefined' || !document.body) return {}
   const el = document.createElement('div')
   el.style.cssText = 'position:absolute;left:-9999px;top:-9999px;visibility:hidden;'

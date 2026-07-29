@@ -14,12 +14,12 @@ import { useAIStore } from '../store/aiStore'
 const CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e'
 const AUTHORIZE_URL = 'https://claude.ai/oauth/authorize'
 /** Anthropic shows the authorization code on this page for the user to copy. */
-export const REDIRECT_URI = 'https://console.anthropic.com/oauth/code/callback'
+const REDIRECT_URI = 'https://console.anthropic.com/oauth/code/callback'
 const SCOPES = 'org:create_api_key user:profile user:inference'
 
 /** System prefix Anthropic requires on every request made with a subscription token. */
 export const CLAUDE_CODE_SYSTEM = "You are Claude Code, Anthropic's official CLI for Claude."
-export const OAUTH_BETA = 'oauth-2025-04-20'
+const OAUTH_BETA = 'oauth-2025-04-20'
 
 function base64url(bytes: Uint8Array): string {
   let s = ''

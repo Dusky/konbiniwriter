@@ -4,7 +4,7 @@ import type { ID } from '@shared/types'
 // Returns normalized alias strings (lowercased, trimmed).
 const WIKILINK_RE = /\[\[([^\]|#\n]+?)(?:[|#][^\]]*?)?\]\]/g
 
-export function extractMentions(content: string): string[] {
+function extractMentions(content: string): string[] {
   const aliases: string[] = []
   let m: RegExpExecArray | null
   WIKILINK_RE.lastIndex = 0

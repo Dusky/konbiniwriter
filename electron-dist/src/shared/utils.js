@@ -3,7 +3,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LABEL_ORDER = exports.LABEL_META = exports.STATUS_ORDER = exports.STATUS_META = void 0;
 exports.uid = uid;
-exports.stripMd = stripMd;
 exports.wordCount = wordCount;
 exports.charCount = charCount;
 exports.isValidAuxName = isValidAuxName;

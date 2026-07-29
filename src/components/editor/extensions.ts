@@ -9,7 +9,7 @@ import { tags } from '@lezer/highlight'
 import { livePreview } from './livePreview'
 
 // ── Markdown highlight style — maps lezer tags → CSS classes ─────────────────
-export const markdownHighlight = HighlightStyle.define([
+const markdownHighlight = HighlightStyle.define([
   { tag: [tags.heading1],              class: 'cm-h1 cm-h' },
   { tag: [tags.heading2],              class: 'cm-h2 cm-h' },
   { tag: [tags.heading3],              class: 'cm-h3 cm-h' },
@@ -29,7 +29,7 @@ export const markdownHighlight = HighlightStyle.define([
 
 // ── Focus mode: dim all lines except current paragraph ───────────────────────
 export const focusModeEffect = StateEffect.define<boolean>()
-export const focusModeField = StateField.define<boolean>({
+const focusModeField = StateField.define<boolean>({
   create: () => false,
   update(val, tr) {
     for (const e of tr.effects) if (e.is(focusModeEffect)) return e.value
@@ -72,7 +72,7 @@ export interface SlopSpan { from: number; to: number; reason: string; severity: 
 
 export const setSlopSpansEffect = StateEffect.define<SlopSpan[]>()
 
-export const slopField = StateField.define<SlopSpan[]>({
+const slopField = StateField.define<SlopSpan[]>({
   create: () => [],
   update(spans, tr) {
     for (const e of tr.effects) if (e.is(setSlopSpansEffect)) return e.value
@@ -212,7 +212,7 @@ const nameSlipPlugin = ViewPlugin.fromClass(class {
 
 export const setSpokenRangeEffect = StateEffect.define<{ from: number; to: number } | null>()
 
-export const spokenField = StateField.define<{ from: number; to: number } | null>({
+const spokenField = StateField.define<{ from: number; to: number } | null>({
   create: () => null,
   update(range, tr) {
     for (const e of tr.effects) if (e.is(setSpokenRangeEffect)) return e.value

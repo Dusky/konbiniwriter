@@ -5,7 +5,7 @@ import { uid } from '@shared/utils'
 
 const ISO = () => new Date().toISOString()
 
-export const DEFAULT_PROMPTS: PromptTemplate[] = [
+const DEFAULT_PROMPTS: PromptTemplate[] = [
   {
     id: 'builtin:inline:rewrite',
     name: 'Rewrite Selection',
@@ -1327,7 +1327,7 @@ const readerAgent = (id: string, name: string, emoji: string, description: strin
   isBuiltin: true, createdAt: ISO(), modifiedAt: ISO(),
 })
 
-export const DEFAULT_AGENTS: AgentTemplate[] = [
+const DEFAULT_AGENTS: AgentTemplate[] = [
   readerAgent('builtin:agent:reader:adventurous', 'Adventurous', '🗺', 'Reads for excitement, pace, and surprise', 'builtin:reader:adventurous'),
   readerAgent('builtin:agent:reader:literary', 'Literary', '📚', 'Reads for prose, voice, and depth', 'builtin:reader:literary'),
   readerAgent('builtin:agent:reader:commercial', 'Commercial', '📈', 'Reads for marketability and audience appeal', 'builtin:reader:commercial'),

@@ -215,16 +215,19 @@ compiled CJS output runs under the root `"type":"module"`. The
 
 ## Known debt (don't expand it)
 
-- **23 exports are used only inside their own module** (`slopField`,
-  `NODE_MIME`, `DEFAULT_PROMPTS`, …). Cosmetic — it widens the public surface
-  for no reason. Prefer module-private for anything a second file doesn't need.
-- **Dropping a folder into a split pane dead-ends** on a placeholder;
-  Scrivenings is main-pane-only (`EditorPane.tsx`).
-- **Binder drag moves only the grabbed row**, ignoring a multi-selection.
 - **No unit coverage for `projectStore`, the three project services,
   `HistoryService`, `MentionIndex` or `PromptRegistry`.** The invariant smoke
   test covers the behaviour that matters most; these are still untested as
   units.
+- **~49 exported *types* are named only by their own module.** Left alone on
+  purpose: most are the parameter or return type of an exported function
+  (`DocxOptions`, `StreamCallbacks`, `ContextPacket`), and an exported function
+  whose signature can't be named is worse than a wide surface. The module-private
+  *values* that used to sit here are gone.
+
+(Resolved and not to be reintroduced: exported values nothing else imported;
+a folder dropped into a split pane dead-ending on a placeholder; binder drag
+moving only the grabbed row instead of the whole selection.)
 
 (The old entry here — "a few stores still use `localStorage` directly" — is
 resolved. aiStore, shellStore, StatsService, RecentsService and PromptRegistry

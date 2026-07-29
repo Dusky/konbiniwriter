@@ -9,7 +9,7 @@ import type { ID } from '@shared/types'
  * pane can accept a node drag without the binder ever thinking a move happened,
  * and so an arbitrary text drag from another app isn't mistaken for one.
  */
-export const NODE_MIME = 'application/x-konbini-node'
+const NODE_MIME = 'application/x-konbini-node'
 
 /** Mark a drag as carrying a node. Call from onDragStart. */
 export function setNodeDrag(dt: DataTransfer, id: ID): void {

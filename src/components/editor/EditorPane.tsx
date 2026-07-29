@@ -167,8 +167,9 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
   if (selectedNode.type === 'folder') {
     const hasScenes = descendants(project, selectedId).some((id) => project.nodes[id]?.type !== 'folder')
     // Scrivenings: edit all of a folder's scenes as one continuous document.
-    // (Main pane only in v1; split panes keep the placeholder.)
-    if (hasScenes && !splitOpen) {
+    // Available in split panes too — dropping a folder into one used to dead-end
+    // on a placeholder, which made the drop look broken rather than unsupported.
+    if (hasScenes) {
       return (
         <div className={paneCls} {...paneRole} style={{ display: 'flex', flexDirection: 'column' }} {...dropProps}>
           {tabs}
@@ -178,7 +179,7 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
           </div>
           <div className="editor-wrap" style={{ flex: 1, minHeight: 0 }}>
             <div className="editor-col">
-              <Scrivenings key={selectedId} folderId={selectedId} />
+              <Scrivenings key={selectedId} folderId={selectedId} onOpenScene={openHere} />
             </div>
           </div>
           <EditorBar nodeId={selectedId} scrivenings />
@@ -193,11 +194,9 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
           <div className="wm"><Icon name="folder" /></div>
           <div className="big">{selectedNode.title}</div>
           <p style={{ color: 'var(--text-3)', fontSize: 13 }}>
-            {!hasScenes ? 'This folder has no documents yet'
-              // Corkboard and Outliner live in the left pane while split, so
-              // telling the right pane to switch to them would be wrong.
-              : splitOpen ? 'Pick a document above, or drag one in'
-              : 'Switch to Corkboard or Outliner to see children'}
+            {/* The only way to reach this now is an empty folder: one with
+                scenes renders them as Scrivenings in either pane. */}
+            This folder has no documents yet
           </p>
         </div>
       </div>

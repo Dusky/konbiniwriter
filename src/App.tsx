@@ -44,6 +44,22 @@ export default function App(): React.ReactElement {
     }
   }, [project, applyMutation, selectNode, setRenamingId])
 
+  // ⌘D — duplicate the selection. Acts on the whole multi-selection, like every
+  // other node action, via `actionTargets`.
+  const duplicateSelection = useCallback(async () => {
+    const store = useProjectStore.getState()
+    const p = store.project
+    const selectedId = store.selectedId
+    if (!p || !selectedId) return
+    try {
+      for (const id of store.actionTargets(selectedId)) {
+        applyMutation(await window.api.node.mutate(p.id, { type: 'duplicate', id }))
+      }
+    } catch (e) {
+      useShellStore.getState().setToast('Could not duplicate: ' + (e as Error).message)
+    }
+  }, [applyMutation])
+
   useEffect(() => {
     document.documentElement.dataset.theme = theme
   }, [theme])
@@ -148,6 +164,7 @@ export default function App(): React.ReactElement {
       if (!shift && alt && e.key === 'n') { e.preventDefault(); createNode('folder') }
       if (shift && e.key === 'D') { e.preventDefault(); createNode('document') }
       if (shift && e.key === 'N') { e.preventDefault(); createNode('scene') }
+      if (!shift && !alt && e.key === 'd') { e.preventDefault(); void duplicateSelection() }
     }
 
     // Close project
@@ -158,7 +175,7 @@ export default function App(): React.ReactElement {
       setScreen('launch')
       window.api.project.recents().then(setRecents).catch(console.error)
     }
-  }, [theme, project, screen, setToast, createNode, undoMutation, redoMutation, toggleSplit])
+  }, [theme, project, screen, setToast, createNode, duplicateSelection, undoMutation, redoMutation, toggleSplit])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKey)

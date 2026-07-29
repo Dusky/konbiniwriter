@@ -17,7 +17,15 @@ import { setNodeDrag } from '../../lib/nodeDnd'
 type DropPos = 'before' | 'into' | 'after'
 
 interface DragState {
+  /** The row under the pointer — what the drag image and `.dragging` follow. */
   dragId: ID
+  /**
+   * Everything being moved, in binder order. Grabbing a row inside a
+   * multi-selection drags the whole selection: moving three chapters used to
+   * silently move only the one you happened to grab, which is the kind of thing
+   * you don't notice until the manuscript is out of order.
+   */
+  ids: ID[]
   overId: ID | null
   dropPos: DropPos | null
 }
@@ -318,7 +326,12 @@ export default function Binder(): React.ReactElement {
       // Carries a node id so an editor pane can accept the drop too; within
       // the binder this is still a reorder. See lib/nodeDnd.
       setNodeDrag(e.dataTransfer, id)
-      setDrag({ dragId: id, overId: null, dropPos: null })
+      // Grabbing a row outside the selection collapses to it first, the way a
+      // file manager does — `actionTargets` already encodes that rule.
+      const store = useProjectStore.getState()
+      if (!store.selectedIds.includes(id)) selectNode(id)
+      const ids = store.selectedIds.includes(id) ? store.actionTargets(id) : [id]
+      setDrag({ dragId: id, ids, overId: null, dropPos: null })
     },
     onDragOver: (id, e) => onDragOverRef.current(e, id),
     onDrop: (id, e) => { void onDropRef.current(e, id) },
@@ -346,8 +359,9 @@ export default function Binder(): React.ReactElement {
   const onDragOver = (e: React.DragEvent, id: ID) => {
     e.preventDefault()
     if (!drag) return
-    if (id === drag.dragId) return
-    if (isDescendant(project, drag.dragId, id)) return
+    // Never offer a drop onto anything being dragged, or inside it.
+    if (drag.ids.includes(id)) return
+    if (drag.ids.some((d) => isDescendant(project, d, id))) return
     // Measure eagerly, while the event is still live.
     const el = e.currentTarget as HTMLElement | null
     if (!el) return
@@ -357,10 +371,14 @@ export default function Binder(): React.ReactElement {
 
   const onDrop = async (e: React.DragEvent, targetId: ID) => {
     e.preventDefault()
-    if (!drag || drag.dragId === targetId) { setDrag(null); return }
-    const { dragId, dropPos } = drag
+    if (!drag || drag.ids.includes(targetId)) { setDrag(null); return }
+    const { dropPos } = drag
     const target = project.nodes[targetId]
-    if (!target || isDescendant(project, dragId, targetId)) { setDrag(null); return }
+    if (!target || drag.ids.some((d) => isDescendant(project, d, targetId))) { setDrag(null); return }
+
+    // A folder carries its own children, so moving both would pull a child out
+    // of the parent that is already taking it along.
+    const moving = drag.ids.filter((id) => !drag.ids.some((other) => other !== id && isDescendant(project, other, id)))
 
     let newParentId: ID | null
     let atIndex: number
@@ -376,7 +394,18 @@ export default function Binder(): React.ReactElement {
     }
 
     setDrag(null)
-    await mutate({ type: 'move', id: dragId, newParentId, atIndex })
+    // One move at a time, each landing after the last. The index is re-read
+    // from live state between moves rather than incremented: moving a node out
+    // of a position before the target shifts every index after it, so counting
+    // would scatter the group.
+    let index = atIndex
+    for (const id of moving) {
+      await mutate({ type: 'move', id, newParentId, atIndex: index })
+      const proj = useProjectStore.getState().project
+      const sibs = newParentId == null ? proj?.rootIds ?? [] : proj?.nodes[newParentId]?.childIds ?? []
+      const landed = sibs.indexOf(id)
+      index = landed === -1 ? index + 1 : landed + 1
+    }
   }
 
   // Refresh the late-bound refs every render so the stable handler object
@@ -433,7 +462,7 @@ export default function Binder(): React.ReactElement {
               current={selectedId === id}
               focused={focusEff === id}
               level={depth + 1}
-              dragging={drag?.dragId === id}
+              dragging={!!drag?.ids.includes(id)}
               isOver={isOver}
               dropPos={isOver ? drag?.dropPos ?? null : null}
               filtering={filtering}
