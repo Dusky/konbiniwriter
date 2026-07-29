@@ -324,6 +324,102 @@ if (newSnaps.length) {
     !bodies.includes('REVIEWED_REPLACEMENT'))
 }
 
+// ── rename everywhere ───────────────────────────────────────────────────────
+section('Rename · a character rename leaves nothing pointing at the old name')
+
+// Project-wide replace rewrites prose and stops, which leaves the binder, the
+// codex and — worst — comment anchors disagreeing with the manuscript. A
+// comment recovers itself by its quoted text, so renaming the prose without the
+// quote orphans the note. This drives the whole operation and reads the bytes.
+
+const RN_SCENE = 'sc0'
+await page.evaluate(async ({ pid }) => {
+  // Give the fixture the things a rename has to reach beyond prose.
+  const root = await (await navigator.storage.getDirectory()).getDirectoryHandle('konbini-projects')
+  const bundle = await root.getDirectoryHandle(`${pid}.konbini`)
+  const write = async (name, text) => {
+    const fh = await bundle.getFileHandle(name, { create: true })
+    const w = await fh.createWritable(); await w.write(text); await w.close()
+  }
+  const manifest = JSON.parse(await (await (await bundle.getFileHandle('project.json')).getFile()).text())
+  manifest.nodes.sc0.title = 'Mira at the River'
+  manifest.nodes.sc0.meta.synopsis = 'Mira waits for the tide.'
+  manifest.nodes.sc0.meta.keywords = ['pov-mira', 'river']
+  await write('project.json', JSON.stringify(manifest))
+  const docs = await bundle.getDirectoryHandle('docs')
+  const fh = await docs.getFileHandle('sc0.md', { create: true })
+  const w = await fh.createWritable()
+  await w.write('Mira counted the coins. [[Mira]] said nothing. The admiral watched.')
+  await w.close()
+  const now = new Date().toISOString()
+  await write('codex.json', JSON.stringify([{
+    id: 'e1', name: 'Mira', aliases: ['Mira Vance'], category: 'character',
+    summary: 'Mira runs the ferry.',
+    facts: [{ id: 'f1', label: 'role', value: 'Mira pilots it', aiGenerated: false, confirmedAt: null }],
+    createdAt: now, modifiedAt: now, aiGenerated: false,
+  }]))
+  await write('comments.json', JSON.stringify([{
+    id: 'c1', docId: 'sc0', anchor: { from: 0, to: 23, quote: 'Mira counted the coins.' },
+    body: 'Would Mira really count twice?', author: 'me', origin: 'author', createdAt: now, resolved: false,
+  }]))
+}, { pid: PID })
+await page.reload()
+await page.locator('.recent-row').first().click()
+await page.waitForSelector('.tree-row', { timeout: 30000 })
+await page.waitForTimeout(700)
+
+await page.keyboard.press('Control+k')
+await page.waitForTimeout(300)
+await page.keyboard.type('Rename Everywhere', { delay: 20 })
+await page.waitForTimeout(400)
+await page.keyboard.press('Enter')
+await page.waitForSelector('.rn-fields', { timeout: 10000 }).catch(() => {})
+check('rename is reachable from the command palette', await page.locator('.rn-fields').count() === 1)
+
+await page.locator('.rn-fields input').first().fill('Mira')
+await page.locator('.rn-fields input').last().fill('Sera')
+await page.waitForTimeout(600)
+
+const rnGroups = await page.locator('.rn-group-hd').allInnerTexts()
+const named = (label) => rnGroups.some((g) => g.startsWith(label))
+check('the preview inventories every place the name hides',
+  ['Documents', 'Binder titles', 'Synopses', 'Keywords', 'Codex', 'Comments'].every(named), rnGroups)
+
+const rnSnapsBefore = await listBundle(page, `snapshots/${RN_SCENE}`)
+await page.locator('.modal-foot .btn.primary').click()
+await page.waitForTimeout(2500)
+
+const rnProse = await readBundle(page, `docs/${RN_SCENE}.md`)
+check('prose is renamed, wikilink included',
+  !!rnProse && rnProse.includes('Sera counted') && rnProse.includes('[[Sera]]'), rnProse?.slice(0, 70))
+check('a name inside another word is left alone',
+  !!rnProse && rnProse.includes('admiral'), rnProse?.slice(0, 70))
+check('a snapshot was taken before the document was rewritten',
+  (await listBundle(page, `snapshots/${RN_SCENE}`)).length > rnSnapsBefore.length)
+
+const rnManifest = JSON.parse(await readBundle(page, 'project.json'))
+const rnNode = rnManifest.nodes[RN_SCENE]
+check('the binder title no longer says the old name — the gap replace left',
+  rnNode?.title === 'Sera at the River', rnNode?.title)
+check('the synopsis follows', rnNode?.meta?.synopsis === 'Sera waits for the tide.', rnNode?.meta?.synopsis)
+check('the binder keyword follows, in the case the tag was using',
+  (rnNode?.meta?.keywords ?? []).includes('pov-sera'), rnNode?.meta?.keywords)
+
+const rnCodex = JSON.parse(await readBundle(page, 'codex.json') ?? '[]')
+check('the codex entry, its aliases, summary and facts all follow',
+  rnCodex[0]?.name === 'Sera'
+  && rnCodex[0]?.aliases?.includes('Sera Vance')
+  && rnCodex[0]?.summary?.includes('Sera')
+  && rnCodex[0]?.facts?.[0]?.value?.includes('Sera'), rnCodex[0])
+
+const rnComments = JSON.parse(await readBundle(page, 'comments.json') ?? '[]')
+check('the comment\'s quoted anchor follows the prose, so the note is not orphaned',
+  rnComments[0]?.anchor?.quote === 'Sera counted the coins.', rnComments[0]?.anchor)
+check('and the note text follows too',
+  (rnComments[0]?.body ?? '').includes('Sera'), rnComments[0]?.body)
+check('nothing anywhere still says the old name',
+  !JSON.stringify([rnProse, rnManifest.nodes[RN_SCENE], rnCodex, rnComments]).includes('Mira'))
+
 // ── invariant 2, on a non-Anthropic provider ────────────────────────────────
 section('Invariant 2 · assistant tools work on an OpenAI-compatible provider')
 

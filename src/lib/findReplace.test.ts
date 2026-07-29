@@ -26,6 +26,15 @@ describe('makeMatcher', () => {
   it('treats the query literally (metacharacters are escaped)', () => {
     expect(countMatches('a.b axb', makeMatcher('a.b')!)).toBe(1)
   })
+  it('still matches a wholeWord query that ends in punctuation', () => {
+    // `\b` asserts a transition, so `\bM\.V\.\b` can never match: the char
+    // before the closing boundary is a '.', and a space after it is no
+    // transition at all. Anchoring only the word-character edges fixes it.
+    expect(countMatches('Call her M.V. today.', makeMatcher('M.V.', { wholeWord: true })!)).toBe(1)
+  })
+  it('anchors the edge that is a word character, even when the other is not', () => {
+    expect(countMatches("'Mira and Miranda", makeMatcher("'Mira", { wholeWord: true })!)).toBe(1)
+  })
 })
 
 describe('replaceWith', () => {

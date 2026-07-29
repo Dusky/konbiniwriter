@@ -583,10 +583,29 @@ ever sees it.)
 `wordTarget`, streaks and session counts already exist; there's no "finish by
 Nov 1 → 1,840 words/day, you're 3 days behind". Arithmetic and a progress bar.
 
-### 6.6 Character rename completion 🔲
-Find & replace rewrites `[[Mira]]` in prose but not the node's own title, so
-renaming a character leaves the binder stale. One reviewable, snapshot-protected
-operation that does both.
+### 6.6 Character rename completion ✅
+Find & replace rewrote `[[Mira]]` in prose and stopped, which left the rest of
+the project disagreeing with the manuscript: the scene still titled "Mira at the
+River", the codex entry still filed under Mira, the synopsis on the corkboard,
+the keyword the binder filters by — and, worst of the set, every comment, since
+a comment recovers its position by its *quoted text* (`shared/comments.ts`).
+Renaming the prose without the quote orphans the note rather than moving it.
+
+`lib/rename.ts` plans the whole thing first — pure, no store, no I/O — and
+`RenameModal` shows that inventory before anything happens. The preview *is* the
+review: forty scenes would otherwise be forty changeset modals, which nobody
+reads by the fourth. Every document is snapshotted before it is written, so
+History undoes any of it, and "review each document's prose in Changeset first"
+is a checkbox for authors who want the per-document diff anyway.
+
+Two details worth keeping: whole-word is applied **per edge**, because `\b`
+asserts a transition and `\bM\.V\.\b` can never match anything — that was a
+latent bug in the shared matcher, so project-wide replace inherited the fix.
+And keywords are matched case-insensitively and rewritten in the case the tag
+already used (`pov-mira` → `pov-sera`), because tags are slugs; a case-sensitive
+rename would otherwise leave the binder filtering on a name the book no longer
+contains. Reachable from the palette and from a codex entry, where an author
+actually is when they change their mind about a name.
 
 ### 6.7 Footnotes / endnotes 🔲
 Narrower, and currently *lossy*: `rtf.ts` discards Scrivener footnotes on import.

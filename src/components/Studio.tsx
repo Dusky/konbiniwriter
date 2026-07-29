@@ -20,6 +20,7 @@ import SearchModal from './modals/SearchModal'
 import ChangesetModal from './modals/ChangesetModal'
 import CommandPalette from './modals/CommandPalette'
 import DebtInboxModal from './modals/DebtInboxModal'
+import RenameModal from './modals/RenameModal'
 import { debtService } from '../lib/DebtService'
 import { syncService } from '../lib/SyncService'
 import { useExternalChanges } from '../lib/useExternalChanges'
@@ -28,6 +29,7 @@ export default function Studio(): React.ReactElement {
   const layout = useShellStore((s) => s.layout)
   const modal = useShellStore((s) => s.modal)
   const setModal = useShellStore((s) => s.setModal)
+  const renameSeed = useShellStore((s) => s.renameSeed)
   const railPanel = useShellStore((s) => s.railPanel)
   const setRailPanel = useShellStore((s) => s.setRailPanel)
   const aiEnabled = useAIStore((s) => s.enabled)
@@ -148,6 +150,7 @@ export default function Studio(): React.ReactElement {
       {modal === 'new-project' && <NewProjectModal  onClose={() => setModal(null)} />}
       {modal === 'search'          && <SearchModal         onClose={() => setModal(null)} />}
       {modal === 'debt'            && <DebtInboxModal       onClose={() => setModal(null)} />}
+      {modal === 'rename'          && <RenameModal         onClose={() => setModal(null)} initialName={renameSeed} />}
 
       {activeProposal && (
         <ChangesetModal
