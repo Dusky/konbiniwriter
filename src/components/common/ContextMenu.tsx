@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Icon, { type IconName } from './Icon'
 
 export interface MenuItem {
@@ -218,9 +219,15 @@ export default function ContextMenu({ x, y, items, onClose }: Props): React.Reac
     }
   }, [onClose])
 
-  return (
+  // Portalled to <body>. `.ctx` is `position: fixed` with a high z-index, but
+  // z-index only orders siblings *within a stacking context* — rendered inside
+  // the right rail, the menu sat below the rail's own resize handle, and the
+  // items under it silently could not be clicked. Escaping to the body root
+  // means a menu is never trapped by whatever panel opened it.
+  return createPortal(
     <div ref={wrapRef}>
       <MenuLevel items={items} onClose={onClose} anchor={{ x, y }} />
-    </div>
+    </div>,
+    document.body,
   )
 }
