@@ -278,7 +278,7 @@ export type DiffSegment =
 // ── PromptRegistry / AgentRegistry (Phase 2 — schemas defined now) ────────────
 
 export type PromptFeature =
-  | 'inline' | 'chat' | 'codex' | 'batch' | 'evaluation' | 'autopilot'
+  | 'inline' | 'chat' | 'codex' | 'batch' | 'evaluation' | 'autopilot' | 'adventure'
 
 export type AutopilotPhase = 'foundation' | 'draft' | 'eval' | 'revise'
 

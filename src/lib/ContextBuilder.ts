@@ -17,6 +17,7 @@ export type ContextFeature =
   | 'batch'       // batch generator (chapter, cast, etc.)
   | 'evaluation'  // slop scorer / judge / reader panel
   | 'autopilot'   // autopilot pipeline step
+  | 'adventure'   // beat-by-beat drafting
 
 export interface ContextTier {
   label: string
@@ -52,6 +53,10 @@ const BUDGETS: Record<ContextFeature, number> = {
   batch:      48_000,
   evaluation: 24_000,
   autopilot: 100_000,
+  // Deliberately below `chat`. Adventure calls fire on every beat — several
+  // hundred times across a novel — and it carries its own rolling summary, so
+  // paying for the whole manuscript on each one buys continuity it already has.
+  adventure:  32_000,
 }
 
 // Features whose calls benefit from seeing the full manuscript written so far
@@ -61,7 +66,7 @@ const MANUSCRIPT_FEATURES: ReadonlySet<ContextFeature> = new Set(['chat', 'batch
 
 // Features that get BM25-retrieved relevant passages. Structured evaluators
 // (evaluation, codex) stay scene-scoped and clean.
-const RETRIEVAL_FEATURES: ReadonlySet<ContextFeature> = new Set(['chat', 'batch', 'autopilot', 'inline'])
+const RETRIEVAL_FEATURES: ReadonlySet<ContextFeature> = new Set(['chat', 'batch', 'autopilot', 'inline', 'adventure'])
 
 function getNodePath(project: Project, nodeId: ID): string[] {
   const path: string[] = []

@@ -1113,6 +1113,209 @@ Rewrite the document so its prose conforms to the voice fingerprint, addressing 
     createdAt: ISO(),
     modifiedAt: ISO(),
   },
+
+  // ── Adventure mode ─────────────────────────────────────────────────────────
+  // Beat-by-beat drafting. The options prompt is the important one: it must
+  // return *directions*, not prose, or the author ends up choosing between
+  // drafts instead of choosing what happens.
+  {
+    id: 'builtin:adventure:opening',
+    name: 'Adventure · Opening Passage',
+    description: 'Turn a premise into the first passage of the manuscript.',
+    feature: 'adventure',
+    model: 'claude-opus-4-8',
+    temperature: 0.85,
+    maxTokens: 2000,
+    template: `You are a novelist beginning a manuscript.
+
+<premise>
+{{premise}}
+</premise>
+
+<context>
+{{context}}
+</context>
+
+Open the story. Drop the reader into a moment already in motion — a person doing
+something in a place, not a summary of the world. No prologue, no throat-clearing,
+no "in a world where".
+
+Length: {{length}}
+Style: {{style}}
+
+Return only the prose — no title, no headings, no commentary.`,
+    variables: [
+      { name: 'premise', description: 'What the author said the story is' },
+      { name: 'context', description: 'Voice fingerprint, codex, manuscript context' },
+      { name: 'length', description: 'Desired length phrasing' },
+      { name: 'style', description: 'Desired style phrasing' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:adventure:passage',
+    name: 'Adventure · Next Passage',
+    description: 'Render one chosen beat as prose, continuing the scene.',
+    feature: 'adventure',
+    model: 'claude-opus-4-8',
+    temperature: 0.8,
+    maxTokens: 2000,
+    template: `You are a novelist continuing a manuscript in its established voice and tense.
+
+<story_so_far>
+{{summary}}
+</story_so_far>
+
+<context>
+{{context}}
+</context>
+
+<preceding_text>
+{{preceding}}
+</preceding_text>
+
+Continue directly from the preceding text. Do not recap, do not restate what just
+happened, and do not resolve more than the beat asks for — leave the story
+somewhere the next choice matters.
+
+Beat to write: {{beat}}
+Length: {{length}}
+Style: {{style}}
+
+Return only the new prose — no headings, no commentary, no surrounding quotes.`,
+    variables: [
+      { name: 'summary', description: 'Rolling summary of the story so far' },
+      { name: 'context', description: 'Manuscript context (codex, voice, siblings)' },
+      { name: 'preceding', description: 'The tail of the current scene' },
+      { name: 'beat', description: 'The direction the author chose' },
+      { name: 'length', description: 'Desired length phrasing' },
+      { name: 'style', description: 'Desired style phrasing' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:adventure:options',
+    name: 'Adventure · Next Beats',
+    description: 'Offer the author a deck of story directions for what happens next.',
+    feature: 'adventure',
+    model: 'claude-sonnet-5',
+    temperature: 0.9,
+    maxTokens: 900,
+    template: `You are a story editor proposing what could happen next in a novel.
+
+<story_so_far>
+{{summary}}
+</story_so_far>
+
+<recent_prose>
+{{preceding}}
+</recent_prose>
+
+<beats_already_used>
+{{used}}
+</beats_already_used>
+
+Propose {{count}} genuinely different directions the story could take from here.
+
+Rules:
+- Each is a DIRECTION, not prose. Say what happens, not how it is written.
+- {{detail}}
+- Make them differ in kind, not degree — a revelation, a refusal, an arrival, a
+  choice that costs something. Do not offer four flavours of the same beat.
+- They must follow from what is actually on the page. No new characters or
+  places unless the prose has earned them.
+- Never repeat a beat already used.
+{{scene_break}}
+
+Return a JSON array and nothing else:
+[{ "text": "<the direction>", "endScene": false }]`,
+    variables: [
+      { name: 'summary', description: 'Rolling summary of the story so far' },
+      { name: 'preceding', description: 'The tail of the current scene' },
+      { name: 'used', description: 'Beats already chosen, so they are not repeated' },
+      { name: 'count', description: 'How many options to return' },
+      { name: 'detail', description: 'How terse or detailed each direction should be' },
+      { name: 'scene_break', description: 'Instruction about offering a scene-end option' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:adventure:notes',
+    name: 'Adventure · Take Notes',
+    description: 'Spot new characters, places, and facts a passage introduced, for the Codex.',
+    feature: 'adventure',
+    model: 'claude-haiku-4-5',
+    temperature: 0.2,
+    maxTokens: 1200,
+    template: `You are a story bible editor reading one new passage of a novel.
+
+<already_in_codex>
+{{existing}}
+</already_in_codex>
+
+<passage>
+{{passage}}
+</passage>
+
+Identify entities this passage introduces that are worth a reference entry, and
+that are NOT already listed above (skip exact and close matches).
+
+Only genuinely significant, named things — a character who acts, a place that
+matters, an object or idea the story turns on. Not background extras, not
+scenery, not a name mentioned once in passing. Returning [] is the correct
+answer more often than not.
+
+Return a JSON array and nothing else:
+[{ "name": "<name>", "category": "character|location|item|concept|lore", "aliases": [], "summary": "<1–2 sentences from what the passage reveals>", "facts": [{ "label": "<type>", "value": "<value>" }] }]`,
+    variables: [
+      { name: 'existing', description: 'Comma-separated names already in the codex' },
+      { name: 'passage', description: 'The passage just written' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:adventure:summary',
+    name: 'Adventure · Story So Far',
+    description: 'Fold a new passage into the rolling summary that keeps long sessions affordable.',
+    feature: 'adventure',
+    model: 'claude-haiku-4-5',
+    temperature: 0.3,
+    maxTokens: 900,
+    template: `You maintain a running summary of a novel in progress.
+
+<summary_so_far>
+{{summary}}
+</summary_so_far>
+
+<new_passage>
+{{passage}}
+</new_passage>
+
+Rewrite the summary so it includes the new passage. Keep it under {{limit}} words.
+
+Priorities when trimming: keep unresolved threads, promises made to the reader,
+and anything a later scene has to stay consistent with. Compress or drop settled
+business. Track who wants what and what stands in the way. Write plain declarative
+prose, present tense, no headings.
+
+Return only the summary.`,
+    variables: [
+      { name: 'summary', description: 'The current rolling summary' },
+      { name: 'passage', description: 'The passage just written' },
+      { name: 'limit', description: 'Word ceiling for the summary' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
 ]
 
 // Reader agents tie a persona prompt to a model/temperature. `model: ''` means

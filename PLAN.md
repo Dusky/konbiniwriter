@@ -684,7 +684,7 @@ is still gated by changeset review and snapshotted before it reaches disk.
 
 ---
 
-## Phase 9 — Adventure mode 🔲 PLANNED
+## Phase 9 — Adventure mode ✅
 
 Every AI feature here asks the author *"do you like this prose?"* None asks
 *"what happens next?"* — which is where authorial intent actually lives. The
@@ -775,6 +775,22 @@ finished scene's synopsis over from its beats, and moves the cursor there.
 Never two turns without a human choice — no auto-continue, no "run 10 beats".
 Snapshot before every append, always. Stream the passage first, then fire
 options, notes and summary together, so the author reads while they wait.
+
+### 9.6 What shipped
+`lib/adventure.ts` (runner + tolerant parsers, 31 unit tests), five registry
+prompts under a new `adventure` feature, a `ContextFeature` of the same name
+budgeted below `chat` because these calls fire hundreds of times per book and
+the rolling summary already carries continuity, and the `adventure` view tab
+(`views/AdventureView.tsx` + `ChoiceDeck` / `NotesInbox` / `AdventureSetup`).
+Sessions persist to `aux/adventure.json` and resume on reload.
+
+Nineteen smoke checks drive the whole loop in a real browser against a mocked
+endpoint, reading persisted bytes: the passage lands on disk, the pre-passage
+snapshot exists and holds the old text, the spine records the beat, the codex
+candidate waits in the inbox until clicked, and stepping back un-writes the
+manuscript *and* the outline together. Driving it also caught two defects the
+type checker could not: step-back left an orphan beat in the spine, and ending
+a scene by hand left the author facing an empty deck.
 
 ---
 

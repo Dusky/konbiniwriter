@@ -469,7 +469,133 @@ const chatText = await page.locator('.asst-chat').innerText().catch(() => '')
 check('the conversation names the tools that ran', /Read "Scene 3"/.test(chatText), chatText.slice(-200))
 
 await page.unroute('**/chat/completions')
+
+// ── adventure mode ──────────────────────────────────────────────────────────
+section('Adventure · drafting only ever appends, and every append is undoable')
+
+// Adventure writes into the real manuscript, so its safety story is different
+// from every other AI surface: no changeset gate (there is nothing to review —
+// the text is new), but a snapshot before every append and a step-back that
+// puts the manuscript *and* the outline back exactly as they were. That claim
+// is only worth anything measured against persisted bytes.
+
+const ADV_PASSAGE = 'ADVENTURE_PASSAGE He broke the seal with his thumb.'
+const advSeen = []
+await page.route('**/chat/completions', async (route) => {
+  const cors = {
+    'access-control-allow-origin': '*',
+    'access-control-allow-headers': '*',
+    'access-control-allow-methods': 'POST, OPTIONS',
+  }
+  if (route.request().method() === 'OPTIONS') { await route.fulfill({ status: 204, headers: cors }); return }
+  const body = JSON.parse(route.request().postData() ?? '{}')
+  const prompt = (body.messages ?? []).map((m) => m.content).join('\n')
+  const kind = /directions the story could take/.test(prompt) ? 'options'
+    : /Continue directly from the preceding text/.test(prompt) ? 'passage'
+    : /story bible editor/.test(prompt) ? 'notes'
+    : /running summary of a novel/.test(prompt) ? 'summary'
+    : 'other'
+  advSeen.push(kind)
+  const reply = {
+    options: '[{"text":"He opens the letter"},{"text":"He rows for the far bank"}]',
+    passage: ADV_PASSAGE,
+    notes: '[{"name":"Vass","category":"character","summary":"The ferryman.","facts":[{"label":"role","value":"ferryman"}]}]',
+    summary: 'A ferryman finds a letter addressed to himself.',
+    other: '',
+  }[kind]
+  await route.fulfill({
+    status: 200,
+    headers: { ...cors, 'content-type': 'text/event-stream' },
+    body: delta({ role: 'assistant', content: '' }) + delta({ content: reply }) + delta({}, { finish_reason: 'stop' }) + 'data: [DONE]\n\n',
+  })
+})
+
+await page.keyboard.press('Control+k')
+await page.waitForTimeout(300)
+await page.keyboard.type('Adventure', { delay: 20 })
+await page.waitForTimeout(400)
+await page.keyboard.press('Enter')
+await page.waitForSelector('.adv-setup', { timeout: 10000 }).catch(() => {})
+check('Adventure opens on a setup screen, not straight into generation',
+  await page.locator('.adv-setup').count() === 1)
+check('it offers to continue from prose that already exists',
+  await page.locator('.adv-setup-mode button').first().innerText().catch(() => '') === 'Continue from here')
+
+await page.locator('.adv-start').click()
+await page.waitForSelector('.adv-deck', { timeout: 20000 }).catch(() => {})
+await page.waitForTimeout(900)
+const cardValues = await page.locator('.adv-card-text').evaluateAll((els) => els.map((e) => e.value))
+check('picking up from a scene offers a deck of beats', cardValues.length === 2, cardValues)
+check('the beats are the model\'s directions, editable in place',
+  cardValues[0] === 'He opens the letter', cardValues)
+check('the author\'s own beat is offered alongside them',
+  await page.locator('.adv-own textarea').count() === 1)
+
+const advDoc = 'docs/sc2.md'
+const advBefore = await readBundle(page, advDoc)
+const advSnapsBefore = await listBundle(page, 'snapshots/sc2')
+
+await page.locator('.adv-card-num').first().click()
+await page.waitForTimeout(3500)
+
+const advAfter = await readBundle(page, advDoc)
+check('choosing a beat appends its prose to the scene on disk',
+  !!advAfter && advAfter.includes(ADV_PASSAGE), advAfter?.slice(-80))
+check('the append leaves what was already written untouched',
+  !!advAfter && !!advBefore && advAfter.startsWith(advBefore.trimEnd()), advAfter?.slice(0, 60))
+const advSnapsAfter = await listBundle(page, 'snapshots/sc2')
+const advNewSnaps = advSnapsAfter.filter((s2) => !advSnapsBefore.includes(s2))
+check('a snapshot was taken before the passage was written', advNewSnaps.length > 0, { advSnapsBefore, advSnapsAfter })
+if (advNewSnaps.length) {
+  const body = await readBundle(page, `snapshots/sc2/${advNewSnaps[0]}`)
+  check('the snapshot is the pre-passage text, so step back is exact',
+    !!body && !body.includes(ADV_PASSAGE), body?.slice(-60))
+}
+check('the deck, notes and summary all ran for one beat',
+  advSeen.filter((k) => k === 'passage').length === 1
+  && advSeen.includes('notes') && advSeen.includes('summary'), advSeen)
+
+// The outline is written as a side effect of drafting.
+const manifestAdv = JSON.parse(await readBundle(page, 'project.json'))
+const spine = Object.values(manifestAdv.nodes).find((n) => n.title === 'Story spine')
+check('the chosen beats are mirrored into a binder document', !!spine,
+  Object.values(manifestAdv.nodes).map((n) => n.title))
+if (spine) {
+  const spineBody = await readBundle(page, `docs/${spine.id}.md`)
+  check('the spine records the beat that was chosen',
+    !!spineBody && spineBody.includes('He opens the letter'), spineBody)
+}
+
+// Nothing is filed to the codex without the author.
+check('what the assistant noticed waits in an inbox',
+  /Vass/.test(await page.locator('.adv-notes').innerText().catch(() => '')))
+check('and is NOT in the codex until it is accepted',
+  !(await readBundle(page, 'codex.json') ?? '').includes('Vass'))
+await page.locator('.adv-note-act .btn.primary').first().click()
+await page.waitForTimeout(700)
+check('accepting it writes the entry to the codex sidecar',
+  (await readBundle(page, 'codex.json') ?? '').includes('Vass'))
+
+// Step back: the whole beat comes off, manuscript and outline together.
+await page.locator('.adv-strip button:has-text("Step back")').click()
+await page.waitForTimeout(1600)
+const advUndone = await readBundle(page, advDoc)
+check('stepping back removes the passage from disk',
+  !!advUndone && !advUndone.includes(ADV_PASSAGE), advUndone?.slice(-60))
+check('stepping back restores exactly what was there before', advUndone === advBefore)
+if (spine) {
+  const spineBody = await readBundle(page, `docs/${spine.id}.md`)
+  check('stepping back also un-writes the outline — no orphan beat',
+    !(spineBody ?? '').includes('He opens the letter'), spineBody)
+}
+
+await page.unroute('**/chat/completions')
+await page.locator('.tab-x').last().click()
+await page.waitForTimeout(400)
 await setAI(false)
+check('Adventure is not offered with AI switched off (invariant 1)',
+  !(await railTabs()).includes('Adventure')
+  && await page.locator('.adv-deck').count() === 0)
 
 // ── contrast floors ─────────────────────────────────────────────────────────
 section('Contrast · the muted text ramp clears WCAG AA in every theme')
