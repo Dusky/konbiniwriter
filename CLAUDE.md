@@ -112,6 +112,10 @@ src/
     BrowserProjectService.ts File System Access API backend (real disk, Chromium).
     OPFSProjectService.ts    Origin Private File System backend (Firefox/Safari).
     AIClient.ts              Multi-provider streaming (Anthropic + OpenAI-compatible).
+    agent.ts                 The chat assistant's tool-use loop. One provider-neutral
+                             loop, two wire adapters (Anthropic tool_use blocks /
+                             OpenAI-compatible tool_calls). Tools are never
+                             vendor-gated — add a provider by adding a `Wire`.
     ContextBuilder, MentionIndex, ProposalService, StatsService, etc.
   store/         Zustand 5 stores (projectStore, shellStore, aiStore).
   components/    React UI. Calls window.api.* and store actions only.

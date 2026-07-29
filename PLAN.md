@@ -653,6 +653,35 @@ is wired, so a tool can never be offered that the executor will refuse. Changes
 go out as a `Proposal` carrying `configRef` and are applied by Studio's single
 `onApply` — same diff, same accept/reject, no `.md` write and no snapshot.
 
+### 8.4 Tools on every provider ✅
+The tool loop shipped speaking only Anthropic's wire format, so "let the
+assistant use tools" was tickable but inert on every other provider — a
+capability gate that was really an implementation gap, and one that contradicted
+this app's own promise to privilege no vendor. `agent.ts` is now one
+provider-neutral loop plus two wire adapters: Anthropic's `tool_use` /
+`tool_result` blocks, and the OpenAI-compatible `tools` / `tool_calls` /
+`role:"tool"` format that OpenAI, Groq, Together, Fireworks, Mistral, DeepSeek,
+OpenRouter, vLLM, LM Studio and Ollama all serve. `ToolDef` needed no change —
+Anthropic's `input_schema` *is* OpenAI's `parameters`, both plain JSON Schema —
+and `executeTool` was already provider-neutral, so every tool works on both
+wires with one definition.
+
+The OpenAI parser is deliberately forgiving, because compat servers diverge from
+the spec here more than anywhere else: tool-call frames are keyed by `index`,
+then by `id`, then by array position; `arguments` are accepted as an object as
+well as a string; the legacy singular `function_call` is honoured; `message` is
+accepted where the spec says `delta`. The loop stops on "no tools requested"
+rather than on `finish_reason`, since several servers report `stop` while still
+emitting a complete call, and refuses to run a call whose arguments were cut off
+at the token ceiling. An endpoint that rejects `tools` or `stream_options`
+outright retires that field and retries, so a model without function calling
+still answers instead of erroring.
+
+Verified end to end in `scripts/smoke.mjs` against a mocked OpenAI-compatible
+endpoint that splits arguments across frames, drops `index`, and lies about
+`finish_reason` — the assistant reads a document, proposes an edit, and the edit
+is still gated by changeset review and snapshotted before it reaches disk.
+
 ---
 
 ## Electron packaging (any phase, when needed)

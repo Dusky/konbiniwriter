@@ -94,8 +94,9 @@ interface AIState {
   aiMemoryEnabled: boolean
   setAiMemoryEnabled: (on: boolean) => void
 
-  // When on (Claude only), the chat assistant can call tools to search, read,
-  // create, and propose edits across the whole project.
+  // When on, the chat assistant can call tools to search, read, create, and
+  // propose edits across the whole project. Provider-neutral: the tool loop
+  // speaks both Anthropic's and the OpenAI-compatible function-calling wire.
   aiToolsEnabled: boolean
   /**
    * Whether the assistant may propose changes to its own text settings.
