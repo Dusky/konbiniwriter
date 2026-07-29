@@ -11,6 +11,7 @@ const FEATURES: { id: PromptFeature | 'all'; label: string }[] = [
   { id: 'evaluation', label: 'Evaluation' },
   { id: 'batch', label: 'Batch' },
   { id: 'autopilot', label: 'Autopilot' },
+  { id: 'adventure', label: 'Adventure' },
 ]
 
 const AGENT_CATEGORIES: AgentCategory[] = ['reader', 'critic', 'judge', 'codex', 'autopilot']

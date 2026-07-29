@@ -684,6 +684,116 @@ is still gated by changeset review and snapshotted before it reaches disk.
 
 ---
 
+## Phase 9 — Adventure mode ✅
+
+Every AI feature here asks the author *"do you like this prose?"* None asks
+*"what happens next?"* — which is where authorial intent actually lives. The
+blank page stays blank, and Autopilot's answer (generate a chapter, then review
+it) puts the human decision at the wrong altitude.
+
+Adventure mode inverts that. The author describes the story — or points at a
+manuscript already in progress — and the assistant writes a passage, then offers
+a deck of **beats**: one-line story directions, not prose. The author edits one,
+picks one, or types their own; the next passage renders and appends. Co-writing
+at the beat level, with the human choosing the story and the model rendering the
+sentences.
+
+It is not a sandbox. It is project-wide, it drafts the actual book, and it lives
+in its own view tab. So it writes into the manuscript, resumes across sessions,
+and can start from work already written.
+
+The risk it has to answer is philosophy #5: this is the feature most capable of
+producing a lot of mediocre prose quickly. The mitigations are structural, not
+cosmetic — options are beats rather than prose, the author's own beat is always
+as easy to enter as a suggested one, every passage is snapshotted so a bad one
+costs one keystroke, and no two turns ever run without a human choice.
+
+**Defaults:** a paragraph (~120 words) per beat, customizable. Scene breaks are
+proposed by the model as an `— end scene here —` card and confirmed by the
+author, with an explicit "End scene" always available.
+
+### 9.1 The invariant line — append-only
+Adventure mode **only ever appends**; it never alters a word already in the
+document. That is the real principle behind invariant 2, and why the existing
+`create_document` tool already writes without a proposal: nothing is at risk.
+
+- Appending a passage → `snapshot.take(…, 'auto')` → `updateContent()` →
+  `doc.write()`. No changeset modal — a review gate every 120 words would destroy
+  the feature, and there is nothing to review against.
+- Anything that *replaces* prose — "revise this passage", "regenerate
+  differently" — goes through `createProposal` → `queueProposal` →
+  `ChangesetModal` → Studio's `onApply`, like every other AI edit.
+- Step back (`⌘Z`) restores the pre-passage snapshot and re-offers the deck.
+
+Worst case: one passage you didn't want, undone with one keystroke.
+
+### 9.2 The runner — `lib/adventure.ts`
+Session state (premise, target folder, active scene, spine doc, lengths, the
+beat ledger, the rolling summary, the current deck) persisted to
+`aux/adventure.json` on the chat-threads pattern. Losing it loses your place, not
+your book — the prose is in the manuscript and the ledger is materialised as a
+binder document.
+
+`streamPassage` / `generateOptions` / `takeNotes` / `updateSummary`, each a thin
+wrapper over `streamCompletion` + `buildContext` + `resolveVoice` — the same
+ingredients `streamBeat` already composes. `parseOptions` / `parseNotes` are
+pure, exported and unit-tested, tolerant in the style of `lib/parsers.ts`: never
+throw, never fabricate. The rolling summary is what keeps turn 300 affordable.
+
+Five registry templates (`builtin:adventure:{opening,passage,options,notes,
+summary}`, feature `generate`), and one new `ContextFeature` — `'adventure'` —
+whose budget is the scene tail verbatim + the summary + codex entries for
+recently-mentioned entities + the fingerprint.
+
+### 9.3 The tab — `views/AdventureView.tsx`
+Two doors in: *start from a premise*, or *continue from here* (pick an existing
+scene; the premise comes from the summary and codex). The second is what makes
+it a drafting tool for the real book rather than a story generator.
+
+The passage pane is **the real editor** — `<Editor docId={activeSceneId} />`,
+which takes only a `docId` and already syncs external content changes for
+snapshot restore. That one decision means the author can fix a clumsy sentence
+the moment they see it, there is no second text surface to keep in sync, and
+autosave, undo, live preview, slop underlines and comments all work untouched.
+Invariant 4 holds by construction.
+
+Below it the choice deck: editable one-line beats, an always-present "or write
+your own…" field with equal visual weight, regenerate, length control. Beside
+it, a notes inbox — new characters, places and facts the passage introduced, each
+one click to file into the Codex, never filed silently. `1`–`9` picks, `⌘Z` steps
+back, `Esc` aborts the stream. Passages stream into a ghost region and commit to
+`updateContent` once, so a full-document dispatch doesn't fire per token.
+
+### 9.4 The outline falls out for free
+The ordered ledger of chosen beats *is* an outline. Each accepted beat appends a
+line to a "Story spine" document in the target folder — append-only, near-zero
+cost, and a book drafted this way arrives with its spine already written.
+Accepting an `endScene` card creates the next scene document, carries the
+finished scene's synopsis over from its beats, and moves the cursor there.
+
+### 9.5 Held lines
+Never two turns without a human choice — no auto-continue, no "run 10 beats".
+Snapshot before every append, always. Stream the passage first, then fire
+options, notes and summary together, so the author reads while they wait.
+
+### 9.6 What shipped
+`lib/adventure.ts` (runner + tolerant parsers, 31 unit tests), five registry
+prompts under a new `adventure` feature, a `ContextFeature` of the same name
+budgeted below `chat` because these calls fire hundreds of times per book and
+the rolling summary already carries continuity, and the `adventure` view tab
+(`views/AdventureView.tsx` + `ChoiceDeck` / `NotesInbox` / `AdventureSetup`).
+Sessions persist to `aux/adventure.json` and resume on reload.
+
+Nineteen smoke checks drive the whole loop in a real browser against a mocked
+endpoint, reading persisted bytes: the passage lands on disk, the pre-passage
+snapshot exists and holds the old text, the spine records the beat, the codex
+candidate waits in the inbox until clicked, and stepping back un-writes the
+manuscript *and* the outline together. Driving it also caught two defects the
+type checker could not: step-back left an orphan beat in the spine, and ending
+a scene by hand left the author facing an empty deck.
+
+---
+
 ## Electron packaging (any phase, when needed)
 
 1. `src/preload/index.ts` — `contextBridge.exposeInMainWorld('api', { ... })` with the same `KonbiniAPI` interface

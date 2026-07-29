@@ -12,6 +12,7 @@ import BestOfModal from '../modals/BestOfModal'
 import AutopilotModal from '../modals/AutopilotModal'
 import QualityDashboard from './QualityDashboard'
 import SyncPanel from './SyncPanel'
+import AdventureView from './AdventureView'
 
 // Registry of app-view tabs: the tab's label + icon, and how to render the
 // surface embedded in the main pane. Each surface reuses its existing modal
@@ -35,4 +36,5 @@ export const VIEW_TABS: Record<ViewTabId, ViewTabDef> = {
   autopilot:        { label: 'Autopilot',   icon: 'rocket',     render: (c) => <AutopilotModal embedded onClose={c} /> },
   quality:          { label: 'Quality',     icon: 'gauge',      render: (c) => <QualityDashboard embedded onClose={c} /> },
   sync:             { label: 'Sync',        icon: 'refresh',    render: (c) => <SyncPanel embedded onClose={c} /> },
+  adventure:        { label: 'Adventure',   icon: 'clapperboard', render: (c) => <AdventureView embedded onClose={c} /> },
 }

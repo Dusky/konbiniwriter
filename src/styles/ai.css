@@ -895,3 +895,126 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
   border: 0.5px dashed var(--border-2); background: var(--bg);
   font-size: var(--t-xs); color: var(--text-3); }
 .asst-doc-mark:first-child { margin-top: 0; }
+
+/* ── Adventure ──────────────────────────────────────────────────────────────
+   Beat-by-beat drafting. The page is the real editor, so this file only styles
+   what surrounds it: the strip above, the deck below, the notes beside. */
+
+.adv-view { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.adv-view.running { overflow: hidden; }
+.adv-err { margin: var(--s2) var(--s4); }
+
+/* Where you are, and the controls that undo it. */
+.adv-strip { display: flex; align-items: center; gap: var(--s2); flex: none;
+  padding: var(--s2) var(--s3); border-bottom: 0.5px solid var(--border);
+  background: var(--bg-2); font-size: var(--t-sm); color: var(--text-2); }
+.adv-strip-sp { flex: 1; }
+.adv-where { display: inline-flex; align-items: center; gap: 6px; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adv-where b { color: var(--text); font-weight: 600; }
+.adv-count { color: var(--text-3); font-size: var(--t-xs); }
+.adv-summary { flex: none; max-height: 22vh; overflow-y: auto; padding: var(--s3) var(--s4);
+  border-bottom: 0.5px solid var(--border); background: var(--bg);
+  font-size: var(--t-sm); line-height: 1.65; color: var(--text-2); white-space: pre-wrap; }
+
+.adv-body { flex: 1; min-height: 0; display: flex; }
+.adv-page { flex: 1; min-width: 0; position: relative; display: flex; flex-direction: column; }
+.adv-page > :first-child { flex: 1; min-height: 0; }
+
+/* The passage as it streams, before it is committed to the document. Marked as
+   provisional on purpose — nothing here has been written yet. */
+.adv-ghost { position: absolute; left: 0; right: 0; bottom: 0; max-height: 45%; overflow-y: auto;
+  padding: var(--s3) var(--s5) var(--s4); border-top: 0.5px dashed var(--border-2);
+  background: color-mix(in oklch, var(--accent-soft) 55%, var(--editor-bg));
+  font-family: var(--editor-font); font-size: var(--t-md); line-height: 1.7;
+  color: var(--text-2); white-space: pre-wrap; }
+.adv-ghost-tag { display: block; margin-bottom: var(--s2); font-family: var(--mono);
+  font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+
+/* Notes inbox — candidates, never filed on their own. */
+.adv-notes { flex: 0 0 240px; display: flex; flex-direction: column; min-height: 0;
+  border-left: 0.5px solid var(--border); background: var(--bg-2); }
+.adv-notes-hd { display: flex; align-items: center; justify-content: space-between; gap: var(--s2);
+  padding: var(--s2) var(--s3); border-bottom: 0.5px solid var(--border);
+  font-size: var(--t-xs); letter-spacing: .04em; text-transform: uppercase; color: var(--text-3); }
+.adv-notes-hd > span { display: inline-flex; align-items: center; gap: 5px; }
+.adv-notes-empty { padding: var(--s3); font-size: var(--t-xs); line-height: 1.6; color: var(--text-3); }
+.adv-notes-list { flex: 1; overflow-y: auto; padding: var(--s2); display: flex;
+  flex-direction: column; gap: var(--s2); }
+.adv-note { padding: var(--s2) 10px; border: 0.5px solid var(--border); border-radius: var(--r-md);
+  background: var(--bg-3); }
+.adv-note-hd { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s2); }
+.adv-note-name { font-size: var(--t-sm); font-weight: 600; color: var(--text); }
+.adv-note-cat { font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--accent); border: 0.5px solid var(--accent); border-radius: var(--r-full);
+  padding: 1px 5px; flex: none; }
+.adv-note-sum { margin-top: 3px; font-size: var(--t-xs); line-height: 1.5; color: var(--text-2); }
+.adv-note-facts { margin-top: 5px; font-size: var(--t-xs); color: var(--text-3); }
+.adv-note-facts span { color: var(--dim); }
+.adv-note-act { display: flex; gap: var(--s1); margin-top: var(--s2); }
+.adv-note-act .btn { height: 24px; padding: 0 9px; font-size: var(--t-xs); }
+
+/* The deck. */
+.adv-deck { flex: none; border-top: 0.5px solid var(--border); background: var(--bg-2);
+  padding: var(--s3) var(--s4) var(--s4); }
+.adv-deck-hd { display: flex; align-items: center; gap: var(--s2); margin-bottom: var(--s3); }
+.adv-deck-title { font-size: var(--t-base); font-weight: 600; color: var(--text); flex: 1; }
+.adv-deck-tools { display: flex; align-items: center; gap: var(--s1); }
+.adv-scene-words { font-size: var(--t-xs); color: var(--text-3); margin-right: var(--s2); }
+.adv-scene-words .dimmed { color: var(--dim); }
+.adv-deck-tools .btn { height: 26px; padding: 0 9px; font-size: var(--t-xs); }
+.adv-deck-tools .btn.on { border-color: var(--accent); color: var(--accent); }
+
+.adv-opts { display: flex; flex-wrap: wrap; gap: var(--s3); margin-bottom: var(--s3);
+  padding: var(--s2) var(--s3); border: 0.5px solid var(--border); border-radius: var(--r-md);
+  background: var(--bg); }
+.adv-opts label { display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--t-xs); color: var(--text-3); }
+.adv-opts select { height: 26px; background: var(--bg-3); color: var(--text);
+  border: 0.5px solid var(--border-2); border-radius: var(--r-sm); font-size: var(--t-xs);
+  padding: 0 var(--s1); }
+
+.adv-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: var(--s2); margin-bottom: var(--s3); }
+.adv-empty-deck { grid-column: 1 / -1; font-size: var(--t-sm); color: var(--text-3); }
+.adv-card { display: flex; align-items: flex-start; gap: var(--s2); padding: var(--s2);
+  border: 0.5px solid var(--border-2); border-radius: var(--r-md); background: var(--bg-3);
+  transition: border-color var(--dur-1) var(--ease); }
+.adv-card:focus-within, .adv-card:hover { border-color: var(--accent); }
+.adv-card.end { border-style: dashed; background: var(--bg); }
+.adv-card-num { flex: none; width: 22px; height: 22px; display: grid; place-items: center;
+  border: 0.5px solid var(--border-2); border-radius: var(--r-sm); background: var(--bg-2);
+  color: var(--text-2); font-family: var(--mono); font-size: var(--t-xs); cursor: pointer; }
+.adv-card-num:hover { background: var(--accent); color: var(--accent-fg); border-color: transparent; }
+.adv-card-num:disabled { opacity: .4; cursor: default; }
+.adv-card-text { flex: 1; min-width: 0; resize: none; border: 0; background: transparent;
+  color: var(--text); font: inherit; font-size: var(--t-sm); line-height: 1.5; outline: none; }
+.adv-card-tag { flex: none; align-self: center; font-size: 9.5px; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-3); }
+
+/* The author's own beat — deliberately the same weight as a suggested one. */
+.adv-own { display: flex; align-items: stretch; gap: var(--s2); }
+.adv-own textarea { flex: 1; resize: none; padding: var(--s2) 10px; border-radius: var(--r-md);
+  border: 0.5px solid var(--border-2); background: var(--bg-3); color: var(--text);
+  font: inherit; font-size: var(--t-sm); line-height: 1.5; outline: none; }
+.adv-own textarea:focus { border-color: var(--accent); }
+.adv-own .btn { flex: none; align-self: stretch; height: auto; }
+
+/* Setup. */
+.adv-setup { max-width: 560px; margin: 0 auto; padding: var(--s6) var(--s4);
+  display: flex; flex-direction: column; gap: var(--s3); overflow-y: auto; }
+.adv-setup-hd h2 { margin: 0 0 var(--s2); font-size: var(--t-xl); font-weight: 600; }
+.adv-setup-hd p { margin: 0; font-size: var(--t-sm); line-height: 1.65; color: var(--text-2); }
+.adv-setup-mode { align-self: flex-start; }
+.adv-setup-body { display: flex; flex-direction: column; gap: var(--s3); }
+.adv-setup-note { font-size: var(--t-xs); line-height: 1.6; color: var(--text-3); }
+.adv-field { display: flex; align-items: center; gap: var(--s3); font-size: var(--t-sm); }
+.adv-field.col { flex-direction: column; align-items: stretch; gap: var(--s2); }
+.adv-field > span { flex: none; min-width: 110px; color: var(--text-2); }
+.adv-field select, .adv-field textarea { flex: 1; min-width: 0; background: var(--bg-3);
+  color: var(--text); border: 0.5px solid var(--border-2); border-radius: var(--r-md);
+  font: inherit; font-size: var(--t-sm); padding: var(--s2) 10px; outline: none; }
+.adv-field select { height: 32px; padding: 0 var(--s2); }
+.adv-field textarea { resize: vertical; line-height: 1.6; }
+.adv-field textarea:focus, .adv-field select:focus { border-color: var(--accent); }
+.adv-start { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; }

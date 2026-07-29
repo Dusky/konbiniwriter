@@ -79,6 +79,13 @@ These are structural guarantees. Violating any one breaks a core promise.
    would otherwise type. Provider, API key, model and token budgets are not on
    that list and must not be added to it.
 
+   The principle underneath it is *never alter author text unreviewed* — which
+   is why creating a new document with AI content (`create_document`) needs no
+   proposal, and why Adventure mode appends without one. Appending is not
+   altering. What it must do instead is snapshot first and stay undoable, and
+   the moment a feature would *replace* existing prose it goes back through
+   `Proposal` like everything else.
+
 3. **Every prompt and agent is registry-editable.** `PromptRegistry` and
    `AgentRegistry` are the single source of truth. A hardcoded prompt string
    in TypeScript is a bug.
@@ -112,6 +119,9 @@ src/
     BrowserProjectService.ts File System Access API backend (real disk, Chromium).
     OPFSProjectService.ts    Origin Private File System backend (Firefox/Safari).
     AIClient.ts              Multi-provider streaming (Anthropic + OpenAI-compatible).
+    adventure.ts             Beat-by-beat drafting: passage → deck of beats →
+                             chosen beat → passage. Appends only; the caller
+                             snapshots first. Parsers are pure and tolerant.
     agent.ts                 The chat assistant's tool-use loop. One provider-neutral
                              loop, two wire adapters (Anthropic tool_use blocks /
                              OpenAI-compatible tool_calls). Tools are never
