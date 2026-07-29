@@ -628,10 +628,10 @@ export default function AISettingsModal({ onClose, embedded }: Props): React.Rea
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                 <input type="checkbox" checked={aiToolsEnabled} onChange={(e) => setAiToolsEnabled(e.target.checked)} style={{ accentColor: 'var(--accent)', width: 15, height: 15 }} />
-                <span style={{ fontSize: 13 }}>Let the assistant use tools <span style={{ color: 'var(--text-3)' }}>(Claude only)</span></span>
+                <span style={{ fontSize: 13 }}>Let the assistant use tools</span>
               </label>
               <div className="ai-hint">
-                On Claude, the chat can search the manuscript, read the outline, open documents, create new documents, and propose edits across the whole project. Proposed edits are queued in Changeset for your review — never written directly.
+                The chat can search the manuscript, read the outline, open documents, create new documents, and propose edits across the whole project. Proposed edits are queued in Changeset for your review — never written directly. Works on any provider whose model supports tool calling; a model that doesn't just answers normally.
               </div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: aiToolsEnabled ? 'pointer' : 'default', marginTop: 10, opacity: aiToolsEnabled ? 1 : 0.5 }}>
                 <input

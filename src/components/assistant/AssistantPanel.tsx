@@ -205,14 +205,14 @@ export default function AssistantPanel(): React.ReactElement {
   const aiToolsEnabled = useAIStore((s) => s.aiToolsEnabled)
   const aiConfigToolsEnabled = useAIStore((s) => s.aiConfigToolsEnabled)
   const service = useAIStore((s) => s.service)
-  const provider = useAIStore((s) => s.provider)
   const agentCommand = useAIStore((s) => s.agentCommand)
   const agentActive = service === 'agent'
-  const anthropicModel = useAIStore((s) => s.anthropicModel)
   const setAiInstructions = useProjectStore((s) => s.setAiInstructions)
-  // Tools run only on Claude (native function-calling); other providers keep the
-  // plain streaming path and the <remember> sentinel.
-  const toolsActive = aiToolsEnabled && provider === 'anthropic'
+  // Native function-calling, on whichever provider is configured — `runAgent`
+  // speaks both Anthropic's tool_use blocks and the OpenAI-compatible
+  // tool_calls format. A model that can't call tools still answers; it just
+  // never asks for one, and the loop falls through to a plain reply.
+  const toolsActive = aiToolsEnabled
   const configToolsActive = toolsActive && aiConfigToolsEnabled
 
   const [threads, setThreads] = useState<ChatThreads>({})
@@ -468,8 +468,8 @@ export default function AssistantPanel(): React.ReactElement {
       return
     }
 
-    // Tool-using path (Claude): the agent can search, read, create, and propose
-    // edits across the project. Tool actions route through the reviewable seams.
+    // Tool-using path: the agent can search, read, create, and propose edits
+    // across the project. Tool actions route through the reviewable seams.
     if (toolsActive) {
       const ctx: AgentToolContext = {
         project: useProjectStore.getState().project as Project,
@@ -534,7 +534,7 @@ export default function AssistantPanel(): React.ReactElement {
       const seenTools: string[] = []
       await runAgent(
         apiMessages,
-        { model: anthropicModel, maxTokens: chatMaxTokens, temperature: 0.7, systemPrompt: buildSystemPrompt(), signal: abortRef.current.signal, ctx },
+        { maxTokens: chatMaxTokens, temperature: 0.7, systemPrompt: buildSystemPrompt(), signal: abortRef.current.signal, ctx },
         {
           onChunk: (chunk) => updateLastAssistant((last) => ({ ...last, content: last.content + chunk })),
           onToolUse: (name, inp) => { seenTools.push(toolLabel(name, inp)); updateLastAssistant((last) => ({ ...last, toolUses: [...seenTools] })) },

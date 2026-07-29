@@ -324,6 +324,153 @@ if (newSnaps.length) {
     !bodies.includes('REVIEWED_REPLACEMENT'))
 }
 
+// ── invariant 2, on a non-Anthropic provider ────────────────────────────────
+section('Invariant 2 · assistant tools work on an OpenAI-compatible provider')
+
+// The tool loop was Anthropic-only for one reason — only one wire format had
+// been implemented — which made the "let the assistant use tools" switch
+// tickable but inert on every other provider. This drives the whole loop over a
+// mocked OpenAI-compatible endpoint: tool schemas out, streamed `tool_calls`
+// deltas in, results returned as `role: "tool"` messages, and the resulting
+// edit still gated by review and snapshotted before it reaches disk.
+//
+// The mock is deliberately unkind. It splits tool arguments across frames,
+// drops `index` from continuation frames, and reports `finish_reason: "stop"`
+// on a turn that is asking for a tool — the three ways real compat servers
+// (Ollama, vLLM, llama.cpp) diverge from the spec.
+
+const MOCK_BASE = 'https://mock-openai.konbini.test/v1'
+const AI_MARKER = 'AI_VIA_OPENAI_TOOLS'
+const NEW_TEXT = `Rewritten by the assistant over an OpenAI-compatible endpoint. ${AI_MARKER}`
+
+const frame = (o) => `data: ${JSON.stringify(o)}\n\n`
+const delta = (d, extra = {}) => frame({ object: 'chat.completion.chunk', choices: [{ index: 0, delta: d, ...extra }] })
+const editArgs = JSON.stringify({ document: 'Scene 3', new_text: NEW_TEXT })
+const cut = Math.floor(editArgs.length / 2)
+
+const TURNS = [
+  // 1 · asks to read a document; arguments split mid-key across two frames.
+  delta({ role: 'assistant', content: '' })
+    + delta({ content: 'Let me read that scene.' })
+    + delta({ tool_calls: [{ index: 0, id: 'call_read', type: 'function', function: { name: 'get_document', arguments: '' } }] })
+    + delta({ tool_calls: [{ index: 0, function: { arguments: '{"tit' } }] })
+    + delta({ tool_calls: [{ index: 0, function: { arguments: 'le":"Scene 3"}' } }] })
+    + delta({}, { finish_reason: 'tool_calls' }) + 'data: [DONE]\n\n',
+  // 2 · proposes an edit — no `index` on the continuation frames, and it claims
+  //     to have stopped normally while still asking for a tool.
+  delta({ tool_calls: [{ id: 'call_edit', type: 'function', function: { name: 'propose_edit', arguments: '' } }] })
+    + delta({ tool_calls: [{ function: { arguments: editArgs.slice(0, cut) } }] })
+    + delta({ tool_calls: [{ function: { arguments: editArgs.slice(cut) } }] })
+    + delta({}, { finish_reason: 'stop' }) + 'data: [DONE]\n\n',
+  // 3 · the final answer, plus the trailing usage frame.
+  delta({ content: 'Queued the revision for your review.' })
+    + frame({ choices: [], usage: { prompt_tokens: 1200, completion_tokens: 40 } })
+    + delta({}, { finish_reason: 'stop' }) + 'data: [DONE]\n\n',
+]
+
+const wire = []
+await page.route('**/chat/completions', async (route) => {
+  const cors = {
+    'access-control-allow-origin': '*',
+    'access-control-allow-headers': '*',
+    'access-control-allow-methods': 'POST, OPTIONS',
+  }
+  if (route.request().method() === 'OPTIONS') { await route.fulfill({ status: 204, headers: cors }); return }
+  try { wire.push(JSON.parse(route.request().postData() ?? '{}')) } catch { wire.push(null) }
+  const body = TURNS[wire.length - 1] ?? TURNS[TURNS.length - 1]
+  await route.fulfill({ status: 200, headers: { ...cors, 'content-type': 'text/event-stream' }, body })
+})
+
+// Configure the provider the way an author does — through the settings screen.
+await setAI(true)
+await page.keyboard.press('Control+k')
+await page.waitForTimeout(300)
+await page.keyboard.type('AI Settings', { delay: 20 })
+await page.waitForTimeout(400)
+await page.keyboard.press('Enter')
+await page.waitForSelector('.seg button', { timeout: 10000 })
+await page.locator('.seg button', { hasText: 'Custom' }).first().click()
+await page.waitForTimeout(300)
+const toolsBox = page.locator('label:has-text("Let the assistant use tools") input[type=checkbox]')
+check('the tools switch is not labelled as one vendor’s privilege',
+  !/claude only/i.test(await page.locator('label:has-text("Let the assistant use tools")').first().innerText()))
+if ((await toolsBox.count()) && !(await toolsBox.isChecked())) await toolsBox.setChecked(true)
+await page.locator('.ai-row:has-text("Base URL") input').first().fill(MOCK_BASE)
+await page.locator('.ai-row:has-text("API Key") input').first().fill('sk-mock')
+await page.locator('.ai-row:has-text("Model") input').first().fill('mock-tools-model')
+await page.waitForTimeout(300)
+await page.locator('.tab-x').last().click()
+await page.waitForTimeout(400)
+
+const sc2Disk = await readBundle(page, 'docs/sc2.md')
+const sc2Snaps = await listBundle(page, 'snapshots/sc2')
+
+// Ask the assistant to revise a scene it has to go and read first.
+await page.locator('.rail-tabs > button').filter({ hasText: 'Chat' }).first().click()
+  .catch(() => page.locator('.rail-tabs > button[title="Chat"]').first().click())
+await page.waitForSelector('.asst-input textarea', { timeout: 10000 })
+await page.locator('.asst-input textarea').fill('Read Scene 3 and propose a revision.')
+await page.keyboard.press('Enter')
+
+await page.waitForSelector('.cs-body', { timeout: 20000 }).catch(() => {})
+
+check('the assistant called out to the OpenAI-compatible endpoint', wire.length >= 1, wire.length)
+const req1 = wire[0] ?? {}
+const toolNames = (req1.tools ?? []).map((t) => t?.function?.name)
+check('it advertised the tools in OpenAI function-schema form',
+  Array.isArray(req1.tools) && req1.tools.every((t) => t.type === 'function' && !!t.function?.parameters)
+    && toolNames.includes('get_document') && toolNames.includes('propose_edit'),
+  toolNames)
+check('it left the choice of tool to the model', req1.tool_choice === 'auto', req1.tool_choice)
+check('it sent the provider’s own model, not a Claude id',
+  req1.model === 'mock-tools-model', req1.model)
+check('the config tools stay unadvertised until the author opts in',
+  !toolNames.includes('propose_config'), toolNames)
+
+// The second request is the real proof: results have to go back in the shape
+// the endpoint expects, or the model is answering into a void.
+const msgs2 = wire[1]?.messages ?? []
+const asstTurn = msgs2.find((m) => m.role === 'assistant' && Array.isArray(m.tool_calls))
+const toolMsg = msgs2.find((m) => m.role === 'tool')
+check('the assistant’s tool_calls turn is replayed back to the endpoint',
+  asstTurn?.tool_calls?.[0]?.function?.name === 'get_document', asstTurn?.tool_calls)
+check('the tool result comes back as a role:"tool" message on the right id',
+  !!toolMsg && toolMsg.tool_call_id === asstTurn?.tool_calls?.[0]?.id,
+  { got: toolMsg?.tool_call_id, want: asstTurn?.tool_calls?.[0]?.id })
+check('the tool actually ran and returned the document’s real text',
+  !!sc2Disk && !!toolMsg && toolMsg.content.includes(sc2Disk.trim().slice(0, 40)),
+  toolMsg?.content?.slice(0, 80))
+check('arguments split across frames were reassembled (the edit named its document)',
+  (wire[2]?.messages ?? []).some((m) => m.role === 'tool' && /Changeset/.test(m.content ?? '')),
+  (wire[2]?.messages ?? []).filter((m) => m.role === 'tool').map((m) => m.content?.slice(0, 60)))
+check('the loop kept going despite finish_reason:"stop" on a tool turn', wire.length >= 3, wire.length)
+
+// And the invariant itself: an AI edit is still only ever a proposal.
+check('the AI edit opened a changeset review instead of writing',
+  await page.locator('.cs-body').count() === 1)
+const sc2During = await readBundle(page, 'docs/sc2.md')
+check('nothing reached the .md while the AI edit was only proposed',
+  sc2During === sc2Disk && !sc2During.includes(AI_MARKER), sc2During?.slice(0, 60))
+
+await page.locator('.modal-foot .btn.primary').click()
+await page.waitForTimeout(900)
+const sc2After = await readBundle(page, 'docs/sc2.md')
+check('accepting the AI edit writes it to disk', !!sc2After && sc2After.includes(AI_MARKER), sc2After?.slice(0, 80))
+const sc2SnapsAfter = await listBundle(page, 'snapshots/sc2')
+const sc2New = sc2SnapsAfter.filter((s2) => !sc2Snaps.includes(s2))
+check('the AI edit was snapshotted before it was applied', sc2New.length > 0, { sc2Snaps, sc2SnapsAfter })
+if (sc2New.length) {
+  const before = await readBundle(page, `snapshots/sc2/${sc2New[0]}`)
+  check('the snapshot is the pre-AI text', !!before && !before.includes(AI_MARKER), before?.slice(0, 60))
+}
+
+// The chat surfaces what the assistant did, so the author can audit the turn.
+const chatText = await page.locator('.asst-chat').innerText().catch(() => '')
+check('the conversation names the tools that ran', /Read "Scene 3"/.test(chatText), chatText.slice(-200))
+
+await page.unroute('**/chat/completions')
+await setAI(false)
+
 // ── contrast floors ─────────────────────────────────────────────────────────
 section('Contrast · the muted text ramp clears WCAG AA in every theme')
 
