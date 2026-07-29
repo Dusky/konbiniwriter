@@ -12,6 +12,8 @@ import { createProposal } from '../../lib/ProposalService'
 import { resolveConfigSlot, configDocId } from '../../lib/agentConfig'
 import Icon from '../common/Icon'
 import ConfirmDialog from '../common/ConfirmDialog'
+import ContextMenu, { type MenuItem } from '../common/ContextMenu'
+import { kbd } from '../../lib/kbd'
 import type { Project } from '@shared/types'
 import { uid } from '@shared/utils'
 
@@ -208,6 +210,9 @@ export default function AssistantPanel(): React.ReactElement {
   const agentCommand = useAIStore((s) => s.agentCommand)
   const agentActive = service === 'agent'
   const setAiInstructions = useProjectStore((s) => s.setAiInstructions)
+  const addDictionaryWord = useProjectStore((s) => s.addDictionaryWord)
+  const upsertCodexEntry = useProjectStore((s) => s.upsertCodexEntry)
+  const setToast = useShellStore((s) => s.setToast)
   // Native function-calling, on whichever provider is configured — `runAgent`
   // speaks both Anthropic's tool_use blocks and the OpenAI-compatible
   // tool_calls format. A model that can't call tools still answers; it just
@@ -392,6 +397,65 @@ export default function AssistantPanel(): React.ReactElement {
   }, [])
 
   useEffect(() => () => { abortRef.current?.abort() }, [])
+
+  // ── Transcript context menu ────────────────────────────────────────────────
+  //
+  // The chat is where names and coinages get invented, so it is the wrong place
+  // to have no way to act on a word. Right-clicking a selection files it to the
+  // dictionary or the codex, searches the manuscript for it, or copies it as a
+  // wikilink — the same verbs the editor offers, on the same selection rules.
+  const [chatMenu, setChatMenu] = useState<{ x: number; y: number; text: string; message: string } | null>(null)
+
+  function openChatMenu(e: React.MouseEvent) {
+    e.preventDefault()
+    const selected = (window.getSelection()?.toString() ?? '').trim()
+    // The message under the pointer, so "Copy message" works without selecting.
+    const body = (e.target as HTMLElement | null)?.closest('.msg-body')?.textContent ?? ''
+    setChatMenu({ x: e.clientX, y: e.clientY, text: selected, message: body.trim() })
+  }
+
+  // Memoised, like the editor's menu: a fresh array on every render remounts the
+  // menu under the pointer, so a click never lands on a stable element.
+  const chatMenuItems = React.useMemo<MenuItem[]>(() => {
+    const m = chatMenu
+    if (!m) return []
+    const items: MenuItem[] = []
+    const short = m.text.length > 28 ? `${m.text.slice(0, 28)}…` : m.text
+    if (m.text) {
+      items.push({ label: 'Copy', icon: 'copy', hint: kbd('mod+c'), action: () => { void navigator.clipboard.writeText(m.text) } })
+      // A single word is a spelling the proofer will otherwise keep flagging.
+      if (!/\s/.test(m.text)) {
+        items.push({ label: `Add “${short}” to Dictionary`, icon: 'book', action: () => {
+          addDictionaryWord(m.text)
+          setToast(`“${m.text}” added to the project dictionary`, 'success')
+        } })
+      }
+      items.push(
+        { label: `Add “${short}” to Codex`, icon: 'notebook', disabled: !project, action: () => {
+          const now = new Date().toISOString()
+          upsertCodexEntry({
+            id: uid(), name: m.text, aliases: [], category: 'character',
+            summary: '', facts: [], createdAt: now, modifiedAt: now, aiGenerated: false,
+          })
+          useShellStore.getState().setRailPanel('codex')
+        } },
+        { label: 'Copy as Wikilink', action: () => { void navigator.clipboard.writeText(`[[${m.text}]]`) } },
+        { label: 'Search Project for Selection', icon: 'search', action: () => {
+          useProjectStore.getState().setBinderQuery({ text: m.text })
+        } },
+        { label: '---' },
+      )
+    }
+    if (m.message) {
+      items.push({ label: 'Copy Message', icon: 'copy', action: () => { void navigator.clipboard.writeText(m.message) } })
+    }
+    items.push(
+      { label: 'New Conversation', icon: 'plus', action: newThread },
+      { label: 'Clear This Conversation', icon: 'trash', danger: true, disabled: messages.length === 0, action: () => setConfirmClear(true) },
+    )
+    return items
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatMenu, project, messages.length, addDictionaryWord, upsertCodexEntry, setToast])
 
   function buildSystemPrompt(): string {
     const base = 'You are a creative writing assistant. Help the author with story questions, character development, plot, prose, and craft. Be specific and direct.'
@@ -712,6 +776,15 @@ export default function AssistantPanel(): React.ReactElement {
         </div>
       )}
 
+      {chatMenu && (
+        <ContextMenu
+          x={chatMenu.x}
+          y={chatMenu.y}
+          onClose={() => setChatMenu(null)}
+          items={chatMenuItems}
+        />
+      )}
+
       {confirmClear && (
         <ConfirmDialog
           title="Clear Chat"
@@ -744,7 +817,7 @@ export default function AssistantPanel(): React.ReactElement {
         </div>
       )}
 
-      <div className="asst-chat">
+      <div className="asst-chat" onContextMenu={openChatMenu}>
         {messages.length === 0 && (
           <div className="asst-empty">
             {hasContext

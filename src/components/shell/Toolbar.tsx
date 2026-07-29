@@ -170,6 +170,7 @@ export default function Toolbar(): React.ReactElement {
                 { label: 'Codex', action: () => setRailPanel('codex') },
                 { label: 'Prompt Registry', action: () => openViewTab('prompt-registry') },
                 { label: 'Draft', header: true },
+                { label: 'Adventure — draft beat by beat', action: () => openViewTab('adventure') },
                 { label: `Generate beat — inline (${kbd('mod+j')})`, action: () => window.dispatchEvent(new CustomEvent('konbini:generate-beat')) },
                 { label: 'Chat', action: () => setRailPanel('assistant') },
                 { label: 'Generate — cast, beats, chapter', action: () => openViewTab('batch-generator') },

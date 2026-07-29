@@ -729,6 +729,74 @@ check('the conversation names the tools that ran', /Read "Scene 3"/.test(chatTex
 
 await page.unroute('**/chat/completions')
 
+// ── discoverability & the chat menu ─────────────────────────────────────────
+section('Reach · a feature only the command palette knows about does not exist')
+
+// Adventure shipped reachable from ⌘K alone, which is the same as not shipping
+// it. And the chat transcript — where names and coinages get invented — had no
+// way to act on a word at all.
+
+await page.locator('.tb-btn').filter({ hasText: 'AI' }).first().click()
+await page.waitForTimeout(400)
+const aiMenuText = await page.locator('[role=menu]').first().innerText().catch(() => '')
+check('Adventure is in the AI menu, not just the palette', /Adventure/.test(aiMenuText), aiMenuText.slice(0, 160))
+await page.locator('[role=menuitem]').filter({ hasText: 'Adventure' }).first().click()
+await page.waitForTimeout(900)
+check('and it opens from there', await page.locator('.adv-setup, .adv-deck').count() > 0)
+await page.locator('.tab-x').last().click()
+await page.waitForTimeout(400)
+
+// The transcript menu, on a real selection.
+await page.locator('.rail-tabs > button').filter({ hasText: 'Chat' }).first().click()
+await page.waitForSelector('.asst-chat', { timeout: 10000 })
+await page.waitForTimeout(500)
+const hasReply = await page.locator('.msg-text').count() > 0
+check('the fixture conversation is on screen to right-click', hasReply)
+if (hasReply) {
+  const word = await page.evaluate(() => {
+    const el = [...document.querySelectorAll('.msg-text')].pop()
+    if (!el) return ''
+    const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+    let node = walk.nextNode()
+    while (node && !/\w{4,}/.test(node.textContent ?? '')) node = walk.nextNode()
+    if (!node) return ''
+    const m = /\w{4,}/.exec(node.textContent ?? '')
+    if (!m) return ''
+    const r = document.createRange()
+    r.setStart(node, m.index)
+    r.setEnd(node, m.index + m[0].length)
+    const sel = getSelection()
+    sel?.removeAllRanges()
+    sel?.addRange(r)
+    return m[0]
+  })
+  // Right-click must land *inside* the selection; outside it the browser
+  // collapses the selection first, which is correct and means no word items.
+  const rect = await page.evaluate(() => {
+    const r = getSelection()?.getRangeAt(0).getBoundingClientRect()
+    return r ? { x: r.x, y: r.y, w: r.width, h: r.height } : null
+  })
+  check('a word in the transcript can be selected', !!word && !!rect, { word, rect })
+  if (rect) {
+    await page.mouse.click(rect.x + rect.w / 2, rect.y + rect.h / 2, { button: 'right' })
+    await page.waitForTimeout(500)
+    const chatMenuText = await page.locator('[role=menu]').last().innerText().catch(() => '')
+    check('right-clicking a selected word offers to file it',
+      /Dictionary/.test(chatMenuText) && /Codex/.test(chatMenuText), chatMenuText.replace(/\n/g, ' | '))
+
+    // The menu is portalled to <body>: rendered inside the rail it sat under the
+    // rail's own resize handle, and these items could not be clicked at all.
+    const clickable = await page.locator('[role=menuitem]').filter({ hasText: 'Dictionary' }).first()
+      .click({ timeout: 4000 }).then(() => true).catch(() => false)
+    check('and the item is actually clickable, not buried under the rail resizer', clickable)
+    await page.waitForTimeout(800)
+    const dict = JSON.parse(await readBundle(page, 'project.json')).settings?.dictionary ?? []
+    check('filing the word persists it to the project dictionary', dict.includes(word), { dict, word })
+  }
+}
+await page.locator('.rail-tabs > button').first().click()
+await page.waitForTimeout(300)
+
 // ── adventure mode ──────────────────────────────────────────────────────────
 section('Adventure · drafting only ever appends, and every append is undoable')
 
