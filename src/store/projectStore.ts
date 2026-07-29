@@ -282,7 +282,7 @@ let commentSaveTimer: ReturnType<typeof setTimeout> | null = null
 let pendingCommentSave: { projectId: ID; comments: Comment[] } | null = null
 
 /** Write whatever comment state is queued, now. */
-export function flushCommentSave(): void {
+function flushCommentSave(): void {
   if (commentSaveTimer) { clearTimeout(commentSaveTimer); commentSaveTimer = null }
   const p = pendingCommentSave
   pendingCommentSave = null

@@ -100,7 +100,7 @@ function buildDecorations(doc: { toString(): string }, scenes: SceneMeta[]): Dec
 
 interface SepState { scenes: SceneMeta[]; deco: DecorationSet }
 
-export const sepField = StateField.define<SepState>({
+const sepField = StateField.define<SepState>({
   create: () => ({ scenes: [], deco: Decoration.none }),
   update(value, tr) {
     for (const e of tr.effects) {
@@ -118,12 +118,12 @@ export const sepField = StateField.define<SepState>({
 })
 
 // Caret skips the divider; arrow-over and click-through both land outside it.
-export const scriveningsAtomic = EditorView.atomicRanges.of((view) => view.state.field(sepField).deco)
+const scriveningsAtomic = EditorView.atomicRanges.of((view) => view.state.field(sepField).deco)
 
 // Reject any user edit that overlaps a token, so the N-1-token invariant holds
 // by construction. Our own programmatic rebuild/reconcile dispatches carry the
 // bypass annotation.
-export const scriveningsGuard = EditorState.changeFilter.of((tr) => {
+const scriveningsGuard = EditorState.changeFilter.of((tr) => {
   if (tr.annotation(scrivBypass)) return true
   const { deco } = tr.startState.field(sepField)
   const ranges: number[] = []
@@ -139,7 +139,7 @@ export const scriveningsExtensions = [sepField, scriveningsAtomic, scriveningsGu
 // (always-intact) token positions, mirroring extractSegments' newline stripping.
 export interface SegBound { sceneId: string; from: number; to: number }
 
-export function segmentBounds(buffer: string, ids: string[]): SegBound[] {
+function segmentBounds(buffer: string, ids: string[]): SegBound[] {
   if (ids.length === 0) return []
   const tokens: number[] = []
   for (let c = 0, idx = 0; (idx = buffer.indexOf(SEP_TOKEN, c)) !== -1; c = idx + SEP_TOKEN.length) tokens.push(idx)

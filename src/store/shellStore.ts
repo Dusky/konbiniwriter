@@ -10,7 +10,7 @@ export type EditorFont = 'mono' | 'serif' | 'sans'
 /** Widgets that can appear on the per-pane editor footer bar. */
 export type EditorBarWidget = 'render' | 'words' | 'chars' | 'cursor' | 'reading' | 'target' | 'focus' | 'typewriter'
 export interface EditorBarItem { id: EditorBarWidget; visible: boolean }
-export const EDITOR_BAR_DEFAULT: EditorBarItem[] = [
+const EDITOR_BAR_DEFAULT: EditorBarItem[] = [
   { id: 'render', visible: true },
   { id: 'words', visible: true },
   { id: 'cursor', visible: true },

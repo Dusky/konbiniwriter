@@ -24,7 +24,7 @@ export function uid(prefix = 'id'): string {
   return `${prefix}-${Date.now().toString(36)}-${_salt}-${_uid.toString(36)}`
 }
 
-export function stripMd(s: string): string {
+function stripMd(s: string): string {
   return (s || '')
     .replace(/`{1,3}[^`]*`{1,3}/g, ' ')
     .replace(/[#>*_~\-[\]]/g, ' ')

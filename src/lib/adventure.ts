@@ -26,16 +26,16 @@ import { beatLength, beatStylePhrase, type BeatLength } from './beat'
 import type { MentionIndex } from './MentionIndex'
 import type { CodexCategory, CodexEntry, ID, ISO, Project } from '@shared/types'
 
-export const OPENING_PROMPT_ID = 'builtin:adventure:opening'
-export const PASSAGE_PROMPT_ID = 'builtin:adventure:passage'
-export const OPTIONS_PROMPT_ID = 'builtin:adventure:options'
-export const NOTES_PROMPT_ID = 'builtin:adventure:notes'
-export const SUMMARY_PROMPT_ID = 'builtin:adventure:summary'
+const OPENING_PROMPT_ID = 'builtin:adventure:opening'
+const PASSAGE_PROMPT_ID = 'builtin:adventure:passage'
+const OPTIONS_PROMPT_ID = 'builtin:adventure:options'
+const NOTES_PROMPT_ID = 'builtin:adventure:notes'
+const SUMMARY_PROMPT_ID = 'builtin:adventure:summary'
 
 /** How much of the current scene to show the model as "what just happened". */
 const PRECEDING_LIMIT = 4000
 /** Ceiling on the rolling summary, in words. Past this it stops being cheap. */
-export const SUMMARY_WORD_LIMIT = 350
+const SUMMARY_WORD_LIMIT = 350
 /** How many beats back to send as "don't repeat these". */
 const USED_BEATS_WINDOW = 12
 /** Deck size bounds. Fewer than two isn't a choice; more than six isn't read. */

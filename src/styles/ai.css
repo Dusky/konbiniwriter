@@ -1055,3 +1055,30 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
   font-size: var(--t-sm); cursor: pointer; }
 .rn-review input { accent-color: var(--accent); width: 15px; height: 15px; }
 .rn-note { margin-top: var(--s1); font-size: var(--t-xs); line-height: 1.5; color: var(--text-3); }
+
+/* ── Deadline pace ──────────────────────────────────────────────────────────
+   The gap between the fill and the marker is the whole message: where you are
+   versus where a steady pace would have put you. */
+
+.stats-note { margin: -14px 0 var(--s5); font-size: var(--t-xs); color: var(--text-3); }
+.stats-pace { margin: -14px 0 var(--s5); padding: var(--s3); border-radius: var(--r-md);
+  border: 0.5px solid var(--border); background: var(--bg-2); }
+.stats-pace.behind { border-color: var(--warn-border); background: var(--warn-bg); }
+.stats-pace.done { border-color: var(--success); }
+.stats-pace-hd { display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--s3); font-size: var(--t-sm); color: var(--text-2); }
+.stats-pace-hd b { font-size: var(--t-base); color: var(--text); }
+.stats-pace.behind .stats-pace-hd b { color: var(--warn-text); }
+.stats-pace-track { position: relative; height: 8px; margin: 10px 0 5px; border-radius: var(--r-full);
+  background: var(--bg-3); overflow: hidden; }
+.stats-pace-fill { height: 100%; border-radius: var(--r-full); background: var(--accent); }
+/* Where a steady pace would have you — an overlay, not a second bar, so the
+   comparison is read at a glance rather than computed. */
+.stats-pace-mark { position: absolute; top: -2px; bottom: -2px; width: 2px;
+  background: var(--text-2); border-radius: 1px; }
+.stats-pace-foot { display: flex; justify-content: space-between; gap: var(--s2);
+  font-size: var(--t-xs); color: var(--text-3); }
+.stats-pace-days { display: flex; align-items: center; gap: var(--s1); margin-top: var(--s3);
+  padding-top: var(--s2); border-top: 0.5px solid var(--border); }
+.stats-pace-days > span { font-size: var(--t-xs); color: var(--text-3); margin-right: var(--s1); }
+.stats-pace-days .chip { min-width: 22px; padding: 0 6px; justify-content: center; }

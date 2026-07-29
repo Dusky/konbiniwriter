@@ -324,6 +324,169 @@ if (newSnaps.length) {
     !bodies.includes('REVIEWED_REPLACEMENT'))
 }
 
+// ── binder drag & split panes ───────────────────────────────────────────────
+section('Binder · a multi-selection drags as one, and a folder opens anywhere')
+
+// Two long-standing gaps, both of the kind that look like the app ignoring you:
+// dragging three selected chapters moved only the row under the pointer, and
+// dropping a folder into a split pane dead-ended on a placeholder.
+
+const childIdsOf = async (id) =>
+  (JSON.parse(await readBundle(page, 'project.json')).nodes[id]?.childIds) ?? []
+
+// The fixture's scenes all live under ch1; give them somewhere to go. It goes
+// directly after ch1 rather than at the end of the tree: the id-uniqueness
+// section above leaves 30 nodes at root, and a drag needs both rows on screen
+// at once.
+const ch2 = await page.evaluate(async () => {
+  const r = await window.api.node.mutate('smoke', { type: 'create', parentId: null, nodeType: 'folder', title: 'Chapter Two', atIndex: 1 })
+  return Object.values(r.nodes).find((n) => n.ext._newId !== undefined)?.id
+})
+await page.reload()
+await page.locator('.recent-row').first().click()
+await page.waitForSelector('.tree-row', { timeout: 30000 })
+await page.waitForTimeout(700)
+
+const ch1Before = await childIdsOf('ch1')
+check('the fixture chapter has scenes to drag', ch1Before.length >= 2, ch1Before)
+
+await page.locator('.tree-row').filter({ hasText: 'Scene 1' }).first().click()
+await page.locator('.tree-row').filter({ hasText: 'Scene 2' }).first().click({ modifiers: ['Shift'] })
+await page.waitForTimeout(300)
+
+const dragRow = page.locator('.tree-row').filter({ hasText: 'Scene 1' }).first()
+const dropRow = page.locator('.tree-row').filter({ hasText: 'Chapter Two' }).first()
+await dropRow.scrollIntoViewIfNeeded()
+await dragRow.scrollIntoViewIfNeeded()
+const from = await dragRow.boundingBox()
+const to = await dropRow.boundingBox()
+check('both rows are on screen, so the drag is a real one', !!from && !!to && to.y > 0)
+if (from && to) {
+  await page.mouse.move(from.x + 20, from.y + from.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(to.x + 20, to.y + to.height / 2, { steps: 12 })
+  await page.mouse.move(to.x + 20, to.y + to.height / 2 + 1, { steps: 3 })
+  await page.mouse.up()
+  await page.waitForTimeout(1400)
+}
+
+const movedTo = await childIdsOf(ch2)
+const ch1After = await childIdsOf('ch1')
+check('dragging a selection of two moves both, not just the grabbed row',
+  movedTo.length === 2, { movedTo, ch1After })
+check('and they land in binder order, together',
+  movedTo[0] === ch1Before[0] && movedTo[1] === ch1Before[1], { movedTo, ch1Before })
+check('the rest of the chapter is left alone',
+  ch1After.length === ch1Before.length - 2, { ch1After, ch1Before })
+
+// A folder dropped into the right pane must open as Scrivenings, not a shrug.
+await page.keyboard.press('Control+Backslash')
+await page.waitForTimeout(700)
+const rightPane = page.locator('[aria-label="Second editor pane"]')
+check('split view opens a second pane', await rightPane.count() === 1)
+await page.evaluate(() => {
+  // A real HTML5 drop: the pane keys off the node MIME type, so a synthetic
+  // mouse drag would not carry the payload.
+  const dt = new DataTransfer()
+  dt.setData('application/x-konbini-node', 'ch1')
+  const pane = document.querySelector('[aria-label="Second editor pane"]')
+  pane?.dispatchEvent(new DragEvent('dragover', { dataTransfer: dt, bubbles: true, cancelable: true }))
+  pane?.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }))
+})
+await page.waitForTimeout(1200)
+const rightText = await rightPane.innerText().catch(() => '')
+check('a folder dropped into a split pane opens its scenes, not a placeholder',
+  /Scrivenings/.test(rightText) && !/no documents yet/.test(rightText), rightText.slice(0, 120))
+check('and it is a real editor, not a preview',
+  await rightPane.locator('.cm-content').count() >= 1)
+
+await page.keyboard.press('Control+Backslash')
+await page.waitForTimeout(500)
+
+// ── deadline math ───────────────────────────────────────────────────────────
+section('Deadline · a date and a target become a daily number, honestly')
+
+// The failure this guards against isn't arithmetic, it's discouragement: pacing
+// from the project's creation would tell someone who sets a deadline mid-book
+// that they are tens of thousands of words behind on day one. A deadline stores
+// where the book stood when the promise was made, and resetting the date is a
+// new promise, not a carried-forward debt.
+
+const dayKeyOf = (offsetDays) => {
+  const d = new Date()
+  d.setDate(d.getDate() + offsetDays)
+  const p = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
+// Ten days into a twenty-day run, with almost nothing written: solidly behind.
+await page.evaluate(async ({ pid, startedOn, date }) => {
+  const root = await (await navigator.storage.getDirectory()).getDirectoryHandle('konbini-projects')
+  const bundle = await root.getDirectoryHandle(`${pid}.konbini`)
+  const manifest = JSON.parse(await (await (await bundle.getFileHandle('project.json')).getFile()).text())
+  manifest.settings.wordTarget = 50_000
+  manifest.settings.deadline = { date, startedOn, startWords: 0 }
+  const fh = await bundle.getFileHandle('project.json', { create: true })
+  const w = await fh.createWritable(); await w.write(JSON.stringify(manifest)); await w.close()
+}, { pid: PID, startedOn: dayKeyOf(-10), date: dayKeyOf(10) })
+await page.reload()
+await page.locator('.recent-row').first().click()
+await page.waitForSelector('.tree-row', { timeout: 30000 })
+await page.waitForTimeout(700)
+
+const sbText = await page.locator('.statusbar').innerText()
+check('the status bar shows the pace while you write', /\/day/.test(sbText), sbText.replace(/\n/g, ' '))
+check('and says plainly that you are behind', /behind/.test(sbText), sbText.replace(/\n/g, ' '))
+
+await page.keyboard.press('Control+k')
+await page.waitForTimeout(300)
+await page.keyboard.type('Writing Stats', { delay: 20 })
+await page.waitForTimeout(400)
+await page.keyboard.press('Enter')
+await page.waitForSelector('.stats-pace', { timeout: 10000 }).catch(() => {})
+check('Stats shows the pace panel', await page.locator('.stats-pace').count() === 1)
+check('being behind is visible, not just stated',
+  (await page.locator('.stats-pace').getAttribute('class') ?? '').includes('behind'))
+const paceText = await page.locator('.stats-pace').innerText()
+check('it reports the days left and the words remaining',
+  /writing days? left/.test(paceText) && /to go/.test(paceText), paceText.replace(/\n/g, ' '))
+
+// Moving the date is a new promise. Re-anchoring is what keeps a deadline from
+// carrying a debt the author has just decided to renegotiate.
+await page.locator('input[aria-label="Deadline date"]').fill(dayKeyOf(30))
+await page.waitForTimeout(800)
+check('moving the deadline re-anchors instead of carrying the shortfall forward',
+  !/behind/.test(await page.locator('.stats-pace').innerText()),
+  await page.locator('.stats-pace').innerText())
+
+const dlManifest = JSON.parse(await readBundle(page, 'project.json'))
+check('the new promise is persisted with its own baseline',
+  dlManifest.settings?.deadline?.date === dayKeyOf(30)
+  && dlManifest.settings?.deadline?.startedOn === dayKeyOf(0), dlManifest.settings?.deadline)
+
+// Writing days, not calendar days — the number that matters is sessions.
+const perDayBefore = (await page.locator('.stats-pace-hd b').innerText()).match(/[\d,]+/)?.[0]
+for (const i of [1, 2, 3, 4, 5]) await page.locator('.stats-pace-days .chip').nth(i).click()
+await page.waitForTimeout(700)
+const perDayAfter = (await page.locator('.stats-pace-hd b').innerText()).match(/[\d,]+/)?.[0]
+check('dropping to weekends raises the daily number',
+  !!perDayAfter && !!perDayBefore
+  && Number(perDayAfter.replace(/,/g, '')) > Number(perDayBefore.replace(/,/g, '')),
+  { perDayBefore, perDayAfter })
+
+await page.locator('.tab-x').last().click()
+await page.waitForTimeout(300)
+// Leave the fixture without a deadline so later sections read a clean status bar.
+await page.evaluate(async ({ pid }) => {
+  const root = await (await navigator.storage.getDirectory()).getDirectoryHandle('konbini-projects')
+  const bundle = await root.getDirectoryHandle(`${pid}.konbini`)
+  const manifest = JSON.parse(await (await (await bundle.getFileHandle('project.json')).getFile()).text())
+  delete manifest.settings.deadline
+  delete manifest.settings.wordTarget
+  const fh = await bundle.getFileHandle('project.json', { create: true })
+  const w = await fh.createWritable(); await w.write(JSON.stringify(manifest)); await w.close()
+}, { pid: PID })
+
 // ── rename everywhere ───────────────────────────────────────────────────────
 section('Rename · a character rename leaves nothing pointing at the old name')
 
@@ -627,9 +790,14 @@ check('the beats are the model\'s directions, editable in place',
 check('the author\'s own beat is offered alongside them',
   await page.locator('.adv-own textarea').count() === 1)
 
-const advDoc = 'docs/sc2.md'
+// Which scene it picked up from is the session's business, not the test's —
+// reading it back keeps this independent of binder order, which earlier
+// sections legitimately change.
+const advScene = JSON.parse(await readBundle(page, 'aux/adventure.json') ?? '{}').activeSceneId
+check('the session records which scene it is drafting into', !!advScene, advScene)
+const advDoc = `docs/${advScene}.md`
 const advBefore = await readBundle(page, advDoc)
-const advSnapsBefore = await listBundle(page, 'snapshots/sc2')
+const advSnapsBefore = await listBundle(page, `snapshots/${advScene}`)
 
 await page.locator('.adv-card-num').first().click()
 await page.waitForTimeout(3500)
@@ -639,11 +807,11 @@ check('choosing a beat appends its prose to the scene on disk',
   !!advAfter && advAfter.includes(ADV_PASSAGE), advAfter?.slice(-80))
 check('the append leaves what was already written untouched',
   !!advAfter && !!advBefore && advAfter.startsWith(advBefore.trimEnd()), advAfter?.slice(0, 60))
-const advSnapsAfter = await listBundle(page, 'snapshots/sc2')
+const advSnapsAfter = await listBundle(page, `snapshots/${advScene}`)
 const advNewSnaps = advSnapsAfter.filter((s2) => !advSnapsBefore.includes(s2))
 check('a snapshot was taken before the passage was written', advNewSnaps.length > 0, { advSnapsBefore, advSnapsAfter })
 if (advNewSnaps.length) {
-  const body = await readBundle(page, `snapshots/sc2/${advNewSnaps[0]}`)
+  const body = await readBundle(page, `snapshots/${advScene}/${advNewSnaps[0]}`)
   check('the snapshot is the pre-passage text, so step back is exact',
     !!body && !body.includes(ADV_PASSAGE), body?.slice(-60))
 }

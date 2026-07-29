@@ -51,6 +51,12 @@ export interface ProjectSettings {
   editorFont?: 'mono' | 'serif' | 'sans'
   editorSize?: number
   wordTarget?: number        // project-level word-count goal
+  /**
+   * "Finish by Nov 1". Carries the date *and* where the book stood when the
+   * promise was made, so pacing a deadline set mid-manuscript doesn't report
+   * the existing words as a shortfall. Shape: `lib/deadline.ts`.
+   */
+  deadline?: { date: string; startedOn: string; startWords: number; writingDays?: number[] }
   codex?: CodexEntry[]       // stored as JSON, typed at load time
   debt?: DebtItem[]          // propagation-debt inbox (persisted with project)
   comments?: Comment[]       // margin notes anchored to spans of prose (sidecar)

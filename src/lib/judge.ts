@@ -13,7 +13,7 @@ export interface JudgeResult {
   words?: number   // word count of the text evaluated (staleness signal)
 }
 
-export const JUDGE_PROMPT_ID = 'builtin:evaluation:judge'
+const JUDGE_PROMPT_ID = 'builtin:evaluation:judge'
 
 /** One manuscript-wide craft reading, recorded per full "Evaluate all" pass. */
 export interface QualityPoint {

@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useProjectStore, subtreeWordCount, descendants } from '../../store/projectStore'
+import { deadlineStatus, describeDeadline, readDeadline } from '../../lib/deadline'
 import { useShellStore } from '../../store/shellStore'
 import { statsService } from '../../lib/StatsService'
 import { wordCount, charCount } from '@shared/utils'
@@ -41,6 +42,8 @@ export default function StatusBar(): React.ReactElement {
 
   const wordTarget = project?.settings?.wordTarget
   const progress = wordTarget ? Math.min(1, totalWords / wordTarget) : null
+  const deadline = project ? readDeadline(project.settings) : null
+  const pace = deadline && wordTarget ? deadlineStatus(deadline, wordTarget, totalWords) : null
 
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
@@ -126,6 +129,18 @@ export default function StatusBar(): React.ReactElement {
               </>
             )}
             {!wordTarget && <span style={{ color: 'var(--text-3)', marginLeft: 2 }}>words</span>}
+          </span>
+        )}
+        {/* A deadline is only useful while you're writing, so the pace lives
+            here rather than only inside Stats. Click through for the detail. */}
+        {pace && (
+          <span
+            className="sb-stat"
+            title={`Deadline ${deadline?.date} · ${pace.daysLeft} writing day${pace.daysLeft === 1 ? '' : 's'} left · steady pace expects ${pace.expected.toLocaleString()} words by now`}
+            onClick={() => openViewTab('stats')}
+            style={{ color: pace.done ? 'var(--success)' : pace.overdue || pace.daysAhead < -0.5 ? 'var(--warn-text)' : undefined }}
+          >
+            {describeDeadline(pace)}
           </span>
         )}
         {editing && (

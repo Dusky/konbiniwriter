@@ -19,7 +19,16 @@ import BeatBox from './BeatBox'
 import { createProposal } from '../../lib/ProposalService'
 import { BEAT_PROMPT_ID } from '../../lib/beat'
 
-interface Props { folderId: string }
+interface Props {
+  folderId: string
+  /**
+   * What clicking a scene header does. The main pane moves the global
+   * selection; a split pane opens the scene in *itself*, because hijacking the
+   * global selection from the right pane would yank the left one somewhere the
+   * author didn't ask to go.
+   */
+  onOpenScene?: (id: string) => void
+}
 
 // Ordered writable descendants of the folder + their divider metadata.
 function readScenes(folderId: string): { ids: string[]; meta: SceneMeta[] } {
@@ -36,7 +45,7 @@ function readScenes(folderId: string): { ids: string[]; meta: SceneMeta[] } {
 
 const structuralSig = (meta: SceneMeta[]) => meta.map((m) => m.id + '\u0000' + m.title + '\u0000' + m.color).join('\u0001')
 
-export default function Scrivenings({ folderId }: Props): React.ReactElement {
+export default function Scrivenings({ folderId, onOpenScene }: Props): React.ReactElement {
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const typewriterCompartment = useRef(new Compartment())
@@ -46,6 +55,10 @@ export default function Scrivenings({ folderId }: Props): React.ReactElement {
   const setCursor = useProjectStore((s) => s.setCursor)
   const setSaveStatus = useProjectStore((s) => s.setSaveStatus)
   const selectNode = useProjectStore((s) => s.selectNode)
+  // Read through a ref: the CM state is built once per folder, so capturing the
+  // prop directly would freeze the first one it saw.
+  const onOpenSceneRef = useRef(onOpenScene)
+  onOpenSceneRef.current = onOpenScene
   const focusMode = useProjectStore((s) => s.focusMode)
   const typewriterMode = useShellStore((s) => s.typewriterMode)
   const livePreviewOn = useShellStore((s) => s.livePreview)
@@ -98,7 +111,7 @@ export default function Scrivenings({ folderId }: Props): React.ReactElement {
       extensions: [
         ...konbiniExtensions(handleChange, handleCursor),
         ...scriveningsExtensions,
-        scrivSelectFacet.of((id) => selectNode(id)),
+        scrivSelectFacet.of((id) => (onOpenSceneRef.current ?? selectNode)(id)),
         livePreviewCompartment.current.of(livePreviewOn ? livePreview : []),
         typewriterCompartment.current.of(typewriterMode ? makeTypewriterPlugin() : []),
       ],

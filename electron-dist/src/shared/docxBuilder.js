@@ -11,6 +11,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildDocx = buildDocx;
 const docx_1 = require("docx");
+const footnotes_1 = require("./footnotes");
 const TWIP = { halfInch: 720, inch: 1440 };
 function inlineRuns(text, base = {}) {
     const runs = [];
@@ -38,6 +39,23 @@ function inlineRuns(text, base = {}) {
     if (runs.length === 0)
         push('');
     return runs;
+}
+/**
+ * The same runs, with `[^1]` turned into a real Word footnote reference.
+ *
+ * Word numbers and positions footnotes itself once the reference run is in
+ * place, which is why the notes are collected across the whole document and
+ * handed to `Document({ footnotes })` rather than written at the end of a page.
+ */
+function runsWithNotes(text, base, order, offset) {
+    const out = [];
+    for (const seg of (0, footnotes_1.segmentLine)(text, order)) {
+        if ('ref' in seg)
+            out.push(new docx_1.FootnoteReferenceRun(offset + seg.index));
+        else
+            out.push(...inlineRuns(seg.text, base));
+    }
+    return out.length ? out : inlineRuns('', base);
 }
 const isSceneBreak = (line) => /^(-{3,}|\*{3,}|#)\s*$/.test(line.trim());
 // Split a chapter's markdown into body paragraphs, dropping a leading H1 that
@@ -78,6 +96,12 @@ async function buildDocx(opts) {
     const bodySpacing = shunn ? line : { ...line, after: 0 };
     const para = (children, extra = {}) => new docx_1.Paragraph({ children, spacing: line, ...extra });
     const children = [];
+    // Footnotes are numbered across the whole document, so every chapter's notes
+    // are gathered up front and each chapter is told where its own block starts.
+    const chapterNotes = chapters.map((c) => (0, footnotes_1.splitFootnotes)(c.markdown));
+    const allNotes = chapterNotes.flatMap((c) => c.notes);
+    const noteOffsets = [];
+    chapterNotes.reduce((acc, c) => { noteOffsets.push(acc); return acc + c.notes.length; }, 0);
     // ── Title page ──
     if (shunn) {
         const wc = wordCount(chapters);
@@ -102,21 +126,23 @@ async function buildDocx(opts) {
     // ── Chapters ──
     chapters.forEach((ch, ci) => {
         children.push(para([new docx_1.TextRun({ text: shunn ? ch.title.toUpperCase() : ch.title, font, size: shunn ? size : 32, bold: !shunn })], { alignment: docx_1.AlignmentType.CENTER, pageBreakBefore: true, spacing: { ...line, before: shunn ? 2400 : 0, after: shunn ? 480 : 360 } }));
-        const lines = bodyLines(ch.markdown, ch.title);
+        const split = chapterNotes[ci];
+        const order = split.notes.map((n) => n.label);
+        const offset = noteOffsets[ci] ?? 0;
+        const lines = bodyLines(split.body, ch.title);
         lines.forEach((item) => {
             if ('scene' in item) {
                 children.push(para([new docx_1.TextRun({ text: '#', font, size })], { alignment: docx_1.AlignmentType.CENTER, spacing: { ...line, before: 240, after: 240 } }));
             }
             else {
                 children.push(new docx_1.Paragraph({
-                    children: inlineRuns(item.text, { font, size }),
+                    children: runsWithNotes(item.text, { font, size }, order, offset),
                     spacing: bodySpacing,
                     indent: { firstLine: TWIP.halfInch },
                     alignment: docx_1.AlignmentType.LEFT,
                 }));
             }
         });
-        void ci;
     });
     // ── Running header (Shunn): Surname / TITLE / page ──
     const surname = (author || 'Author').trim().split(/\s+/).pop() || 'Author';
@@ -127,9 +153,14 @@ async function buildDocx(opts) {
                 children: [new docx_1.TextRun({ text: `${surname} / ${shortTitle} / `, font, size }), new docx_1.TextRun({ children: [docx_1.PageNumber.CURRENT], font, size })],
             })],
     }) : undefined;
+    const footnotes = {};
+    allNotes.forEach((n, idx) => {
+        footnotes[idx + 1] = { children: [new docx_1.Paragraph({ children: inlineRuns(n.text, { font, size: size - 4 }) })] };
+    });
     const doc = new docx_1.Document({
         creator: author || 'Konbini',
         title,
+        ...(allNotes.length ? { footnotes } : {}),
         sections: [{
                 properties: {
                     page: { margin: { top: TWIP.inch, bottom: TWIP.inch, left: TWIP.inch, right: TWIP.inch } },

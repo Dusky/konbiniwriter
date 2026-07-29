@@ -10,8 +10,9 @@
 
 import {
   Document, Paragraph, TextRun, Packer, AlignmentType, PageNumber,
-  Header, LineRuleType,
+  Header, LineRuleType, FootnoteReferenceRun,
 } from 'docx'
+import { splitFootnotes, segmentLine, type Footnote } from './footnotes'
 
 export interface DocxChapter { title: string; markdown: string }
 export interface DocxOptions {
@@ -44,6 +45,22 @@ function inlineRuns(text: string, base: RunOpts = {}): TextRun[] {
   if (last < text.length) push(text.slice(last))
   if (runs.length === 0) push('')
   return runs
+}
+
+/**
+ * The same runs, with `[^1]` turned into a real Word footnote reference.
+ *
+ * Word numbers and positions footnotes itself once the reference run is in
+ * place, which is why the notes are collected across the whole document and
+ * handed to `Document({ footnotes })` rather than written at the end of a page.
+ */
+function runsWithNotes(text: string, base: RunOpts, order: string[], offset: number): Array<TextRun | FootnoteReferenceRun> {
+  const out: Array<TextRun | FootnoteReferenceRun> = []
+  for (const seg of segmentLine(text, order)) {
+    if ('ref' in seg) out.push(new FootnoteReferenceRun(offset + seg.index))
+    else out.push(...inlineRuns(seg.text, base))
+  }
+  return out.length ? out : inlineRuns('', base)
 }
 
 const isSceneBreak = (line: string) => /^(-{3,}|\*{3,}|#)\s*$/.test(line.trim())
@@ -87,6 +104,13 @@ export async function buildDocx(opts: DocxOptions): Promise<Uint8Array> {
 
   const children: Paragraph[] = []
 
+  // Footnotes are numbered across the whole document, so every chapter's notes
+  // are gathered up front and each chapter is told where its own block starts.
+  const chapterNotes = chapters.map((c) => splitFootnotes(c.markdown))
+  const allNotes: Footnote[] = chapterNotes.flatMap((c) => c.notes)
+  const noteOffsets: number[] = []
+  chapterNotes.reduce((acc, c) => { noteOffsets.push(acc); return acc + c.notes.length }, 0)
+
   // ── Title page ──
   if (shunn) {
     const wc = wordCount(chapters)
@@ -111,20 +135,22 @@ export async function buildDocx(opts: DocxOptions): Promise<Uint8Array> {
       [new TextRun({ text: shunn ? ch.title.toUpperCase() : ch.title, font, size: shunn ? size : 32, bold: !shunn })],
       { alignment: AlignmentType.CENTER, pageBreakBefore: true, spacing: { ...line, before: shunn ? 2400 : 0, after: shunn ? 480 : 360 } },
     ))
-    const lines = bodyLines(ch.markdown, ch.title)
+    const split = chapterNotes[ci] as { body: string; notes: Footnote[] }
+    const order = split.notes.map((n) => n.label)
+    const offset = noteOffsets[ci] ?? 0
+    const lines = bodyLines(split.body, ch.title)
     lines.forEach((item) => {
       if ('scene' in item) {
         children.push(para([new TextRun({ text: '#', font, size })], { alignment: AlignmentType.CENTER, spacing: { ...line, before: 240, after: 240 } }))
       } else {
         children.push(new Paragraph({
-          children: inlineRuns(item.text, { font, size }),
+          children: runsWithNotes(item.text, { font, size }, order, offset),
           spacing: bodySpacing,
           indent: { firstLine: TWIP.halfInch },
           alignment: AlignmentType.LEFT,
         }))
       }
     })
-    void ci
   })
 
   // ── Running header (Shunn): Surname / TITLE / page ──
@@ -137,9 +163,15 @@ export async function buildDocx(opts: DocxOptions): Promise<Uint8Array> {
     })],
   }) : undefined
 
+  const footnotes: Record<number, { children: Paragraph[] }> = {}
+  allNotes.forEach((n, idx) => {
+    footnotes[idx + 1] = { children: [new Paragraph({ children: inlineRuns(n.text, { font, size: size - 4 }) })] }
+  })
+
   const doc = new Document({
     creator: author || 'Konbini',
     title,
+    ...(allNotes.length ? { footnotes } : {}),
     sections: [{
       properties: {
         page: { margin: { top: TWIP.inch, bottom: TWIP.inch, left: TWIP.inch, right: TWIP.inch } },

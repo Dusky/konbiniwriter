@@ -8,6 +8,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildEpub = buildEpub;
 const jszip_1 = __importDefault(require("jszip"));
+const footnotes_1 = require("./footnotes");
 // ── Minimal Markdown → XHTML ──────────────────────────────────────────────────
 function esc(s) {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -18,14 +19,41 @@ function inlineMarkup(line) {
         .replace(/\*([^*]+)\*/g, '<em>$1</em>')
         .replace(/_([^_]+)_/g, '<em>$1</em>');
 }
-function mdToXhtml(md) {
+/**
+ * Inline markup, with `[^1]` turned into a linked EPUB 3 note reference.
+ *
+ * `epub:type="noteref"` is what lets a reader render the note as a popup
+ * footnote rather than making the reader jump to the end of the chapter and
+ * find their way back. Readers that don't support it fall back to the link,
+ * which still works.
+ */
+function inlineWithNotes(line, order, chId) {
+    return (0, footnotes_1.segmentLine)(line, order)
+        .map((seg) => 'ref' in seg
+        ? `<a epub:type="noteref" href="#${chId}-fn${seg.index}" id="${chId}-ref${seg.index}" class="noteref">${seg.index}</a>`
+        : inlineMarkup(seg.text))
+        .join('');
+}
+/** The notes themselves, as an EPUB 3 footnotes section at the chapter's end. */
+function notesXhtml(notes, chId) {
+    if (notes.length === 0)
+        return '';
+    const items = notes.map((n, i) => {
+        const idx = i + 1;
+        return `<aside epub:type="footnote" id="${chId}-fn${idx}" class="footnote">`
+            + `<p><a href="#${chId}-ref${idx}" class="fnback">${idx}.</a> ${inlineMarkup(n.text)}</p></aside>`;
+    });
+    return `<section epub:type="footnotes" class="footnotes"><hr class="fnrule"/>\n${items.join('\n')}\n</section>`;
+}
+function mdToXhtml(md, order = [], chId = '') {
     const lines = md.split('\n');
     const out = [];
     let para = [];
     const flushPara = () => {
         if (!para.length)
             return;
-        out.push(`<p>${inlineMarkup(para.join(' '))}</p>`);
+        const joined = para.join(' ');
+        out.push(`<p>${order.length ? inlineWithNotes(joined, order, chId) : inlineMarkup(joined)}</p>`);
         para = [];
     };
     for (const raw of lines) {
@@ -54,6 +82,10 @@ function mdToXhtml(md) {
     return out.join('\n');
 }
 function chapterXhtml(ch) {
+    // Definitions never belong in the flow — they are rendered as the notes
+    // section below, and leaving them in would print `[^1]: …` as prose.
+    const { body, notes } = (0, footnotes_1.splitFootnotes)(ch.markdown);
+    const order = notes.map((n) => n.label);
     return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="en">
@@ -63,7 +95,8 @@ function chapterXhtml(ch) {
   <link rel="stylesheet" type="text/css" href="style.css"/>
 </head>
 <body>
-${mdToXhtml(ch.markdown)}
+${mdToXhtml(body, order, ch.id)}
+${notesXhtml(notes, ch.id)}
 </body>
 </html>`;
 }
@@ -75,6 +108,12 @@ p + p { margin-top: 0.2em; }
 h1 + p, h2 + p, h3 + p, p:first-of-type { text-indent: 0; }
 hr { border: none; text-align: center; margin: 2em 0; }
 hr::before { content: "* * *"; }
+.noteref { font-size: 0.75em; vertical-align: super; text-decoration: none; }
+.footnotes { margin-top: 3em; font-size: 0.9em; }
+.footnotes p { text-indent: 0; margin: 0.6em 0; }
+.fnrule { border: none; border-top: 1px solid #999; width: 30%; margin: 0 0 1em 0; }
+.fnrule::before { content: ""; }
+.fnback { text-decoration: none; font-weight: bold; margin-right: 0.4em; }
 `.trim();
 // ── EPUB assembly ─────────────────────────────────────────────────────────────
 async function buildEpub(opts) {
