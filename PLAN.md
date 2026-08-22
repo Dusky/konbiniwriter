@@ -950,6 +950,44 @@ New Project UI with the `novel` template has empty `docs/*.md` **on disk**.
 
 ---
 
+## Phase 11 — One contract, three backends ✅
+
+The renderer never knows which storage backend is active, which only holds while
+they agree — and only `NodeProjectService` was tested. `BrowserProjectService`
+(File System Access, the path most users are on) had no automated coverage at
+all: `scripts/smoke.mjs` deletes `showDirectoryPicker` before the app boots so it
+can drive OPFS without a native dialog. A change that broke the FSA backend and
+not the others had nothing to fail.
+
+The contract is now stated once in `src/lib/projectServiceContract.ts` —
+`ProjectServiceLike` (the shared surface, in TypeScript) plus ~40 assertions
+about it — and run three times:
+
+| Backend | Storage under test |
+|---|---|
+| `NodeProjectService` | a real temp directory |
+| `BrowserProjectService` | `src/test/memfs.ts`, via a stubbed `showDirectoryPicker` |
+| `OPFSProjectService` | the same fake, via a stubbed `navigator.storage.getDirectory` |
+
+`memfs.ts` is an in-memory File System Access implementation covering exactly
+what the services call — getDirectoryHandle, getFileHandle, createWritable,
+getFile, removeEntry, entries — and throwing the same `NotFoundError` the
+browser does, because `readText` telling "absent" from "broken" by catching that
+is itself part of the contract.
+
+Each backend keeps its own file for what only it has: FSA's stored-handle
+permission flow (granted, refused, bundle gone) and picker cancellation, OPFS's
+`opfs:` locations and id-named bundles, Node's real paths.
+
+Verified by mutation, not by passing: making FSA's `writeText` skip empty
+content — a plausible optimisation — fails `can empty a document back out` in
+the FSA suite while Node stays green. That divergence is the thing that used to
+be invisible.
+
+641 unit tests, up from 541.
+
+---
+
 ## Electron packaging (any phase, when needed)
 
 1. `src/preload/index.ts` — `contextBridge.exposeInMainWorld('api', { ... })` with the same `KonbiniAPI` interface

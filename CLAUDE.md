@@ -146,7 +146,9 @@ All three implement the same project-layer interface and are swapped behind
 | Firefox/Safari | `OPFSProjectService` | browser-internal (OPFS) | location string directly |
 | Electron | `NodeProjectService` (preload) | real disk (`fs`) | location path directly |
 
-The renderer never knows which one is active.
+The renderer never knows which one is active — which only holds while they
+agree, so the contract they share is stated once in
+`src/lib/projectServiceContract.ts` and run against all three.
 
 ---
 
@@ -215,12 +217,6 @@ compiled CJS output runs under the root `"type":"module"`. The
 
 ## Known debt (don't expand it)
 
-- **The two browser project services have no unit tests.** `NodeProjectService`
-  is tested against a real temp directory (`electron/NodeProjectService.test.ts`)
-  and states the contract all three share; `BrowserProjectService` and
-  `OPFSProjectService` are covered only by `scripts/smoke.mjs`, which drives OPFS
-  in a real browser. A change that breaks one backend and not the others shows
-  up as a disagreement between those two, which is weaker than testing each.
 - **~49 exported *types* are named only by their own module.** Left alone on
   purpose: most are the parameter or return type of an exported function
   (`DocxOptions`, `StreamCallbacks`, `ContextPacket`), and an exported function
@@ -229,7 +225,17 @@ compiled CJS output runs under the root `"type":"module"`. The
 
 (Resolved and not to be reintroduced: exported values nothing else imported;
 a folder dropped into a split pane dead-ending on a placeholder; binder drag
-moving only the grabbed row instead of the whole selection.)
+moving only the grabbed row instead of the whole selection; a template that
+shipped a demo manuscript to every new project.)
+
+(The old entry here — "the two browser project services have no unit tests" — is
+resolved. The contract all three backends share is written once in
+`src/lib/projectServiceContract.ts` and run three times: `NodeProjectService`
+against a real temp directory, `BrowserProjectService` and `OPFSProjectService`
+against the in-memory File System Access implementation in `src/test/memfs.ts`.
+A change that breaks one backend now fails in that backend, by name. Adding a
+method to the project layer means adding it to `ProjectServiceLike` and to the
+contract — that is the point of the file, not an inconvenience.)
 
 (The old entry here — "a few stores still use `localStorage` directly" — is
 resolved. aiStore, shellStore, StatsService, RecentsService and PromptRegistry
