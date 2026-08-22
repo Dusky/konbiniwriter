@@ -26,6 +26,7 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
   const view = useProjectStore((s) => s.view)
   const activeViewTab = useProjectStore((s) => s.activeViewTab)
   const closeViewTab = useProjectStore((s) => s.closeViewTab)
+  const openViewTab = useProjectStore((s) => s.openViewTab)
   const selectNode = useProjectStore((s) => s.selectNode)
   const setSplitId = useProjectStore((s) => s.setSplitId)
   const applyMutation = useProjectStore((s) => s.applyMutation)
@@ -156,6 +157,12 @@ export default function EditorPane({ nodeId, splitOpen, pane }: Props): React.Re
               </button>
               <button className="btn" onClick={() => setModal('command-palette')}>
                 Command palette <span style={{ opacity: 0.7, marginLeft: 6 }}>{kbd('mod+k')}</span>
+              </button>
+              {/* This is the screen a lost author stares at, so it is where the
+                  Guide has to be reachable from. */}
+              <button className="btn" onClick={() => openViewTab('guide')}>
+                <Icon name="book" size={14} style={{ marginRight: 6, verticalAlign: '-2px' }} />
+                Guide
               </button>
             </div>
           </div>

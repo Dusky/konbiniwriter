@@ -442,7 +442,7 @@ weak spots, voice-drift vs. the fingerprint, tracked across drafts so a writer c
   point (`aux/quality-history.json`); the dashboard shows a sparkline + delta
   ("▲ +3.4 over N passes") so you watch the draft improve.
 
-### 5.3 Cross-device sync & backup 🔲  *(retention — biggest infra lift)*
+### 5.3 Cross-device sync & backup — Tier 0 ✅, Tier 2 🔲  *(retention — biggest infra lift)*
 
 **The hard part is the manifest, not the transport.** The bundle is
 `project.json` + `docs/<nodeId>.md` + `snapshots/` + `aux/*.json`.
@@ -880,6 +880,73 @@ candidate waits in the inbox until clicked, and stepping back un-writes the
 manuscript *and* the outline together. Driving it also caught two defects the
 type checker could not: step-back left an orphan beat in the spine, and ending
 a scene by hand left the author facing an empty deck.
+
+---
+
+## Phase 10 — First run ✅
+
+The last code-wise gap before 1.0. The launch screen offered *New Project* and
+*Open Project*; after that you were dropped into a studio holding a binder, an
+inspector, four view modes, a compile pipeline, a codex, Foundation, a quality
+dashboard and Adventure — with nothing anywhere naming any of them. The proof
+was the author of Adventure being unable to find Adventure two days after it
+shipped.
+
+### 10.1 A template gives you structure, never someone else's prose
+`buildProjectFromTemplate('novel')` returned an entire finished demo manuscript
+("Midnight Aisle" — prose, a cast, folklore research), and `novel` is the
+*default* card. So "New Project → Create", the most likely first action anyone
+takes, handed the author a stranger's half-written book to delete. It was a
+development convenience from Phase 1 that outlived its purpose and shipped as
+product behaviour.
+
+`novel` is now a three-act skeleton: Manuscript → Part One/Two/Three → Chapter
+1/2/3 → one empty Scene, plus empty Characters and Research folders. Every
+folder carries a synopsis saying what it is *for* — the one place a template can
+talk to the author without inventing sentences for them.
+
+`src/shared/templates.test.ts` is new, because the builder had never had a test
+at all — which is how this kept shipping. It checks every template for
+structural validity (trash reachable, the tree agreeing with itself in both
+directions, docs and nodes corresponding exactly, no id collisions across
+projects) and locks the regression: no template may produce a document with
+content in it.
+
+### 10.2 The Guide — a set of doors, not documentation
+`views/GuideView.tsx`, registered as the `guide` view tab. One card per surface:
+what it is, its shortcut, and **a button that opens it**, calling the same store
+actions the toolbar and command palette already use — so nothing here is a
+special path that can rot while the real one moves.
+
+Two things the smoke test forced, both real defects in the first cut:
+- A view door has to *leave the room*. The Guide is a view tab and `EditorPane`
+  renders the active view tab instead of the main pane, so `setView('corkboard')`
+  alone changed a mode the author could not see. View doors now close the Guide.
+- A door **opens**; it does not toggle. `toggleRailPanel('inspector')` closed the
+  inspector for everyone who had it showing — which is the default.
+
+Invariant 1 shapes the AI card: with AI off it is one paragraph of text saying
+the studio is complete without it, and a single button to the settings screen.
+No AI component mounts, no AI door is offered, nothing is hidden.
+
+### 10.3 Reaching it
+It opens by itself on the first project ever opened, guarded by
+`pref:seenGuide` through the `window.api.prefs` seam (invariant 7), with the
+flag set *before* opening so a crash mid-render cannot produce a Guide that
+reappears forever. After that it is a normal closable tab, reachable from the
+command palette's Help section and from the editor's empty state — the screen a
+lost author is actually staring at.
+
+Also closed while here: `New Project…` existed only in the launch screen's
+palette, so with a project open there was no way to start another without
+closing the current one first.
+
+### 10.4 What it is verified by
+Seven unit tests on the template builder, and twenty smoke checks driving the
+real studio: the Guide auto-opens on a cold boot and never again, the flag is
+persisted through the prefs seam, every door lands you where it says, the AI
+section offers no AI door with AI off, and a project created through the real
+New Project UI with the `novel` template has empty `docs/*.md` **on disk**.
 
 ---
 

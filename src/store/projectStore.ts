@@ -21,6 +21,7 @@ import { statsService } from '../lib/StatsService'
 export type ViewTabId =
   | 'stats' | 'foundation' | 'autopilot' | 'prompt-registry' | 'ai-settings'
   | 'batch-generator' | 'bestof' | 'prefs' | 'themes' | 'quality' | 'sync' | 'adventure'
+  | 'guide'
 
 interface ProjectState {
   project: Project | null

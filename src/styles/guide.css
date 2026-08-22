@@ -1,0 +1,95 @@
+/* ── Guide ───────────────────────────────────────────────────────────────────
+   The first-run orientation surface. Two columns of cards on a wide pane,
+   one on a narrow one; every card is a door rather than a paragraph, so the
+   buttons carry as much weight as the prose.
+   Tokens only — no literal colours. See CLAUDE.md's token list. */
+
+.guide-body { padding: var(--s5); }
+
+.guide-lede {
+  margin: 0 0 var(--s5);
+  font-size: var(--t-md);
+  line-height: 1.6;
+  color: var(--text-2);
+  max-width: 62ch;
+}
+
+.guide-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--s3);
+}
+
+.guide-card {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-2);
+  padding: var(--s4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.guide-card-hd {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.guide-card-hd h4 {
+  margin: 0;
+  font-size: var(--t-md);
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+}
+
+.guide-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--r-sm);
+  background: var(--bg-3);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.guide-kbd {
+  font-family: var(--mono);
+  font-size: var(--t-xs);
+  color: var(--text-3);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.guide-card p {
+  margin: 0;
+  font-size: var(--t-base);
+  line-height: 1.6;
+  color: var(--text-2);
+}
+
+.guide-doors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s1);
+}
+
+/* The AI card spans the full width beneath the grid — it is a different kind of
+   statement (the app is complete without this) and reads badly boxed in a column. */
+.guide-ai {
+  margin-top: var(--s4);
+  background: var(--bg-3);
+}
+
+.guide-ai p { max-width: 78ch; }
+
+.guide-foot {
+  margin: var(--s5) 0 0;
+  font-size: var(--t-xs);
+  color: var(--dim);
+}

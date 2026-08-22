@@ -145,6 +145,10 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
     }
 
     cmds.push(
+      // Only the launch screen used to offer this, so with a project open there
+      // was no way to start another one without closing this one first.
+      { id: 'new-project', label: 'New Project…', section: 'Project', run: () => shell.setModal('new-project') },
+      { id: 'guide', label: 'Guide — what everything does', section: 'Help', run: openView('guide') },
       { id: 'shortcuts', label: 'Keyboard Shortcuts…', section: 'Help', hint: kbd('mod+/'), run: openModal('shortcuts') },
       { id: 'about', label: 'About Konbini…', section: 'Help', run: openModal('about') },
       {

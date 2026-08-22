@@ -171,6 +171,89 @@ const setAI = async (on) => {
   await page.waitForTimeout(400)
 }
 
+// ── first run ───────────────────────────────────────────────────────────────
+section('First run · the studio names its own surfaces')
+
+// We are one click off a cold boot and `pref:seenGuide` has never been set, so
+// this is exactly what a stranger sees the first time they open a project.
+const guideTab = page.locator('.tab-strip .tab', { hasText: 'Guide' })
+check('the Guide opens by itself on the very first project', await guideTab.count() === 1)
+check('and it is the tab in front', (await guideTab.getAttribute('class') ?? '').includes('on'))
+check('the flag is persisted through the prefs seam, not localStorage',
+  await page.evaluate(() => window.api.prefs.get('pref:seenGuide')) === 'true')
+
+const guide = await page.evaluate(() => ({
+  cards: document.querySelectorAll('.guide-card').length,
+  doors: [...document.querySelectorAll('.guide-doors button')].map((b) => b.textContent.trim()),
+  ai: document.querySelector('.guide-ai h4')?.textContent.trim() ?? null,
+}))
+check('it names every surface as a card, not a wall of prose', guide.cards >= 8, guide.cards)
+check('every card carries a door you can walk through', guide.doors.length >= 10, guide.doors.length)
+
+// Invariant 1 inside the Guide: with AI off the AI section is one paragraph and
+// one button to the settings screen — the same affordance the toolbar shows.
+// None of the AI surfaces are named as doors, because none of them exist yet.
+const AI_DOORS = ['Foundation', 'Codex', 'Chat', 'Adventure', 'Autopilot', 'Manuscript quality']
+check('with AI off the Guide offers no AI door',
+  guide.doors.every((d) => !AI_DOORS.some((a) => d.startsWith(a))), guide.doors)
+check('it says so plainly rather than hiding the section',
+  /switched off/i.test(guide.ai ?? ''), guide.ai)
+check('and the one door it does offer is the setup screen',
+  guide.doors.includes('Set up AI'), guide.doors)
+
+// A door has to open. Clicking a view door must actually land you in that view —
+// the Guide owns the main pane while it is the active tab, so a door that only
+// flipped a mode would look broken.
+await page.locator('.guide-doors button', { hasText: 'Corkboard' }).first().click()
+await page.waitForTimeout(500)
+check('the Corkboard door lands you on the corkboard',
+  await page.locator('.cork').count() === 1 && await page.locator('.tab-strip .tab', { hasText: 'Guide' }).count() === 0)
+
+// Reopen it from the palette — the permanent way back once the tab is closed.
+await page.keyboard.press('Control+k')
+await page.waitForTimeout(300)
+await page.keyboard.type('Guide', { delay: 20 })
+await page.waitForTimeout(400)
+await page.keyboard.press('Enter')
+await page.waitForTimeout(500)
+check('the command palette reopens it under Help',
+  await page.locator('.guide-card').count() >= 8)
+
+// A rail door opens the rail beside the Guide rather than replacing it. Close
+// the rail first so the check can't pass on a panel that was already showing —
+// and so it would catch a door wired to a *toggle*, which closes it instead.
+if (await page.locator('.rail-close').count()) {
+  await page.locator('.rail-close').click()
+  await page.waitForTimeout(300)
+}
+await page.locator('.guide-doors button', { hasText: 'Open the inspector' }).first().click()
+await page.waitForTimeout(400)
+check('the Inspector door opens the rail without closing the Guide',
+  await page.locator('.rail .inspector').count() === 1 && await page.locator('.guide-card').count() >= 8)
+
+// Close it, and the editor's empty state — the screen a lost author stares at —
+// still offers a way back.
+await page.locator('.tab-strip .tab', { hasText: 'Guide' }).locator('.tab-x').click()
+await page.waitForTimeout(400)
+await page.locator('.seg button', { hasText: 'Editor' }).click()
+await page.waitForTimeout(400)
+check('the editor empty state offers the Guide',
+  await page.locator('.empty-state button', { hasText: 'Guide' }).count() === 1)
+await page.locator('.empty-state button', { hasText: 'Guide' }).click()
+await page.waitForTimeout(400)
+check('and that button opens it', await page.locator('.guide-card').count() >= 8)
+await page.locator('.tab-strip .tab', { hasText: 'Guide' }).locator('.tab-x').click()
+await page.waitForTimeout(300)
+
+// Once seen, never imposed again — including across a reload.
+await page.reload()
+await page.waitForFunction(() => !!window.api, null, { timeout: 30000 })
+await page.locator('.recent-row').first().click()
+await page.waitForSelector('.tree-row', { timeout: 30000 })
+await page.waitForTimeout(600)
+check('it does not reappear on the next launch',
+  await page.locator('.tab-strip .tab', { hasText: 'Guide' }).count() === 0)
+
 // ── invariant 1 ─────────────────────────────────────────────────────────────
 section('Invariant 1 · AI off means zero AI in the DOM')
 
@@ -1014,6 +1097,53 @@ check('the shell exposes landmarks (banner/nav/main/complementary/contentinfo)',
   structure.landmarks)
 check('the binder is a tree with treeitem rows', structure.tree && structure.treeitems > 0, structure)
 check('the tree has exactly one tab stop (roving tabindex)', structure.tabStops === 1, structure.tabStops)
+
+// ── templates ───────────────────────────────────────────────────────────────
+section('Templates · a new project is yours, not a demo')
+
+// `novel` used to return an entire finished sample manuscript — and it is the
+// default card — so "New Project → Create", the most likely first action anyone
+// takes, handed the author a stranger's book to delete. Checked on disk, because
+// the claim is about the bytes a template persists.
+await page.keyboard.press('Control+k')
+await page.waitForTimeout(300)
+await page.keyboard.type('New Project', { delay: 20 })
+await page.waitForTimeout(400)
+await page.keyboard.press('Enter')
+await page.waitForSelector('.tmpl-grid', { timeout: 10000 })
+check('a second project can be started without closing this one',
+  await page.locator('.tmpl-grid').count() === 1)
+check('the Novel template is the default card',
+  (await page.locator('.tmpl-card.on .tc-label').first().textContent()).trim() === 'Novel')
+await page.locator('.tmpl-card', { hasText: 'Novel' }).first().click()
+await page.fill('.np-field .inp', 'Fresh Novel')
+await page.locator('.btn.primary', { hasText: 'Create Project' }).click()
+await page.waitForSelector('.tree-row', { timeout: 30000 })
+await page.waitForTimeout(800)
+
+const fresh = await page.evaluate(async () => {
+  const root = await (await navigator.storage.getDirectory()).getDirectoryHandle('konbini-projects')
+  let bundle = null
+  for await (const [name, handle] of root.entries()) {
+    if (name === 'smoke.konbini') continue
+    const manifest = JSON.parse(await (await (await handle.getFileHandle('project.json')).getFile()).text())
+    if (manifest.title === 'Fresh Novel') bundle = { handle, manifest }
+  }
+  if (!bundle) return null
+  const docs = []
+  const dir = await bundle.handle.getDirectoryHandle('docs')
+  for await (const [name, fh] of dir.entries()) docs.push([name, await (await fh.getFile()).text()])
+  return { titles: Object.values(bundle.manifest.nodes).map((n) => n.title).sort(), docs }
+})
+check('the new project reached disk', fresh !== null)
+check('every document it created is empty — no prose the author has to delete',
+  fresh !== null && fresh.docs.every(([, text]) => text.trim() === ''),
+  fresh && fresh.docs.filter(([, t]) => t.trim() !== '').map(([n, t]) => [n, t.slice(0, 60)]))
+check('but it does arrive with a shape to write into',
+  fresh !== null && ['Manuscript', 'Part One', 'Chapter 1', 'Scene 1', 'Characters', 'Research', 'Trash']
+    .every((t) => fresh.titles.includes(t)), fresh && fresh.titles)
+check('the binder shows that shape',
+  await page.locator('.tree-row', { hasText: 'Manuscript' }).count() >= 1)
 
 // ── nothing threw ───────────────────────────────────────────────────────────
 section('No uncaught errors')
