@@ -619,6 +619,9 @@ button { font-family: inherit; cursor: default; }
 .tl-row { margin-bottom: var(--s6); }
 .tl-row-hd { font-size: var(--t-xs); font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
   color: var(--text-3); margin-bottom: 10px; padding-left: var(--s1); }
+.tl-row-path { color: var(--dim); font-weight: 500; }
+.tl-row-count { margin-left: var(--s2); padding: 0 5px; border-radius: var(--r-full);
+  background: var(--bg-3); color: var(--text-3); font-weight: 500; letter-spacing: 0; }
 .tl-track { position: relative; }
 .tl-line { position: absolute; top: 104px; left: 80px; right: 80px; height: 2px; background: var(--border); z-index: 0; }
 .tl-cards { display: flex; flex-direction: row; gap: var(--s3); overflow-x: auto;

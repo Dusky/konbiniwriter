@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import Icon from '../../common/Icon'
 import { BEAT_LENGTHS, type BeatLength } from '../../../lib/beat'
+import { continueCandidates, defaultContinueTarget } from '../../../lib/adventure'
 import type { ID, Project } from '@shared/types'
 
 export interface SetupChoice {
@@ -15,6 +16,8 @@ export interface SetupChoice {
 
 interface Props {
   project: Project
+  /** What the author has selected in the binder — the strongest hint we have. */
+  selectedId: ID | null
   busy: boolean
   onStart: (choice: SetupChoice) => void
 }
@@ -27,23 +30,13 @@ interface Props {
  * using your own voice and cast. Starting from a premise is the empty-project
  * case, not the main one.
  */
-export default function AdventureSetup({ project, busy, onStart }: Props): React.ReactElement {
-  const written = useMemo(() => {
-    const out: { id: ID; title: string; words: number }[] = []
-    const walk = (ids: ID[]) => {
-      for (const id of ids) {
-        const n = project.nodes[id]
-        if (!n) continue
-        if (n.type !== 'folder') {
-          const c = (project.docs[id]?.content ?? '').trim()
-          if (c) out.push({ id, title: n.title, words: c.split(/\s+/).length })
-        }
-        walk(n.childIds)
-      }
-    }
-    walk(project.rootIds.filter((id) => id !== project.trashId))
-    return out
-  }, [project])
+export default function AdventureSetup({ project, selectedId, busy, onStart }: Props): React.ReactElement {
+  const written = useMemo(() => continueCandidates(project), [project])
+  // Scenes are the manuscript; character sheets and research notes are
+  // scaffolding. Separating them is what stops the second group being picked by
+  // accident — continuing one stays possible, it just stops being the default.
+  const scenes = useMemo(() => written.filter((w) => w.isScene), [written])
+  const others = useMemo(() => written.filter((w) => !w.isScene), [written])
 
   const folders = useMemo(() => {
     const out: { id: ID; title: string; depth: number }[] = []
@@ -61,7 +54,7 @@ export default function AdventureSetup({ project, busy, onStart }: Props): React
 
   const [mode, setMode] = useState<'premise' | 'continue'>(written.length ? 'continue' : 'premise')
   const [premise, setPremise] = useState('')
-  const [sceneId, setSceneId] = useState<ID | null>(written[written.length - 1]?.id ?? null)
+  const [sceneId, setSceneId] = useState<ID | null>(() => defaultContinueTarget(project, selectedId))
   const [folderId, setFolderId] = useState<ID | null>(folders[0]?.id ?? null)
   const [passageLength, setPassageLength] = useState<BeatLength>('paragraph')
 
@@ -96,7 +89,16 @@ export default function AdventureSetup({ project, busy, onStart }: Props): React
               <label className="adv-field">
                 <span>Continue</span>
                 <select value={sceneId ?? ''} onChange={(e) => setSceneId(e.target.value || null)}>
-                  {written.map((w) => <option key={w.id} value={w.id}>{w.title} · {w.words} words</option>)}
+                  {scenes.length > 0 && (
+                    <optgroup label="Manuscript scenes">
+                      {scenes.map((w) => <option key={w.id} value={w.id}>{w.title} · {w.words} words</option>)}
+                    </optgroup>
+                  )}
+                  {others.length > 0 && (
+                    <optgroup label="Other documents">
+                      {others.map((w) => <option key={w.id} value={w.id}>{w.title} · {w.words} words</option>)}
+                    </optgroup>
+                  )}
                 </select>
               </label>
               <div className="adv-setup-note">

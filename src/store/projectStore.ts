@@ -460,10 +460,15 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     if (!id || !s.project) return { selectedId: id, selectedIds: [], cursor: null, activeViewTab: null }
     const node = s.project.nodes[id]
     if (!node) return { selectedId: id, selectedIds: [id], cursor: null, activeViewTab: null }
-    // Auto-switch view based on node type
-    const newView = opts?.keepView ? s.view : node.type === 'folder'
-      ? (s.view === 'editor' ? 'corkboard' : s.view)
-      : 'editor'
+    // Auto-switch view based on node type.
+    //
+    // A folder keeps whatever view you are already in. It used to bounce you
+    // from the editor to the corkboard, which meant Scrivenings — editing every
+    // scene under a folder as one manuscript — could not be reached by clicking
+    // the folder at all: you had to click it, then click Editor again, and the
+    // view control changed under you on the way. EditorPane already renders
+    // Scrivenings for a folder with scenes, so keeping the view is all it takes.
+    const newView = opts?.keepView ? s.view : node.type === 'folder' ? s.view : 'editor'
     // Opening a document surfaces it as a tab (folders don't get tabs).
     const openTabs = node.type !== 'folder' && !s.openTabs.includes(id)
       ? [...s.openTabs, id]

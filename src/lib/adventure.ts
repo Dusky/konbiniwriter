@@ -24,6 +24,7 @@ import { buildContext, renderContext } from './ContextBuilder'
 import { composeCustomInstructions } from './CustomInstructions'
 import { beatLength, beatStylePhrase, type BeatLength } from './beat'
 import type { MentionIndex } from './MentionIndex'
+import { wordCount } from '@shared/utils'
 import type { CodexCategory, CodexEntry, ID, ISO, Project } from '@shared/types'
 
 const OPENING_PROMPT_ID = 'builtin:adventure:opening'
@@ -132,6 +133,80 @@ export function lastPassageRange(content: string, passage: string): { from: numb
   if (!body) return null
   const at = content.lastIndexOf(body)
   return at === -1 ? null : { from: at, to: at + body.length }
+}
+
+/** A document that has something in it, as the setup screen lists them. */
+export interface ContinueCandidate {
+  id: ID
+  title: string
+  words: number
+  /** Scenes are the manuscript; everything else is a character sheet or a note. */
+  isScene: boolean
+}
+
+/** Every written document in the project, in binder order, trash excluded. */
+export function continueCandidates(project: Project): ContinueCandidate[] {
+  const out: ContinueCandidate[] = []
+  const walk = (ids: ID[]) => {
+    for (const id of ids) {
+      const n = project.nodes[id]
+      if (!n || id === project.trashId) continue
+      if (n.type !== 'folder') {
+        const content = project.docs[id]?.content ?? ''
+        if (content.trim()) out.push({ id, title: n.title, words: wordCount(content), isScene: n.type === 'scene' })
+      }
+      walk(n.childIds)
+    }
+  }
+  walk(project.rootIds.filter((id) => id !== project.trashId))
+  return out
+}
+
+/** Every written document beneath a node, itself included. */
+function writtenUnder(project: Project, rootId: ID): ContinueCandidate[] {
+  const wanted = new Set<ID>()
+  const collect = (id: ID) => {
+    const n = project.nodes[id]
+    if (!n) return
+    wanted.add(id)
+    n.childIds.forEach(collect)
+  }
+  collect(rootId)
+  return continueCandidates(project).filter((c) => wanted.has(c.id))
+}
+
+/**
+ * Which document "Continue from here" should point at.
+ *
+ * This used to be "the last written document anywhere in the project", which in
+ * any project with a Characters folder means a character sheet — so Adventure
+ * would cheerfully draft the novel into Reiko's biography and put the story
+ * spine in with the cast. The binder selection is what the author is looking at,
+ * so it wins; after that, prefer a scene over a note, because scenes are the
+ * manuscript and everything else is scaffolding.
+ */
+export function defaultContinueTarget(project: Project, selectedId: ID | null): ID | null {
+  const all = continueCandidates(project)
+  if (all.length === 0) return null
+
+  if (selectedId && project.nodes[selectedId]) {
+    const node = project.nodes[selectedId]
+    if (node.type !== 'folder') {
+      // The selected document itself, if there is anything in it to continue.
+      const hit = all.find((c) => c.id === selectedId)
+      if (hit) return hit.id
+    } else {
+      // A folder selection means "somewhere in here" — take its last scene, or
+      // failing that its last written document.
+      const under = writtenUnder(project, selectedId)
+      const scene = [...under].reverse().find((c) => c.isScene)
+      if (scene) return scene.id
+      if (under.length) return under[under.length - 1]!.id
+    }
+  }
+
+  const lastScene = [...all].reverse().find((c) => c.isScene)
+  return (lastScene ?? all[all.length - 1]!).id
 }
 
 /**
@@ -333,7 +408,6 @@ const DETAIL_PHRASE: Record<OptionDetail, string> = {
   detailed: 'Give each direction one or two sentences with a concrete, specific detail — twenty to forty words.',
 }
 
-export const words = (text: string): number => (text.trim() ? text.trim().split(/\s+/).length : 0)
 
 // ── The four calls ───────────────────────────────────────────────────────────
 
@@ -382,7 +456,7 @@ export function streamPassage(args: SceneArgs & { beat: string }): Promise<strin
 export async function generateOptions(args: SceneArgs): Promise<AdventureOption[]> {
   const { project, session } = args
   const content = project.docs[session.activeSceneId]?.content ?? ''
-  const longEnough = words(content) >= session.sceneBreakAfter
+  const longEnough = wordCount(content) >= session.sceneBreakAfter
   const raw = await run(OPTIONS_PROMPT_ID, {
     summary: session.summary || '(the story has only just started)',
     preceding: precedingText(content),

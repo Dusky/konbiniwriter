@@ -83,9 +83,18 @@ function seed(page) {
       docs[sid] = { snapshots: [] }
       await write(docsDir, `${sid}.md`, original.repeat(6))
     }
+    // A written character sheet, in a folder that sorts after the manuscript.
+    // Adventure used to default to "the last written document anywhere", which
+    // is exactly this node — and drafted the novel into it.
+    nodes.chars = mk('chars', 'folder', 'Characters', null)
+    nodes.who = mk('who', 'document', 'Cast note', 'chars')
+    nodes.chars.childIds = ['who']
+    docs.who = { snapshots: [] }
+    await write(docsDir, 'who.md', 'A written note about the cast, not a scene.')
+
     await write(bundle, 'project.json', JSON.stringify({
       schemaVersion: 2, id: pid, title: 'Smoke', created: now, modified: now,
-      rootIds: ['ch1', 'trash'], trashId: 'trash', nodes, docs,
+      rootIds: ['ch1', 'chars', 'trash'], trashId: 'trash', nodes, docs,
       settings: { location: 'opfs:' + pid, template: 'novel' },
     }))
     for (const f of ['codex.json', 'debt.json', 'comments.json']) await write(bundle, f, '[]')
@@ -485,6 +494,48 @@ check('and it is a real editor, not a preview',
 
 await page.keyboard.press('Control+Backslash')
 await page.waitForTimeout(500)
+
+// ── reaching Scrivenings, and the story map ─────────────────────────────────
+section('Browsing · a folder click keeps the view you are in')
+
+// Clicking a folder used to bounce you from the editor to the corkboard, which
+// meant Scrivenings — the whole point of a folder in the editor — could not be
+// reached by clicking the folder. You had to click it, then click Editor again,
+// and the view control changed under you on the way.
+await page.locator('.seg button', { hasText: 'Editor' }).click()
+await page.waitForTimeout(400)
+await page.locator('.tree-row').filter({ hasText: 'Chapter One' }).first().click()
+await page.waitForTimeout(900)
+const activeView = async () => (await page.locator('.seg button.on').innerText().catch(() => '')).trim()
+check('clicking a folder from the editor opens Scrivenings, with no second click',
+  /Scrivenings/.test(await page.locator('.main').innerText().catch(() => '')))
+check('and the view control still says Editor — nothing switched under you',
+  await activeView() === 'Editor', await activeView())
+check('it is a real editor, not a preview',
+  await page.locator('.main .cm-content').count() >= 1)
+
+// The same click from the corkboard stays on the corkboard.
+await page.locator('.seg button', { hasText: 'Corkboard' }).click()
+await page.waitForTimeout(400)
+await page.locator('.tree-row').filter({ hasText: 'Chapter Two' }).first().click()
+await page.waitForTimeout(600)
+check('and from the corkboard a folder click stays on the corkboard',
+  await activeView() === 'Corkboard' && await page.locator('.cork').count() === 1, await activeView())
+
+section('Story map · one lane per chapter, and no lane for the trash')
+
+await page.locator('.seg button', { hasText: 'Story map' }).click()
+await page.waitForTimeout(800)
+const lanes = await page.locator('.tl-row-hd').evaluateAll((els) => els.map((e) => e.innerText.trim()))
+check('the view is offered under its real name', lanes.length > 0, lanes)
+check('the trash gets no lane', !lanes.some((l) => /Trash/i.test(l)), lanes)
+// Lane headers are uppercased by CSS and carry a count, so match loosely.
+check('each chapter gets its own lane instead of one flattened manuscript row',
+  lanes.some((l) => /chapter one/i.test(l)) && lanes.some((l) => /chapter two/i.test(l)), lanes)
+check('a deleted scene is not on the board',
+  !/Trash/i.test(await page.locator('.main.tl').innerText().catch(() => '')))
+await page.locator('.seg button', { hasText: 'Editor' }).click()
+await page.waitForTimeout(400)
 
 // ── deadline math ───────────────────────────────────────────────────────────
 section('Deadline · a date and a target become a daily number, honestly')
@@ -943,6 +994,16 @@ check('Adventure opens on a setup screen, not straight into generation',
   await page.locator('.adv-setup').count() === 1)
 check('it offers to continue from prose that already exists',
   await page.locator('.adv-setup-mode button').first().innerText().catch(() => '') === 'Continue from here')
+
+// The regression lock: the project has a written "Cast note" that comes after
+// the manuscript in binder order. Defaulting to the last written document
+// anywhere picks that sheet and drafts the novel into it.
+const advDefault = await page.locator('.adv-setup select').first().inputValue().catch(() => '')
+check('it does NOT default to a character sheet just because it was written last',
+  advDefault !== 'who', advDefault)
+check('it defaults to a manuscript scene', /^sc\d$/.test(advDefault), advDefault)
+const advGroups = await page.locator('.adv-setup select optgroup').evaluateAll((els) => els.map((e) => e.label))
+check('scenes and notes are offered as separate groups', advGroups.includes('Manuscript scenes'), advGroups)
 
 await page.locator('.adv-start').click()
 await page.waitForSelector('.adv-deck', { timeout: 20000 }).catch(() => {})

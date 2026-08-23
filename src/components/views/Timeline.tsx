@@ -2,47 +2,57 @@ import React, { useState } from 'react'
 import { useProjectStore } from '../../store/projectStore'
 import { useShellStore } from '../../store/shellStore'
 import { STATUS_META, wordCount } from '@shared/utils'
-import type { ID } from '@shared/types'
+import type { ID, Project } from '@shared/types'
 
-interface Row {
+export interface Row {
   folderId: ID | null
   folderTitle: string
+  /** The path above this lane — "Manuscript › Part One" — for context. */
+  folderPath: string
   sceneIds: ID[]
 }
 
-function buildRows(project: NonNullable<ReturnType<typeof useProjectStore.getState>['project']>): Row[] {
+/**
+ * The book as lanes of cards.
+ *
+ * One lane per folder that *directly holds documents* — which for a novel means
+ * one lane per chapter. It used to be one lane per top-level folder with every
+ * descendant flattened into it, so the whole manuscript arrived as a single
+ * undivided row and you could not see where one chapter ended and the next
+ * began. Trash got a lane too.
+ *
+ * Exported so the grouping can be tested without a browser.
+ */
+export function buildRows(project: Project): Row[] {
   const rows: Row[] = []
-
-  // Walk rootIds — top-level folders become rows; top-level non-folders go to Ungrouped
   const ungrouped: ID[] = []
 
-  for (const rootId of project.rootIds) {
-    const node = project.nodes[rootId]
-    if (!node) continue
+  const walk = (ids: ID[], path: string[]) => {
+    for (const id of ids) {
+      const node = project.nodes[id]
+      if (!node || id === project.trashId) continue
+      if (node.type !== 'folder') continue
 
-    if (node.type === 'folder') {
-      // Collect all non-folder descendants in depth-first order
-      const scenes: ID[] = []
-      const walk = (ids: ID[]) => {
-        for (const id of ids) {
-          const n = project.nodes[id]
-          if (!n) continue
-          if (n.type !== 'folder') {
-            scenes.push(id)
-          } else {
-            walk(n.childIds)
-          }
-        }
+      // Documents sitting directly in this folder are its lane; child folders
+      // get lanes of their own, so a Part with chapters under it contributes
+      // nothing itself and the chapters each get a row.
+      const direct = node.childIds.filter((cid) => project.nodes[cid] && project.nodes[cid]!.type !== 'folder')
+      if (direct.length > 0) {
+        rows.push({ folderId: id, folderTitle: node.title, folderPath: path.join(' › '), sceneIds: direct })
       }
-      walk(node.childIds)
-      rows.push({ folderId: rootId, folderTitle: node.title, sceneIds: scenes })
-    } else {
-      ungrouped.push(rootId)
+      walk(node.childIds, [...path, node.title])
     }
   }
 
+  const roots = project.rootIds.filter((id) => id !== project.trashId)
+  for (const rootId of roots) {
+    const node = project.nodes[rootId]
+    if (node && node.type !== 'folder') ungrouped.push(rootId)
+  }
+  walk(roots, [])
+
   if (ungrouped.length > 0) {
-    rows.unshift({ folderId: null, folderTitle: 'Ungrouped', sceneIds: ungrouped })
+    rows.unshift({ folderId: null, folderTitle: 'Ungrouped', folderPath: '', sceneIds: ungrouped })
   }
 
   return rows
@@ -77,7 +87,9 @@ export default function Timeline(): React.ReactElement {
           <div key={row.folderId ?? '__ungrouped'} className="tl-row">
             {/* Row header */}
             <div className="tl-row-hd">
+              {row.folderPath && <span className="tl-row-path">{row.folderPath} › </span>}
               {row.folderTitle}
+              <span className="tl-row-count">{row.sceneIds.length}</span>
             </div>
 
             {/* Horizontal scroll area with connecting line */}

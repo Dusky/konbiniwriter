@@ -950,6 +950,43 @@ New Project UI with the `novel` template has empty `docs/*.md` **on disk**.
 
 ---
 
+## Phase 13 — Five bugs found by looking at the app ✅
+
+Driving the studio in a real browser and reading the screenshots, rather than
+the source. Every one of these compiled cleanly and passed 656 unit tests and
+142 smoke checks.
+
+1. **Adventure drafted into a character sheet.** Setup defaulted to
+   `written[written.length-1]` — the last written document *anywhere* — which in
+   any project with a Characters folder is a biography, not a scene. Prose was
+   appended to it and the story spine filed beside the cast. Now
+   `defaultContinueTarget()` prefers the binder selection, then the last scene
+   under a selected folder, then the last scene in the project; the dropdown
+   separates **Manuscript scenes** from **Other documents**.
+2. **Three word counters.** Setup said 32 for a document the binder called 33,
+   and Adventure's scene-break threshold was measured in a unit the author never
+   saw. `adventure.ts`'s `words` and the inline counter in setup are gone; there
+   is one `wordCount`.
+3. **Scrivenings was unreachable by clicking a folder.** `selectNode` bounced
+   you from the editor to the corkboard, so the folder-in-editor view needed a
+   second click and the view control changed under you. A folder now keeps the
+   view you are in.
+4. **Shortcuts died under Caps Lock**, and `mod+shift+z` never worked at all —
+   `e.key` carries shift and Caps Lock state, so `e.key === 'E'` misses and
+   `e.key === 'z'` can never match while Shift is held. One lower-cased `key`.
+5. **Timeline was not a timeline** — lanes by top-level folder, Trash included,
+   every chapter flattened into one row, no axis and no date field anywhere.
+   Now one lane per folder that directly holds documents (a lane per chapter,
+   with its path above it), trash excluded, and renamed **Story map** in the
+   four places it is named. The `'timeline'` id and ⌘4 are unchanged.
+
+Both locks were verified by mutation: reverting 1 fails two unit tests and two
+smoke checks by name; reverting 3 fails three more.
+
+677 unit tests, 153 smoke checks.
+
+---
+
 ## Phase 12 — Adventure as a conversation ✅
 
 Adventure could already take a beat in the author's own words, so the gap was

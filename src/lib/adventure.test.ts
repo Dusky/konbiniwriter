@@ -4,6 +4,8 @@
 // prompt: fenced, prefaced, half-finished, or quietly the wrong type.
 
 import { describe, it, expect } from 'vitest'
+import { wordCount } from '@shared/utils'
+import type { Project } from '@shared/types'
 import {
   parseOptions,
   parseNotes,
@@ -11,7 +13,8 @@ import {
   precedingText,
   appendPassage,
   spineLine,
-  words,
+  continueCandidates,
+  defaultContinueTarget,
   MAX_OPTIONS,
   parseIntent,
   recordTurn,
@@ -200,10 +203,18 @@ describe('spineLine', () => {
   })
 })
 
-describe('words', () => {
-  it('counts words, not whitespace', () => {
-    expect(words('  one   two\nthree ')).toBe(3)
-    expect(words('   ')).toBe(0)
+describe('counting words', () => {
+  it('counts the way the rest of the app counts', () => {
+    // Adventure used to carry its own counter, so the setup screen said 32 for
+    // a document the binder called 33 — and the scene-break threshold was
+    // measured in a unit the author was never shown. One counter now.
+    expect(wordCount('  one   two\nthree ')).toBe(3)
+    expect(wordCount('   ')).toBe(0)
+  })
+
+  it('ignores Markdown syntax, so a heading is not a word', () => {
+    expect(wordCount('# Reiko Tanaka')).toBe(wordCount('Reiko Tanaka'))
+    expect(wordCount('**Age** 22')).toBe(2)
   })
 })
 
@@ -311,5 +322,115 @@ describe('lastPassageRange', () => {
   it('declines when there is no passage to point at', () => {
     expect(lastPassageRange(scene, '')).toBeNull()
     expect(lastPassageRange(scene, '   \n ')).toBeNull()
+  })
+})
+
+// ── Where Adventure starts drafting ──────────────────────────────────────────
+
+/**
+ * A project shaped like a real one: a manuscript of scenes, then a Characters
+ * folder whose sheets are written *after* them in binder order. That ordering is
+ * the whole bug — "the last written document" is the character sheet.
+ */
+function novel(): Project {
+  const node = (id: string, type: 'folder' | 'scene' | 'document', title: string, parentId: string | null, childIds: string[] = []) => ({
+    id, type, title, parentId, childIds, expanded: true,
+    meta: { label: 'none' as const, status: 'draft' as const, synopsis: '', target: 0, includeInCompile: type !== 'folder', keywords: [] },
+    ext: {}, rev: 1, modified: '2026-01-01T00:00:00.000Z',
+  })
+  const nodes: Record<string, ReturnType<typeof node>> = {}
+  const add = (n: ReturnType<typeof node>) => { nodes[n.id] = n }
+  add(node('trash', 'folder', 'Trash', null))
+  add(node('ms', 'folder', 'Manuscript', null, ['ch1', 'ch2']))
+  add(node('ch1', 'folder', 'Chapter 1', 'ms', ['s1', 's2']))
+  add(node('s1', 'scene', 'The first customer', 'ch1'))
+  add(node('s2', 'scene', 'Aisle Nine', 'ch1'))
+  add(node('ch2', 'folder', 'Chapter 2', 'ms', ['s3']))
+  add(node('s3', 'scene', 'The Woman in White', 'ch2'))
+  add(node('chars', 'folder', 'Characters', null, ['c1']))
+  add(node('c1', 'document', 'Reiko Tanaka', 'chars'))
+  add(node('binned', 'scene', 'Deleted scene', 'trash'))
+  nodes.trash.childIds = ['binned']
+  return {
+    schemaVersion: 2, id: 'p', title: 'Midnight Aisle', created: '', modified: '',
+    rootIds: ['ms', 'chars', 'trash'], trashId: 'trash',
+    nodes: nodes as unknown as Project['nodes'],
+    docs: {
+      s1: { content: 'The first customer came at 11:14.', snapshots: [] },
+      s2: { content: 'The store had eight aisles.', snapshots: [] },
+      s3: { content: 'She arrived at 3:33.', snapshots: [] },
+      c1: { content: '# Reiko Tanaka\n\nTook the graveyard shift.', snapshots: [] },
+      binned: { content: 'Cut from chapter two.', snapshots: [] },
+    },
+    settings: { location: '', template: 'novel' },
+  } as unknown as Project
+}
+
+describe('continueCandidates', () => {
+  it('lists every written document in binder order', () => {
+    expect(continueCandidates(novel()).map((c) => c.id)).toEqual(['s1', 's2', 's3', 'c1'])
+  })
+
+  it('leaves out documents with nothing in them', () => {
+    const p = novel()
+    p.docs.s2 = { content: '   \n ', snapshots: [] }
+    expect(continueCandidates(p).map((c) => c.id)).not.toContain('s2')
+  })
+
+  it('never offers to continue something in the trash', () => {
+    expect(continueCandidates(novel()).map((c) => c.id)).not.toContain('binned')
+  })
+
+  it('marks scenes apart from notes, so the two can be grouped', () => {
+    const byId = Object.fromEntries(continueCandidates(novel()).map((c) => [c.id, c.isScene]))
+    expect(byId.s1).toBe(true)
+    expect(byId.c1).toBe(false)
+  })
+
+  it('counts words the way the binder does', () => {
+    // '# Reiko Tanaka' is two words, not three — the heading marker is syntax.
+    expect(continueCandidates(novel()).find((c) => c.id === 'c1')!.words).toBe(6)
+  })
+})
+
+describe('defaultContinueTarget', () => {
+  it('does NOT default to a character sheet just because it was written last', () => {
+    // The bug this exists to prevent: Adventure drafted the novel into Reiko's
+    // biography and filed the story spine under Characters.
+    expect(defaultContinueTarget(novel(), null)).toBe('s3')
+  })
+
+  it('takes the selected document when one is selected', () => {
+    expect(defaultContinueTarget(novel(), 's1')).toBe('s1')
+  })
+
+  it('takes the last scene inside a selected folder', () => {
+    expect(defaultContinueTarget(novel(), 'ch1')).toBe('s2')
+    expect(defaultContinueTarget(novel(), 'ms')).toBe('s3')
+  })
+
+  it('honours a deliberately selected character sheet', () => {
+    // Preferring scenes is a default, not a rule — the author pointing at a
+    // document is a stronger signal than the heuristic.
+    expect(defaultContinueTarget(novel(), 'c1')).toBe('c1')
+  })
+
+  it('ignores a selection with nothing written in it', () => {
+    const p = novel()
+    p.nodes.s4 = { ...p.nodes.s1, id: 's4', title: 'Empty' }
+    p.docs.s4 = { content: '', snapshots: [] }
+    expect(defaultContinueTarget(p, 's4')).toBe('s3')
+  })
+
+  it('falls back to a note when the project has no written scenes', () => {
+    const p = novel()
+    for (const id of ['s1', 's2', 's3']) p.docs[id] = { content: '', snapshots: [] }
+    expect(defaultContinueTarget(p, null)).toBe('c1')
+  })
+
+  it('has nothing to point at in an empty project', () => {
+    const p = novel()
+    p.docs = {}
+    expect(defaultContinueTarget(p, null)).toBeNull()
   })
 })

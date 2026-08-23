@@ -93,7 +93,7 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
       { id: 'view-editor', label: 'View: Editor', section: 'View', hint: kbd('mod+1'), run: () => proj.setView('editor') },
       { id: 'view-corkboard', label: 'View: Corkboard', section: 'View', hint: kbd('mod+2'), run: () => proj.setView('corkboard') },
       { id: 'view-outliner', label: 'View: Outliner', section: 'View', hint: kbd('mod+3'), run: () => proj.setView('outliner') },
-      { id: 'view-timeline', label: 'View: Timeline', section: 'View', hint: kbd('mod+4'), run: () => proj.setView('timeline') },
+      { id: 'view-timeline', label: 'View: Story map', section: 'View', hint: kbd('mod+4'), run: () => proj.setView('timeline') },
       // Layout / modes
       { id: 'toggle-binder', label: 'Toggle Binder', section: 'Layout', hint: kbd('mod+alt+b'), run: () => shell.toggleBinder() },
       { id: 'focus-binder', label: 'Focus Binder', section: 'Layout', hint: kbd('mod+shift+b'), run: () => {

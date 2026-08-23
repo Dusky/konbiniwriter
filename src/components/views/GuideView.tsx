@@ -77,12 +77,12 @@ export default function GuideView({ onClose, embedded }: Props): React.ReactElem
             'The right rail. Synopsis, status and label, word target, keywords, comments anchored to a passage, and every document that links here with [[wikilinks]].',
             [{ label: 'Open the inspector', run: () => setRailPanel('inspector') }])}
 
-          {card('chart', 'Corkboard · Outliner · Timeline', `${kbd('mod+2')} · ${kbd('mod+3')} · ${kbd('mod+4')}`,
-            'Three ways of looking at the same book. Index cards you can shuffle, a spreadsheet of status and word counts, and a chronology. Rearranging in any of them rearranges the manuscript.',
+          {card('chart', 'Corkboard · Outliner · Story map', `${kbd('mod+2')} · ${kbd('mod+3')} · ${kbd('mod+4')}`,
+            'Three ways of looking at the same book. Index cards you can shuffle, a spreadsheet of status and word counts, and a lane of cards per chapter you can drag between. Rearranging in any of them rearranges the manuscript.',
             [
               { label: 'Corkboard', run: goTo('corkboard') },
               { label: 'Outliner', run: goTo('outliner') },
-              { label: 'Timeline', run: goTo('timeline') },
+              { label: 'Story map', run: goTo('timeline') },
             ])}
 
           {card('history', 'Snapshots & History', kbd('mod+shift+s'),

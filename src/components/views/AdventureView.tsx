@@ -23,11 +23,11 @@ import AdventureSetup, { type SetupChoice } from './adventure/AdventureSetup'
 import {
   answerAside, appendPassage, classifyIntent, generateOptions, lastPassageRange, newSession,
   recordTurn, settleTurn, spineLine, streamContinuation, streamOpening, streamPassage,
-  streamRevision, takeNotes, updateSummary, words, SPINE_TITLE,
+  streamRevision, takeNotes, updateSummary, SPINE_TITLE,
   type AdventureOption, type AdventureSession, type AdventureTurn, type Intent, type NoteCandidate,
 } from '../../lib/adventure'
 import { createProposal } from '../../lib/ProposalService'
-import { uid } from '@shared/utils'
+import { uid, wordCount } from '@shared/utils'
 import type { ID } from '@shared/types'
 
 const SESSION_FILE = 'adventure.json'
@@ -52,6 +52,7 @@ interface UndoPoint {
 export default function AdventureView({ onClose, embedded }: Props): React.ReactElement {
   const project = useProjectStore((s) => s.project)
   const mentionIndex = useProjectStore((s) => s.mentionIndex)
+  const selectedId = useProjectStore((s) => s.selectedId)
   const updateContent = useProjectStore((s) => s.updateContent)
   const applyMutation = useProjectStore((s) => s.applyMutation)
   const addSnapshot = useProjectStore((s) => s.addSnapshot)
@@ -129,7 +130,7 @@ export default function AdventureView({ onClose, embedded }: Props): React.React
 
   const scene = session && project ? project.nodes[session.activeSceneId] : null
   const sceneContent = session && project ? (project.docs[session.activeSceneId]?.content ?? '') : ''
-  const sceneWords = useMemo(() => words(sceneContent), [sceneContent])
+  const sceneWords = useMemo(() => wordCount(sceneContent), [sceneContent])
 
   // ── binder plumbing ────────────────────────────────────────────────────────
 
@@ -576,7 +577,7 @@ export default function AdventureView({ onClose, embedded }: Props): React.React
     return shell(
       <>
         {error && <div className="msg-err adv-err">{error}</div>}
-        <AdventureSetup project={project} busy={busy} onStart={start} />
+        <AdventureSetup project={project} selectedId={selectedId} busy={busy} onStart={start} />
       </>,
     )
   }

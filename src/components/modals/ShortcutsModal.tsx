@@ -34,7 +34,7 @@ const SHORTCUTS = [
       ['Editor', 'mod+1'],
       ['Corkboard', 'mod+2'],
       ['Outliner', 'mod+3'],
-      ['Timeline', 'mod+4'],
+      ['Story map', 'mod+4'],
       ['Toggle Binder', 'mod+alt+b'],
       ['Focus Binder', 'mod+shift+b'],
       ['Toggle Inspector', 'mod+alt+i'],
