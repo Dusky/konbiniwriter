@@ -31,6 +31,10 @@ const PASSAGE_PROMPT_ID = 'builtin:adventure:passage'
 const OPTIONS_PROMPT_ID = 'builtin:adventure:options'
 const NOTES_PROMPT_ID = 'builtin:adventure:notes'
 const SUMMARY_PROMPT_ID = 'builtin:adventure:summary'
+const INTENT_PROMPT_ID = 'builtin:adventure:intent'
+const REVISE_PROMPT_ID = 'builtin:adventure:revise'
+const CONTINUE_PROMPT_ID = 'builtin:adventure:continue'
+const ANSWER_PROMPT_ID = 'builtin:adventure:answer'
 
 /** How much of the current scene to show the model as "what just happened". */
 const PRECEDING_LIMIT = 4000
@@ -68,6 +72,69 @@ export interface NoteCandidate {
 export type OptionDetail = 'terse' | 'detailed'
 
 /**
+ * What the author meant by a line they typed.
+ *
+ * The deck's cards are unambiguously beats, so only free text is classified.
+ * Every outcome is cheap to be wrong about, which is what makes guessing
+ * acceptable at all: a `continue` appends and costs one step back, a `revise`
+ * arrives as a changeset the author can reject, and an `ask` writes nothing.
+ */
+export type Intent = 'continue' | 'revise' | 'ask'
+
+/** One exchange in the session — what the author said, and what came back. */
+export interface AdventureTurn {
+  id: string
+  at: ISO
+  /** Verbatim, so the transcript is a record of intent and not of beats. */
+  said: string
+  intent: Intent
+  /** Prose for `continue`, the revised passage for `revise`, the reply for `ask`. */
+  got: string
+  /** True while the model is still answering this turn. */
+  pending?: boolean
+  /** A revision that went out as a changeset rather than straight to the page. */
+  proposed?: boolean
+  sceneId: ID
+}
+
+/**
+ * How many turns the session file keeps.
+ *
+ * The transcript is a convenience, not an archive: the prose lives in the
+ * manuscript and the decisions live in the spine document, so old turns can
+ * fall off the top without losing anything the author would miss. Keeping them
+ * all would duplicate the whole book inside `aux/adventure.json`.
+ */
+export const TURN_HISTORY_LIMIT = 40
+
+/** Append a turn, dropping the oldest once the transcript is full. */
+export function recordTurn(turns: AdventureTurn[], turn: AdventureTurn): AdventureTurn[] {
+  const next = [...turns, turn]
+  return next.length > TURN_HISTORY_LIMIT ? next.slice(-TURN_HISTORY_LIMIT) : next
+}
+
+/** Replace a turn in place — used when a pending turn's answer lands. */
+export function settleTurn(turns: AdventureTurn[], id: string, patch: Partial<AdventureTurn>): AdventureTurn[] {
+  return turns.map((t) => (t.id === id ? { ...t, ...patch, pending: false } : t))
+}
+
+/**
+ * Where the last passage sits in the scene, so a revision can replace exactly
+ * that span and nothing else.
+ *
+ * Found by searching for the text rather than by offset arithmetic, because the
+ * author can edit the scene between turns — the embedded editor is the real
+ * editor. If the passage is no longer there verbatim, the answer is null and
+ * the caller declines to revise rather than guessing at a range.
+ */
+export function lastPassageRange(content: string, passage: string): { from: number; to: number } | null {
+  const body = passage.trim()
+  if (!body) return null
+  const at = content.lastIndexOf(body)
+  return at === -1 ? null : { from: at, to: at + body.length }
+}
+
+/**
  * Everything needed to resume a session, persisted to `aux/adventure.json`.
  *
  * Losing this file loses your place, not your book: the prose is in the
@@ -92,6 +159,10 @@ export interface AdventureSession {
   summary: string
   /** The deck as it stands, so a reload doesn't cost a generation. */
   options: AdventureOption[]
+  /** The conversation, most recent last. Capped at `TURN_HISTORY_LIMIT`. */
+  turns: AdventureTurn[]
+  /** Whether the deck of suggested beats is showing. */
+  deckOpen: boolean
   startedAt: ISO
 }
 
@@ -108,6 +179,8 @@ export function newSession(patch: Partial<AdventureSession> & Pick<AdventureSess
     beats: [],
     summary: '',
     options: [],
+    turns: [],
+    deckOpen: true,
     startedAt: new Date().toISOString(),
     ...patch,
   }
@@ -151,6 +224,29 @@ export function parseOptions(raw: string): AdventureOption[] {
     if (out.length >= MAX_OPTIONS) break
   }
   return out
+}
+
+/**
+ * Read the classifier's answer.
+ *
+ * Defaults to `continue` on anything unrecognised, because that is both the
+ * common case and the one the author can undo with a single keystroke. A
+ * misread that appends costs a step back; a misread that silently declined to
+ * write would look like the feature was broken.
+ */
+export function parseIntent(raw: string): Intent {
+  const match = raw.match(/\{[\s\S]*?\}/)
+  if (match) {
+    try {
+      const value = String((JSON.parse(match[0]) as Record<string, unknown>).intent ?? '').toLowerCase()
+      if (value === 'revise' || value === 'ask' || value === 'continue') return value
+    } catch { /* fall through to the bare-word read */ }
+  }
+  // Some models answer with the bare word and no JSON at all.
+  const word = raw.trim().toLowerCase()
+  if (/^"?revise"?[.\s]*$/.test(word)) return 'revise'
+  if (/^"?ask"?[.\s]*$/.test(word)) return 'ask'
+  return 'continue'
 }
 
 const CATEGORIES: ReadonlySet<string> = new Set(['character', 'location', 'item', 'concept', 'lore'])
@@ -299,6 +395,74 @@ export async function generateOptions(args: SceneArgs): Promise<AdventureOption[
   }, args)
   const parsed = parseOptions(raw)
   return longEnough ? parsed : parsed.map(({ text }) => ({ text }))
+}
+
+/**
+ * Decide whether a line the author typed drives the story forward, asks for a
+ * change to what was just written, or is a question about the book.
+ *
+ * Only free text reaches here — picking a card from the deck is unambiguously a
+ * beat and skips the call entirely, so conversing costs one extra round trip
+ * and choosing costs none. With nothing written yet there is nothing to revise
+ * or ask about, so the classifier is skipped there too.
+ */
+export async function classifyIntent(args: { said: string; passage: string; signal?: AbortSignal }): Promise<Intent> {
+  if (!args.passage.trim()) return 'continue'
+  const raw = await run(INTENT_PROMPT_ID, { said: args.said, passage: args.passage }, { signal: args.signal })
+  return parseIntent(raw)
+}
+
+/**
+ * Rewrite the passage just written, to the author's instruction.
+ *
+ * Returns the revised passage only — the caller sends it through `Proposal` as
+ * a `selection`-scoped changeset, because this is the one thing in Adventure
+ * that replaces prose rather than adding it.
+ */
+export function streamRevision(args: SceneArgs & { instruction: string; passage: string }): Promise<string> {
+  const { project, index, session, instruction, passage } = args
+  const content = project.docs[session.activeSceneId]?.content ?? ''
+  const at = content.lastIndexOf(passage.trim())
+  return run(REVISE_PROMPT_ID, {
+    summary: session.summary || '(the story has only just started)',
+    context: sceneContext(project, index, session.activeSceneId),
+    preceding: precedingText(at > 0 ? content.slice(0, at) : ''),
+    passage,
+    instruction,
+    style: beatStylePhrase(session.styleId, session.styleText),
+  }, args)
+}
+
+/**
+ * Carry on from wherever the text stops, with no beat.
+ *
+ * This is the half of co-writing the deck cannot express: the author wrote the
+ * last paragraph themselves and wants the pen back, without having to invent a
+ * direction to justify it.
+ */
+export function streamContinuation(args: SceneArgs): Promise<string> {
+  const { project, index, session } = args
+  const len = beatLength(session.passageLength)
+  const content = project.docs[session.activeSceneId]?.content ?? ''
+  return run(CONTINUE_PROMPT_ID, {
+    summary: session.summary || '(the story has only just started)',
+    context: sceneContext(project, index, session.activeSceneId),
+    preceding: precedingText(content),
+    length: len.phrase,
+    style: beatStylePhrase(session.styleId, session.styleText),
+  }, args)
+}
+
+/** Answer a question about the story. Writes nothing. */
+export function answerAside(args: SceneArgs & { question: string }): Promise<string> {
+  const { project, index, session, question } = args
+  const content = project.docs[session.activeSceneId]?.content ?? ''
+  return run(ANSWER_PROMPT_ID, {
+    summary: session.summary || '(the story has only just started)',
+    context: sceneContext(project, index, session.activeSceneId),
+    preceding: precedingText(content),
+    question,
+  }, args).then((t) => t.trim())
 }
 
 /** What the passage introduced that the codex doesn't know yet. */

@@ -18,12 +18,15 @@ import Icon from '../common/Icon'
 import ModalShell from '../common/ModalShell'
 import ChoiceDeck from './adventure/ChoiceDeck'
 import NotesInbox from './adventure/NotesInbox'
+import Transcript from './adventure/Transcript'
 import AdventureSetup, { type SetupChoice } from './adventure/AdventureSetup'
 import {
-  appendPassage, generateOptions, newSession, spineLine, streamOpening, streamPassage,
-  takeNotes, updateSummary, words, SPINE_TITLE,
-  type AdventureOption, type AdventureSession, type NoteCandidate,
+  answerAside, appendPassage, classifyIntent, generateOptions, lastPassageRange, newSession,
+  recordTurn, settleTurn, spineLine, streamContinuation, streamOpening, streamPassage,
+  streamRevision, takeNotes, updateSummary, words, SPINE_TITLE,
+  type AdventureOption, type AdventureSession, type AdventureTurn, type Intent, type NoteCandidate,
 } from '../../lib/adventure'
+import { createProposal } from '../../lib/ProposalService'
 import { uid } from '@shared/utils'
 import type { ID } from '@shared/types'
 
@@ -42,6 +45,8 @@ interface UndoPoint {
   spine: { id: ID; content: string } | null
   options: AdventureOption[]
   summary: string
+  /** The prose this beat added — the span a "make it shorter" would revise. */
+  passage: string
 }
 
 export default function AdventureView({ onClose, embedded }: Props): React.ReactElement {
@@ -51,6 +56,7 @@ export default function AdventureView({ onClose, embedded }: Props): React.React
   const applyMutation = useProjectStore((s) => s.applyMutation)
   const addSnapshot = useProjectStore((s) => s.addSnapshot)
   const upsertCodexEntry = useProjectStore((s) => s.upsertCodexEntry)
+  const queueProposal = useProjectStore((s) => s.queueProposal)
   const aiEnabled = useAIStore((s) => s.enabled)
   const setToast = useShellStore((s) => s.setToast)
 
@@ -58,6 +64,10 @@ export default function AdventureView({ onClose, embedded }: Props): React.React
   const [loaded, setLoaded] = useState(false)
   const [busy, setBusy] = useState(false)
   const [ghost, setGhost] = useState('')
+  // Where the streaming text belongs: prose that will append shows under the
+  // editor, where it is about to land. A revision replaces a span further up,
+  // so previewing it at the bottom of the scene would be a lie about the edit.
+  const [ghostMode, setGhostMode] = useState<'append' | 'revise'>('append')
   const [notes, setNotes] = useState<NoteCandidate[]>([])
   const [scanning, setScanning] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -93,7 +103,11 @@ export default function AdventureView({ onClose, embedded }: Props): React.React
       .then((raw) => {
         if (cancelled) return
         const parsed = raw ? (JSON.parse(raw) as AdventureSession | null) : null
-        const alive = parsed && project.nodes[parsed.activeSceneId] ? parsed : null
+        // A session written before the conversation existed has neither field;
+        // resuming one must not crash on an undefined transcript.
+        const alive = parsed && project.nodes[parsed.activeSceneId]
+          ? { ...parsed, turns: parsed.turns ?? [], deckOpen: parsed.deckOpen ?? true }
+          : null
         sessionRef.current = alive
         setSession(alive)
       })
@@ -158,48 +172,82 @@ export default function AdventureView({ onClose, embedded }: Props): React.React
     return { ...s, options, summary }
   }
 
-  const runBeat = async (raw: string, endScene: boolean) => {
+  /** Put a line in the transcript before the model has answered it. */
+  const openTurn = (s: AdventureSession, said: string, intent: Intent): { id: string; session: AdventureSession } => {
+    const turn: AdventureTurn = {
+      id: uid(), at: new Date().toISOString(), said, intent, got: '',
+      pending: true, sceneId: s.activeSceneId,
+    }
+    return { id: turn.id, session: { ...s, turns: recordTurn(s.turns, turn) } }
+  }
+
+  /**
+   * Write the next passage — either from a beat the author chose, or by carrying
+   * on from where the text stops when they handed the pen back.
+   *
+   * Appends only. The snapshot before it is invariant 5's spirit on every turn:
+   * the worst case is one passage nobody wanted, undone with ⌘Z.
+   */
+  const runBeat = async (raw: string, endScene: boolean, opts: { mode?: 'beat' | 'continue'; turnId?: string } = {}) => {
     const s = sessionRef.current
     const proj = useProjectStore.getState().project
     if (!s || !proj || busy) return
+    const mode = opts.mode ?? 'beat'
     const opening = s.beats.length === 0 && !sceneContent.trim()
     // Opening a story from a premise needs no beat — the premise is the beat.
     const beat = raw.trim() || (opening ? s.premise.trim() : '')
-    if (!beat) return
-    setBusy(true); setError(null); setGhost('')
+    if (!beat && mode === 'beat') return
+    setBusy(true); setError(null); setGhost(''); setGhostMode('append')
     const ctrl = new AbortController()
     abortRef.current = ctrl
 
+    // A turn the caller already opened (free text, classified) is settled at the
+    // end; anything else — a card, Continue — opens its own here.
+    let started = s
+    let turnId = opts.turnId
+    if (!turnId) {
+      const opened = openTurn(s, mode === 'continue' ? 'Carry on from here.' : beat, 'continue')
+      turnId = opened.id
+      started = opened.session
+      write(started)
+    }
+
     try {
-      // Invariant 5's spirit, on every append: a rollback point exists before
-      // the model writes a word.
-      const snap = await window.api.snapshot.take(proj.id, s.activeSceneId, `Before "${beat.slice(0, 48)}"`, 'auto')
+      const snap = await window.api.snapshot.take(proj.id, s.activeSceneId, `Before "${beat.slice(0, 48) || 'continue'}"`, 'auto')
       addSnapshot(s.activeSceneId, snap)
-      const undo: UndoPoint = { sceneId: s.activeSceneId, snapshotId: snap.id, createdSceneId: null, spine: null, options: s.options, summary: s.summary }
+      const undo: UndoPoint = { sceneId: s.activeSceneId, snapshotId: snap.id, createdSceneId: null, spine: null, options: s.options, summary: s.summary, passage: '' }
 
       const args = { project: proj, index: mentionIndex, session: s, signal: ctrl.signal, onChunk: setGhost }
-      const passage = (opening ? await streamOpening({ ...args, session: { ...s, premise: s.premise || beat } })
-                               : await streamPassage({ ...args, beat })).trim()
+      const passage = (
+        mode === 'continue' ? await streamContinuation(args)
+        : opening ? await streamOpening({ ...args, session: { ...s, premise: s.premise || beat } })
+        : await streamPassage({ ...args, beat })
+      ).trim()
       if (!passage) throw new Error('The model returned an empty passage.')
 
       await appendTo(s.activeSceneId, passage)
       setGhost('')
+      undo.passage = passage
 
       let next: AdventureSession = {
-        ...s,
-        beats: [...s.beats, { text: beat, sceneId: s.activeSceneId, at: new Date().toISOString() }],
+        ...started,
+        turns: settleTurn(started.turns, turnId, { got: passage }),
       }
 
-      // The spine is the ledger of decisions, mirrored into the binder so the
-      // outline survives even if the session file doesn't.
-      const spineId = await ensureSpine(next)
-      // Captured before the append so stepping back leaves no orphan line
-      // behind — an outline that disagrees with the manuscript is worse than
-      // no outline.
-      undo.spine = { id: spineId, content: useProjectStore.getState().project?.docs[spineId]?.content ?? '' }
-      const startsScene = next.beats.filter((b) => b.sceneId === s.activeSceneId).length === 1
-      await appendTo(spineId, spineLine(next.beats[next.beats.length - 1]!, scene?.title ?? 'Scene', startsScene).trimEnd())
-      next = { ...next, spineId }
+      // Carrying on from the author's own sentence is not a decision, so it
+      // contributes no line to the spine — an outline of "and then it continued"
+      // is worse than one that only records the turns that chose something.
+      if (mode === 'beat') {
+        next = { ...next, beats: [...next.beats, { text: beat, sceneId: s.activeSceneId, at: new Date().toISOString() }] }
+        const spineId = await ensureSpine(next)
+        // Captured before the append so stepping back leaves no orphan line
+        // behind — an outline that disagrees with the manuscript is worse than
+        // no outline.
+        undo.spine = { id: spineId, content: useProjectStore.getState().project?.docs[spineId]?.content ?? '' }
+        const startsScene = next.beats.filter((b) => b.sceneId === s.activeSceneId).length === 1
+        await appendTo(spineId, spineLine(next.beats[next.beats.length - 1]!, scene?.title ?? 'Scene', startsScene).trimEnd())
+        next = { ...next, spineId }
+      }
 
       if (endScene) {
         const created = await startNextScene(next)
@@ -213,9 +261,140 @@ export default function AdventureView({ onClose, embedded }: Props): React.React
       const err = e as Error
       if (err.name !== 'AbortError') setError(err.message)
       setGhost('')
+      const now = sessionRef.current
+      if (now && turnId) write({ ...now, turns: settleTurn(now.turns, turnId, { got: err.name === 'AbortError' ? '(stopped)' : '' }) })
     } finally {
       setBusy(false)
       abortRef.current = null
+    }
+  }
+
+  /**
+   * A line the author typed, routed by what they meant.
+   *
+   * Cards from the deck bypass this — they are unambiguously beats. Free text is
+   * classified first, because "that last bit is too flowery" is an instruction
+   * about the passage just written, not a direction for the next one. Every
+   * outcome is cheap to get wrong: a beat costs one step back, a revision
+   * arrives as a changeset that can be rejected, a question writes nothing.
+   */
+  const say = async (text: string) => {
+    const s = sessionRef.current
+    const said = text.trim()
+    if (!s || !said || busy) return
+    const last = undoRef.current?.passage ?? ''
+
+    setBusy(true); setError(null)
+    const ctrl = new AbortController()
+    abortRef.current = ctrl
+    let intent: Intent = 'continue'
+    try {
+      intent = await classifyIntent({ said, passage: last, signal: ctrl.signal })
+    } catch {
+      // A classifier that fails must not swallow the author's line: fall back to
+      // the common case and let ⌘Z be the remedy.
+      intent = 'continue'
+    }
+    setBusy(false)
+    abortRef.current = null
+    if (ctrl.signal.aborted) return
+
+    const opened = openTurn(sessionRef.current ?? s, said, intent)
+    write(opened.session)
+    if (intent === 'revise') await revise(said, opened.id)
+    else if (intent === 'ask') await ask(said, opened.id)
+    else await runBeat(said, false, { turnId: opened.id })
+  }
+
+  /**
+   * Rewrite the passage just written, to the author's note.
+   *
+   * The one thing in this tab that replaces prose rather than adding to it — so
+   * it goes out as a `Proposal` and lands through the changeset review like
+   * every other AI edit (invariant 2). Adventure never writes over a word.
+   */
+  const revise = async (instruction: string, turnId: string) => {
+    const s = sessionRef.current
+    const proj = useProjectStore.getState().project
+    const passage = undoRef.current?.passage ?? ''
+    if (!s || !proj) return
+    const content = proj.docs[s.activeSceneId]?.content ?? ''
+    const range = lastPassageRange(content, passage)
+    if (!range) {
+      // The passage has been edited by hand since it landed, so there is no span
+      // to replace. Saying so beats revising something the author already fixed.
+      write({ ...s, turns: settleTurn(s.turns, turnId, { got: 'That passage has been edited since — revise it in the editor, or write on and I\'ll follow.' }) })
+      return
+    }
+
+    setBusy(true); setError(null); setGhost(''); setGhostMode('revise')
+    const ctrl = new AbortController()
+    abortRef.current = ctrl
+    try {
+      const revised = (await streamRevision({
+        project: proj, index: mentionIndex, session: s, instruction,
+        passage: content.slice(range.from, range.to),
+        signal: ctrl.signal, onChunk: setGhost,
+      })).trim()
+      setGhost('')
+      if (!revised) throw new Error('The model returned an empty revision.')
+
+      queueProposal(createProposal({
+        docId: s.activeSceneId,
+        docTitle: scene?.title ?? 'Scene',
+        command: 'revision',
+        label: instruction.slice(0, 60),
+        group: 'adventure',
+        original: content.slice(range.from, range.to),
+        proposed: revised,
+        promptId: 'builtin:adventure:revise',
+        scope: 'selection',
+        selRange: range,
+      }))
+      const now = sessionRef.current ?? s
+      write({ ...now, turns: settleTurn(now.turns, turnId, { got: revised, proposed: true }) })
+    } catch (e) {
+      const err = e as Error
+      if (err.name !== 'AbortError') setError(err.message)
+      setGhost('')
+      const now = sessionRef.current ?? s
+      write({ ...now, turns: settleTurn(now.turns, turnId, { got: '' }) })
+    } finally { setBusy(false); abortRef.current = null }
+  }
+
+  /** Answer a question about the story. Nothing is written to the manuscript. */
+  const ask = async (question: string, turnId: string) => {
+    const s = sessionRef.current
+    const proj = useProjectStore.getState().project
+    if (!s || !proj) return
+    setBusy(true); setError(null)
+    const ctrl = new AbortController()
+    abortRef.current = ctrl
+    try {
+      const answer = await answerAside({ project: proj, index: mentionIndex, session: s, question, signal: ctrl.signal })
+      const now = sessionRef.current ?? s
+      write({ ...now, turns: settleTurn(now.turns, turnId, { got: answer }) })
+    } catch (e) {
+      const err = e as Error
+      if (err.name !== 'AbortError') setError(err.message)
+      const now = sessionRef.current ?? s
+      write({ ...now, turns: settleTurn(now.turns, turnId, { got: '' }) })
+    } finally { setBusy(false); abortRef.current = null }
+  }
+
+  /** Stand the model down and put the cursor in the manuscript. */
+  const handOff = () => {
+    abortRef.current?.abort()
+    const el = document.querySelector('.adv-page .cm-content') as HTMLElement | null
+    el?.focus()
+    // Land at the end, which is where the next sentence goes.
+    if (el) {
+      const range = document.createRange()
+      range.selectNodeContents(el)
+      range.collapse(false)
+      const sel = window.getSelection()
+      sel?.removeAllRanges()
+      sel?.addRange(range)
     }
   }
 
@@ -300,7 +479,12 @@ export default function AdventureView({ onClose, embedded }: Props): React.React
       }
       undoRef.current = null
       setNotes([])
-      write({ ...s, activeSceneId: undo.sceneId, beats: s.beats.slice(0, -1), options: undo.options, summary: undo.summary })
+      write({
+        ...s, activeSceneId: undo.sceneId, beats: s.beats.slice(0, -1),
+        options: undo.options, summary: undo.summary,
+        // The transcript is a record of what happened; an undone turn didn't.
+        turns: s.turns.slice(0, -1),
+      })
       setToast('Stepped back one passage', 'info')
     } catch (e) {
       setError((e as Error).message)
@@ -427,20 +611,23 @@ export default function AdventureView({ onClose, embedded }: Props): React.React
       <div className="adv-body">
         <div className="adv-page">
           <Editor key={session.activeSceneId} docId={session.activeSceneId} />
-          {ghost && (
+          {ghost && ghostMode === 'append' && (
             <div className="adv-ghost" aria-live="polite">
               <span className="adv-ghost-tag">writing…</span>
               {ghost}
             </div>
           )}
         </div>
-        <NotesInbox
-          notes={notes}
-          scanning={scanning}
-          onFile={fileNote}
-          onDismiss={(name) => setNotes((p) => p.filter((n) => n.name !== name))}
-          onFileAll={() => { notes.forEach(fileNote); setNotes([]) }}
-        />
+        <div className="adv-aside">
+          <Transcript turns={session.turns} ghost={ghostMode === 'revise' ? ghost : ''} />
+          <NotesInbox
+            notes={notes}
+            scanning={scanning}
+            onFile={fileNote}
+            onDismiss={(name) => setNotes((p) => p.filter((n) => n.name !== name))}
+            onFileAll={() => { notes.forEach(fileNote); setNotes([]) }}
+          />
+        </div>
       </div>
 
       <ChoiceDeck
@@ -453,7 +640,12 @@ export default function AdventureView({ onClose, embedded }: Props): React.React
         styleId={session.styleId}
         sceneWords={sceneWords}
         sceneBreakAfter={session.sceneBreakAfter}
-        onChoose={runBeat}
+        deckOpen={session.deckOpen}
+        onChoose={(beat, endScene) => void runBeat(beat, endScene)}
+        onSay={(text) => void say(text)}
+        onContinue={() => void runBeat('', false, { mode: 'continue' })}
+        onHandOff={handOff}
+        onToggleDeck={() => { const s = sessionRef.current; if (s) write({ ...s, deckOpen: !s.deckOpen }) }}
         onRegenerate={regenerate}
         onEndScene={endSceneNow}
         onSettings={(patch) => { const s = sessionRef.current; if (s) write({ ...s, ...patch }) }}

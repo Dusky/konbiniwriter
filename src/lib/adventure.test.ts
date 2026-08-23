@@ -13,6 +13,12 @@ import {
   spineLine,
   words,
   MAX_OPTIONS,
+  parseIntent,
+  recordTurn,
+  settleTurn,
+  lastPassageRange,
+  TURN_HISTORY_LIMIT,
+  type AdventureTurn,
 } from './adventure'
 import type { CodexEntry } from '@shared/types'
 
@@ -198,5 +204,112 @@ describe('words', () => {
   it('counts words, not whitespace', () => {
     expect(words('  one   two\nthree ')).toBe(3)
     expect(words('   ')).toBe(0)
+  })
+})
+
+// ── The conversation ─────────────────────────────────────────────────────────
+
+describe('parseIntent', () => {
+  it('reads the JSON the prompt asks for', () => {
+    expect(parseIntent('{"intent": "revise"}')).toBe('revise')
+    expect(parseIntent('{"intent": "ask"}')).toBe('ask')
+    expect(parseIntent('{"intent": "continue"}')).toBe('continue')
+  })
+
+  it('digs the object out of a fence or a preamble', () => {
+    expect(parseIntent('Sure! ```json\n{"intent":"revise"}\n```')).toBe('revise')
+  })
+
+  it('accepts a bare word from a model that ignored the format', () => {
+    expect(parseIntent('revise')).toBe('revise')
+    expect(parseIntent('"ask"')).toBe('ask')
+    expect(parseIntent('  Revise.  ')).toBe('revise')
+  })
+
+  it('falls back to continuing the story on anything it cannot read', () => {
+    // The safe default: appending costs one step back, whereas silently
+    // declining to write would look like the feature was broken.
+    expect(parseIntent('')).toBe('continue')
+    expect(parseIntent('I think they want you to write more')).toBe('continue')
+    expect(parseIntent('{"intent": "sideways"}')).toBe('continue')
+    expect(parseIntent('{ broken json')).toBe('continue')
+  })
+
+  it('never throws, whatever comes back', () => {
+    for (const raw of ['', '{}', '[]', 'null', '{"intent":null}', '\u0000']) {
+      expect(() => parseIntent(raw)).not.toThrow()
+    }
+  })
+})
+
+const turn = (id: string, patch: Partial<AdventureTurn> = {}): AdventureTurn => ({
+  id, at: '2026-01-01T00:00:00.000Z', said: `said ${id}`, intent: 'continue',
+  got: '', sceneId: 'sc1', ...patch,
+})
+
+describe('recordTurn', () => {
+  it('appends in order', () => {
+    const out = recordTurn(recordTurn([], turn('a')), turn('b'))
+    expect(out.map((t) => t.id)).toEqual(['a', 'b'])
+  })
+
+  it('drops the oldest once the transcript is full', () => {
+    let turns: AdventureTurn[] = []
+    for (let i = 0; i < TURN_HISTORY_LIMIT + 5; i++) turns = recordTurn(turns, turn(String(i)))
+    expect(turns).toHaveLength(TURN_HISTORY_LIMIT)
+    expect(turns[0]!.id).toBe('5')
+    expect(turns[turns.length - 1]!.id).toBe(String(TURN_HISTORY_LIMIT + 4))
+  })
+
+  it('does not mutate the list it was given', () => {
+    const before: AdventureTurn[] = [turn('a')]
+    recordTurn(before, turn('b'))
+    expect(before).toHaveLength(1)
+  })
+})
+
+describe('settleTurn', () => {
+  it('fills in the answer and clears pending', () => {
+    const turns = [turn('a', { pending: true }), turn('b', { pending: true })]
+    const out = settleTurn(turns, 'b', { got: 'the prose' })
+    expect(out[1]).toMatchObject({ got: 'the prose', pending: false })
+    expect(out[0]!.pending).toBe(true)
+  })
+
+  it('is a no-op for an id that is gone', () => {
+    // A turn can fall off the top of the transcript while its call is in
+    // flight; landing the answer must not resurrect it or throw.
+    const turns = [turn('a')]
+    expect(settleTurn(turns, 'missing', { got: 'x' })).toEqual(turns)
+  })
+})
+
+describe('lastPassageRange', () => {
+  const scene = 'She opened the door.\n\nThe hallway was dark.'
+
+  it('finds the passage at the end of the scene', () => {
+    const r = lastPassageRange(scene, 'The hallway was dark.')!
+    expect(scene.slice(r.from, r.to)).toBe('The hallway was dark.')
+  })
+
+  it('ignores surrounding whitespace on the passage', () => {
+    const r = lastPassageRange(scene, '\n\n  The hallway was dark.  ')!
+    expect(scene.slice(r.from, r.to)).toBe('The hallway was dark.')
+  })
+
+  it('takes the last occurrence when the text repeats', () => {
+    const doubled = 'Wait.\n\nWait.'
+    expect(lastPassageRange(doubled, 'Wait.')!.from).toBe(7)
+  })
+
+  it('declines when the author has edited the passage by hand', () => {
+    // The embedded editor is the real editor, so this happens constantly. No
+    // range means the caller says so rather than revising the wrong span.
+    expect(lastPassageRange('She opened the door.', 'The hallway was dark.')).toBeNull()
+  })
+
+  it('declines when there is no passage to point at', () => {
+    expect(lastPassageRange(scene, '')).toBeNull()
+    expect(lastPassageRange(scene, '   \n ')).toBeNull()
   })
 })

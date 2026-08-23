@@ -86,6 +86,12 @@ These are structural guarantees. Violating any one breaks a core promise.
    the moment a feature would *replace* existing prose it goes back through
    `Proposal` like everything else.
 
+   Adventure is where both halves of that rule live side by side, so read it
+   there before adding a third: saying what happens next appends (snapshot, no
+   gate), and asking for the last passage to be tightened is a `selection`-scoped
+   `Proposal` through the changeset review. Same tab, same turn, different door,
+   decided by which one the text would cross.
+
 3. **Every prompt and agent is registry-editable.** `PromptRegistry` and
    `AgentRegistry` are the single source of truth. A hardcoded prompt string
    in TypeScript is a bug.
@@ -119,9 +125,12 @@ src/
     BrowserProjectService.ts File System Access API backend (real disk, Chromium).
     OPFSProjectService.ts    Origin Private File System backend (Firefox/Safari).
     AIClient.ts              Multi-provider streaming (Anthropic + OpenAI-compatible).
-    adventure.ts             Beat-by-beat drafting: passage → deck of beats →
-                             chosen beat → passage. Appends only; the caller
-                             snapshots first. Parsers are pure and tolerant.
+    adventure.ts             Beat-by-beat drafting, and the conversation around
+                             it: passage → deck of beats → chosen beat → passage,
+                             plus free text classified into continue / revise /
+                             ask. Appending is the module's job and it snapshots
+                             first; revising is the caller's, through `Proposal`.
+                             Parsers are pure and tolerant.
     agent.ts                 The chat assistant's tool-use loop. One provider-neutral
                              loop, two wire adapters (Anthropic tool_use blocks /
                              OpenAI-compatible tool_calls). Tools are never

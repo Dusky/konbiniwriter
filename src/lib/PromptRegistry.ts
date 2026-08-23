@@ -1252,6 +1252,182 @@ Return a JSON array and nothing else:
     modifiedAt: ISO(),
   },
   {
+    id: 'builtin:adventure:intent',
+    name: 'Adventure · What The Author Meant',
+    description: 'Classify a typed line as driving the story on, revising what was just written, or asking a question.',
+    feature: 'adventure',
+    model: 'claude-opus-4-8',
+    temperature: 0,
+    maxTokens: 64,
+    template: `An author is drafting a novel in conversation with you. Classify what
+they just said, so it can be routed correctly.
+
+The passage you wrote most recently:
+<last_passage>
+{{passage}}
+</last_passage>
+
+What the author just said:
+<said>
+{{said}}
+</said>
+
+Choose exactly one:
+- "continue" — they are telling you what happens NEXT in the story. This is the
+  default. Anything describing an event, an action, a line of dialogue or a
+  direction the plot should take is "continue", even when phrased as a request.
+- "revise" — they want the passage above changed: its length, its tone, its word
+  choice, a detail that is wrong, a line they dislike. Look for reference to
+  what is already written rather than to what comes next.
+- "ask" — they are asking you a question about the story and expect an answer,
+  not prose. Questions about facts, names, continuity, or what you think.
+
+Return only this JSON, nothing else:
+{"intent": "continue"}`,
+    variables: [
+      { name: 'passage', description: 'The passage written most recently' },
+      { name: 'said', description: 'What the author typed' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:adventure:revise',
+    name: 'Adventure · Revise That Passage',
+    description: 'Rewrite the passage just written, to the author\'s instruction.',
+    feature: 'adventure',
+    model: 'claude-opus-4-8',
+    temperature: 0.7,
+    maxTokens: 2000,
+    template: `You are a novelist revising a passage you just wrote, to the author's note.
+
+<story_so_far>
+{{summary}}
+</story_so_far>
+
+<context>
+{{context}}
+</context>
+
+<preceding_text>
+{{preceding}}
+</preceding_text>
+
+The passage to revise:
+<passage>
+{{passage}}
+</passage>
+
+The author's note: {{instruction}}
+Style: {{style}}
+
+Rewrite the passage so it answers the note. Change what the note asks about and
+leave the rest alone — this is a revision, not a fresh draft. It must still
+follow on from the preceding text and end in the same place in the story, so the
+next passage still fits.
+
+Return only the revised passage — no headings, no commentary, no explanation of
+what you changed.`,
+    variables: [
+      { name: 'summary', description: 'Rolling summary of the story so far' },
+      { name: 'context', description: 'Manuscript context (codex, voice, siblings)' },
+      { name: 'preceding', description: 'The scene text before this passage' },
+      { name: 'passage', description: 'The passage to revise' },
+      { name: 'instruction', description: 'What the author wants changed' },
+      { name: 'style', description: 'Desired style phrasing' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:adventure:continue',
+    name: 'Adventure · Take The Pen',
+    description: 'Carry on from where the text stops, with no beat — the author handed over mid-scene.',
+    feature: 'adventure',
+    model: 'claude-opus-4-8',
+    temperature: 0.8,
+    maxTokens: 2000,
+    template: `You are a novelist continuing a manuscript in its established voice and tense.
+
+<story_so_far>
+{{summary}}
+</story_so_far>
+
+<context>
+{{context}}
+</context>
+
+<preceding_text>
+{{preceding}}
+</preceding_text>
+
+The author has just written the end of the preceding text themselves and handed
+you the pen. No direction was given: read what they wrote and follow its
+momentum — the rhythm they set, the thread they left open, the thing they
+clearly want to happen next.
+
+Continue directly from where it stops. Do not recap, do not restate, and do not
+resolve the scene — leave it somewhere the author can take it back.
+
+Length: {{length}}
+Style: {{style}}
+
+Return only the new prose — no headings, no commentary, no surrounding quotes.`,
+    variables: [
+      { name: 'summary', description: 'Rolling summary of the story so far' },
+      { name: 'context', description: 'Manuscript context (codex, voice, siblings)' },
+      { name: 'preceding', description: 'The tail of the current scene' },
+      { name: 'length', description: 'Desired length phrasing' },
+      { name: 'style', description: 'Desired style phrasing' },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
+    id: 'builtin:adventure:answer',
+    name: 'Adventure · Answer A Question',
+    description: 'Answer the author\'s question about the story. Writes nothing to the manuscript.',
+    feature: 'adventure',
+    model: 'claude-opus-4-8',
+    temperature: 0.4,
+    maxTokens: 500,
+    template: `You are the author's collaborator on this novel. They have stopped drafting to
+ask you something.
+
+<story_so_far>
+{{summary}}
+</story_so_far>
+
+<context>
+{{context}}
+</context>
+
+<preceding_text>
+{{preceding}}
+</preceding_text>
+
+Their question: {{question}}
+
+Answer it directly and briefly — a few sentences at most. Answer from what the
+manuscript and the context actually say; where they do not say, tell the author
+it is still open rather than inventing a fact they will have to live with.
+
+Do not write prose for the manuscript, and do not suggest what happens next
+unless they asked.`,
+    variables: [
+      { name: 'summary', description: 'Rolling summary of the story so far' },
+      { name: 'context', description: 'Manuscript context (codex, voice, siblings)' },
+      { name: 'preceding', description: 'The tail of the current scene' },
+      { name: 'question', description: "The author's question" },
+    ],
+    isBuiltin: true,
+    createdAt: ISO(),
+    modifiedAt: ISO(),
+  },
+  {
     id: 'builtin:adventure:notes',
     name: 'Adventure · Take Notes',
     description: 'Spot new characters, places, and facts a passage introduced, for the Codex.',

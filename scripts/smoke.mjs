@@ -890,7 +890,12 @@ section('Adventure · drafting only ever appends, and every append is undoable')
 // is only worth anything measured against persisted bytes.
 
 const ADV_PASSAGE = 'ADVENTURE_PASSAGE He broke the seal with his thumb.'
+const ADV_REVISED = 'ADVENTURE_REVISED He broke the seal.'
+const ADV_CONTINUED = 'ADVENTURE_CONTINUED The river carried on without him.'
+const ADV_ANSWER = 'ADVENTURE_ANSWER Her sister is never named in the manuscript.'
 const advSeen = []
+// What the classifier will say about the next line the author types.
+let advIntent = 'continue'
 await page.route('**/chat/completions', async (route) => {
   const cors = {
     'access-control-allow-origin': '*',
@@ -900,7 +905,11 @@ await page.route('**/chat/completions', async (route) => {
   if (route.request().method() === 'OPTIONS') { await route.fulfill({ status: 204, headers: cors }); return }
   const body = JSON.parse(route.request().postData() ?? '{}')
   const prompt = (body.messages ?? []).map((m) => m.content).join('\n')
-  const kind = /directions the story could take/.test(prompt) ? 'options'
+  const kind = /Classify what/.test(prompt) ? 'intent'
+    : /novelist revising a passage/.test(prompt) ? 'revise'
+    : /handed\s+you the pen/.test(prompt) ? 'continue'
+    : /stopped drafting to/.test(prompt) ? 'answer'
+    : /directions the story could take/.test(prompt) ? 'options'
     : /Continue directly from the preceding text/.test(prompt) ? 'passage'
     : /story bible editor/.test(prompt) ? 'notes'
     : /running summary of a novel/.test(prompt) ? 'summary'
@@ -911,6 +920,10 @@ await page.route('**/chat/completions', async (route) => {
     passage: ADV_PASSAGE,
     notes: '[{"name":"Vass","category":"character","summary":"The ferryman.","facts":[{"label":"role","value":"ferryman"}]}]',
     summary: 'A ferryman finds a letter addressed to himself.',
+    intent: JSON.stringify({ intent: advIntent }),
+    revise: ADV_REVISED,
+    continue: ADV_CONTINUED,
+    answer: ADV_ANSWER,
     other: '',
   }[kind]
   await route.fulfill({
@@ -1003,6 +1016,90 @@ if (spine) {
   check('stepping back also un-writes the outline — no orphan beat',
     !(spineBody ?? '').includes('He opens the letter'), spineBody)
 }
+
+// ── adventure as a conversation ─────────────────────────────────────────────
+section('Adventure · talking to it, and the line a revision must not cross')
+
+// Free text is classified before it is acted on, because "that's too flowery"
+// is an instruction about the passage just written, not a direction for the
+// next one. The three outcomes have three different safety stories, and the
+// only one that matters here is the middle one: a revision REPLACES prose, so
+// it must go through the changeset gate that appending is exempt from.
+
+const say = async (text) => {
+  await page.locator('.adv-own textarea').fill(text)
+  await page.locator('.adv-own textarea').press('Enter')
+}
+const script = () => page.locator('.adv-script').innerText().catch(() => '')
+
+// (a) forward — the author says what happens next, in their own words.
+advIntent = 'continue'
+const convBefore = await readBundle(page, advDoc)
+await say('He opens the letter and reads it twice.')
+await page.waitForTimeout(3800)
+const convAfter = await readBundle(page, advDoc)
+check('a line the classifier reads as forward appends prose to the scene',
+  !!convAfter && convAfter.includes(ADV_PASSAGE) && convAfter !== convBefore, convAfter?.slice(-70))
+check('the transcript keeps what the author actually asked for',
+  /He opens the letter and reads it twice\./.test(await script()), (await script()).slice(0, 200))
+check('the transcript is persisted with the session, not just rendered',
+  ((JSON.parse(await readBundle(page, 'aux/adventure.json') ?? '{}').turns) ?? [])
+    .some((t) => /reads it twice/.test(t.said ?? '')))
+
+// (b) backward — a note about the passage that was just written.
+advIntent = 'revise'
+const revBefore = await readBundle(page, advDoc)
+await say('That last bit is too flowery — tighten it.')
+await page.waitForSelector('.cs-body', { timeout: 20000 }).catch(() => {})
+check('a revision opens a changeset review instead of rewriting the scene',
+  await page.locator('.cs-body').count() === 1)
+check('and NOTHING on disk changed while it waits for review (invariant 2)',
+  (await readBundle(page, advDoc)) === revBefore, (await readBundle(page, advDoc))?.slice(-70))
+check('the classifier was actually consulted before the rewrite',
+  advSeen.includes('intent') && advSeen.includes('revise'), advSeen.slice(-6))
+
+await page.locator('.modal-foot .btn.primary').click()
+await page.waitForTimeout(1600)
+const revApplied = await readBundle(page, advDoc)
+check('accepting the review swaps the passage on disk',
+  !!revApplied && revApplied.includes(ADV_REVISED), revApplied?.slice(-70))
+check('the revision replaced the old passage rather than appending a second one',
+  !!revApplied && !revApplied.includes(ADV_PASSAGE), revApplied?.slice(-90))
+check('and it touched only that passage — the scene before it is intact',
+  !!revApplied && !!convBefore && revApplied.startsWith(convBefore.trimEnd()), revApplied?.slice(0, 60))
+
+// (c) a question — an answer, and not one word written.
+advIntent = 'ask'
+const askBefore = await readBundle(page, advDoc)
+await say('What was her sister called again?')
+await page.waitForTimeout(3000)
+check('a question is answered in the conversation',
+  /ADVENTURE_ANSWER/.test(await script()), (await script()).slice(-200))
+check('and writes nothing at all to the manuscript',
+  (await readBundle(page, advDoc)) === askBefore)
+
+// (d) handing the pen back — carry on with no direction given.
+const contSpine = Object.values(JSON.parse(await readBundle(page, 'project.json')).nodes)
+  .find((n) => n.title === 'Story spine')
+const contSpineBefore = contSpine ? await readBundle(page, `docs/${contSpine.id}.md`) : ''
+await page.locator('.adv-deck-tools button:has-text("Continue")').click()
+await page.waitForTimeout(3800)
+const contAfter = await readBundle(page, advDoc)
+check('Continue drafts on from where the text stops, with no beat',
+  !!contAfter && contAfter.includes(ADV_CONTINUED), contAfter?.slice(-70))
+check('it used the take-the-pen prompt, not the beat prompt', advSeen.includes('continue'), advSeen.slice(-8))
+if (contSpine) {
+  check('carrying on adds no line to the outline — it decided nothing',
+    (await readBundle(page, `docs/${contSpine.id}.md`)) === contSpineBefore,
+    await readBundle(page, `docs/${contSpine.id}.md`))
+}
+
+// The deck is optional: when you know what happens next, a menu of what could
+// happen instead is noise.
+await page.locator('.adv-deck-tools button:has-text("Beats")').click()
+await page.waitForTimeout(400)
+check('the deck of suggestions can be put away', await page.locator('.adv-card').count() === 0)
+check('but the conversation stays', await page.locator('.adv-own textarea').count() === 1)
 
 await page.unroute('**/chat/completions')
 await page.locator('.tab-x').last().click()

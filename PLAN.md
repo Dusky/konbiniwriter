@@ -950,6 +950,51 @@ New Project UI with the `novel` template has empty `docs/*.md` **on disk**.
 
 ---
 
+## Phase 12 — Adventure as a conversation ✅
+
+Adventure could already take a beat in the author's own words, so the gap was
+never "talk to the model." It was three things a deck of cards cannot express:
+
+1. **Every turn was forward-only.** "That last bit is too flowery" had nowhere
+   to go — you stepped back and redid it, or fixed it by hand.
+2. **No turn-taking on the prose.** The model always wrote. There was no way to
+   write a paragraph yourself and hand the pen back without inventing a beat to
+   justify it.
+3. **Intent was thrown away.** Only the accepted beat reached the spine, so the
+   register you kept asking for was recorded nowhere.
+
+Free text is now classified before it is acted on — `continue`, `revise`, or
+`ask` — and each lands somewhere different:
+
+| Intent | What happens | Safety |
+|---|---|---|
+| `continue` | prose appends to the scene | snapshot first, one ⌘Z to undo |
+| `revise` | the last passage is rewritten | `selection`-scoped `Proposal` → changeset review |
+| `ask` | answered in the transcript | nothing is written at all |
+
+That middle row is the point. It is the first feature where a single typed line
+can land on either side of invariant 2, so the two doors sit next to each other
+in one file — appending needs no gate because nothing is at risk, and replacing
+takes the same changeset review as every other AI edit.
+
+Cards from the deck skip the classifier entirely (they are unambiguously beats),
+so conversing costs one extra round trip and choosing costs none. A classifier
+that fails falls back to `continue`, the outcome a keystroke undoes.
+
+Also added: **Continue** (carry on from where the text stops, no beat — and it
+writes no spine line, because it decided nothing), **I'll write this one** (puts
+the cursor in the manuscript and stands the model down), a **transcript** in the
+right column that keeps what the author asked for, and a **collapsible deck**.
+
+Verified by mutation: making the revision path append directly instead of
+proposing — the tempting "it's our own passage, just write it" shortcut — fails
+*a revision opens a changeset review instead of rewriting the scene* and *NOTHING
+on disk changed while it waits for review* in the smoke run.
+
+656 unit tests, 142 smoke checks.
+
+---
+
 ## Phase 11 — One contract, three backends ✅
 
 The renderer never knows which storage backend is active, which only holds while
