@@ -950,6 +950,43 @@ New Project UI with the `novel` template has empty `docs/*.md` **on disk**.
 
 ---
 
+## Phase 14 — The polish pass ✅
+
+The other eight findings from the screenshot review. None corrupt data; all are
+visible on first glance.
+
+- **The editor bar stopped repeating the status bar.** Both said
+  "153 words · Ln 1, Col 1", thirty pixels apart. `EDITOR_BAR_DEFAULT` now shows
+  only what a *pane* can own — the render toggle, focus, typewriter. The counts
+  stay available because split view is where they earn their place: two editor
+  panes, one status bar.
+- **One checkbox rule instead of nineteen system checkboxes.** `.tree-pick` was
+  the only place that had remembered `accent-color`; it is global now and lives
+  with the other form styles.
+- **The command palette leads with the book.** Sections are ranked
+  (`Create → Document → Project → AI → View → Layout → Edit → Help`) by a stable
+  sort rather than by source order, so it opens on New Document / New Scene /
+  History / Search / Compile instead of Undo Tree Change and six layout toggles.
+  One header per run of rows, not the section name on all twelve.
+- **The corkboard says what it is showing and can add to it** — folder title,
+  card count, and a New card button on the same mutation path the binder uses.
+- **`describeLocation`** turns `opfs:shots` into "In this browser" on the launch
+  screen. Pure, tested.
+- **Search is labelled** like History and Compile, so the toolbar no longer has
+  two adjacent near-identical magnifiers. The rule: a button that opens a
+  surface gets a word, a toggle gets an icon.
+- **The first-run Guide closes the rail**, instead of opening beside 450px of
+  "Select a document to see its properties" — which also made its own
+  *Open the inspector* door a no-op.
+- **Adventure's editor got its measure back.** It rendered `<Editor>` bare while
+  `EditorPane` wraps it in `.editor-wrap > .editor-col`, so prose ran to ~1250px
+  on the surface an author would live in. Same wrappers, with `.editor-col`'s
+  45vh typewriter padding trimmed since the deck sits below.
+
+685 unit tests, 160 smoke checks.
+
+---
+
 ## Phase 13 — Five bugs found by looking at the app ✅
 
 Driving the studio in a real browser and reading the screenshots, rather than

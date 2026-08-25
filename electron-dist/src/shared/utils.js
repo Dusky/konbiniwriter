@@ -6,6 +6,7 @@ exports.uid = uid;
 exports.wordCount = wordCount;
 exports.charCount = charCount;
 exports.isValidAuxName = isValidAuxName;
+exports.describeLocation = describeLocation;
 exports.relTime = relTime;
 exports.fmtWords = fmtWords;
 exports.fmtKey = fmtKey;
@@ -80,6 +81,22 @@ function charCount(s) {
 const AUX_NAME_RE = /^[\w][\w.-]*$/;
 function isValidAuxName(name) {
     return AUX_NAME_RE.test(name) && !name.includes('..');
+}
+/**
+ * A project's location, as a person would say it.
+ *
+ * OPFS bundles are addressed `opfs:<projectId>`, which the launch screen was
+ * printing verbatim — "opfs:shots" under the project title, which tells a
+ * novelist nothing. Real paths are already readable and pass through untouched.
+ */
+function describeLocation(location) {
+    if (!location)
+        return '';
+    if (location.startsWith('opfs:'))
+        return 'In this browser';
+    if (location === 'browser-pick')
+        return 'On this computer';
+    return location;
 }
 function relTime(ms) {
     const d = (Date.now() - ms) / 1000;

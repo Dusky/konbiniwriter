@@ -190,6 +190,10 @@ check('the Guide opens by itself on the very first project', await guideTab.coun
 check('and it is the tab in front', (await guideTab.getAttribute('class') ?? '').includes('on'))
 check('the flag is persisted through the prefs seam, not localStorage',
   await page.evaluate(() => window.api.prefs.get('pref:seenGuide')) === 'true')
+// Nothing is selected yet, so an open rail is 450px of "Select a document to
+// see its properties" — and the Guide's own inspector door would be a no-op.
+check('the Guide gets the width — no empty inspector beside it',
+  await page.locator('.rail .inspector').count() === 0)
 
 const guide = await page.evaluate(() => ({
   cards: document.querySelectorAll('.guide-card').length,
@@ -494,6 +498,44 @@ check('and it is a real editor, not a preview',
 
 await page.keyboard.press('Control+Backslash')
 await page.waitForTimeout(500)
+
+// ── the palette, the corkboard, and the first-run rail ──────────────────────
+section('Polish · the palette leads with the book, and the board can add to it')
+
+// Unfiltered, the palette used to open on Undo Tree Change, four view switches
+// and six layout toggles — twelve rows, none of which do anything to a book.
+await page.keyboard.press('Control+k')
+await page.waitForTimeout(500)
+const cmdSections = await page.locator('.cp-section').evaluateAll((els) => els.map((e) => e.innerText.trim()))
+const firstCmd = await page.locator('[data-cmd="0"]').innerText().catch(() => '')
+check('the palette opens on something you would do to your book',
+  /Create/i.test(cmdSections[0] ?? ''), cmdSections.slice(0, 4))
+check('and not on Undo Tree Change', !/Undo/i.test(firstCmd), firstCmd)
+check('sections are headed once, not repeated on every row',
+  new Set(cmdSections).size === cmdSections.length, cmdSections)
+await page.keyboard.press('Escape')
+await page.waitForTimeout(300)
+
+// The board says what it is showing, and can add to it.
+await page.locator('.tree-row').filter({ hasText: 'Chapter One' }).first().click()
+await page.waitForTimeout(400)
+await page.locator('.seg button', { hasText: 'Corkboard' }).click()
+await page.waitForTimeout(600)
+check('the corkboard names the folder it is showing',
+  /Chapter One/.test(await page.locator('.cork-hd').innerText().catch(() => '')),
+  await page.locator('.cork-hd').innerText().catch(() => ''))
+const cardsBefore = await page.locator('.cork-grid .card').count()
+await page.locator('.cork-hd button', { hasText: 'New card' }).click()
+await page.waitForTimeout(1200)
+check('New card adds a card to the board', await page.locator('.cork-grid .card').count() === cardsBefore + 1)
+await page.keyboard.press('Escape')
+await page.waitForTimeout(400)
+const corkManifest = JSON.parse(await readBundle(page, 'project.json'))
+check('and the new scene reaches disk under that folder',
+  (corkManifest.nodes.ch1?.childIds ?? []).length === cardsBefore + 1,
+  corkManifest.nodes.ch1?.childIds)
+await page.locator('.seg button', { hasText: 'Editor' }).click()
+await page.waitForTimeout(400)
 
 // ── reaching Scrivenings, and the story map ─────────────────────────────────
 section('Browsing · a folder click keeps the view you are in')

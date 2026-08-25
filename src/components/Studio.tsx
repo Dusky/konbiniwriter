@@ -63,6 +63,11 @@ export default function Studio(): React.ReactElement {
     if (!hydrateProjectId) return
     if (window.api.prefs.get('pref:seenGuide') === 'true') return
     window.api.prefs.set('pref:seenGuide', 'true')
+    // Nothing is selected on first run, so the rail would sit there saying
+    // "Select a document to see its properties" in 450px beside the Guide —
+    // and the Guide's own "Open the inspector" door would open something
+    // already open. Close it; the door then demonstrates what it describes.
+    useShellStore.getState().setRailPanel(null)
     useProjectStore.getState().openViewTab('guide')
   }, [hydrateProjectId])
 

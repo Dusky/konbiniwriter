@@ -10,15 +10,27 @@ export type EditorFont = 'mono' | 'serif' | 'sans'
 /** Widgets that can appear on the per-pane editor footer bar. */
 export type EditorBarWidget = 'render' | 'words' | 'chars' | 'cursor' | 'reading' | 'target' | 'focus' | 'typewriter'
 export interface EditorBarItem { id: EditorBarWidget; visible: boolean }
-const EDITOR_BAR_DEFAULT: EditorBarItem[] = [
+/**
+ * What the editor bar shows out of the box.
+ *
+ * Words, chars and cursor are deliberately OFF: the status bar already carries
+ * all three, thirty pixels below, and having both say "153 words · Ln 1, Col 1"
+ * was the app talking to itself. What is left is the things only this bar can
+ * own — the render toggle and the two per-pane modes.
+ *
+ * They stay available rather than being removed, because split view is the case
+ * where they earn their place: two editor panes, one status bar. Turn them on
+ * there and each pane counts its own document.
+ */
+export const EDITOR_BAR_DEFAULT: EditorBarItem[] = [
   { id: 'render', visible: true },
-  { id: 'words', visible: true },
-  { id: 'cursor', visible: true },
+  { id: 'focus', visible: true },
+  { id: 'typewriter', visible: true },
+  { id: 'words', visible: false },
+  { id: 'cursor', visible: false },
   { id: 'reading', visible: false },
   { id: 'chars', visible: false },
   { id: 'target', visible: false },
-  { id: 'focus', visible: false },
-  { id: 'typewriter', visible: false },
 ]
 
 // Keep a stored config forward-compatible: drop unknown ids, append any newly

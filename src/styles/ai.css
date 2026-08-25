@@ -920,6 +920,10 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 .adv-body { flex: 1; min-height: 0; display: flex; }
 .adv-page { flex: 1; min-width: 0; position: relative; display: flex; flex-direction: column; }
 .adv-page > :first-child { flex: 1; min-height: 0; }
+/* `.editor-col`'s 45vh bottom padding exists so typewriter scrolling can centre
+   the last line. In Adventure the deck sits under the page, so that much empty
+   space just pushes the prose off screen. */
+.adv-page .editor-col { padding-bottom: var(--s6); }
 
 /* The passage as it streams, before it is committed to the document. Marked as
    provisional on purpose — nothing here has been written yet. */

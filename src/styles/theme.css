@@ -563,7 +563,15 @@ button { font-family: inherit; cursor: default; }
   color: var(--text); font-family: var(--ui-font); font-size: 12.5px; border-radius: 7px;
   padding: 7px 9px; outline: none; }
 .inp:focus, .sel:focus, .ta:focus { border-color: var(--accent); }
+/* Every checkbox in the app, not just the one place that remembered. The
+   Inspector's "Include in Compile" was a default system checkbox sitting in a
+   panel where everything else is themed. */
+input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; }
+
 .inp.lg { font-size: 15px; font-weight: 600; }
+.cp-section { padding: 10px 20px 3px; font-size: 10px; font-weight: 600; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--dim); }
+.cp-section:first-child { padding-top: 4px; }
 .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .ta { resize: vertical; min-height: 90px; line-height: 1.5; }
 .sel { appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%23888' d='M0 0h10L5 6z'/></svg>");
@@ -701,6 +709,10 @@ button { font-family: inherit; cursor: default; }
     repeating-linear-gradient(45deg, transparent, transparent 9px, oklch(0.50 0.02 60 / .015) 9px, oklch(0.50 0.02 60 / .015) 10px),
     color-mix(in oklch, var(--editor-bg) 92%, oklch(0.5 0.04 60));
   padding: 26px; }
+.cork-hd { display: flex; align-items: baseline; gap: var(--s2); margin-bottom: var(--s4);
+  padding-bottom: var(--s2); border-bottom: 0.5px solid var(--border); }
+.cork-hd-title { font-size: var(--t-base); font-weight: 600; color: var(--text); }
+.cork-hd-count { font-size: var(--t-xs); color: var(--text-3); }
 .cork-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 22px;
   max-width: 1100px; margin: 0 auto; }
 .card { background: var(--bg-2); border: 0.5px solid var(--border-2); border-radius: 4px;
@@ -810,7 +822,6 @@ button { font-family: inherit; cursor: default; }
 .tree-pick { font-size: 13px; }
 .tree-pick .tp-row { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; }
 .tree-pick .tp-row:hover { background: var(--bg-3); }
-.tree-pick input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; }
 .tree-pick .tp-row svg { width: 14px; height: 14px; opacity: .8; }
 .compile-preview { font-family: var(--editor-font); font-size: 12.5px; line-height: 1.6; white-space: pre-wrap;
   background: var(--bg); border: 0.5px solid var(--border); border-radius: 9px; padding: 16px 18px;

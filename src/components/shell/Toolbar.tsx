@@ -129,8 +129,12 @@ export default function Toolbar(): React.ReactElement {
         }}>
           <Icon name="text-search" />
         </button>
+        {/* Labelled, like History and Compile: a button that opens a surface
+            says what it is, a toggle shows an icon. Without the word this sat
+            beside the inline-find button as a second, near-identical magnifier. */}
         <button className="tb-btn" title={`Search Project (${kbd('mod+shift+f')})`} aria-label="Search Project" onClick={() => setModal('search')}>
           <Icon name="search" />
+          Search
         </button>
         <button className="tb-btn" title="Writing Stats" aria-label="Writing Stats" onClick={() => openViewTab('stats')}>
           <Icon name="chart" />

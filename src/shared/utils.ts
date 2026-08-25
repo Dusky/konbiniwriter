@@ -77,6 +77,20 @@ export function isValidAuxName(name: string): boolean {
   return AUX_NAME_RE.test(name) && !name.includes('..')
 }
 
+/**
+ * A project's location, as a person would say it.
+ *
+ * OPFS bundles are addressed `opfs:<projectId>`, which the launch screen was
+ * printing verbatim — "opfs:shots" under the project title, which tells a
+ * novelist nothing. Real paths are already readable and pass through untouched.
+ */
+export function describeLocation(location: string): string {
+  if (!location) return ''
+  if (location.startsWith('opfs:')) return 'In this browser'
+  if (location === 'browser-pick') return 'On this computer'
+  return location
+}
+
 export function relTime(ms: number): string {
   const d = (Date.now() - ms) / 1000
   if (d < 60) return 'just now'

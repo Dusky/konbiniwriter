@@ -611,7 +611,14 @@ export default function AdventureView({ onClose, embedded }: Props): React.React
 
       <div className="adv-body">
         <div className="adv-page">
-          <Editor key={session.activeSceneId} docId={session.activeSceneId} />
+          {/* The same two wrappers EditorPane uses. Without them the prose runs
+              the full width of the pane — the worst line length in the app, on
+              the surface an author would spend hours in. */}
+          <div className="editor-wrap" style={{ flex: 1, minHeight: 0 }}>
+            <div className="editor-col">
+              <Editor key={session.activeSceneId} docId={session.activeSceneId} />
+            </div>
+          </div>
           {ghost && ghostMode === 'append' && (
             <div className="adv-ghost" aria-live="polite">
               <span className="adv-ghost-tag">writing…</span>
