@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useProjectStore } from '../../store/projectStore'
+import { manuscriptDocs, ambiguousTitles } from '../../lib/manuscript'
 import { useAIStore } from '../../store/aiStore'
 import { wordCount } from '@shared/utils'
 import { runJudge, judgeOverall, scoreBand, type JudgeResult } from '../../lib/judge'
@@ -36,7 +37,7 @@ function Sparkline({ points }: { points: number[] }): React.ReactElement | null 
 
 interface Props { onClose: () => void; embedded?: boolean }
 
-interface Scene { id: string; title: string; words: number; content: string }
+interface Scene { id: string; title: string; folder: string; words: number; content: string }
 
 export default function QualityDashboard({ onClose, embedded }: Props): React.ReactElement {
   const project = useProjectStore((s) => s.project)
@@ -62,20 +63,20 @@ export default function QualityDashboard({ onClose, embedded }: Props): React.Re
   const [error, setError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<string | null>(null)
 
-  // Manuscript scenes = compile-eligible docs, in binder order (skips Trash).
-  const scenes: Scene[] = []
-  if (project) {
-    const walk = (id: string) => {
-      const n = project.nodes[id]
-      if (!n) return
-      if (n.type !== 'folder' && n.meta.includeInCompile) {
-        const content = project.docs[id]?.content ?? ''
-        scenes.push({ id, title: n.title, words: wordCount(content), content })
-      }
-      n.childIds.forEach(walk)
-    }
-    project.rootIds.forEach(walk)
-  }
+  // The manuscript, and only the manuscript. This used to walk every root —
+  // Trash included, despite a comment claiming otherwise — so character sheets
+  // and research notes were scored for prose quality beside scenes, and two
+  // documents called "The Woman in White" sat next to each other with no way to
+  // tell which was the scene.
+  const docs = project ? manuscriptDocs(project) : []
+  const ambiguous = ambiguousTitles(docs)
+  const scenes: Scene[] = docs.map((d) => ({
+    id: d.id,
+    title: d.title,
+    folder: ambiguous.has(d.title) ? d.parentTitle : '',
+    words: wordCount(d.content),
+    content: d.content,
+  }))
 
   const evalOne = async (scene: Scene): Promise<void> => {
     if (!scene.content.trim()) return
@@ -214,7 +215,11 @@ export default function QualityDashboard({ onClose, embedded }: Props): React.Re
                 return (
                   <div key={r.id} className="ql-row-wrap">
                     <div className="ql-row">
-                      <button className="ql-title" onClick={() => open(r.id)} title="Open scene">{r.title}</button>
+                      <button className="ql-title" onClick={() => open(r.id)} title="Open scene">
+                        {r.title}
+                        {/* Only shown when another document shares the title. */}
+                        {r.folder && <span className="ql-folder">{r.folder}</span>}
+                      </button>
                       <span className="ql-words">{r.words.toLocaleString()}w</span>
                       <button
                         className={`ql-badge slop ${r.slop ? slopBand(r.slop.flags) : 'none'}`}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useProjectStore, descendants } from '../../store/projectStore'
-import { wordCount } from '@shared/utils'
+import { manuscriptText, wordCount } from '@shared/utils'
 import Icon from '../common/Icon'
 import type { CompileFormat } from '@shared/types'
 
@@ -18,6 +18,23 @@ export default function CompileModal({ onClose }: Props): React.ReactElement {
   const [preview, setPreview] = useState('')
   const [compiling, setCompiling] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Every folder the author could compile from, indented by depth — the same
+  // walk AdventureSetup uses to offer a target folder.
+  const folders = React.useMemo(() => {
+    if (!project) return [] as { id: string; title: string; depth: number }[]
+    const out: { id: string; title: string; depth: number }[] = []
+    const walk = (ids: string[], depth: number) => {
+      for (const id of ids) {
+        const n = project.nodes[id]
+        if (!n || n.type !== 'folder' || id === project.trashId) continue
+        out.push({ id, title: n.title, depth })
+        walk(n.childIds, depth + 1)
+      }
+    }
+    walk(project.rootIds.filter((id) => id !== project.trashId), 0)
+    return out
+  }, [project])
 
   // Default root = selected folder or project root
   useEffect(() => {
@@ -49,7 +66,10 @@ export default function CompileModal({ onClose }: Props): React.ReactElement {
       const node = project.nodes[id]
       if (!node) return []
       if (node.type !== 'folder' && included.has(id)) {
-        return [project.docs[id]?.content?.trim() ?? '']
+        // Through the same helper the backends use, or the preview shows the
+        // author something the export will not produce — which is exactly what
+        // it did: `[[Reiko]]` here, "Reiko" in the file.
+        return [manuscriptText(project.docs[id]?.content?.trim() ?? '')]
       }
       return node.childIds.flatMap(gather).filter(Boolean)
     }
@@ -174,8 +194,25 @@ export default function CompileModal({ onClose }: Props): React.ReactElement {
           </div>
         )}
         <div className="modal-body cmp-body">
-          {/* Left: document tree picker */}
+          {/* Left: what is being compiled, then which of it */}
           <div style={{ overflowY: 'auto' }}>
+            {/* The scope used to be derived from the binder selection and shown
+                nowhere: selecting a scene compiled the whole book, selecting a
+                folder compiled just that folder, and the modal said only
+                "N documents". The number changed under you with no visible
+                cause. */}
+            <div className="cmp-lbl">Compile</div>
+            <select
+              className="sel"
+              value={rootId}
+              onChange={(e) => setRootId(e.target.value)}
+              style={{ marginBottom: 'var(--s4)' }}
+              aria-label="What to compile"
+            >
+              {folders.map((f) => (
+                <option key={f.id} value={f.id}>{'\u00a0\u00a0'.repeat(f.depth)}{f.title}</option>
+              ))}
+            </select>
             <div className="cmp-lbl">Documents</div>
             <div className="tree-pick">
               {allDocIds.map((id) => {

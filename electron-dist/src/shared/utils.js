@@ -7,6 +7,7 @@ exports.wordCount = wordCount;
 exports.charCount = charCount;
 exports.isValidAuxName = isValidAuxName;
 exports.describeLocation = describeLocation;
+exports.manuscriptText = manuscriptText;
 exports.relTime = relTime;
 exports.fmtWords = fmtWords;
 exports.fmtKey = fmtKey;
@@ -97,6 +98,30 @@ function describeLocation(location) {
     if (location === 'browser-pick')
         return 'On this computer';
     return location;
+}
+/**
+ * Prose on its way out of Konbini.
+ *
+ * `[[Reiko]]` means something inside the app — a link to a codex entry, a chip
+ * in the editor, an entry in the mention index — and nothing at all in a
+ * manuscript. Compile used to join raw document content, so the Shunn preview,
+ * the format labelled "what agents expect", read
+ * `a hum [[Reiko]] had stopped hearing`.
+ *
+ * Only the app's own syntax is removed. Markdown emphasis, headings and the
+ * rest are the *output* format for the Markdown export and the input the DOCX
+ * and EPUB builders parse, so they must survive untouched — this is not
+ * `speakableText`, which flattens everything for a synthesiser.
+ *
+ * `[[Target|Display]]` resolves to the display text, since that is what a
+ * reader was meant to see. (`speakableText` keeps the target instead; a
+ * synthesiser is reading the link, not the sentence.)
+ */
+function manuscriptText(raw) {
+    return raw.replace(/\[\[([^\]|]+)(?:\|([^\]]*))?\]\]/g, (_all, target, display) => {
+        const shown = (display ?? '').trim();
+        return shown || target.trim();
+    });
 }
 function relTime(ms) {
     const d = (Date.now() - ms) / 1000;

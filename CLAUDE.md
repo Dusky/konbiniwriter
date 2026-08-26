@@ -224,6 +224,22 @@ compiled CJS output runs under the root `"type":"module"`. The
 
 ---
 
+## Two lists that must not disagree
+
+`src/lib/shortcuts.ts` names every chord Konbini claims, and
+`src/components/editor/extensions.ts` filters CodeMirror's keymap through it.
+This exists because both bound `⌘/` and `⌘⇧K`: CodeMirror listens on the editor
+DOM, so it ran `toggleComment` and `deleteLine` *first*, the modal opened over
+the damage, and autosave wrote it. An author checking a shortcut lost a line
+from their book.
+
+Add a shortcut to `App.tsx` and add its chord to `KONBINI_CHORDS`.
+`shortcuts.test.ts` asserts the two lists are disjoint against the **real**
+exported keymap — a test that rebuilds the filter itself passes with the bug
+restored, which is what the first version of it did.
+
+---
+
 ## Known debt (don't expand it)
 
 - **~49 exported *types* are named only by their own module.** Left alone on

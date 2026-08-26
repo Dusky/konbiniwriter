@@ -1114,3 +1114,6 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
   padding-top: var(--s2); border-top: 0.5px solid var(--border); }
 .stats-pace-days > span { font-size: var(--t-xs); color: var(--text-3); margin-right: var(--s1); }
 .stats-pace-days .chip { min-width: 22px; padding: 0 6px; justify-content: center; }
+
+/* Disambiguates two documents with the same title in the quality table. */
+.ql-folder { margin-left: var(--s2); font-size: var(--t-xs); font-weight: 500; color: var(--dim); }

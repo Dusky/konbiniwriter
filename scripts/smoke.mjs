@@ -90,7 +90,7 @@ function seed(page) {
     nodes.who = mk('who', 'document', 'Cast note', 'chars')
     nodes.chars.childIds = ['who']
     docs.who = { snapshots: [] }
-    await write(docsDir, 'who.md', 'A written note about the cast, not a scene.')
+    await write(docsDir, 'who.md', 'A note about [[Reiko]], and about [[Reiko Tanaka|the clerk]].')
 
     await write(bundle, 'project.json', JSON.stringify({
       schemaVersion: 2, id: pid, title: 'Smoke', created: now, modified: now,
@@ -499,6 +499,33 @@ check('and it is a real editor, not a preview',
 await page.keyboard.press('Control+Backslash')
 await page.waitForTimeout(500)
 
+// ── compile says what it is about to export ─────────────────────────────────
+section('Compile · a manuscript, not a mystery, and without the app in it')
+
+await page.keyboard.press('Control+Shift+e')
+await page.waitForSelector('.cmp-body', { timeout: 15000 }).catch(() => {})
+const scopePicker = page.locator('.cmp-body select[aria-label="What to compile"]')
+check('compile names what it is about to export, rather than deriving it silently',
+  await scopePicker.count() === 1)
+
+// The scope used to be derived from the binder selection and shown nowhere, so
+// the document count changed under you with no visible cause. Now it is a
+// control: point it at the folder holding the seeded wikilinks.
+await scopePicker.selectOption({ label: 'Characters' }).catch(() => {})
+await page.waitForTimeout(1200)
+const cmpPreview = await page.locator('.cmp-body').innerText().catch(() => '')
+check('changing the scope changes what gets compiled',
+  /Cast note/.test(await page.locator('.tree-pick').innerText().catch(() => '')),
+  await page.locator('.tree-pick').innerText().catch(() => ''))
+check('the preview resolves a wikilink to the name a reader should see',
+  /A note about Reiko,/.test(cmpPreview), cmpPreview.slice(-200))
+check('an aliased wikilink resolves to its display half',
+  /about the clerk\./.test(cmpPreview), cmpPreview.slice(-200))
+check('and no app syntax survives into the manuscript',
+  !cmpPreview.includes('[['), cmpPreview.slice(-200))
+await page.keyboard.press('Escape')
+await page.waitForTimeout(400)
+
 // ── the palette, the corkboard, and the first-run rail ──────────────────────
 section('Polish · the palette leads with the book, and the board can add to it')
 
@@ -536,6 +563,49 @@ check('and the new scene reaches disk under that folder',
   corkManifest.nodes.ch1?.childIds)
 await page.locator('.seg button', { hasText: 'Editor' }).click()
 await page.waitForTimeout(400)
+
+// ── the keyboard cannot eat your prose ──────────────────────────────────────
+section('Shortcuts · a chord that opens a panel must not edit the manuscript')
+
+// CodeMirror's defaultKeymap and Konbini's window handler both claimed these.
+// CodeMirror listens on the editor DOM so it won the race, ran its command, and
+// the modal that opened afterwards hid the damage — then autosave wrote it.
+//   mod+/    toggleComment  →  the line became "<!-- … -->"
+//   mod+shift+k  deleteLine →  the line was gone
+// Read from disk, because that is where the loss actually landed.
+
+await page.locator('.tree-row').filter({ hasText: 'Scene 1' }).first().click()
+await page.waitForTimeout(700)
+const keySceneId = 'sc0'
+const keyDoc = `docs/${keySceneId}.md`
+
+const pressInEditor = async (chord) => {
+  await page.locator('.cm-content').first().click()
+  await page.keyboard.press('Control+Home')
+  await page.waitForTimeout(200)
+  await page.keyboard.press(chord)
+  await page.waitForTimeout(1800)
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(400)
+}
+
+const beforeSlash = await readBundle(page, keyDoc)
+await pressInEditor('Control+Slash')
+check('mod+/ opens the shortcuts reference without commenting out your line',
+  (await readBundle(page, keyDoc)) === beforeSlash, (await readBundle(page, keyDoc))?.slice(0, 60))
+
+const beforeK = await readBundle(page, keyDoc)
+await pressInEditor('Control+Shift+K')
+check('mod+shift+k opens the codex without deleting your line',
+  (await readBundle(page, keyDoc)) === beforeK, (await readBundle(page, keyDoc))?.slice(0, 60))
+
+// The guard is not vacuous: ordinary typing must still reach the file.
+await page.locator('.cm-content').first().click()
+await page.keyboard.press('Control+End')
+await page.keyboard.type(' TYPED.', { delay: 20 })
+await page.waitForTimeout(2200)
+check('and the editor still writes what you actually type (guard is not vacuous)',
+  (await readBundle(page, keyDoc) ?? '').includes('TYPED.'))
 
 // ── reaching Scrivenings, and the story map ─────────────────────────────────
 section('Browsing · a folder click keeps the view you are in')

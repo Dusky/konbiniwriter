@@ -12,7 +12,7 @@
 //   - open(location) parses the 'opfs:' prefix to find the bundle dir
 
 import type { Project, KNode, DocBody, NodeOp, Snapshot, ID, ImportDoc, CompileFormat, CompileResult, SyncBundle, SyncMerged } from '@shared/types'
-import { uid, wordCount, isValidAuxName } from '@shared/utils'
+import { uid, wordCount, isValidAuxName, manuscriptText } from '@shared/utils'
 import { buildProjectFromTemplate } from '@shared/templates'
 import { buildProjectFromDocs } from '@shared/importer'
 import { applyNodeOp, migrateProject } from '@shared/nodeOps'
@@ -274,7 +274,10 @@ export class OPFSProjectService {
       if (!node) return
       if (node.type !== 'folder' && includedIds.includes(id)) {
         const content = p.docs[id]?.content ?? await readText(h, 'docs', `${id}.md`) ?? ''
-        if (content.trim()) chapters.push({ title: node.title, content: content.trim() })
+        // Strip the app's own syntax on the way out: `[[Reiko]]` is a codex
+        // link inside Konbini and noise in a manuscript. One shared helper, so
+        // the three backends cannot drift — the contract suite asserts it.
+        if (content.trim()) chapters.push({ title: node.title, content: manuscriptText(content.trim()) })
       }
       for (const cid of node.childIds) await gather(cid)
     }

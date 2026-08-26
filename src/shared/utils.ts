@@ -91,6 +91,31 @@ export function describeLocation(location: string): string {
   return location
 }
 
+/**
+ * Prose on its way out of Konbini.
+ *
+ * `[[Reiko]]` means something inside the app — a link to a codex entry, a chip
+ * in the editor, an entry in the mention index — and nothing at all in a
+ * manuscript. Compile used to join raw document content, so the Shunn preview,
+ * the format labelled "what agents expect", read
+ * `a hum [[Reiko]] had stopped hearing`.
+ *
+ * Only the app's own syntax is removed. Markdown emphasis, headings and the
+ * rest are the *output* format for the Markdown export and the input the DOCX
+ * and EPUB builders parse, so they must survive untouched — this is not
+ * `speakableText`, which flattens everything for a synthesiser.
+ *
+ * `[[Target|Display]]` resolves to the display text, since that is what a
+ * reader was meant to see. (`speakableText` keeps the target instead; a
+ * synthesiser is reading the link, not the sentence.)
+ */
+export function manuscriptText(raw: string): string {
+  return raw.replace(/\[\[([^\]|]+)(?:\|([^\]]*))?\]\]/g, (_all, target: string, display?: string) => {
+    const shown = (display ?? '').trim()
+    return shown || target.trim()
+  })
+}
+
 export function relTime(ms: number): string {
   const d = (Date.now() - ms) / 1000
   if (d < 60) return 'just now'

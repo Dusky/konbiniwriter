@@ -5,7 +5,7 @@ import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
 import * as path from 'path'
 
-import { uid, wordCount, isValidAuxName } from '../src/shared/utils'
+import { uid, wordCount, isValidAuxName, manuscriptText } from '../src/shared/utils'
 import { buildProjectFromTemplate } from '../src/shared/templates'
 import { buildProjectFromDocs } from '../src/shared/importer'
 import { applyNodeOp, migrateProject } from '../src/shared/nodeOps'
@@ -273,7 +273,10 @@ export class NodeProjectService {
       if (!node) return
       if (node.type !== 'folder' && includedIds.includes(id)) {
         const content = proj.docs[id]?.content ?? await readText(dir, 'docs', `${id}.md`) ?? ''
-        if (content.trim()) chapters.push({ title: node.title, content: content.trim() })
+        // Strip the app's own syntax on the way out: `[[Reiko]]` is a codex
+        // link inside Konbini and noise in a manuscript. One shared helper, so
+        // the three backends cannot drift — the contract suite asserts it.
+        if (content.trim()) chapters.push({ title: node.title, content: manuscriptText(content.trim()) })
       }
       for (const cid of node.childIds) await gather(cid)
     }

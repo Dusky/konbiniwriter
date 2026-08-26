@@ -396,6 +396,24 @@ export function runProjectServiceContract(backend: string, harness: Harness): vo
         expect(out.filename).toMatch(/\.docx$/)
       })
 
+      it("does not leak the app's own syntax into the manuscript", async () => {
+        // `[[Reiko]]` is a codex link inside Konbini and noise in a finished
+        // book — it used to reach the Shunn export, the format labelled "what
+        // agents expect". The assembly is written three times, once per
+        // backend, which is exactly why this assertion lives here.
+        await svc.writeDoc(project.id, scene(), 'a hum [[Reiko]] had stopped hearing')
+        const out = await svc.compile(project.id, project.rootIds[0]!, included(project), 'markdown')
+        const text = new TextDecoder().decode(out.blob)
+        expect(text).toContain('a hum Reiko had stopped hearing')
+        expect(text).not.toContain('[[')
+      })
+
+      it('shows the display half of an aliased link, not the target', async () => {
+        await svc.writeDoc(project.id, scene(), 'she nodded at [[Reiko Tanaka|the clerk]] and left')
+        const out = await svc.compile(project.id, project.rootIds[0]!, included(project), 'markdown')
+        expect(new TextDecoder().decode(out.blob)).toContain('she nodded at the clerk and left')
+      })
+
       it('leaves out what the author excluded', async () => {
         await svc.writeDoc(project.id, scene(), 'EXCLUDED_MARKER')
         const out = await svc.compile(project.id, project.rootIds[0]!, [], 'markdown')

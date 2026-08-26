@@ -148,6 +148,10 @@ export default function App(): React.ReactElement {
       if (useAIStore.getState().enabled) useShellStore.getState().toggleRailPanel('assistant')
     }
     if (shift && key === 'r') { e.preventDefault(); if (useAIStore.getState().enabled) useShellStore.getState().toggleRailPanel('reader') }
+    // Advertised in the command palette and the editor's context menu, and
+    // until now bound to nothing — CodeMirror had the chord for
+    // selectSelectionMatches, and no window handler ever claimed it.
+    if (shift && key === 'l') { e.preventDefault(); window.dispatchEvent(new Event('konbini:read-aloud')) }
     if (shift && key === 'g') { e.preventDefault(); useProjectStore.getState().openViewTab('batch-generator') }
     if (shift && key === 'p') { e.preventDefault(); useProjectStore.getState().openViewTab('autopilot') }
 

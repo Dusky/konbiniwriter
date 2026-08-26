@@ -950,6 +950,56 @@ New Project UI with the `novel` template has empty `docs/*.md` **on disk**.
 
 ---
 
+## Phase 15 — What the wide screenshot pass found ✅
+
+`npm run shots` photographed 43 surfaces, most never looked at before. Four
+findings, two of which destroyed the author's text.
+
+**The keyboard could eat your prose.** CodeMirror's `defaultKeymap` and
+Konbini's window handler both claimed the same chords, and CodeMirror listens on
+the editor DOM — so it won the race, ran its command, and the modal that opened
+afterwards hid the damage. Autosave then wrote it.
+
+| Chord | CodeMirror did | Konbini does | Confirmed against disk |
+|---|---|---|---|
+| `Mod-/` | `toggleComment` | Shortcuts | line became `<!-- … -->` |
+| `Shift-Mod-k` | `deleteLine` | Codex | line was **gone** |
+| `Mod-d` | `selectNextOccurrence` | Duplicate | intact — selection only |
+| `Mod-Shift-l` | `selectSelectionMatches` | Read Aloud | intact — selection only |
+
+Both damaging cases were confirmed by bisecting persisted bytes before anything
+was changed; the two harmless ones were predictions that the probe corrected.
+`src/lib/shortcuts.ts` is now the authority, `extensions.ts` filters
+CodeMirror's keymap through it, and adding a Konbini shortcut removes it from
+the editor automatically. `Mod-Shift-l` was also advertised in two menus and
+bound to nothing — it now dispatches read-aloud.
+
+**Compile leaked the app into the book.** `[[Reiko]]` is a codex link inside
+Konbini and noise in a manuscript, and the assembly was written *four* times —
+once per backend plus the modal's preview — all joining raw content. So the
+Shunn export, the format labelled "what agents expect", read
+`a hum [[Reiko]] had stopped hearing`. One `manuscriptText()` in `shared/utils`,
+called from all four, with a contract assertion so the three backends cannot
+drift apart again.
+
+**Compile never said what it was about to export.** The root was derived from
+the binder selection and shown nowhere: select a scene and you compiled the
+whole book, select a folder and you compiled that folder. Same modal, same
+label, different output. It is a control now.
+
+**Manuscript Quality judged things that were not the manuscript.** A comment
+promised "compile-eligible docs, in binder order (skips Trash)" above a walk of
+every root, Trash included — so character sheets and research notes were scored
+for prose quality, and two documents called "The Woman in White" sat side by
+side with no way to tell which was the scene. `src/lib/manuscript.ts` answers
+"what is the manuscript" once, for every surface that needs it.
+
+715 unit tests, 168 smoke checks. Every lock mutation-checked — including one
+that had to be rewritten because it recomputed the filter it was meant to be
+testing and passed with the bug restored.
+
+---
+
 ## Phase 14 — The polish pass ✅
 
 The other eight findings from the screenshot review. None corrupt data; all are
