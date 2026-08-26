@@ -193,6 +193,31 @@ function answerFor(prompt) {
   return ''
 }
 
+// ── scripted turns, for the surfaces that are a loop and not a question ──────
+//
+// The keyed table above answers a *question*: one request, one reply. Chat is
+// not that. `runAgent` drives a loop — ask for a tool, take a `role: "tool"`
+// result back, ask again, and only then answer in prose. A keyed lookup cannot
+// express a sequence, which is why chat photographed as a spinner: its system
+// prompt matched no key, `answerFor` returned '', and the panel sat on an empty
+// assistant turn.
+//
+// So a script can be armed instead: an ordered list of raw SSE bodies, served
+// one per request. The shapes are borrowed from `scripts/smoke.mjs`, including
+// its unkindness — arguments split mid-key across frames, `index` missing from
+// continuation frames, and `finish_reason: "stop"` on a turn that is still
+// asking for a tool. Those are the three ways real compat servers (Ollama,
+// vLLM, llama.cpp) diverge from the spec, and a panel that only renders against
+// a well-behaved server is worth knowing about.
+
+const frame = (o) => `data: ${JSON.stringify(o)}\n\n`
+const delta = (d, extra = {}) => frame({ object: 'chat.completion.chunk', choices: [{ index: 0, delta: d, ...extra }] })
+const DONE = 'data: [DONE]\n\n'
+
+let script = null   // { turns: string[], seen: number } while armed
+const armScript = (turns) => { script = { turns, seen: 0 } }
+const disarm = () => { script = null }
+
 async function mockModel(page) {
   await page.route('**/chat/completions', async (route) => {
     const cors = {
@@ -201,13 +226,27 @@ async function mockModel(page) {
       'access-control-allow-methods': 'POST, OPTIONS',
     }
     if (route.request().method() === 'OPTIONS') { await route.fulfill({ status: 204, headers: cors }); return }
+
+    if (script) {
+      const body = script.turns[script.seen] ?? script.turns[script.turns.length - 1]
+      script.seen++
+      // A turn may be a function of the request — used to fail one deliberately.
+      const resolved = typeof body === 'function' ? body(route.request()) : body
+      if (resolved && resolved.status && resolved.status >= 400) {
+        await route.fulfill({ status: resolved.status, headers: cors, body: resolved.body ?? '' })
+        return
+      }
+      await route.fulfill({ status: 200, headers: { ...cors, 'content-type': 'text/event-stream' }, body: resolved })
+      return
+    }
+
     const body = JSON.parse(route.request().postData() ?? '{}')
     const prompt = (body.messages ?? []).map((m) => (typeof m.content === 'string' ? m.content : '')).join('\n')
     await route.fulfill({
       status: 200,
       headers: { ...cors, 'content-type': 'text/event-stream' },
       body: sse({ role: 'assistant', content: '' }) + sse({ content: answerFor(prompt) })
-        + sse({}, { finish_reason: 'stop' }) + 'data: [DONE]\n\n',
+        + sse({}, { finish_reason: 'stop' }) + DONE,
     })
   })
 }
@@ -375,15 +414,64 @@ const railRun = async (query, name, runLabel) => {
 await railRun('Codex', 'codex', 'Scan')
 await railRun('Reader Panel', 'readers', 'Run')
 await railRun('Critic', 'critic', 'Critique')
+// Chat is a loop, so it gets a script rather than a keyed answer. The session:
+// read the scene, propose a revision to it, then answer in prose — which is the
+// path the author's own report ("it takes additional effort before it will edit
+// a file") is about.
+const revised = 'The fluorescent lights never warmed up. They came on at a frequency just under comfort, a hum Reiko had stopped hearing on her third night and started hearing again on her thirtieth.'
+const editArgs = JSON.stringify({ document: 'The first customer', new_text: revised })
+const cut = Math.floor(editArgs.length / 2)
+
+armScript([
+  // 1 · reads the scene. Arguments split mid-key across two frames.
+  delta({ role: 'assistant', content: '' })
+    + delta({ content: 'Let me read that scene first.' })
+    + delta({ tool_calls: [{ index: 0, id: 'call_read', type: 'function', function: { name: 'get_document', arguments: '' } }] })
+    + delta({ tool_calls: [{ index: 0, function: { arguments: '{"docu' } }] })
+    + delta({ tool_calls: [{ index: 0, function: { arguments: 'ment":"The first customer"}' } }] })
+    + delta({}, { finish_reason: 'tool_calls' }) + DONE,
+  // 2 · proposes the edit. No `index` on continuations, and it claims to have
+  //     stopped normally while still asking for a tool.
+  delta({ tool_calls: [{ id: 'call_edit', type: 'function', function: { name: 'propose_edit', arguments: '' } }] })
+    + delta({ tool_calls: [{ function: { arguments: editArgs.slice(0, cut) } }] })
+    + delta({ tool_calls: [{ function: { arguments: editArgs.slice(cut) } }] })
+    + delta({}, { finish_reason: 'stop' }) + DONE,
+  // 3 · the prose answer, plus a trailing usage frame.
+  delta({ content: 'I tightened the opening: the lighting explains itself less, so the second chime lands harder. It is queued for your review.' })
+    + frame({ choices: [], usage: { prompt_tokens: 2400, completion_tokens: 82 } })
+    + delta({}, { finish_reason: 'stop' }) + DONE,
+])
+
 await palette('AI Chat')
 await shot('chat-idle')
 const chatBox = page.locator('.rail textarea, .rail input[type=text]').first()
 if (await chatBox.count()) {
-  await chatBox.fill('What does the second chime mean, and is it too early to explain it?')
+  await chatBox.fill('The opening paragraph over-explains itself. Tighten it.')
   await page.locator('.rail .send-btn').first().click().catch(() => {})
-  await page.waitForTimeout(5000)
-  await shot('chat')
+  // Mid-loop: a tool is running and no prose has arrived yet.
+  await page.waitForTimeout(1400)
+  await shot('chat-working')
+  await page.waitForTimeout(6000)
+  await shot('chat-tool-round-trip')
 }
+
+// The propose_edit should be waiting in the changeset review, not applied.
+if (await page.locator('.cs-body').count()) {
+  await shot('chat-changeset')
+  await page.locator('.modal-foot .btn.primary').click().catch(() => {})
+  await page.waitForTimeout(1500)
+  await shot('chat-after-apply')
+}
+
+// What a failed turn looks like — the surface nobody has seen.
+armScript([{ status: 429, body: JSON.stringify({ error: { message: 'Rate limit exceeded.' } }) }])
+if (await chatBox.count()) {
+  await chatBox.fill('And now do the same for Aisle Nine.')
+  await page.locator('.rail .send-btn').first().click().catch(() => {})
+  await page.waitForTimeout(4000)
+  await shot('chat-error')
+}
+disarm()
 
 // The view tabs.
 const tabRun = async (query, name, runLabel) => {
