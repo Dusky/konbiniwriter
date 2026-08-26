@@ -1428,6 +1428,28 @@ check('but it does arrive with a shape to write into',
 check('the binder shows that shape',
   await page.locator('.tree-row', { hasText: 'Manuscript' }).count() >= 1)
 
+// ── the build knows which build it is ───────────────────────────────────────
+section('Version · the app reports the build it actually is')
+
+// The About box and the launch footer carried "0.1.0 · Phase 1" as literals
+// through fifteen phases and two releases. A downloaded installer whose About
+// box names the wrong version is a support problem you cannot debug remotely,
+// so the number is injected from package.json at build time and asserted here
+// against that same file — not against a constant this script also holds.
+const pkgVersion = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version
+await page.keyboard.press('Control+k')
+await page.waitForTimeout(300)
+await page.keyboard.type('About Konbini', { delay: 20 })
+await page.waitForTimeout(400)
+await page.keyboard.press('Enter')
+const aboutVer = await page.locator('.about-ver').textContent().catch(() => null)
+check('the About box names a version at all', aboutVer !== null, aboutVer)
+check(`and it is the one package.json declares (${pkgVersion})`,
+  (aboutVer ?? '').includes(pkgVersion), aboutVer)
+check('with no roadmap phase left stapled to it', !/Phase/i.test(aboutVer ?? ''), aboutVer)
+await page.keyboard.press('Escape')
+await page.waitForTimeout(300)
+
 // ── nothing threw ───────────────────────────────────────────────────────────
 section('No uncaught errors')
 check('no uncaught page errors during the run', pageErrors.length === 0, pageErrors)
