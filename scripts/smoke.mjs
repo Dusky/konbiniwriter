@@ -850,7 +850,10 @@ const NEW_TEXT = `Rewritten by the assistant over an OpenAI-compatible endpoint.
 
 const frame = (o) => `data: ${JSON.stringify(o)}\n\n`
 const delta = (d, extra = {}) => frame({ object: 'chat.completion.chunk', choices: [{ index: 0, delta: d, ...extra }] })
-const editArgs = JSON.stringify({ document: 'Scene 3', new_text: NEW_TEXT })
+// `title`, like every other tool in the set. propose_edit used to be the one
+// that said `document`, so a model that had just called get_document({title})
+// sent propose_edit({title}) and got `No document titled "undefined"`.
+const editArgs = JSON.stringify({ title: 'Scene 3', new_text: NEW_TEXT })
 const cut = Math.floor(editArgs.length / 2)
 
 const TURNS = [
@@ -951,6 +954,16 @@ check('arguments split across frames were reassembled (the edit named its docume
 check('the loop kept going despite finish_reason:"stop" on a tool turn', wire.length >= 3, wire.length)
 
 // And the invariant itself: an AI edit is still only ever a proposal.
+// One assistant bubble carries every turn of the loop. Turn 1 says "Let me read
+// that scene." and turn 3 says "Queued the revision for your review." — they
+// used to arrive fused into "…scene.Queued the revision…" because both fullText
+// and the panel appended with nothing between them.
+const asstText = await page.locator('.msg-text').last().innerText().catch(() => '')
+check('prose from before and after a tool round trip is not fused together',
+  !/\.Queued the revision/.test(asstText), asstText.slice(0, 160))
+check('and both halves of the answer are actually there',
+  /Let me read that scene\./.test(asstText) && /Queued the revision/.test(asstText), asstText.slice(0, 160))
+
 check('the AI edit opened a changeset review instead of writing',
   await page.locator('.cs-body').count() === 1)
 const sc2During = await readBundle(page, 'docs/sc2.md')

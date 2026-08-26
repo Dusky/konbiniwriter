@@ -441,7 +441,13 @@ export async function runAgent(
   try {
     for (let step = 0; step < MAX_STEPS; step++) {
       const turn = await wire.turn(cb.onChunk, opts.signal)
-      fullText += turn.text
+      // A turn boundary is a paragraph break. The loop only continues when the
+      // previous turn asked for tools, so every boundary here is prose resuming
+      // after a tool round trip — without the gap, `onDone` handed the panel
+      // "Let me read that scene first.I tightened the opening:". The panel
+      // inserts the same break while streaming, at the same seam, so the live
+      // view and this final text agree.
+      if (turn.text) fullText += (fullText.trim() ? '\n\n' : '') + turn.text
 
       // Stop on "no tools wanted" rather than on a stop reason: compat servers
       // are inconsistent about reporting `tool_calls`, and several report
