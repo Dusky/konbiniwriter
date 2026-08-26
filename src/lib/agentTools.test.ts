@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { executeTool, type AgentToolContext } from './agentTools'
+import { executeTool, toolLabel, type AgentToolContext } from './agentTools'
 import type { Project, KNode, DocBody, ID } from '@shared/types'
 
 function node(id: ID, type: KNode['type'], title: string, parentId: ID | null, childIds: ID[] = []): KNode {
@@ -46,12 +46,41 @@ describe('executeTool', () => {
 
   it('propose_edit queues a review only when the text actually changes', async () => {
     const c = ctx(project())
-    const changed = await executeTool('propose_edit', { document: 'Chapter 1', new_text: 'A wholly new line.' }, c)
+    const changed = await executeTool('propose_edit', { title: 'Chapter 1', new_text: 'A wholly new line.' }, c)
     expect(c.proposeEdit).toHaveBeenCalledTimes(1)
     expect(changed).toMatch(/Queued an edit/)
-    const same = await executeTool('propose_edit', { document: 'Chapter 1', new_text: 'Reiko opened the shutter at dawn.' }, c)
+    const same = await executeTool('propose_edit', { title: 'Chapter 1', new_text: 'Reiko opened the shutter at dawn.' }, c)
     expect(same).toMatch(/identical/)
     expect(c.proposeEdit).toHaveBeenCalledTimes(1)
+  })
+
+  it('propose_edit takes the same `title` every other tool takes', async () => {
+    // This was the odd one out: every other tool names a document title
+    // `title`, propose_edit wanted `document`. A model that had just called
+    // get_document({title}) sent propose_edit({title}) and got
+    // `No document titled "undefined"` — one wasted round trip, every time it
+    // guessed the consistent name.
+    const c = ctx(project())
+    const out = await executeTool('propose_edit', { title: 'Chapter 1', new_text: 'Fresh prose.' }, c)
+    expect(out).toMatch(/Queued an edit/)
+  })
+
+  it('still answers to the old `document` key, so saved chats replay', async () => {
+    const c = ctx(project())
+    const out = await executeTool('propose_edit', { document: 'Chapter 1', new_text: 'Fresh prose.' }, c)
+    expect(out).toMatch(/Queued an edit/)
+  })
+
+  it('names the document it could not find, instead of "undefined"', async () => {
+    const c = ctx(project())
+    const out = await executeTool('propose_edit', { title: 'Nowhere', new_text: 'x' }, c)
+    expect(out).toContain('"Nowhere"')
+    expect(out).not.toContain('undefined')
+  })
+
+  it('labels the tool use under either key', () => {
+    expect(toolLabel('propose_edit', { title: 'Chapter 1' })).toContain('"Chapter 1"')
+    expect(toolLabel('propose_edit', { document: 'Chapter 1' })).toContain('"Chapter 1"')
   })
 
   it('create_document resolves the parent folder to its id', async () => {

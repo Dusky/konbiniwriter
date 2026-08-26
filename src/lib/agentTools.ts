@@ -65,10 +65,10 @@ export const AGENT_TOOLS: ToolDef[] = [
     input_schema: {
       type: 'object',
       properties: {
-        document: { type: 'string', description: 'Title of the document to edit.' },
+        title: { type: 'string', description: 'Title of the document to edit.' },
         new_text: { type: 'string', description: 'The complete revised document text.' },
       },
-      required: ['document', 'new_text'],
+      required: ['title', 'new_text'],
     },
   },
 ]
@@ -134,7 +134,7 @@ export function toolLabel(name: string, input: Record<string, unknown>): string 
     case 'remember': return `Remembered: ${String(input.note ?? '')}`
     case 'create_document': return `Created "${String(input.title ?? '')}"`
     case 'create_folder': return `Created folder "${String(input.title ?? '')}"`
-    case 'propose_edit': return `Proposed an edit to "${String(input.document ?? '')}" (review it in Changeset)`
+    case 'propose_edit': return `Proposed an edit to "${String(input.title ?? input.document ?? '')}" (review it in Changeset)`
     case 'read_config': return `Read the ${String(input.target ?? 'setting')} setting`
     case 'propose_config': return `Proposed new ${String(input.target ?? '')} text (review it in Changeset)`
     default: return `Used ${name}`
@@ -215,8 +215,14 @@ export async function executeTool(name: string, input: Record<string, unknown>, 
       return `Created ${nodeType} "${title}"${wanted ? ` under "${wanted}"` : ' at the top level'}.`
     }
     case 'propose_edit': {
-      const found = findDoc(project, String(input.document ?? ''))
-      if (!found) return `No document titled "${input.document}". Use list_documents to see exact titles.`
+      // `title` everywhere, but `document` still answers: this tool was the one
+      // in the set that named a title differently, so a model that had just
+      // called get_document({title}) would send propose_edit({title}) and get
+      // `No document titled "undefined"` — one wasted round trip every time it
+      // guessed the consistent name. Old conversations replay unchanged.
+      const wantedTitle = String(input.title ?? input.document ?? '')
+      const found = findDoc(project, wantedTitle)
+      if (!found) return `No document titled "${wantedTitle}". Use list_documents to see exact titles.`
       const original = project.docs[found.id]?.content ?? ''
       const proposed = String(input.new_text ?? '')
       if (proposed.trim() === original.trim()) return 'The proposed text is identical to the current text — nothing to change.'

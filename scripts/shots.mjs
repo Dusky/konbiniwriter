@@ -419,7 +419,7 @@ await railRun('Critic', 'critic', 'Critique')
 // path the author's own report ("it takes additional effort before it will edit
 // a file") is about.
 const revised = 'The fluorescent lights never warmed up. They came on at a frequency just under comfort, a hum Reiko had stopped hearing on her third night and started hearing again on her thirtieth.'
-const editArgs = JSON.stringify({ document: 'The first customer', new_text: revised })
+const editArgs = JSON.stringify({ title: 'The first customer', new_text: revised })
 const cut = Math.floor(editArgs.length / 2)
 
 armScript([
@@ -427,8 +427,8 @@ armScript([
   delta({ role: 'assistant', content: '' })
     + delta({ content: 'Let me read that scene first.' })
     + delta({ tool_calls: [{ index: 0, id: 'call_read', type: 'function', function: { name: 'get_document', arguments: '' } }] })
-    + delta({ tool_calls: [{ index: 0, function: { arguments: '{"docu' } }] })
-    + delta({ tool_calls: [{ index: 0, function: { arguments: 'ment":"The first customer"}' } }] })
+    + delta({ tool_calls: [{ index: 0, function: { arguments: '{"tit' } }] })
+    + delta({ tool_calls: [{ index: 0, function: { arguments: 'le":"The first customer"}' } }] })
     + delta({}, { finish_reason: 'tool_calls' }) + DONE,
   // 2 · proposes the edit. No `index` on continuations, and it claims to have
   //     stopped normally while still asking for a tool.

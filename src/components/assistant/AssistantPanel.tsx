@@ -596,12 +596,21 @@ export default function AssistantPanel(): React.ReactElement {
         } : {}),
       }
       const seenTools: string[] = []
+      // One assistant bubble holds every turn of the loop, so prose from before
+      // a tool ran and prose from after it landed in the same string with
+      // nothing between them — "Let me read that scene first.I tightened the
+      // opening:". A tool round trip is a paragraph break.
+      let brokeForTool = false
       await runAgent(
         apiMessages,
         { maxTokens: chatMaxTokens, temperature: 0.7, systemPrompt: buildSystemPrompt(), signal: abortRef.current.signal, ctx },
         {
-          onChunk: (chunk) => updateLastAssistant((last) => ({ ...last, content: last.content + chunk })),
-          onToolUse: (name, inp) => { seenTools.push(toolLabel(name, inp)); updateLastAssistant((last) => ({ ...last, toolUses: [...seenTools] })) },
+          onChunk: (chunk) => updateLastAssistant((last) => {
+            const gap = brokeForTool && last.content.trim() ? '\n\n' : ''
+            brokeForTool = false
+            return { ...last, content: last.content + gap + chunk }
+          }),
+          onToolUse: (name, inp) => { brokeForTool = true; seenTools.push(toolLabel(name, inp)); updateLastAssistant((last) => ({ ...last, toolUses: [...seenTools] })) },
           onDone: (full) => { updateLastAssistant((last) => ({ ...last, content: full || last.content })); setStreaming(false) },
           onError: (err) => { updateLastAssistant((last) => ({ ...last, content: err.message, isError: true })); setStreaming(false) },
           onAbort: () => setStreaming(false),
