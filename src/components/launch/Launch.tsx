@@ -98,7 +98,7 @@ export default function Launch(): React.ReactElement {
             <p style={{ fontSize: 12, color: 'var(--st-idea)', margin: '8px 0 0', lineHeight: 1.5 }}>{openErr}</p>
           )}
           <div className="ll-foot">
-            <span>Konbini v0.1.0</span>
+            <span>Konbini v{__APP_VERSION__}</span>
           </div>
         </div>
 

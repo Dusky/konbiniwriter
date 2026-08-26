@@ -8,7 +8,7 @@ export default function AboutModal({ onClose }: Props): React.ReactElement {
       <div className="about">
         <div className="about-mark">✦</div>
         <div className="about-name">Konbini</div>
-        <div className="about-ver">Version 0.1.0 · Phase 1</div>
+        <div className="about-ver">Version {__APP_VERSION__}</div>
         <p className="about-desc">
           A local-first writing studio for long-form fiction.<br />
           Your work. Your files. Your machine.
