@@ -39,6 +39,24 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
 
   const project = useProjectStore((s) => s.project)
 
+/**
+ * What the palette shows first when you have not typed anything.
+ *
+ * Source order used to decide this, and source order was grouped by concern —
+ * so the first twelve rows were Undo Tree Change, four view switches and six
+ * layout toggles, and not one of them did anything to your book. Sections are
+ * ranked here instead; `sort` is stable, so the order within each section is
+ * still whatever the source says.
+ */
+const SECTION_ORDER = ['Create', 'Document', 'Project', 'AI', 'View', 'Layout', 'Edit', 'Recent', 'Help']
+const byUsefulness = (a: Command, b: Command): number => {
+  const rank = (c: Command) => {
+    const i = SECTION_ORDER.indexOf(c.section)
+    return i === -1 ? SECTION_ORDER.length : i
+  }
+  return rank(a) - rank(b)
+}
+
   const commands = useMemo<Command[]>(() => {
     const shell = useShellStore.getState()
     const proj = useProjectStore.getState()
@@ -71,7 +89,7 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
         { id: 'shortcuts', label: 'Keyboard Shortcuts…', section: 'Help', run: openModal('shortcuts') },
         { id: 'about', label: 'About Konbini…', section: 'Help', run: openModal('about') },
       ]
-      return launch
+      return launch.sort(byUsefulness)
     }
 
     const createNode = async (nodeType: NodeType) => {
@@ -93,7 +111,7 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
       { id: 'view-editor', label: 'View: Editor', section: 'View', hint: kbd('mod+1'), run: () => proj.setView('editor') },
       { id: 'view-corkboard', label: 'View: Corkboard', section: 'View', hint: kbd('mod+2'), run: () => proj.setView('corkboard') },
       { id: 'view-outliner', label: 'View: Outliner', section: 'View', hint: kbd('mod+3'), run: () => proj.setView('outliner') },
-      { id: 'view-timeline', label: 'View: Timeline', section: 'View', hint: kbd('mod+4'), run: () => proj.setView('timeline') },
+      { id: 'view-timeline', label: 'View: Story map', section: 'View', hint: kbd('mod+4'), run: () => proj.setView('timeline') },
       // Layout / modes
       { id: 'toggle-binder', label: 'Toggle Binder', section: 'Layout', hint: kbd('mod+alt+b'), run: () => shell.toggleBinder() },
       { id: 'focus-binder', label: 'Focus Binder', section: 'Layout', hint: kbd('mod+shift+b'), run: () => {
@@ -145,6 +163,10 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
     }
 
     cmds.push(
+      // Only the launch screen used to offer this, so with a project open there
+      // was no way to start another one without closing this one first.
+      { id: 'new-project', label: 'New Project…', section: 'Project', run: () => shell.setModal('new-project') },
+      { id: 'guide', label: 'Guide — what everything does', section: 'Help', run: openView('guide') },
       { id: 'shortcuts', label: 'Keyboard Shortcuts…', section: 'Help', hint: kbd('mod+/'), run: openModal('shortcuts') },
       { id: 'about', label: 'About Konbini…', section: 'Help', run: openModal('about') },
       {
@@ -159,7 +181,7 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
         },
       },
     )
-    return cmds
+    return cmds.sort(byUsefulness)
   }, [aiEnabled, project])
 
   const filtered = useMemo(
@@ -205,23 +227,27 @@ export default function CommandPalette({ onClose }: Props): React.ReactElement {
               No matching commands
             </div>
           ) : filtered.map((c, i) => (
-            <button
-              key={c.id}
-              data-cmd={i}
-              onClick={() => runCommand(c)}
-              onMouseEnter={() => setActive(i)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left',
-                border: 'none', padding: '8px 20px', cursor: 'pointer',
-                background: i === active ? 'var(--bg-2)' : 'transparent',
-              }}
-            >
-              <span style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.04em', minWidth: 64 }}>
-                {c.section}
-              </span>
-              <span style={{ fontSize: 13, color: 'var(--text)', flex: 1 }}>{c.label}</span>
-              {c.hint && <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>{c.hint}</span>}
-            </button>
+            // One header per run of rows, rather than the section name repeated
+            // on every line — twelve rows used to mean twelve copies of three
+            // words, and the labels paid for the space.
+            <React.Fragment key={c.id}>
+              {c.section !== filtered[i - 1]?.section && (
+                <div className="cp-section">{c.section}</div>
+              )}
+              <button
+                data-cmd={i}
+                onClick={() => runCommand(c)}
+                onMouseEnter={() => setActive(i)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left',
+                  border: 'none', padding: '8px 20px', cursor: 'pointer',
+                  background: i === active ? 'var(--bg-2)' : 'transparent',
+                }}
+              >
+                <span style={{ fontSize: 13, color: 'var(--text)', flex: 1 }}>{c.label}</span>
+                {c.hint && <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>{c.hint}</span>}
+              </button>
+            </React.Fragment>
           ))}
         </div>
       </div>

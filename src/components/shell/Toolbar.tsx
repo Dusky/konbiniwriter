@@ -54,7 +54,7 @@ export default function Toolbar(): React.ReactElement {
         <button className={view === 'editor'    ? 'on' : ''} onClick={() => setView('editor')}    title={`Editor (${kbd('mod+1')})`}>Editor</button>
         <button className={view === 'corkboard' ? 'on' : ''} onClick={() => setView('corkboard')} title={`Corkboard (${kbd('mod+2')})`}>Corkboard</button>
         <button className={view === 'outliner'  ? 'on' : ''} onClick={() => setView('outliner')}  title={`Outliner (${kbd('mod+3')})`}>Outliner</button>
-        <button className={view === 'timeline'  ? 'on' : ''} onClick={() => setView('timeline')}  title={`Timeline (${kbd('mod+4')})`}>Timeline</button>
+        <button className={view === 'timeline'  ? 'on' : ''} onClick={() => setView('timeline')}  title={`Story map (${kbd('mod+4')})`}>Story map</button>
       </div>
 
       <div className="tb-sep" />
@@ -129,8 +129,12 @@ export default function Toolbar(): React.ReactElement {
         }}>
           <Icon name="text-search" />
         </button>
+        {/* Labelled, like History and Compile: a button that opens a surface
+            says what it is, a toggle shows an icon. Without the word this sat
+            beside the inline-find button as a second, near-identical magnifier. */}
         <button className="tb-btn" title={`Search Project (${kbd('mod+shift+f')})`} aria-label="Search Project" onClick={() => setModal('search')}>
           <Icon name="search" />
+          Search
         </button>
         <button className="tb-btn" title="Writing Stats" aria-label="Writing Stats" onClick={() => openViewTab('stats')}>
           <Icon name="chart" />

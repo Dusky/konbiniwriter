@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useShellStore } from '../../store/shellStore'
 import { useProjectStore } from '../../store/projectStore'
-import { relTime, fmtWords } from '@shared/utils'
+import { relTime, fmtWords, describeLocation } from '@shared/utils'
 import Icon from '../common/Icon'
 import NewProjectModal, { TEMPLATES } from '../modals/NewProjectModal'
 import CommandPalette from '../modals/CommandPalette'
@@ -136,7 +136,7 @@ export default function Launch(): React.ReactElement {
                   <div className="recent-spine" style={{ background: r.accent ?? 'var(--accent)' }} />
                   <div className="recent-main">
                     <div className="recent-title">{r.title}</div>
-                    <div className="recent-path">{r.location}</div>
+                    <div className="recent-path">{describeLocation(r.location)}</div>
                   </div>
                   <div className="recent-meta">
                     <div className="rm-words">{fmtWords(r.words ?? 0)} words</div>

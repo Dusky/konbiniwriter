@@ -83,9 +83,18 @@ function seed(page) {
       docs[sid] = { snapshots: [] }
       await write(docsDir, `${sid}.md`, original.repeat(6))
     }
+    // A written character sheet, in a folder that sorts after the manuscript.
+    // Adventure used to default to "the last written document anywhere", which
+    // is exactly this node — and drafted the novel into it.
+    nodes.chars = mk('chars', 'folder', 'Characters', null)
+    nodes.who = mk('who', 'document', 'Cast note', 'chars')
+    nodes.chars.childIds = ['who']
+    docs.who = { snapshots: [] }
+    await write(docsDir, 'who.md', 'A note about [[Reiko]], and about [[Reiko Tanaka|the clerk]].')
+
     await write(bundle, 'project.json', JSON.stringify({
       schemaVersion: 2, id: pid, title: 'Smoke', created: now, modified: now,
-      rootIds: ['ch1', 'trash'], trashId: 'trash', nodes, docs,
+      rootIds: ['ch1', 'chars', 'trash'], trashId: 'trash', nodes, docs,
       settings: { location: 'opfs:' + pid, template: 'novel' },
     }))
     for (const f of ['codex.json', 'debt.json', 'comments.json']) await write(bundle, f, '[]')
@@ -170,6 +179,93 @@ const setAI = async (on) => {
   if (await close.count()) await close.click()
   await page.waitForTimeout(400)
 }
+
+// ── first run ───────────────────────────────────────────────────────────────
+section('First run · the studio names its own surfaces')
+
+// We are one click off a cold boot and `pref:seenGuide` has never been set, so
+// this is exactly what a stranger sees the first time they open a project.
+const guideTab = page.locator('.tab-strip .tab', { hasText: 'Guide' })
+check('the Guide opens by itself on the very first project', await guideTab.count() === 1)
+check('and it is the tab in front', (await guideTab.getAttribute('class') ?? '').includes('on'))
+check('the flag is persisted through the prefs seam, not localStorage',
+  await page.evaluate(() => window.api.prefs.get('pref:seenGuide')) === 'true')
+// Nothing is selected yet, so an open rail is 450px of "Select a document to
+// see its properties" — and the Guide's own inspector door would be a no-op.
+check('the Guide gets the width — no empty inspector beside it',
+  await page.locator('.rail .inspector').count() === 0)
+
+const guide = await page.evaluate(() => ({
+  cards: document.querySelectorAll('.guide-card').length,
+  doors: [...document.querySelectorAll('.guide-doors button')].map((b) => b.textContent.trim()),
+  ai: document.querySelector('.guide-ai h4')?.textContent.trim() ?? null,
+}))
+check('it names every surface as a card, not a wall of prose', guide.cards >= 8, guide.cards)
+check('every card carries a door you can walk through', guide.doors.length >= 10, guide.doors.length)
+
+// Invariant 1 inside the Guide: with AI off the AI section is one paragraph and
+// one button to the settings screen — the same affordance the toolbar shows.
+// None of the AI surfaces are named as doors, because none of them exist yet.
+const AI_DOORS = ['Foundation', 'Codex', 'Chat', 'Adventure', 'Autopilot', 'Manuscript quality']
+check('with AI off the Guide offers no AI door',
+  guide.doors.every((d) => !AI_DOORS.some((a) => d.startsWith(a))), guide.doors)
+check('it says so plainly rather than hiding the section',
+  /switched off/i.test(guide.ai ?? ''), guide.ai)
+check('and the one door it does offer is the setup screen',
+  guide.doors.includes('Set up AI'), guide.doors)
+
+// A door has to open. Clicking a view door must actually land you in that view —
+// the Guide owns the main pane while it is the active tab, so a door that only
+// flipped a mode would look broken.
+await page.locator('.guide-doors button', { hasText: 'Corkboard' }).first().click()
+await page.waitForTimeout(500)
+check('the Corkboard door lands you on the corkboard',
+  await page.locator('.cork').count() === 1 && await page.locator('.tab-strip .tab', { hasText: 'Guide' }).count() === 0)
+
+// Reopen it from the palette — the permanent way back once the tab is closed.
+await page.keyboard.press('Control+k')
+await page.waitForTimeout(300)
+await page.keyboard.type('Guide', { delay: 20 })
+await page.waitForTimeout(400)
+await page.keyboard.press('Enter')
+await page.waitForTimeout(500)
+check('the command palette reopens it under Help',
+  await page.locator('.guide-card').count() >= 8)
+
+// A rail door opens the rail beside the Guide rather than replacing it. Close
+// the rail first so the check can't pass on a panel that was already showing —
+// and so it would catch a door wired to a *toggle*, which closes it instead.
+if (await page.locator('.rail-close').count()) {
+  await page.locator('.rail-close').click()
+  await page.waitForTimeout(300)
+}
+await page.locator('.guide-doors button', { hasText: 'Open the inspector' }).first().click()
+await page.waitForTimeout(400)
+check('the Inspector door opens the rail without closing the Guide',
+  await page.locator('.rail .inspector').count() === 1 && await page.locator('.guide-card').count() >= 8)
+
+// Close it, and the editor's empty state — the screen a lost author stares at —
+// still offers a way back.
+await page.locator('.tab-strip .tab', { hasText: 'Guide' }).locator('.tab-x').click()
+await page.waitForTimeout(400)
+await page.locator('.seg button', { hasText: 'Editor' }).click()
+await page.waitForTimeout(400)
+check('the editor empty state offers the Guide',
+  await page.locator('.empty-state button', { hasText: 'Guide' }).count() === 1)
+await page.locator('.empty-state button', { hasText: 'Guide' }).click()
+await page.waitForTimeout(400)
+check('and that button opens it', await page.locator('.guide-card').count() >= 8)
+await page.locator('.tab-strip .tab', { hasText: 'Guide' }).locator('.tab-x').click()
+await page.waitForTimeout(300)
+
+// Once seen, never imposed again — including across a reload.
+await page.reload()
+await page.waitForFunction(() => !!window.api, null, { timeout: 30000 })
+await page.locator('.recent-row').first().click()
+await page.waitForSelector('.tree-row', { timeout: 30000 })
+await page.waitForTimeout(600)
+check('it does not reappear on the next launch',
+  await page.locator('.tab-strip .tab', { hasText: 'Guide' }).count() === 0)
 
 // ── invariant 1 ─────────────────────────────────────────────────────────────
 section('Invariant 1 · AI off means zero AI in the DOM')
@@ -402,6 +498,156 @@ check('and it is a real editor, not a preview',
 
 await page.keyboard.press('Control+Backslash')
 await page.waitForTimeout(500)
+
+// ── compile says what it is about to export ─────────────────────────────────
+section('Compile · a manuscript, not a mystery, and without the app in it')
+
+await page.keyboard.press('Control+Shift+e')
+await page.waitForSelector('.cmp-body', { timeout: 15000 }).catch(() => {})
+const scopePicker = page.locator('.cmp-body select[aria-label="What to compile"]')
+check('compile names what it is about to export, rather than deriving it silently',
+  await scopePicker.count() === 1)
+
+// The scope used to be derived from the binder selection and shown nowhere, so
+// the document count changed under you with no visible cause. Now it is a
+// control: point it at the folder holding the seeded wikilinks.
+await scopePicker.selectOption({ label: 'Characters' }).catch(() => {})
+await page.waitForTimeout(1200)
+const cmpPreview = await page.locator('.cmp-body').innerText().catch(() => '')
+check('changing the scope changes what gets compiled',
+  /Cast note/.test(await page.locator('.tree-pick').innerText().catch(() => '')),
+  await page.locator('.tree-pick').innerText().catch(() => ''))
+check('the preview resolves a wikilink to the name a reader should see',
+  /A note about Reiko,/.test(cmpPreview), cmpPreview.slice(-200))
+check('an aliased wikilink resolves to its display half',
+  /about the clerk\./.test(cmpPreview), cmpPreview.slice(-200))
+check('and no app syntax survives into the manuscript',
+  !cmpPreview.includes('[['), cmpPreview.slice(-200))
+await page.keyboard.press('Escape')
+await page.waitForTimeout(400)
+
+// ── the palette, the corkboard, and the first-run rail ──────────────────────
+section('Polish · the palette leads with the book, and the board can add to it')
+
+// Unfiltered, the palette used to open on Undo Tree Change, four view switches
+// and six layout toggles — twelve rows, none of which do anything to a book.
+await page.keyboard.press('Control+k')
+await page.waitForTimeout(500)
+const cmdSections = await page.locator('.cp-section').evaluateAll((els) => els.map((e) => e.innerText.trim()))
+const firstCmd = await page.locator('[data-cmd="0"]').innerText().catch(() => '')
+check('the palette opens on something you would do to your book',
+  /Create/i.test(cmdSections[0] ?? ''), cmdSections.slice(0, 4))
+check('and not on Undo Tree Change', !/Undo/i.test(firstCmd), firstCmd)
+check('sections are headed once, not repeated on every row',
+  new Set(cmdSections).size === cmdSections.length, cmdSections)
+await page.keyboard.press('Escape')
+await page.waitForTimeout(300)
+
+// The board says what it is showing, and can add to it.
+await page.locator('.tree-row').filter({ hasText: 'Chapter One' }).first().click()
+await page.waitForTimeout(400)
+await page.locator('.seg button', { hasText: 'Corkboard' }).click()
+await page.waitForTimeout(600)
+check('the corkboard names the folder it is showing',
+  /Chapter One/.test(await page.locator('.cork-hd').innerText().catch(() => '')),
+  await page.locator('.cork-hd').innerText().catch(() => ''))
+const cardsBefore = await page.locator('.cork-grid .card').count()
+await page.locator('.cork-hd button', { hasText: 'New card' }).click()
+await page.waitForTimeout(1200)
+check('New card adds a card to the board', await page.locator('.cork-grid .card').count() === cardsBefore + 1)
+await page.keyboard.press('Escape')
+await page.waitForTimeout(400)
+const corkManifest = JSON.parse(await readBundle(page, 'project.json'))
+check('and the new scene reaches disk under that folder',
+  (corkManifest.nodes.ch1?.childIds ?? []).length === cardsBefore + 1,
+  corkManifest.nodes.ch1?.childIds)
+await page.locator('.seg button', { hasText: 'Editor' }).click()
+await page.waitForTimeout(400)
+
+// ── the keyboard cannot eat your prose ──────────────────────────────────────
+section('Shortcuts · a chord that opens a panel must not edit the manuscript')
+
+// CodeMirror's defaultKeymap and Konbini's window handler both claimed these.
+// CodeMirror listens on the editor DOM so it won the race, ran its command, and
+// the modal that opened afterwards hid the damage — then autosave wrote it.
+//   mod+/    toggleComment  →  the line became "<!-- … -->"
+//   mod+shift+k  deleteLine →  the line was gone
+// Read from disk, because that is where the loss actually landed.
+
+await page.locator('.tree-row').filter({ hasText: 'Scene 1' }).first().click()
+await page.waitForTimeout(700)
+const keySceneId = 'sc0'
+const keyDoc = `docs/${keySceneId}.md`
+
+const pressInEditor = async (chord) => {
+  await page.locator('.cm-content').first().click()
+  await page.keyboard.press('Control+Home')
+  await page.waitForTimeout(200)
+  await page.keyboard.press(chord)
+  await page.waitForTimeout(1800)
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(400)
+}
+
+const beforeSlash = await readBundle(page, keyDoc)
+await pressInEditor('Control+Slash')
+check('mod+/ opens the shortcuts reference without commenting out your line',
+  (await readBundle(page, keyDoc)) === beforeSlash, (await readBundle(page, keyDoc))?.slice(0, 60))
+
+const beforeK = await readBundle(page, keyDoc)
+await pressInEditor('Control+Shift+K')
+check('mod+shift+k opens the codex without deleting your line',
+  (await readBundle(page, keyDoc)) === beforeK, (await readBundle(page, keyDoc))?.slice(0, 60))
+
+// The guard is not vacuous: ordinary typing must still reach the file.
+await page.locator('.cm-content').first().click()
+await page.keyboard.press('Control+End')
+await page.keyboard.type(' TYPED.', { delay: 20 })
+await page.waitForTimeout(2200)
+check('and the editor still writes what you actually type (guard is not vacuous)',
+  (await readBundle(page, keyDoc) ?? '').includes('TYPED.'))
+
+// ── reaching Scrivenings, and the story map ─────────────────────────────────
+section('Browsing · a folder click keeps the view you are in')
+
+// Clicking a folder used to bounce you from the editor to the corkboard, which
+// meant Scrivenings — the whole point of a folder in the editor — could not be
+// reached by clicking the folder. You had to click it, then click Editor again,
+// and the view control changed under you on the way.
+await page.locator('.seg button', { hasText: 'Editor' }).click()
+await page.waitForTimeout(400)
+await page.locator('.tree-row').filter({ hasText: 'Chapter One' }).first().click()
+await page.waitForTimeout(900)
+const activeView = async () => (await page.locator('.seg button.on').innerText().catch(() => '')).trim()
+check('clicking a folder from the editor opens Scrivenings, with no second click',
+  /Scrivenings/.test(await page.locator('.main').innerText().catch(() => '')))
+check('and the view control still says Editor — nothing switched under you',
+  await activeView() === 'Editor', await activeView())
+check('it is a real editor, not a preview',
+  await page.locator('.main .cm-content').count() >= 1)
+
+// The same click from the corkboard stays on the corkboard.
+await page.locator('.seg button', { hasText: 'Corkboard' }).click()
+await page.waitForTimeout(400)
+await page.locator('.tree-row').filter({ hasText: 'Chapter Two' }).first().click()
+await page.waitForTimeout(600)
+check('and from the corkboard a folder click stays on the corkboard',
+  await activeView() === 'Corkboard' && await page.locator('.cork').count() === 1, await activeView())
+
+section('Story map · one lane per chapter, and no lane for the trash')
+
+await page.locator('.seg button', { hasText: 'Story map' }).click()
+await page.waitForTimeout(800)
+const lanes = await page.locator('.tl-row-hd').evaluateAll((els) => els.map((e) => e.innerText.trim()))
+check('the view is offered under its real name', lanes.length > 0, lanes)
+check('the trash gets no lane', !lanes.some((l) => /Trash/i.test(l)), lanes)
+// Lane headers are uppercased by CSS and carry a count, so match loosely.
+check('each chapter gets its own lane instead of one flattened manuscript row',
+  lanes.some((l) => /chapter one/i.test(l)) && lanes.some((l) => /chapter two/i.test(l)), lanes)
+check('a deleted scene is not on the board',
+  !/Trash/i.test(await page.locator('.main.tl').innerText().catch(() => '')))
+await page.locator('.seg button', { hasText: 'Editor' }).click()
+await page.waitForTimeout(400)
 
 // ── deadline math ───────────────────────────────────────────────────────────
 section('Deadline · a date and a target become a daily number, honestly')
@@ -807,7 +1053,12 @@ section('Adventure · drafting only ever appends, and every append is undoable')
 // is only worth anything measured against persisted bytes.
 
 const ADV_PASSAGE = 'ADVENTURE_PASSAGE He broke the seal with his thumb.'
+const ADV_REVISED = 'ADVENTURE_REVISED He broke the seal.'
+const ADV_CONTINUED = 'ADVENTURE_CONTINUED The river carried on without him.'
+const ADV_ANSWER = 'ADVENTURE_ANSWER Her sister is never named in the manuscript.'
 const advSeen = []
+// What the classifier will say about the next line the author types.
+let advIntent = 'continue'
 await page.route('**/chat/completions', async (route) => {
   const cors = {
     'access-control-allow-origin': '*',
@@ -817,7 +1068,11 @@ await page.route('**/chat/completions', async (route) => {
   if (route.request().method() === 'OPTIONS') { await route.fulfill({ status: 204, headers: cors }); return }
   const body = JSON.parse(route.request().postData() ?? '{}')
   const prompt = (body.messages ?? []).map((m) => m.content).join('\n')
-  const kind = /directions the story could take/.test(prompt) ? 'options'
+  const kind = /Classify what/.test(prompt) ? 'intent'
+    : /novelist revising a passage/.test(prompt) ? 'revise'
+    : /handed\s+you the pen/.test(prompt) ? 'continue'
+    : /stopped drafting to/.test(prompt) ? 'answer'
+    : /directions the story could take/.test(prompt) ? 'options'
     : /Continue directly from the preceding text/.test(prompt) ? 'passage'
     : /story bible editor/.test(prompt) ? 'notes'
     : /running summary of a novel/.test(prompt) ? 'summary'
@@ -828,6 +1083,10 @@ await page.route('**/chat/completions', async (route) => {
     passage: ADV_PASSAGE,
     notes: '[{"name":"Vass","category":"character","summary":"The ferryman.","facts":[{"label":"role","value":"ferryman"}]}]',
     summary: 'A ferryman finds a letter addressed to himself.',
+    intent: JSON.stringify({ intent: advIntent }),
+    revise: ADV_REVISED,
+    continue: ADV_CONTINUED,
+    answer: ADV_ANSWER,
     other: '',
   }[kind]
   await route.fulfill({
@@ -847,6 +1106,16 @@ check('Adventure opens on a setup screen, not straight into generation',
   await page.locator('.adv-setup').count() === 1)
 check('it offers to continue from prose that already exists',
   await page.locator('.adv-setup-mode button').first().innerText().catch(() => '') === 'Continue from here')
+
+// The regression lock: the project has a written "Cast note" that comes after
+// the manuscript in binder order. Defaulting to the last written document
+// anywhere picks that sheet and drafts the novel into it.
+const advDefault = await page.locator('.adv-setup select').first().inputValue().catch(() => '')
+check('it does NOT default to a character sheet just because it was written last',
+  advDefault !== 'who', advDefault)
+check('it defaults to a manuscript scene', /^sc\d$/.test(advDefault), advDefault)
+const advGroups = await page.locator('.adv-setup select optgroup').evaluateAll((els) => els.map((e) => e.label))
+check('scenes and notes are offered as separate groups', advGroups.includes('Manuscript scenes'), advGroups)
 
 await page.locator('.adv-start').click()
 await page.waitForSelector('.adv-deck', { timeout: 20000 }).catch(() => {})
@@ -920,6 +1189,90 @@ if (spine) {
   check('stepping back also un-writes the outline — no orphan beat',
     !(spineBody ?? '').includes('He opens the letter'), spineBody)
 }
+
+// ── adventure as a conversation ─────────────────────────────────────────────
+section('Adventure · talking to it, and the line a revision must not cross')
+
+// Free text is classified before it is acted on, because "that's too flowery"
+// is an instruction about the passage just written, not a direction for the
+// next one. The three outcomes have three different safety stories, and the
+// only one that matters here is the middle one: a revision REPLACES prose, so
+// it must go through the changeset gate that appending is exempt from.
+
+const say = async (text) => {
+  await page.locator('.adv-own textarea').fill(text)
+  await page.locator('.adv-own textarea').press('Enter')
+}
+const script = () => page.locator('.adv-script').innerText().catch(() => '')
+
+// (a) forward — the author says what happens next, in their own words.
+advIntent = 'continue'
+const convBefore = await readBundle(page, advDoc)
+await say('He opens the letter and reads it twice.')
+await page.waitForTimeout(3800)
+const convAfter = await readBundle(page, advDoc)
+check('a line the classifier reads as forward appends prose to the scene',
+  !!convAfter && convAfter.includes(ADV_PASSAGE) && convAfter !== convBefore, convAfter?.slice(-70))
+check('the transcript keeps what the author actually asked for',
+  /He opens the letter and reads it twice\./.test(await script()), (await script()).slice(0, 200))
+check('the transcript is persisted with the session, not just rendered',
+  ((JSON.parse(await readBundle(page, 'aux/adventure.json') ?? '{}').turns) ?? [])
+    .some((t) => /reads it twice/.test(t.said ?? '')))
+
+// (b) backward — a note about the passage that was just written.
+advIntent = 'revise'
+const revBefore = await readBundle(page, advDoc)
+await say('That last bit is too flowery — tighten it.')
+await page.waitForSelector('.cs-body', { timeout: 20000 }).catch(() => {})
+check('a revision opens a changeset review instead of rewriting the scene',
+  await page.locator('.cs-body').count() === 1)
+check('and NOTHING on disk changed while it waits for review (invariant 2)',
+  (await readBundle(page, advDoc)) === revBefore, (await readBundle(page, advDoc))?.slice(-70))
+check('the classifier was actually consulted before the rewrite',
+  advSeen.includes('intent') && advSeen.includes('revise'), advSeen.slice(-6))
+
+await page.locator('.modal-foot .btn.primary').click()
+await page.waitForTimeout(1600)
+const revApplied = await readBundle(page, advDoc)
+check('accepting the review swaps the passage on disk',
+  !!revApplied && revApplied.includes(ADV_REVISED), revApplied?.slice(-70))
+check('the revision replaced the old passage rather than appending a second one',
+  !!revApplied && !revApplied.includes(ADV_PASSAGE), revApplied?.slice(-90))
+check('and it touched only that passage — the scene before it is intact',
+  !!revApplied && !!convBefore && revApplied.startsWith(convBefore.trimEnd()), revApplied?.slice(0, 60))
+
+// (c) a question — an answer, and not one word written.
+advIntent = 'ask'
+const askBefore = await readBundle(page, advDoc)
+await say('What was her sister called again?')
+await page.waitForTimeout(3000)
+check('a question is answered in the conversation',
+  /ADVENTURE_ANSWER/.test(await script()), (await script()).slice(-200))
+check('and writes nothing at all to the manuscript',
+  (await readBundle(page, advDoc)) === askBefore)
+
+// (d) handing the pen back — carry on with no direction given.
+const contSpine = Object.values(JSON.parse(await readBundle(page, 'project.json')).nodes)
+  .find((n) => n.title === 'Story spine')
+const contSpineBefore = contSpine ? await readBundle(page, `docs/${contSpine.id}.md`) : ''
+await page.locator('.adv-deck-tools button:has-text("Continue")').click()
+await page.waitForTimeout(3800)
+const contAfter = await readBundle(page, advDoc)
+check('Continue drafts on from where the text stops, with no beat',
+  !!contAfter && contAfter.includes(ADV_CONTINUED), contAfter?.slice(-70))
+check('it used the take-the-pen prompt, not the beat prompt', advSeen.includes('continue'), advSeen.slice(-8))
+if (contSpine) {
+  check('carrying on adds no line to the outline — it decided nothing',
+    (await readBundle(page, `docs/${contSpine.id}.md`)) === contSpineBefore,
+    await readBundle(page, `docs/${contSpine.id}.md`))
+}
+
+// The deck is optional: when you know what happens next, a menu of what could
+// happen instead is noise.
+await page.locator('.adv-deck-tools button:has-text("Beats")').click()
+await page.waitForTimeout(400)
+check('the deck of suggestions can be put away', await page.locator('.adv-card').count() === 0)
+check('but the conversation stays', await page.locator('.adv-own textarea').count() === 1)
 
 await page.unroute('**/chat/completions')
 await page.locator('.tab-x').last().click()
@@ -1014,6 +1367,53 @@ check('the shell exposes landmarks (banner/nav/main/complementary/contentinfo)',
   structure.landmarks)
 check('the binder is a tree with treeitem rows', structure.tree && structure.treeitems > 0, structure)
 check('the tree has exactly one tab stop (roving tabindex)', structure.tabStops === 1, structure.tabStops)
+
+// ── templates ───────────────────────────────────────────────────────────────
+section('Templates · a new project is yours, not a demo')
+
+// `novel` used to return an entire finished sample manuscript — and it is the
+// default card — so "New Project → Create", the most likely first action anyone
+// takes, handed the author a stranger's book to delete. Checked on disk, because
+// the claim is about the bytes a template persists.
+await page.keyboard.press('Control+k')
+await page.waitForTimeout(300)
+await page.keyboard.type('New Project', { delay: 20 })
+await page.waitForTimeout(400)
+await page.keyboard.press('Enter')
+await page.waitForSelector('.tmpl-grid', { timeout: 10000 })
+check('a second project can be started without closing this one',
+  await page.locator('.tmpl-grid').count() === 1)
+check('the Novel template is the default card',
+  (await page.locator('.tmpl-card.on .tc-label').first().textContent()).trim() === 'Novel')
+await page.locator('.tmpl-card', { hasText: 'Novel' }).first().click()
+await page.fill('.np-field .inp', 'Fresh Novel')
+await page.locator('.btn.primary', { hasText: 'Create Project' }).click()
+await page.waitForSelector('.tree-row', { timeout: 30000 })
+await page.waitForTimeout(800)
+
+const fresh = await page.evaluate(async () => {
+  const root = await (await navigator.storage.getDirectory()).getDirectoryHandle('konbini-projects')
+  let bundle = null
+  for await (const [name, handle] of root.entries()) {
+    if (name === 'smoke.konbini') continue
+    const manifest = JSON.parse(await (await (await handle.getFileHandle('project.json')).getFile()).text())
+    if (manifest.title === 'Fresh Novel') bundle = { handle, manifest }
+  }
+  if (!bundle) return null
+  const docs = []
+  const dir = await bundle.handle.getDirectoryHandle('docs')
+  for await (const [name, fh] of dir.entries()) docs.push([name, await (await fh.getFile()).text()])
+  return { titles: Object.values(bundle.manifest.nodes).map((n) => n.title).sort(), docs }
+})
+check('the new project reached disk', fresh !== null)
+check('every document it created is empty — no prose the author has to delete',
+  fresh !== null && fresh.docs.every(([, text]) => text.trim() === ''),
+  fresh && fresh.docs.filter(([, t]) => t.trim() !== '').map(([n, t]) => [n, t.slice(0, 60)]))
+check('but it does arrive with a shape to write into',
+  fresh !== null && ['Manuscript', 'Part One', 'Chapter 1', 'Scene 1', 'Characters', 'Research', 'Trash']
+    .every((t) => fresh.titles.includes(t)), fresh && fresh.titles)
+check('the binder shows that shape',
+  await page.locator('.tree-row', { hasText: 'Manuscript' }).count() >= 1)
 
 // ── nothing threw ───────────────────────────────────────────────────────────
 section('No uncaught errors')

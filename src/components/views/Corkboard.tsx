@@ -48,6 +48,27 @@ export default function Corkboard(): React.ReactElement {
     }, 400)
   }
 
+  /**
+   * Add a scene to the folder being shown.
+   *
+   * The board had no way to create anything, so adding a scene to the chapter
+   * you were looking at meant going back to the binder and finding it again.
+   * Same mutation the binder uses, and the new card opens for renaming.
+   */
+  const addCard = async () => {
+    try {
+      const result = await window.api.node.mutate(project.id, { type: 'create', parentId, nodeType: 'scene' })
+      applyMutation(result)
+      const newId = Object.values(result.nodes).find((n) => n.ext['_newId'])?.id
+      if (newId) {
+        useProjectStore.getState().selectNode(newId, { keepView: true })
+        useProjectStore.getState().setRenamingId(newId)
+      }
+    } catch (e) {
+      useShellStore.getState().setToast('Card could not be added: ' + (e as Error).message)
+    }
+  }
+
   const handleDrop = async () => {
     if (!dragId || !dropAt || dropAt.overId === dragId) { setDragId(null); setDropAt(null); return }
     const targetIdx = childIds.indexOf(dropAt.overId)
@@ -66,9 +87,19 @@ export default function Corkboard(): React.ReactElement {
     }
   }
 
+  const boardTitle = parentId ? project.nodes[parentId]?.title ?? 'Corkboard' : project.title
+
   return (
     <div className="main">
       <div className="cork">
+        {/* Which folder you are looking at used to be readable only in the
+            status bar, at the very bottom of the window. */}
+        <div className="cork-hd">
+          <span className="cork-hd-title">{boardTitle}</span>
+          <span className="cork-hd-count">{childIds.length} {childIds.length === 1 ? 'card' : 'cards'}</span>
+          <span className="tb-spacer" />
+          <button className="btn sm" onClick={addCard} title="Add a scene to this folder">New card</button>
+        </div>
         <div className="cork-grid">
           {childIds.map((id) => {
             const node = project.nodes[id]

@@ -442,7 +442,7 @@ weak spots, voice-drift vs. the fingerprint, tracked across drafts so a writer c
   point (`aux/quality-history.json`); the dashboard shows a sparkline + delta
   ("▲ +3.4 over N passes") so you watch the draft improve.
 
-### 5.3 Cross-device sync & backup 🔲  *(retention — biggest infra lift)*
+### 5.3 Cross-device sync & backup — Tier 0 ✅, Tier 2 🔲  *(retention — biggest infra lift)*
 
 **The hard part is the manifest, not the transport.** The bundle is
 `project.json` + `docs/<nodeId>.md` + `snapshots/` + `aux/*.json`.
@@ -880,6 +880,280 @@ candidate waits in the inbox until clicked, and stepping back un-writes the
 manuscript *and* the outline together. Driving it also caught two defects the
 type checker could not: step-back left an orphan beat in the spine, and ending
 a scene by hand left the author facing an empty deck.
+
+---
+
+## Phase 10 — First run ✅
+
+The last code-wise gap before 1.0. The launch screen offered *New Project* and
+*Open Project*; after that you were dropped into a studio holding a binder, an
+inspector, four view modes, a compile pipeline, a codex, Foundation, a quality
+dashboard and Adventure — with nothing anywhere naming any of them. The proof
+was the author of Adventure being unable to find Adventure two days after it
+shipped.
+
+### 10.1 A template gives you structure, never someone else's prose
+`buildProjectFromTemplate('novel')` returned an entire finished demo manuscript
+("Midnight Aisle" — prose, a cast, folklore research), and `novel` is the
+*default* card. So "New Project → Create", the most likely first action anyone
+takes, handed the author a stranger's half-written book to delete. It was a
+development convenience from Phase 1 that outlived its purpose and shipped as
+product behaviour.
+
+`novel` is now a three-act skeleton: Manuscript → Part One/Two/Three → Chapter
+1/2/3 → one empty Scene, plus empty Characters and Research folders. Every
+folder carries a synopsis saying what it is *for* — the one place a template can
+talk to the author without inventing sentences for them.
+
+`src/shared/templates.test.ts` is new, because the builder had never had a test
+at all — which is how this kept shipping. It checks every template for
+structural validity (trash reachable, the tree agreeing with itself in both
+directions, docs and nodes corresponding exactly, no id collisions across
+projects) and locks the regression: no template may produce a document with
+content in it.
+
+### 10.2 The Guide — a set of doors, not documentation
+`views/GuideView.tsx`, registered as the `guide` view tab. One card per surface:
+what it is, its shortcut, and **a button that opens it**, calling the same store
+actions the toolbar and command palette already use — so nothing here is a
+special path that can rot while the real one moves.
+
+Two things the smoke test forced, both real defects in the first cut:
+- A view door has to *leave the room*. The Guide is a view tab and `EditorPane`
+  renders the active view tab instead of the main pane, so `setView('corkboard')`
+  alone changed a mode the author could not see. View doors now close the Guide.
+- A door **opens**; it does not toggle. `toggleRailPanel('inspector')` closed the
+  inspector for everyone who had it showing — which is the default.
+
+Invariant 1 shapes the AI card: with AI off it is one paragraph of text saying
+the studio is complete without it, and a single button to the settings screen.
+No AI component mounts, no AI door is offered, nothing is hidden.
+
+### 10.3 Reaching it
+It opens by itself on the first project ever opened, guarded by
+`pref:seenGuide` through the `window.api.prefs` seam (invariant 7), with the
+flag set *before* opening so a crash mid-render cannot produce a Guide that
+reappears forever. After that it is a normal closable tab, reachable from the
+command palette's Help section and from the editor's empty state — the screen a
+lost author is actually staring at.
+
+Also closed while here: `New Project…` existed only in the launch screen's
+palette, so with a project open there was no way to start another without
+closing the current one first.
+
+### 10.4 What it is verified by
+Seven unit tests on the template builder, and twenty smoke checks driving the
+real studio: the Guide auto-opens on a cold boot and never again, the flag is
+persisted through the prefs seam, every door lands you where it says, the AI
+section offers no AI door with AI off, and a project created through the real
+New Project UI with the `novel` template has empty `docs/*.md` **on disk**.
+
+---
+
+## Phase 15 — What the wide screenshot pass found ✅
+
+`npm run shots` photographed 43 surfaces, most never looked at before. Four
+findings, two of which destroyed the author's text.
+
+**The keyboard could eat your prose.** CodeMirror's `defaultKeymap` and
+Konbini's window handler both claimed the same chords, and CodeMirror listens on
+the editor DOM — so it won the race, ran its command, and the modal that opened
+afterwards hid the damage. Autosave then wrote it.
+
+| Chord | CodeMirror did | Konbini does | Confirmed against disk |
+|---|---|---|---|
+| `Mod-/` | `toggleComment` | Shortcuts | line became `<!-- … -->` |
+| `Shift-Mod-k` | `deleteLine` | Codex | line was **gone** |
+| `Mod-d` | `selectNextOccurrence` | Duplicate | intact — selection only |
+| `Mod-Shift-l` | `selectSelectionMatches` | Read Aloud | intact — selection only |
+
+Both damaging cases were confirmed by bisecting persisted bytes before anything
+was changed; the two harmless ones were predictions that the probe corrected.
+`src/lib/shortcuts.ts` is now the authority, `extensions.ts` filters
+CodeMirror's keymap through it, and adding a Konbini shortcut removes it from
+the editor automatically. `Mod-Shift-l` was also advertised in two menus and
+bound to nothing — it now dispatches read-aloud.
+
+**Compile leaked the app into the book.** `[[Reiko]]` is a codex link inside
+Konbini and noise in a manuscript, and the assembly was written *four* times —
+once per backend plus the modal's preview — all joining raw content. So the
+Shunn export, the format labelled "what agents expect", read
+`a hum [[Reiko]] had stopped hearing`. One `manuscriptText()` in `shared/utils`,
+called from all four, with a contract assertion so the three backends cannot
+drift apart again.
+
+**Compile never said what it was about to export.** The root was derived from
+the binder selection and shown nowhere: select a scene and you compiled the
+whole book, select a folder and you compiled that folder. Same modal, same
+label, different output. It is a control now.
+
+**Manuscript Quality judged things that were not the manuscript.** A comment
+promised "compile-eligible docs, in binder order (skips Trash)" above a walk of
+every root, Trash included — so character sheets and research notes were scored
+for prose quality, and two documents called "The Woman in White" sat side by
+side with no way to tell which was the scene. `src/lib/manuscript.ts` answers
+"what is the manuscript" once, for every surface that needs it.
+
+715 unit tests, 168 smoke checks. Every lock mutation-checked — including one
+that had to be rewritten because it recomputed the filter it was meant to be
+testing and passed with the bug restored.
+
+---
+
+## Phase 14 — The polish pass ✅
+
+The other eight findings from the screenshot review. None corrupt data; all are
+visible on first glance.
+
+- **The editor bar stopped repeating the status bar.** Both said
+  "153 words · Ln 1, Col 1", thirty pixels apart. `EDITOR_BAR_DEFAULT` now shows
+  only what a *pane* can own — the render toggle, focus, typewriter. The counts
+  stay available because split view is where they earn their place: two editor
+  panes, one status bar.
+- **One checkbox rule instead of nineteen system checkboxes.** `.tree-pick` was
+  the only place that had remembered `accent-color`; it is global now and lives
+  with the other form styles.
+- **The command palette leads with the book.** Sections are ranked
+  (`Create → Document → Project → AI → View → Layout → Edit → Help`) by a stable
+  sort rather than by source order, so it opens on New Document / New Scene /
+  History / Search / Compile instead of Undo Tree Change and six layout toggles.
+  One header per run of rows, not the section name on all twelve.
+- **The corkboard says what it is showing and can add to it** — folder title,
+  card count, and a New card button on the same mutation path the binder uses.
+- **`describeLocation`** turns `opfs:shots` into "In this browser" on the launch
+  screen. Pure, tested.
+- **Search is labelled** like History and Compile, so the toolbar no longer has
+  two adjacent near-identical magnifiers. The rule: a button that opens a
+  surface gets a word, a toggle gets an icon.
+- **The first-run Guide closes the rail**, instead of opening beside 450px of
+  "Select a document to see its properties" — which also made its own
+  *Open the inspector* door a no-op.
+- **Adventure's editor got its measure back.** It rendered `<Editor>` bare while
+  `EditorPane` wraps it in `.editor-wrap > .editor-col`, so prose ran to ~1250px
+  on the surface an author would live in. Same wrappers, with `.editor-col`'s
+  45vh typewriter padding trimmed since the deck sits below.
+
+685 unit tests, 160 smoke checks.
+
+---
+
+## Phase 13 — Five bugs found by looking at the app ✅
+
+Driving the studio in a real browser and reading the screenshots, rather than
+the source. Every one of these compiled cleanly and passed 656 unit tests and
+142 smoke checks.
+
+1. **Adventure drafted into a character sheet.** Setup defaulted to
+   `written[written.length-1]` — the last written document *anywhere* — which in
+   any project with a Characters folder is a biography, not a scene. Prose was
+   appended to it and the story spine filed beside the cast. Now
+   `defaultContinueTarget()` prefers the binder selection, then the last scene
+   under a selected folder, then the last scene in the project; the dropdown
+   separates **Manuscript scenes** from **Other documents**.
+2. **Three word counters.** Setup said 32 for a document the binder called 33,
+   and Adventure's scene-break threshold was measured in a unit the author never
+   saw. `adventure.ts`'s `words` and the inline counter in setup are gone; there
+   is one `wordCount`.
+3. **Scrivenings was unreachable by clicking a folder.** `selectNode` bounced
+   you from the editor to the corkboard, so the folder-in-editor view needed a
+   second click and the view control changed under you. A folder now keeps the
+   view you are in.
+4. **Shortcuts died under Caps Lock**, and `mod+shift+z` never worked at all —
+   `e.key` carries shift and Caps Lock state, so `e.key === 'E'` misses and
+   `e.key === 'z'` can never match while Shift is held. One lower-cased `key`.
+5. **Timeline was not a timeline** — lanes by top-level folder, Trash included,
+   every chapter flattened into one row, no axis and no date field anywhere.
+   Now one lane per folder that directly holds documents (a lane per chapter,
+   with its path above it), trash excluded, and renamed **Story map** in the
+   four places it is named. The `'timeline'` id and ⌘4 are unchanged.
+
+Both locks were verified by mutation: reverting 1 fails two unit tests and two
+smoke checks by name; reverting 3 fails three more.
+
+677 unit tests, 153 smoke checks.
+
+---
+
+## Phase 12 — Adventure as a conversation ✅
+
+Adventure could already take a beat in the author's own words, so the gap was
+never "talk to the model." It was three things a deck of cards cannot express:
+
+1. **Every turn was forward-only.** "That last bit is too flowery" had nowhere
+   to go — you stepped back and redid it, or fixed it by hand.
+2. **No turn-taking on the prose.** The model always wrote. There was no way to
+   write a paragraph yourself and hand the pen back without inventing a beat to
+   justify it.
+3. **Intent was thrown away.** Only the accepted beat reached the spine, so the
+   register you kept asking for was recorded nowhere.
+
+Free text is now classified before it is acted on — `continue`, `revise`, or
+`ask` — and each lands somewhere different:
+
+| Intent | What happens | Safety |
+|---|---|---|
+| `continue` | prose appends to the scene | snapshot first, one ⌘Z to undo |
+| `revise` | the last passage is rewritten | `selection`-scoped `Proposal` → changeset review |
+| `ask` | answered in the transcript | nothing is written at all |
+
+That middle row is the point. It is the first feature where a single typed line
+can land on either side of invariant 2, so the two doors sit next to each other
+in one file — appending needs no gate because nothing is at risk, and replacing
+takes the same changeset review as every other AI edit.
+
+Cards from the deck skip the classifier entirely (they are unambiguously beats),
+so conversing costs one extra round trip and choosing costs none. A classifier
+that fails falls back to `continue`, the outcome a keystroke undoes.
+
+Also added: **Continue** (carry on from where the text stops, no beat — and it
+writes no spine line, because it decided nothing), **I'll write this one** (puts
+the cursor in the manuscript and stands the model down), a **transcript** in the
+right column that keeps what the author asked for, and a **collapsible deck**.
+
+Verified by mutation: making the revision path append directly instead of
+proposing — the tempting "it's our own passage, just write it" shortcut — fails
+*a revision opens a changeset review instead of rewriting the scene* and *NOTHING
+on disk changed while it waits for review* in the smoke run.
+
+656 unit tests, 142 smoke checks.
+
+---
+
+## Phase 11 — One contract, three backends ✅
+
+The renderer never knows which storage backend is active, which only holds while
+they agree — and only `NodeProjectService` was tested. `BrowserProjectService`
+(File System Access, the path most users are on) had no automated coverage at
+all: `scripts/smoke.mjs` deletes `showDirectoryPicker` before the app boots so it
+can drive OPFS without a native dialog. A change that broke the FSA backend and
+not the others had nothing to fail.
+
+The contract is now stated once in `src/lib/projectServiceContract.ts` —
+`ProjectServiceLike` (the shared surface, in TypeScript) plus ~40 assertions
+about it — and run three times:
+
+| Backend | Storage under test |
+|---|---|
+| `NodeProjectService` | a real temp directory |
+| `BrowserProjectService` | `src/test/memfs.ts`, via a stubbed `showDirectoryPicker` |
+| `OPFSProjectService` | the same fake, via a stubbed `navigator.storage.getDirectory` |
+
+`memfs.ts` is an in-memory File System Access implementation covering exactly
+what the services call — getDirectoryHandle, getFileHandle, createWritable,
+getFile, removeEntry, entries — and throwing the same `NotFoundError` the
+browser does, because `readText` telling "absent" from "broken" by catching that
+is itself part of the contract.
+
+Each backend keeps its own file for what only it has: FSA's stored-handle
+permission flow (granted, refused, bundle gone) and picker cancellation, OPFS's
+`opfs:` locations and id-named bundles, Node's real paths.
+
+Verified by mutation, not by passing: making FSA's `writeText` skip empty
+content — a plausible optimisation — fails `can empty a document back out` in
+the FSA suite while Node stays green. That divergence is the thing that used to
+be invisible.
+
+641 unit tests, up from 541.
 
 ---
 

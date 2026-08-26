@@ -17,7 +17,8 @@
     "electron:compile": "tsc -p electron/tsconfig.json && node -e \"require('fs').writeFileSync('electron-dist/package.json','{\\\"type\\\":\\\"commonjs\\\"}')\"",
     "electron:dev": "npm run electron:compile && cross-env ELECTRON_DEV=1 electron .",
     "electron:build": "npm run build && npm run electron:compile && electron-builder",
-    "app": "concurrently -k -n vite,electron -c cyan,magenta \"vite\" \"wait-on http://localhost:5173 && npm run electron:dev\""
+    "app": "concurrently -k -n vite,electron -c cyan,magenta \"vite\" \"wait-on http://localhost:5173 && npm run electron:dev\"",
+    "shots": "node scripts/shots.mjs"
   },
   "devDependencies": {
     "@codemirror/commands": "^6.7.1",

@@ -86,6 +86,12 @@ These are structural guarantees. Violating any one breaks a core promise.
    the moment a feature would *replace* existing prose it goes back through
    `Proposal` like everything else.
 
+   Adventure is where both halves of that rule live side by side, so read it
+   there before adding a third: saying what happens next appends (snapshot, no
+   gate), and asking for the last passage to be tightened is a `selection`-scoped
+   `Proposal` through the changeset review. Same tab, same turn, different door,
+   decided by which one the text would cross.
+
 3. **Every prompt and agent is registry-editable.** `PromptRegistry` and
    `AgentRegistry` are the single source of truth. A hardcoded prompt string
    in TypeScript is a bug.
@@ -119,9 +125,12 @@ src/
     BrowserProjectService.ts File System Access API backend (real disk, Chromium).
     OPFSProjectService.ts    Origin Private File System backend (Firefox/Safari).
     AIClient.ts              Multi-provider streaming (Anthropic + OpenAI-compatible).
-    adventure.ts             Beat-by-beat drafting: passage → deck of beats →
-                             chosen beat → passage. Appends only; the caller
-                             snapshots first. Parsers are pure and tolerant.
+    adventure.ts             Beat-by-beat drafting, and the conversation around
+                             it: passage → deck of beats → chosen beat → passage,
+                             plus free text classified into continue / revise /
+                             ask. Appending is the module's job and it snapshots
+                             first; revising is the caller's, through `Proposal`.
+                             Parsers are pure and tolerant.
     agent.ts                 The chat assistant's tool-use loop. One provider-neutral
                              loop, two wire adapters (Anthropic tool_use blocks /
                              OpenAI-compatible tool_calls). Tools are never
@@ -146,7 +155,9 @@ All three implement the same project-layer interface and are swapped behind
 | Firefox/Safari | `OPFSProjectService` | browser-internal (OPFS) | location string directly |
 | Electron | `NodeProjectService` (preload) | real disk (`fs`) | location path directly |
 
-The renderer never knows which one is active.
+The renderer never knows which one is active — which only holds while they
+agree, so the contract they share is stated once in
+`src/lib/projectServiceContract.ts` and run against all three.
 
 ---
 
@@ -213,14 +224,24 @@ compiled CJS output runs under the root `"type":"module"`. The
 
 ---
 
+## Two lists that must not disagree
+
+`src/lib/shortcuts.ts` names every chord Konbini claims, and
+`src/components/editor/extensions.ts` filters CodeMirror's keymap through it.
+This exists because both bound `⌘/` and `⌘⇧K`: CodeMirror listens on the editor
+DOM, so it ran `toggleComment` and `deleteLine` *first*, the modal opened over
+the damage, and autosave wrote it. An author checking a shortcut lost a line
+from their book.
+
+Add a shortcut to `App.tsx` and add its chord to `KONBINI_CHORDS`.
+`shortcuts.test.ts` asserts the two lists are disjoint against the **real**
+exported keymap — a test that rebuilds the filter itself passes with the bug
+restored, which is what the first version of it did.
+
+---
+
 ## Known debt (don't expand it)
 
-- **The two browser project services have no unit tests.** `NodeProjectService`
-  is tested against a real temp directory (`electron/NodeProjectService.test.ts`)
-  and states the contract all three share; `BrowserProjectService` and
-  `OPFSProjectService` are covered only by `scripts/smoke.mjs`, which drives OPFS
-  in a real browser. A change that breaks one backend and not the others shows
-  up as a disagreement between those two, which is weaker than testing each.
 - **~49 exported *types* are named only by their own module.** Left alone on
   purpose: most are the parameter or return type of an exported function
   (`DocxOptions`, `StreamCallbacks`, `ContextPacket`), and an exported function
@@ -229,7 +250,17 @@ compiled CJS output runs under the root `"type":"module"`. The
 
 (Resolved and not to be reintroduced: exported values nothing else imported;
 a folder dropped into a split pane dead-ending on a placeholder; binder drag
-moving only the grabbed row instead of the whole selection.)
+moving only the grabbed row instead of the whole selection; a template that
+shipped a demo manuscript to every new project.)
+
+(The old entry here — "the two browser project services have no unit tests" — is
+resolved. The contract all three backends share is written once in
+`src/lib/projectServiceContract.ts` and run three times: `NodeProjectService`
+against a real temp directory, `BrowserProjectService` and `OPFSProjectService`
+against the in-memory File System Access implementation in `src/test/memfs.ts`.
+A change that breaks one backend now fails in that backend, by name. Adding a
+method to the project layer means adding it to `ProjectServiceLike` and to the
+contract — that is the point of the file, not an inconvenience.)
 
 (The old entry here — "a few stores still use `localStorage` directly" — is
 resolved. aiStore, shellStore, StatsService, RecentsService and PromptRegistry

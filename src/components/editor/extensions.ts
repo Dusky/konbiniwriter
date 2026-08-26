@@ -4,6 +4,7 @@ import { markdown } from '@codemirror/lang-markdown'
 import { syntaxHighlighting, HighlightStyle } from '@codemirror/language'
 import { defaultKeymap, historyKeymap, history, indentWithTab } from '@codemirror/commands'
 import { keymap } from '@codemirror/view'
+import { isKonbiniChord } from '../../lib/shortcuts'
 import { search, searchKeymap } from '@codemirror/search'
 import { tags } from '@lezer/highlight'
 import { livePreview } from './livePreview'
@@ -313,7 +314,12 @@ export function konbiniExtensions(
   return [
     history(),
     search({ top: true }),
-    keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
+    // Chords Konbini claims are stripped out of CodeMirror's keymap. Without
+    // this, both handlers fire — CodeMirror first, because it listens on the
+    // editor DOM — so ⌘/ commented out the author's line on its way to opening
+    // the Shortcuts modal, and ⌘⇧K deleted it on its way to the Codex panel.
+    // `src/lib/shortcuts.ts` is the authority; a test keeps the two disjoint.
+    keymap.of(editorKeymap),
     markdown(),
     syntaxHighlighting(markdownHighlight),
     focusModeField,
@@ -341,4 +347,17 @@ export function konbiniExtensions(
       }
     })] : []),
   ]
-}
+}/**
+ * CodeMirror's bindings, minus every chord Konbini claims.
+ *
+ * Exported so `src/lib/shortcuts.test.ts` can assert on the real list. A test
+ * that rebuilds this filter itself would pass with the bug restored — which is
+ * exactly what happened on the first attempt.
+ */
+export const editorKeymap = [
+  ...[...defaultKeymap, ...historyKeymap, ...searchKeymap]
+    .filter((b) => !isKonbiniChord(b.key) && !isKonbiniChord(b.mac)),
+  indentWithTab,
+]
+
+

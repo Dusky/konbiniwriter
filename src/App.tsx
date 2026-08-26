@@ -95,30 +95,36 @@ export default function App(): React.ReactElement {
 
     if (!mod) return
 
+    // Compare against a lower-cased key throughout. `e.key` carries the shift
+    // and Caps Lock state, so `e.key === 'E'` misses when Caps Lock is on and
+    // `e.key === 'z'` never matches at all while Shift is held — which is why
+    // Redo (mod+shift+z) has been listed in the palette but doing nothing.
+    const key = e.key.toLowerCase()
+
     // Structural undo/redo (node ops) — only when editor is NOT focused (CM6
     // handles its own text undo/redo).
     const tag = (document.activeElement as HTMLElement)?.tagName
     const inField = !!document.activeElement?.closest('.cm-editor') || tag === 'INPUT' || tag === 'TEXTAREA'
-    if (!inField && !alt && e.key === 'z') {
+    if (!inField && !alt && key === 'z') {
       if (shift ? redoMutation() : undoMutation()) e.preventDefault()
     }
-    if (!inField && !alt && e.key === 'y') {
+    if (!inField && !alt && key === 'y') {
       if (redoMutation()) e.preventDefault()
     }
 
     // Navigation & layout
-    if (alt && e.key === 'b') { e.preventDefault(); toggleBinder() }
+    if (alt && key === 'b') { e.preventDefault(); toggleBinder() }
     // Put the caret in the binder. Without this the tree is 20 Tab presses
     // deep, which makes its keyboard navigation theoretical.
-    if (shift && !alt && e.key === 'B') {
+    if (shift && !alt && key === 'b') {
       e.preventDefault()
       if (!useShellStore.getState().layout.binder) toggleBinder()
       window.dispatchEvent(new Event('konbini:focus-binder'))
     }
-    if (alt && e.key === 'i') { e.preventDefault(); toggleRailPanel('inspector') }
-    if (alt && e.key === 't') { e.preventDefault(); setTheme(theme === 'dark' ? 'light' : 'dark') }
-    if (alt && e.key === 'c') { e.preventDefault(); setCompositionMode(true) }
-    if (alt && e.key === 'o') { e.preventDefault(); setFocusMode(!useProjectStore.getState().focusMode) }
+    if (alt && key === 'i') { e.preventDefault(); toggleRailPanel('inspector') }
+    if (alt && key === 't') { e.preventDefault(); setTheme(theme === 'dark' ? 'light' : 'dark') }
+    if (alt && key === 'c') { e.preventDefault(); setCompositionMode(true) }
+    if (alt && key === 'o') { e.preventDefault(); setFocusMode(!useProjectStore.getState().focusMode) }
 
     // Split editor
     if (!shift && !alt && e.key === '\\') { e.preventDefault(); toggleSplit() }
@@ -130,24 +136,28 @@ export default function App(): React.ReactElement {
     if (!shift && !alt && e.key === '4') { e.preventDefault(); setView('timeline') }
 
     // Modals
-    if (!shift && !alt && e.key === 'k') { e.preventDefault(); setModal('command-palette') }
-    if (shift && e.key === 'S') { e.preventDefault(); useShellStore.getState().setRailPanel('history') }
-    if (shift && e.key === 'E') { e.preventDefault(); setModal('compile') }
+    if (!shift && !alt && key === 'k') { e.preventDefault(); setModal('command-palette') }
+    if (shift && key === 's') { e.preventDefault(); useShellStore.getState().setRailPanel('history') }
+    if (shift && key === 'e') { e.preventDefault(); setModal('compile') }
     if (e.key === '/') { e.preventDefault(); setModal('shortcuts') }
     if (!shift && !alt && e.key === ',') { e.preventDefault(); useProjectStore.getState().openViewTab('prefs') }
-    if (shift && e.key === 'F') { e.preventDefault(); setModal('search') }
-    if (shift && e.key === 'K') { e.preventDefault(); if (useAIStore.getState().enabled) useShellStore.getState().toggleRailPanel('codex') }
-    if (shift && e.key === 'A') {
+    if (shift && key === 'f') { e.preventDefault(); setModal('search') }
+    if (shift && key === 'k') { e.preventDefault(); if (useAIStore.getState().enabled) useShellStore.getState().toggleRailPanel('codex') }
+    if (shift && key === 'a') {
       e.preventDefault()
       if (useAIStore.getState().enabled) useShellStore.getState().toggleRailPanel('assistant')
     }
-    if (shift && e.key === 'R') { e.preventDefault(); if (useAIStore.getState().enabled) useShellStore.getState().toggleRailPanel('reader') }
-    if (shift && e.key === 'G') { e.preventDefault(); useProjectStore.getState().openViewTab('batch-generator') }
-    if (shift && e.key === 'P') { e.preventDefault(); useProjectStore.getState().openViewTab('autopilot') }
+    if (shift && key === 'r') { e.preventDefault(); if (useAIStore.getState().enabled) useShellStore.getState().toggleRailPanel('reader') }
+    // Advertised in the command palette and the editor's context menu, and
+    // until now bound to nothing — CodeMirror had the chord for
+    // selectSelectionMatches, and no window handler ever claimed it.
+    if (shift && key === 'l') { e.preventDefault(); window.dispatchEvent(new Event('konbini:read-aloud')) }
+    if (shift && key === 'g') { e.preventDefault(); useProjectStore.getState().openViewTab('batch-generator') }
+    if (shift && key === 'p') { e.preventDefault(); useProjectStore.getState().openViewTab('autopilot') }
 
     // New project / open (always available)
-    if (!shift && !alt && e.key === 'n' && screen === 'launch') { e.preventDefault(); setModal('new-project') }
-    if (!shift && !alt && e.key === 'o') {
+    if (!shift && !alt && key === 'n' && screen === 'launch') { e.preventDefault(); setModal('new-project') }
+    if (!shift && !alt && key === 'o') {
       e.preventDefault()
       window.api.project.showOpenDialog().then(async (path) => {
         if (!path) return
@@ -161,14 +171,14 @@ export default function App(): React.ReactElement {
 
     // Node creation (studio only)
     if (screen === 'studio') {
-      if (!shift && alt && e.key === 'n') { e.preventDefault(); createNode('folder') }
-      if (shift && e.key === 'D') { e.preventDefault(); createNode('document') }
-      if (shift && e.key === 'N') { e.preventDefault(); createNode('scene') }
-      if (!shift && !alt && e.key === 'd') { e.preventDefault(); void duplicateSelection() }
+      if (!shift && alt && key === 'n') { e.preventDefault(); createNode('folder') }
+      if (shift && key === 'd') { e.preventDefault(); createNode('document') }
+      if (shift && key === 'n') { e.preventDefault(); createNode('scene') }
+      if (!shift && !alt && key === 'd') { e.preventDefault(); void duplicateSelection() }
     }
 
     // Close project
-    if (!shift && !alt && e.key === 'w' && project) {
+    if (!shift && !alt && key === 'w' && project) {
       e.preventDefault()
       window.api.project.close(project.id).catch(console.error)
       unloadProject()

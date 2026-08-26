@@ -273,8 +273,11 @@ class NodeProjectService {
                 return;
             if (node.type !== 'folder' && includedIds.includes(id)) {
                 const content = proj.docs[id]?.content ?? await readText(dir, 'docs', `${id}.md`) ?? '';
+                // Strip the app's own syntax on the way out: `[[Reiko]]` is a codex
+                // link inside Konbini and noise in a manuscript. One shared helper, so
+                // the three backends cannot drift — the contract suite asserts it.
                 if (content.trim())
-                    chapters.push({ title: node.title, content: content.trim() });
+                    chapters.push({ title: node.title, content: (0, utils_1.manuscriptText)(content.trim()) });
             }
             for (const cid of node.childIds)
                 await gather(cid);

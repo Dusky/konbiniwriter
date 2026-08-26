@@ -54,6 +54,23 @@ export default function Studio(): React.ReactElement {
     if (p) syncService.ensureBaseline(p)
   }, [hydrateProjectId])
 
+  // First run ever: open the Guide once. Nothing else in the app names the
+  // binder, the inspector, compile or the AI layer, so without this the studio
+  // is a room full of unlabelled doors. The flag is set *before* opening so a
+  // crash mid-render can't produce a Guide that reappears forever, and it is a
+  // normal closable tab — closing it is the end of it.
+  useEffect(() => {
+    if (!hydrateProjectId) return
+    if (window.api.prefs.get('pref:seenGuide') === 'true') return
+    window.api.prefs.set('pref:seenGuide', 'true')
+    // Nothing is selected on first run, so the rail would sit there saying
+    // "Select a document to see its properties" in 450px beside the Guide —
+    // and the Guide's own "Open the inspector" door would open something
+    // already open. Close it; the door then demonstrates what it describes.
+    useShellStore.getState().setRailPanel(null)
+    useProjectStore.getState().openViewTab('guide')
+  }, [hydrateProjectId])
+
   // Apply persisted sidebar widths on mount (the resizers write these prefs).
   useEffect(() => {
     const bw = window.api.prefs.get('pref:binderWidth')

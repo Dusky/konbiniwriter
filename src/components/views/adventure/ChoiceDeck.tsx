@@ -14,21 +14,35 @@ interface Props {
   styleId: string
   sceneWords: number
   sceneBreakAfter: number
+  deckOpen: boolean
   onChoose: (beat: string, endScene: boolean) => void
+  /** Free text — routed by intent rather than assumed to be a beat. */
+  onSay: (text: string) => void
+  /** Carry on from where the text stops, with no direction given. */
+  onContinue: () => void
+  /** Stand the model down; the author writes this passage themselves. */
+  onHandOff: () => void
+  onToggleDeck: () => void
   onRegenerate: () => void
   onEndScene: () => void
   onSettings: (patch: { passageLength?: BeatLength; optionCount?: number; optionDetail?: OptionDetail; styleId?: string }) => void
 }
 
 /**
- * The deck of beats, and the author's own beat beside them.
+ * The conversation, and the deck of suggested beats above it.
  *
  * The free-text field is deliberately given the same weight as the cards. The
  * moment typing your own direction is harder than clicking a suggested one,
- * this stops being a writing tool and becomes a slot machine.
+ * this stops being a writing tool and becomes a slot machine — which is also
+ * why the deck collapses: when you know what happens next, a menu of things
+ * that could happen instead is noise.
+ *
+ * Cards go straight out as beats. Free text is classified first, because a line
+ * like "that's too flowery" is an instruction about the last passage, not the
+ * next one.
  */
 export default function ChoiceDeck(props: Props): React.ReactElement {
-  const { options, busy, opening, sceneWords, sceneBreakAfter } = props
+  const { options, busy, opening, sceneWords, sceneBreakAfter, deckOpen } = props
   const [own, setOwn] = useState('')
   const [edits, setEdits] = useState<Record<number, string>>({})
   const [editing, setEditing] = useState<number | null>(null)
@@ -44,18 +58,21 @@ export default function ChoiceDeck(props: Props): React.ReactElement {
     if (!text || busy) return
     props.onChoose(text, options[i]?.endScene === true)
   }
-  const chooseOwn = () => {
+  const say = () => {
     const text = own.trim()
     // Opening the story needs no beat — the premise already said what it is.
     if ((!text && !opening) || busy) return
     setOwn('')
-    props.onChoose(text, false)
+    // The opening has nothing written yet, so there is nothing to revise or ask
+    // about: it goes straight out as the first beat.
+    if (opening) props.onChoose(text, false)
+    else props.onSay(text)
   }
 
   // Number keys pick a beat, but never while the author is typing one.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (busy || editing !== null) return
+      if (busy || editing !== null || !deckOpen) return
       const el = e.target as HTMLElement | null
       if (el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT' || el.isContentEditable)) return
       if (e.metaKey || e.ctrlKey || e.altKey) return
@@ -70,19 +87,36 @@ export default function ChoiceDeck(props: Props): React.ReactElement {
     <div className="adv-deck">
       <div className="adv-deck-hd">
         <span className="adv-deck-title">
-          {opening ? 'Open the story' : busy ? 'Writing…' : 'What happens next?'}
+          {opening ? 'Open the story' : busy ? 'Working…' : 'What happens next?'}
         </span>
         <div className="adv-deck-tools">
           <span className="adv-scene-words">
             {sceneWords} words
             {sceneWords < sceneBreakAfter && <span className="dimmed"> · scene break at {sceneBreakAfter}</span>}
           </span>
+          <button className="btn sm" onClick={props.onHandOff} disabled={busy || opening} title="Put the cursor in the manuscript — you write this one">
+            I'll write this one
+          </button>
+          <button className="btn sm" onClick={props.onContinue} disabled={busy || opening} title="Carry on from where the text stops, with no direction">
+            Continue
+          </button>
           <button className="btn sm" onClick={props.onEndScene} disabled={busy || opening} title="Start a new scene document">
             End scene
           </button>
-          <button className="btn sm" onClick={props.onRegenerate} disabled={busy || opening} title="Ask for a different set of beats">
-            <Icon name="refresh" size={12} /> Regenerate
+          <button
+            className={`btn sm${deckOpen ? ' on' : ''}`}
+            onClick={props.onToggleDeck}
+            disabled={opening}
+            aria-expanded={deckOpen}
+            title={deckOpen ? 'Hide the suggested beats' : 'Show suggested beats'}
+          >
+            Beats
           </button>
+          {deckOpen && (
+            <button className="btn sm" onClick={props.onRegenerate} disabled={busy || opening} title="Ask for a different set of beats">
+              <Icon name="refresh" size={12} /> Regenerate
+            </button>
+          )}
           <button className={`btn sm${showOpts ? ' on' : ''}`} onClick={() => setShowOpts((v) => !v)} title="Session settings" aria-expanded={showOpts}>
             <Icon name="settings" size={12} />
           </button>
@@ -121,7 +155,7 @@ export default function ChoiceDeck(props: Props): React.ReactElement {
         </div>
       )}
 
-      {!opening && (
+      {!opening && deckOpen && (
         <div className="adv-cards">
           {options.length === 0 && !busy && (
             <div className="adv-empty-deck">No beats yet — regenerate, or write your own below.</div>
@@ -154,13 +188,15 @@ export default function ChoiceDeck(props: Props): React.ReactElement {
           value={own}
           rows={2}
           disabled={busy}
-          placeholder={opening ? 'Or describe the opening moment yourself…' : 'Or write your own beat… (Enter to write it)'}
+          placeholder={opening
+            ? 'Or describe the opening moment yourself…'
+            : 'What happens next? Or ask for a change, or a question… (Enter to send)'}
           onChange={(e) => setOwn(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); chooseOwn() } }}
-          aria-label="Write your own beat"
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); say() } }}
+          aria-label={opening ? 'Describe the opening' : 'Say what happens next, or ask for a change'}
         />
-        <button className="btn primary" onClick={chooseOwn} disabled={busy || (!own.trim() && !opening)}>
-          {opening ? 'Begin' : 'Write it'}
+        <button className="btn primary" onClick={say} disabled={busy || (!own.trim() && !opening)}>
+          {opening ? 'Begin' : 'Send'}
         </button>
       </div>
     </div>

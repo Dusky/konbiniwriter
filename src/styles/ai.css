@@ -920,6 +920,10 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 .adv-body { flex: 1; min-height: 0; display: flex; }
 .adv-page { flex: 1; min-width: 0; position: relative; display: flex; flex-direction: column; }
 .adv-page > :first-child { flex: 1; min-height: 0; }
+/* `.editor-col`'s 45vh bottom padding exists so typewriter scrolling can centre
+   the last line. In Adventure the deck sits under the page, so that much empty
+   space just pushes the prose off screen. */
+.adv-page .editor-col { padding-bottom: var(--s6); }
 
 /* The passage as it streams, before it is committed to the document. Marked as
    provisional on purpose — nothing here has been written yet. */
@@ -931,9 +935,37 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
 .adv-ghost-tag { display: block; margin-bottom: var(--s2); font-family: var(--mono);
   font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
 
-/* Notes inbox — candidates, never filed on their own. */
-.adv-notes { flex: 0 0 240px; display: flex; flex-direction: column; min-height: 0;
+/* The right column: the conversation, then what it noticed. */
+.adv-aside { flex: 0 0 300px; display: flex; flex-direction: column; min-height: 0;
   border-left: 0.5px solid var(--border); background: var(--bg-2); }
+
+/* The transcript — a record of what the author asked for, which neither the
+   manuscript nor the spine keeps. */
+.adv-script { flex: 1 1 60%; display: flex; flex-direction: column; min-height: 0; }
+.adv-script-hd { flex: none; padding: var(--s2) var(--s3); border-bottom: 0.5px solid var(--border);
+  font-size: var(--t-xs); letter-spacing: .04em; text-transform: uppercase; color: var(--text-3); }
+.adv-script-empty { margin: 0; padding: var(--s3); font-size: var(--t-xs); line-height: 1.6;
+  color: var(--text-3); }
+.adv-script-list { flex: 1; overflow-y: auto; padding: var(--s2); display: flex;
+  flex-direction: column; gap: var(--s3); }
+.adv-turn { display: flex; flex-direction: column; gap: 5px; }
+.adv-turn.pending { opacity: 0.75; }
+.adv-turn-said { align-self: flex-end; max-width: 92%; padding: 5px 9px;
+  border-radius: var(--r-md); background: var(--accent-soft); color: var(--text);
+  font-size: var(--t-sm); line-height: 1.5; white-space: pre-wrap; }
+.adv-turn-got { display: flex; flex-direction: column; gap: 3px; }
+.adv-turn-tag { display: inline-flex; align-items: center; gap: 4px; font-family: var(--mono);
+  font-size: 9.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--dim); }
+.adv-turn-tag.revise { color: var(--warn); }
+.adv-turn-tag.ask { color: var(--text-3); }
+.adv-turn-body { font-size: var(--t-xs); line-height: 1.6; color: var(--text-2);
+  white-space: pre-wrap;
+  /* Prose gets long; the transcript is a reminder of it, not a second copy. */
+  display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Notes inbox — candidates, never filed on their own. */
+.adv-notes { flex: 0 1 auto; max-height: 40%; display: flex; flex-direction: column; min-height: 0;
+  border-top: 0.5px solid var(--border); background: var(--bg-2); }
 .adv-notes-hd { display: flex; align-items: center; justify-content: space-between; gap: var(--s2);
   padding: var(--s2) var(--s3); border-bottom: 0.5px solid var(--border);
   font-size: var(--t-xs); letter-spacing: .04em; text-transform: uppercase; color: var(--text-3); }
@@ -1082,3 +1114,6 @@ mark.slop-uniform { --sc: oklch(0.60 0.05 190); background: color-mix(in oklch, 
   padding-top: var(--s2); border-top: 0.5px solid var(--border); }
 .stats-pace-days > span { font-size: var(--t-xs); color: var(--text-3); margin-right: var(--s1); }
 .stats-pace-days .chip { min-width: 22px; padding: 0 6px; justify-content: center; }
+
+/* Disambiguates two documents with the same title in the quality table. */
+.ql-folder { margin-left: var(--s2); font-size: var(--t-xs); font-weight: 500; color: var(--dim); }
